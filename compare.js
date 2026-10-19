@@ -1,6 +1,7 @@
 /* Independent textbook / workbook reading panes. */
 (() => {
   'use strict';
+  if (window.NorskCompare) return;
   const STORAGE_KEY = 'norsk-compare-v1';
   const BOOKS = ['textbook','workbook'];
   const LABELS = {textbook:'教材',workbook:'练习册'};
@@ -360,5 +361,8 @@
     if (document.fullscreenElement === state.root) Promise.resolve(document.exitFullscreen()).catch(() => {});
     state.focusFallback=false; state.root.classList.remove('cp-focus');
   }
-  window.NorskCompare={init,show,hide,isOpen:() => state.open,resize};
+  function refreshAudio() {
+    if (state.open) for (const pane of Object.values(state.panes)) renderTOC(pane);
+  }
+  window.NorskCompare={init,show,hide,isOpen:() => state.open,resize,refreshAudio};
 })();

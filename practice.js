@@ -1,6 +1,7 @@
 /* Norwegian listening practice. All progress stays in this browser. */
 (() => {
   'use strict';
+  if (window.NorskPractice) return;
   const STORAGE_KEY = 'norsk-practice-v1';
   const RATINGS = {2:'想起了',1:'有点模糊',0:'未记住'};
   const normalize = word => String(word || '').normalize('NFC').trim().toLocaleLowerCase('nb');
