@@ -1,4 +1,4 @@
-import './practice.js?v=20261019-5';
+import './practice.js?v=20261019-6';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -9,11 +9,17 @@ const empty = (message, detail = '') => `<div class="empty-state">${icon('book')
 const state = {
   view: 'reading', book: 'textbook', page: 1, readingId: '', vocabularyId: '', basicId: '',
   expanded: new Set(), data: {}, words: [], basicItems: [], pdfRun: 0, pdfCache: new Map(), renderTask: null,
-  audioRange: null, audioToken: 0, pronunciationToken: 0, toastTimer: null, ready: false, pdfScale: 1
+  audioRange: null, audioToken: 0, pronunciationToken: 0, toastTimer: null, ready: false, pdfScale: 1,
+  wordRate: 1, speechItem: null
 };
 let pdfjsPromise;
 const audio = $('#lesson-audio');
 const pronunciationAudio = $('#word-audio');
+const wordRates = [.5,.75,1,1.25,1.5];
+try {
+  const savedRate = Number(localStorage.getItem('norsk-word-rate-v1'));
+  if (wordRates.includes(savedRate)) state.wordRate = savedRate;
+} catch {}
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','听一听，想一想，再记牢一点']};
 
 function safeURL(path) {
@@ -335,6 +341,20 @@ function phonetics(item) {
   const syllables = Array.isArray(item.syllables) ? item.syllables.join(' · ') : item.syllables;
   return `<div class="word-phonetics">${syllables ? `<span class="syllables" title="音节">${escapeHTML(syllables)}</span>` : ''}${item.ipa ? `<span class="ipa" title="国际音标">${escapeHTML(item.ipa)}</span>` : ''}</div>`;
 }
+function wordRateControl(word = '') {
+  return `<label class="word-rate-control${word ? ' compact' : ''}"><span${word ? ' class="sr-only"' : ''}>读速</span><select data-word-rate aria-label="${escapeHTML(word ? `${word} 的读速` : '单词读速')}" title="单词读速，所有单词同步">${wordRates.map(rate => `<option value="${rate}"${rate === state.wordRate ? ' selected' : ''}>${rate}×</option>`).join('')}</select></label>`;
+}
+function setWordRate(value) {
+  const rate = Number(value);
+  if (!wordRates.includes(rate)) return;
+  state.wordRate = rate;
+  pronunciationAudio.defaultPlaybackRate = rate;
+  pronunciationAudio.playbackRate = rate;
+  pronunciationAudio.preservesPitch = true;
+  $$('[data-word-rate]').forEach(select => { select.value = String(rate); });
+  try { localStorage.setItem('norsk-word-rate-v1',String(rate)); } catch {}
+  if (state.speechItem && 'speechSynthesis' in window && speechSynthesis.speaking && !speechSynthesis.paused) pronounce(state.speechItem);
+}
 function wordGrammar(item) {
   const genders = {m:'阳性',f:'阴性',n:'中性','m/f':'阴性 / 阳性','f/m':'阴性 / 阳性'};
   const gender = genders[item.gender] || item.gender;
@@ -367,7 +387,7 @@ function renderVocabulary() {
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
-  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p>${phonetics(word)}${wordGrammar(word)}</div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-page="${Number(word.sourcePage)}" title="查看教材 Ordliste">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
+  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button>${wordRateControl(word.word)}<span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p>${phonetics(word)}${wordGrammar(word)}</div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-page="${Number(word.sourcePage)}" title="查看教材 Ordliste">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
 }
 function renderBasics() {
   const categories = state.data.basics?.categories || [];
@@ -382,11 +402,12 @@ function renderBasics() {
   $('#basics-description').textContent = category.description || category.subtitle || '';
   const query = $('#basics-search').value.trim().toLocaleLowerCase('nb');
   state.basicItems = (category.items || []).filter(item => !query || [item.word,item.meaning,item.note,item.example,item.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
-  $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button></div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
+  $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button>${wordRateControl(item.word)}</div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
 }
 
 function pauseOtherAudio() {
   ++state.pronunciationToken;
+  state.speechItem = null;
   pronunciationAudio.pause();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
@@ -399,6 +420,9 @@ async function pronounce(item) {
   const path = item.audio || table[item.word] || table[str(item.word).toLocaleLowerCase('nb')] || table.words?.[item.word];
   if (path) {
     pronunciationAudio.src = safeURL(typeof path === 'string' ? path : path.file);
+    pronunciationAudio.defaultPlaybackRate = state.wordRate;
+    pronunciationAudio.playbackRate = state.wordRate;
+    pronunciationAudio.preservesPitch = true;
     try { await pronunciationAudio.play(); } catch(error) { if (token === state.pronunciationToken) { console.error('发音播放失败',error); notify('这条读音暂时无法播放，请检查网络后重试。'); } }
     return;
   }
@@ -417,8 +441,10 @@ async function pronounce(item) {
   const utterance = new SpeechSynthesisUtterance(item.spoken || item.word);
   utterance.voice = voice;
   utterance.lang = voice.lang;
-  utterance.rate = .82;
-  utterance.onerror = () => { if (token === state.pronunciationToken) notify('挪威语朗读暂时不可用，请稍后重试。'); };
+  utterance.rate = state.wordRate;
+  state.speechItem = item;
+  utterance.onend = () => { if (token === state.pronunciationToken) state.speechItem = null; };
+  utterance.onerror = () => { if (token === state.pronunciationToken) { state.speechItem = null; notify('挪威语朗读暂时不可用，请稍后重试。'); } };
   speechSynthesis.speak(utterance);
 }
 function timeLabel(seconds) {
@@ -483,6 +509,9 @@ function toggleAudio() {
   } else audio.pause();
 }
 
+document.addEventListener('change',event => {
+  if (event.target.matches('[data-word-rate]')) setWordRate(event.target.value);
+});
 document.addEventListener('click',event => {
   const view = event.target.closest('.nav-button[data-view]');
   if (view) { setView(view.dataset.view); return; }
@@ -581,7 +610,7 @@ if ('ResizeObserver' in window) new ResizeObserver(() => {
 async function initialize() {
   const names = ['catalog','documents','audio','vocabulary','basics','lessons','pronunciation'];
   const results = await Promise.allSettled(names.map(async name => {
-    const response = await fetch(`data/${name}.json?v=20261019-5`);
+    const response = await fetch(`data/${name}.json?v=20261019-6`);
     if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
     return response.json();
   }));
@@ -611,7 +640,7 @@ async function initialize() {
   }
   state.vocabularyId = str(state.data.vocabulary?.chapters?.[0]?.id || allChapters('textbook')[0]?.id || '');
   state.basicId = str(state.data.basics?.categories?.[0]?.id || '');
-  window.NorskPractice?.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio});
+  window.NorskPractice?.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl()});
   const current = findEntry(state.readingId);
   if (current) state.expanded.add(`${state.book}:${current.chapter.id}`);
   state.ready = true;

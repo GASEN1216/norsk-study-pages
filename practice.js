@@ -6,10 +6,11 @@
   const normalize = word => String(word || '').normalize('NFC').trim().toLocaleLowerCase('nb');
   const unique = values => [...new Set(values.filter(Boolean))];
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null});
-  const state = {root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),limit:20,mode:'random',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0};
+  const state = {root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),mode:'random',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0};
   const $ = selector => state.root?.querySelector(selector);
   const e = value => (state.deps.escapeHTML || (text => String(text ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))))(value);
   const button = (action,text,extra='',kind='') => `<button type="button" class="pr-button ${kind}" data-practice-action="${action}" ${extra}>${text}</button>`;
+  const rateControl = () => { const control=state.deps.renderRateControl?.() || ''; return control ? `<div class="pr-rate-control">${control}</div>` : ''; };
   const now = () => new Date().toISOString();
   const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;
   const currentSession = () => state.store.active;
@@ -44,7 +45,7 @@
   }
   function stopAudio() { ++state.playToken; state.deps.stopAudio?.(); }
   function draft() {
-    state.store.draft = {sources:[...state.selected],limit:state.limit,mode:state.mode};
+    state.store.draft = {sources:[...state.selected],mode:state.mode};
     persist();
   }
   function plainValue(value) {
@@ -126,7 +127,7 @@
     for (let i=result.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [result[i],result[j]]=[result[j],result[i]]; }
     return result;
   }
-  function selectKeys(pool,limit,mode) {
+  function selectKeys(pool,mode) {
     const keys = shuffled([...pool.keys()]);
     if (mode === 'weak') {
       const priority = key => {
@@ -138,11 +139,10 @@
       };
       keys.sort((a,b) => priority(a)-priority(b));
     }
-    return keys.slice(0,Math.max(1,Math.min(pool.size,Math.floor(Number(limit) || 20))));
+    return keys;
   }
   function applyConfig(config) {
     state.selected = new Set((config.sources || []).filter(token => state.sources.has(token)));
-    state.limit = Math.max(1,Math.floor(Number(config.limit) || 20));
     state.mode = config.mode === 'weak' ? 'weak' : 'random';
   }
   function renderTOC() {
@@ -164,13 +164,13 @@
     const saved = state.store.sets;
     const recent = state.store.recent;
     if (!saved.length && !recent.length) return '';
-    return `<section class="pr-panel pr-combinations"><div class="pr-panel-heading"><h2>常练的组合</h2><span>选好后，一键开始</span></div>${saved.length ? `<div class="pr-combo-grid">${saved.map(set => `<article class="pr-combo"><strong>${e(set.name)}</strong><p>${e(selectedLabel(set.sources))}</p><div>${button('saved-start','开始这组',`data-pr-id="${e(set.id)}"`,'pr-small')}${button('saved-load','选用',`data-pr-id="${e(set.id)}"`,'pr-small pr-quiet')}${button('saved-delete','删除',`data-pr-id="${e(set.id)}" aria-label="删除组合 ${e(set.name)}"`,'pr-small pr-quiet')}</div></article>`).join('')}</div>` : ''}${recent.length ? `<details class="pr-recent"><summary>最近 ${recent.length} 个组合</summary><div class="pr-recent-list">${recent.map((entry,index) => `<div><span>${e(entry.label || selectedLabel(entry.sources))}<small>${entry.limit} 词 · ${entry.mode === 'weak' ? '优先薄弱' : '随机'}</small></span>${button('recent-start','再练一次',`data-pr-index="${index}"`,'pr-small')}</div>`).join('')}</div></details>` : ''}</section>`;
+    return `<section class="pr-panel pr-combinations"><div class="pr-panel-heading"><h2>常练的组合</h2><span>选好后，一键开始</span></div>${saved.length ? `<div class="pr-combo-grid">${saved.map(set => `<article class="pr-combo"><strong>${e(set.name)}</strong><p>${e(selectedLabel(set.sources))}</p><div>${button('saved-start','开始这组',`data-pr-id="${e(set.id)}"`,'pr-small')}${button('saved-load','选用',`data-pr-id="${e(set.id)}"`,'pr-small pr-quiet')}${button('saved-delete','删除',`data-pr-id="${e(set.id)}" aria-label="删除组合 ${e(set.name)}"`,'pr-small pr-quiet')}</div></article>`).join('')}</div>` : ''}${recent.length ? `<details class="pr-recent"><summary>最近 ${recent.length} 个组合</summary><div class="pr-recent-list">${recent.map((entry,index) => `<div><span>${e(entry.label || selectedLabel(entry.sources))}<small>${entry.mode === 'weak' ? '优先薄弱' : '随机'}</small></span>${button('recent-start','再练一次',`data-pr-index="${index}"`,'pr-small')}</div>`).join('')}</div></details>` : ''}</section>`;
   }
   function renderSetup() {
     state.screen = 'setup';
     const pool = poolFor(state.selected);
     const active = currentSession();
-    shell(`${active ? `<section class="pr-resume-banner"><div><strong>上次练习还在这里</strong><p>${e(active.label)} · 已完成 ${Object.keys(active.answers).length} / ${active.firstKeys.length} 词</p></div>${button('resume','继续练习','','pr-primary')}</section>` : ''}<div class="pr-intro"><div><p class="pr-kicker">LYTT & HUSK · 听音记词</p><h2>把听到的词，变成记住的词。</h2><p>先听读音，再判断自己是否想起意思。每次只专注一个词。</p></div><div class="pr-intro-mark" aria-hidden="true">ø</div></div><section class="pr-panel"><div class="pr-panel-heading"><h2>自由选择练习范围</h2>${button('clear-selection','清空选择','','pr-small pr-quiet')}</div><p class="pr-help">可以组合不同章节与常识。整章包含完整章词表；选择小节时，只练该小节的词。</p><div class="pr-source-tabs" role="group" aria-label="选择来源">${button('expand-chapters','展开教材目录','','pr-small')}${button('expand-basics','展开常识目录','','pr-small')}</div><div class="pr-source-columns"><section><h3>教材词汇</h3><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" ${state.selected.has(chapter.token) || chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><span>第 ${e(chapter.id)} 章 · ${e(chapter.title)}</span><small>${chapter.words.length} 词</small></summary><label class="pr-source-row pr-whole-chapter"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span>选择整章</span><small>${chapter.words.length} 词</small></label>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('') || '<p class="pr-help">教材词表暂未载入。</p>'}</div></section><section><h3>基础常识</h3><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('') || '<p class="pr-help">基础常识暂未载入。</p>'}</div></section></div><div class="pr-selection-bar"><span>已选 <strong id="pr-source-count">${state.selected.size}</strong> 组，去重后 <strong id="pr-pool-count">${pool.size}</strong> 词</span><span id="pr-selection-label">${e(selectedLabel([...state.selected]))}</span></div><div class="pr-settings"><label>每次词数<input id="pr-limit" type="number" min="1" max="${Math.max(1,pool.size)}" value="${Math.min(state.limit,Math.max(1,pool.size))}" inputmode="numeric"></label><label>出题顺序<select id="pr-order"><option value="random" ${state.mode === 'random' ? 'selected' : ''}>随机抽词</option><option value="weak" ${state.mode === 'weak' ? 'selected' : ''}>优先薄弱词</option></select></label>${button('start',`开始听音练习 <span id="pr-start-count">${Math.min(state.limit,pool.size)}</span> 词`,'id="pr-start" '+(pool.size ? '' : 'disabled'),'pr-primary')}</div><div class="pr-save-combo"><label class="sr-only" for="pr-set-name">组合名称</label><input id="pr-set-name" type="text" maxlength="40" placeholder="给这组取个名字，如 1.4 + 2.4">${button('save-set','保存选题组合','','pr-small')}</div></section>${savedGroups()}<section class="pr-score-guide"><h3>怎样自评</h3><p><span>认识 / 想起了 <strong>2 分</strong></span><span>有点模糊 <strong>1 分</strong></span><span>不认识 / 未记住 <strong>0 分</strong></span></p><p>按第一次听到时的记忆自评。薄弱词会在最后再听一遍，回顾不改变首答分数。</p></section><div class="pr-setup-footer">${button('history','查看本机学习记录','','pr-quiet')}${button('weak',`复习薄弱词（${weakKeys().length}）`,'','pr-quiet')}</div>`);
+    shell(`${active ? `<section class="pr-resume-banner"><div><strong>上次练习还在这里</strong><p>${e(active.label)} · 已完成 ${Object.keys(active.answers).length} / ${active.firstKeys.length} 词</p></div>${button('resume','继续练习','','pr-primary')}</section>` : ''}<div class="pr-intro"><div><p class="pr-kicker">LYTT & HUSK · 听音记词</p><h2>把听到的词，变成记住的词。</h2><p>先听读音，再判断自己是否想起意思。每次只专注一个词。</p></div><div class="pr-intro-mark" aria-hidden="true">ø</div></div><section class="pr-panel"><div class="pr-panel-heading"><h2>自由选择练习范围</h2>${button('clear-selection','清空选择','','pr-small pr-quiet')}</div><p class="pr-help">可以组合不同章节与常识。整章包含完整章词表；选择小节时，只练该小节的词。所选词会全部进入一轮，可随时暂停续练。</p><div class="pr-source-tabs" role="group" aria-label="选择来源">${button('expand-chapters','展开教材目录','','pr-small')}${button('expand-basics','展开常识目录','','pr-small')}</div><div class="pr-source-columns"><section><h3>教材词汇</h3><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" ${state.selected.has(chapter.token) || chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><span>第 ${e(chapter.id)} 章 · ${e(chapter.title)}</span><small>${chapter.words.length} 词</small></summary><label class="pr-source-row pr-whole-chapter"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span>选择整章</span><small>${chapter.words.length} 词</small></label>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('') || '<p class="pr-help">教材词表暂未载入。</p>'}</div></section><section><h3>基础常识</h3><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('') || '<p class="pr-help">基础常识暂未载入。</p>'}</div></section></div><div class="pr-selection-bar"><span>当前练习范围</span><span id="pr-selection-label">${e(selectedLabel([...state.selected]))}</span></div><div class="pr-settings"><label>出题顺序<select id="pr-order"><option value="random" ${state.mode === 'random' ? 'selected' : ''}>随机抽词</option><option value="weak" ${state.mode === 'weak' ? 'selected' : ''}>优先薄弱词</option></select></label>${rateControl()}${button('start','开始听音练习','id="pr-start" '+(pool.size ? '' : 'disabled'),'pr-primary')}</div><div class="pr-save-combo"><label class="sr-only" for="pr-set-name">组合名称</label><input id="pr-set-name" type="text" maxlength="40" placeholder="给这组取个名字，如 1.4 + 2.4">${button('save-set','保存选题组合','','pr-small')}</div></section>${savedGroups()}<section class="pr-score-guide"><h3>怎样自评</h3><p><span>认识 / 想起了 <strong>2 分</strong></span><span>有点模糊 <strong>1 分</strong></span><span>不认识 / 未记住 <strong>0 分</strong></span></p><p>按第一次听到时的记忆自评。薄弱词会在最后再听一遍，回顾不改变首答分数。</p></section><div class="pr-setup-footer">${button('history','查看本机学习记录','','pr-quiet')}${button('weak',`复习薄弱词（${weakKeys().length}）`,'','pr-quiet')}</div>`);
     updateSelectionUI(false);
   }
   function updateSelectionUI(save=true) {
@@ -188,18 +188,13 @@
       if (input) input.checked = state.selected.has(category.token);
     }
     const pool = poolFor(state.selected);
-    $('#pr-source-count').textContent = state.selected.size;
-    $('#pr-pool-count').textContent = pool.size;
-    $('#pr-selection-label').textContent = selectedLabel([...state.selected]);
-    $('#pr-limit').max = Math.max(1,pool.size);
-    $('#pr-limit').value = Math.min(state.limit,Math.max(1,pool.size));
-    $('#pr-start-count').textContent = Math.min(state.limit,pool.size);
+    $('#pr-selection-label').textContent = selectedLabel([...state.selected]) || '还没有选择练习范围';
     $('#pr-start').disabled = !pool.size;
     if (save) draft();
   }
   function rememberConfig(config,label) {
-    const signature = JSON.stringify([config.sources.slice().sort(),config.limit,config.mode]);
-    state.store.recent = [{...config,label,usedAt:now(),signature},...state.store.recent.filter(item => item.signature !== signature)].slice(0,6);
+    const signature = JSON.stringify([config.sources.slice().sort(),config.mode]);
+    state.store.recent = [{...config,label,usedAt:now(),signature},...state.store.recent.filter(item => JSON.stringify([(item.sources || []).slice().sort(),item.mode]) !== signature)].slice(0,6);
   }
   function startSession(config={},customKeys=null,label='') {
     const begin = () => {
@@ -207,12 +202,11 @@
       const sources = config.sources || [...state.selected];
       const pool = customKeys ? new Map(unique(customKeys).filter(key => state.words.has(key)).map(key => [key,state.words.get(key)])) : poolFor(sources);
       if (!pool.size) { announce('这组目前没有可练习的词，请重新选择范围。'); return; }
-      const limit = Math.max(1,Math.min(pool.size,Number(config.limit) || state.limit));
       const mode = config.mode || state.mode;
-      const firstKeys = selectKeys(pool,limit,mode);
+      const firstKeys = selectKeys(pool,mode);
       const session = {id:uid(),startedAt:now(),sources,label:label || selectedLabel(sources),mode,firstKeys,customKeys:customKeys ? [...pool.keys()] : null,reviewKeys:[],reviewAnswers:{},phase:'first',index:0,answers:{},paused:false,cardOpen:false};
       state.store.active = session;
-      if (!customKeys) { applyConfig({sources,limit,mode}); rememberConfig({sources,limit,mode},session.label); state.store.draft={sources,limit,mode}; }
+      if (!customKeys) { applyConfig({sources,mode}); rememberConfig({sources,mode},session.label); state.store.draft={sources,mode}; }
       persist(); renderSession(); playCurrent();
     };
     if (currentSession()) {
@@ -255,7 +249,7 @@
     const keys = currentKeys(session);
     const done = answered(session);
     const progress = Math.round((session.index + (done ? 1 : 0)) / Math.max(1,keys.length) * 100);
-    shell(`<div class="pr-session-top"><div><span class="pr-kicker">${session.phase === 'review' ? '薄弱词回顾 · 不计入首答分数' : '听音自评'}</span><p>${e(session.label)}</p></div><div class="pr-session-tools">${button('pause',session.paused ? '继续' : '暂停','','pr-small')}${button('exit','退出练习','','pr-small pr-quiet')}</div></div><div class="pr-progress-label"><span>${session.phase === 'review' ? '回顾' : '首轮'} ${Math.min(session.index+1,keys.length)} / ${keys.length}</span><span>${progress}%</span></div><div class="pr-progress" role="progressbar" aria-label="本轮练习进度" aria-valuemin="0" aria-valuemax="${keys.length}" aria-valuenow="${session.index+(done ? 1 : 0)}"><span style="width:${progress}%"></span></div><section class="pr-listening-card ${session.paused ? 'is-paused' : ''}"><p class="pr-kicker">${session.paused ? '休息一下，进度已经保存' : done ? '已完成本词自评' : '只听声音，先在心里想一想'}</p><div class="pr-sound-symbol" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h2>${session.paused ? '准备好，再继续。' : done ? '看过词卡，再向前一步。' : '你听出了这个词吗？'}</h2><p>${session.paused ? '继续后会重播当前词。' : done ? `${RATINGS[answerMap(session)[currentKey(session)]]}${session.phase === 'first' ? ' · '+answerMap(session)[currentKey(session)]+' 分' : ''}` : '先回想意思，再选择最接近的状态。'}</p>${session.paused ? button('resume','继续听音练习','','pr-primary') : `<div class="pr-listen-action">${button('replay','重播读音','','pr-replay')}</div>${done ? `<div class="pr-action-row">${button('card','查看词卡','','pr-quiet')}${button('next',session.index === keys.length-1 ? (session.phase === 'review' || !session.reviewKeys.length ? '查看结果' : '进入回顾') : '下一词','','pr-primary')}</div>` : `<div class="pr-rating-buttons">${button('rate','<strong>认识</strong><span>想起了 · 2 分</span>','data-pr-points="2"','pr-rating pr-known')}${button('rate','<strong>有点模糊</strong><span>不太确定 · 1 分</span>','data-pr-points="1"','pr-rating pr-unsure')}${button('rate','<strong>不认识</strong><span>未记住 · 0 分</span>','data-pr-points="0"','pr-rating pr-unknown')}</div>${button('card','先查看词卡，再自评','','pr-quiet')}`}`}</section><p class="pr-keyboard-help">空格重播 · 1 认识 · 2 模糊 · 3 不认识 · → 下一词 · Esc 暂停</p>`);
+    shell(`<div class="pr-session-top"><div><span class="pr-kicker">${session.phase === 'review' ? '薄弱词回顾 · 不计入首答分数' : '听音自评'}</span><p>${e(session.label)}</p></div><div class="pr-session-tools">${button('pause',session.paused ? '继续' : '暂停','','pr-small')}${button('exit','退出练习','','pr-small pr-quiet')}</div></div><div class="pr-progress-label"><span>${session.phase === 'review' ? '回顾' : '首轮'} ${Math.min(session.index+1,keys.length)} / ${keys.length}</span><span>${progress}%</span></div><div class="pr-progress" role="progressbar" aria-label="本轮练习进度" aria-valuemin="0" aria-valuemax="${keys.length}" aria-valuenow="${session.index+(done ? 1 : 0)}"><span style="width:${progress}%"></span></div><section class="pr-listening-card ${session.paused ? 'is-paused' : ''}"><p class="pr-kicker">${session.paused ? '休息一下，进度已经保存' : done ? '已完成本词自评' : '只听声音，先在心里想一想'}</p><div class="pr-sound-symbol" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h2>${session.paused ? '准备好，再继续。' : done ? '看过词卡，再向前一步。' : '你听出了这个词吗？'}</h2><p>${session.paused ? '继续后会重播当前词。' : done ? `${RATINGS[answerMap(session)[currentKey(session)]]}${session.phase === 'first' ? ' · '+answerMap(session)[currentKey(session)]+' 分' : ''}` : '先回想意思，再选择最接近的状态。'}</p>${session.paused ? `<div class="pr-listen-action">${button('resume','继续听音练习','','pr-primary')}${rateControl()}</div>` : `<div class="pr-listen-action">${button('replay','重播读音','','pr-replay')}${rateControl()}</div>${done ? `<div class="pr-action-row">${button('card','查看词卡','','pr-quiet')}${button('next',session.index === keys.length-1 ? (session.phase === 'review' || !session.reviewKeys.length ? '查看结果' : '进入回顾') : '下一词','','pr-primary')}</div>` : `<div class="pr-rating-buttons">${button('rate','<strong>认识</strong><span>想起了 · 2 分</span>','data-pr-points="2"','pr-rating pr-known')}${button('rate','<strong>有点模糊</strong><span>不太确定 · 1 分</span>','data-pr-points="1"','pr-rating pr-unsure')}${button('rate','<strong>不认识</strong><span>未记住 · 0 分</span>','data-pr-points="0"','pr-rating pr-unknown')}</div>${button('card','先查看词卡，再自评','','pr-quiet')}`}`}</section><p class="pr-keyboard-help">空格重播 · 1 认识 · 2 模糊 · 3 不认识 · → 下一词 · Esc 暂停</p>`);
   }
   function renderFacts(item) {
     const verbLabels = {infinitive:'原形',present:'现在时',past:'过去时',pastParticiple:'过去分词'};
@@ -277,7 +271,7 @@
     const key = currentKey(session);
     const usage = unique([plainValue(item.usage),plainValue(item.note)]);
     const renderExampleSection = (title,examples) => examples?.length ? `<section class="pr-card-section"><h3>${title}</h3>${examples.slice(0,4).map(example => `<p class="pr-card-example" lang="nb">${e(example)}</p>`).join('')}</section>` : '';
-    dialog.innerHTML = `<div class="pr-card-handle" aria-hidden="true"></div><div class="pr-card-top"><span class="pr-kicker">词卡</span>${button('card-close','关闭','aria-label="关闭词卡"','pr-small pr-quiet')}</div><h2 id="pr-card-title" lang="nb">${e(item.word)}</h2><div class="pr-card-phonetics">${item.syllables ? `<span>${e(item.syllables)}</span>` : ''}${item.ipa ? `<span>${e(item.ipa)}</span>` : ''}${button('replay','重听','','pr-small')}</div>${item.meaning ? `<p class="pr-card-meaning">${e(item.meaning)}</p>` : ''}${renderFacts(item)}${usage.length ? `<section class="pr-card-section"><h3>用法</h3>${usage.map(text => `<p>${e(text)}</p>`).join('')}</section>` : ''}${renderExampleSection('课文句子',item.practiceTextExamples)}${renderExampleSection('学习例句',item.practiceLearningExamples)}${item.sourceEntry ? `<section class="pr-card-section"><h3>原词条</h3><p lang="nb">${e(item.sourceEntry)}</p></section>` : ''}<p class="pr-card-source">${e(item.sourceLabels.slice(0,3).join(' · '))}</p><div class="pr-card-rating">${done ? `<p class="pr-answer-record" role="status">${session.phase === 'review' ? '本次回顾' : '首答'}：${e(RATINGS[answerMap(session)[key]])}${session.phase === 'first' ? ' · '+answerMap(session)[key]+' 分' : ' · 不改变首答分数'}</p>${button('next',session.index === currentKeys(session).length-1 ? (session.phase === 'review' || !session.reviewKeys.length ? '查看结果' : '进入回顾') : '下一词','','pr-primary')}` : `<p>按刚才听到时的记忆自评</p><div class="pr-rating-buttons">${button('rate','想起了 · 2 分','data-pr-points="2"','pr-rating pr-known')}${button('rate','有点模糊 · 1 分','data-pr-points="1"','pr-rating pr-unsure')}${button('rate','未记住 · 0 分','data-pr-points="0"','pr-rating pr-unknown')}</div>`}</div>`;
+    dialog.innerHTML = `<div class="pr-card-handle" aria-hidden="true"></div><div class="pr-card-top"><span class="pr-kicker">词卡</span>${button('card-close','关闭','aria-label="关闭词卡"','pr-small pr-quiet')}</div><h2 id="pr-card-title" lang="nb">${e(item.word)}</h2><div class="pr-card-phonetics">${item.syllables ? `<span>${e(item.syllables)}</span>` : ''}${item.ipa ? `<span>${e(item.ipa)}</span>` : ''}${button('replay','重听','','pr-small')}${rateControl()}</div>${item.meaning ? `<p class="pr-card-meaning">${e(item.meaning)}</p>` : ''}${renderFacts(item)}${usage.length ? `<section class="pr-card-section"><h3>用法</h3>${usage.map(text => `<p>${e(text)}</p>`).join('')}</section>` : ''}${renderExampleSection('课文句子',item.practiceTextExamples)}${renderExampleSection('学习例句',item.practiceLearningExamples)}${item.sourceEntry ? `<section class="pr-card-section"><h3>原词条</h3><p lang="nb">${e(item.sourceEntry)}</p></section>` : ''}<p class="pr-card-source">${e(item.sourceLabels.slice(0,3).join(' · '))}</p><div class="pr-card-rating">${done ? `<p class="pr-answer-record" role="status">${session.phase === 'review' ? '本次回顾' : '首答'}：${e(RATINGS[answerMap(session)[key]])}${session.phase === 'first' ? ' · '+answerMap(session)[key]+' 分' : ' · 不改变首答分数'}</p>${button('next',session.index === currentKeys(session).length-1 ? (session.phase === 'review' || !session.reviewKeys.length ? '查看结果' : '进入回顾') : '下一词','','pr-primary')}` : `<p>按刚才听到时的记忆自评</p><div class="pr-rating-buttons">${button('rate','想起了 · 2 分','data-pr-points="2"','pr-rating pr-known')}${button('rate','有点模糊 · 1 分','data-pr-points="1"','pr-rating pr-unsure')}${button('rate','未记住 · 0 分','data-pr-points="0"','pr-rating pr-unknown')}</div>`}</div>`;
     session.cardOpen = true;
     if (!dialog.open) dialog.showModal();
   }
@@ -325,7 +319,7 @@
     state.screen = 'results'; state.result = result;
     const counts = [2,1,0].map(points => result.answers.filter(answer => answer.points === points).length);
     const weak = result.answers.filter(answer => answer.points < 2 && state.words.has(answer.key));
-    shell(`<section class="pr-results-hero"><div><p class="pr-kicker">${fromHistory ? '学习记录' : '这次练习完成了'}</p><h2>每次听懂一点，都是进步。</h2><p>${e(result.label)}</p><span class="pr-result-date">${e(dateLabel(result.finishedAt))} · ${result.total} 词 · 回顾 ${result.reviewed || 0} 词</span></div><div class="pr-score"><strong>${scoreOf(result)}</strong><span>首答得分 / 100</span></div></section><div class="pr-result-counts"><span><strong>${counts[0]}</strong>想起了</span><span><strong>${counts[1]}</strong>有点模糊</span><span><strong>${counts[2]}</strong>未记住</span></div><div class="pr-action-row pr-result-actions">${weak.length ? button('result-weak',`再练这 ${weak.length} 个薄弱词`,'','pr-primary') : ''}${button('result-again','再练同一组','','pr-secondary')}${button('setup','重新选题','','pr-quiet')}${button('history','学习记录','','pr-quiet')}</div><section class="pr-panel"><div class="pr-panel-heading"><h2>每个词的积累</h2><span>熟练度按历次首答计算</span></div><div class="pr-result-words">${result.answers.map(answer => { const learned=mastery(answer.key); return `<div class="pr-result-word"><div><strong lang="nb">${e(answer.word)}</strong><p>${e(answer.meaning)}</p></div><span class="pr-result-rating pr-points-${answer.points}">${e(RATINGS[answer.points])} · ${answer.points} 分</span><div class="pr-mastery"><span>${learned.text} · ${learned.percent}%</span><div><span style="width:${learned.percent}%"></span></div></div>${state.words.has(answer.key) ? button('result-word','重听',`data-pr-key="${e(answer.key)}"`,'pr-small pr-quiet') : ''}</div>`; }).join('')}</div></section>`);
+    shell(`<section class="pr-results-hero"><div><p class="pr-kicker">${fromHistory ? '学习记录' : '这次练习完成了'}</p><h2>每次听懂一点，都是进步。</h2><p>${e(result.label)}</p><span class="pr-result-date">${e(dateLabel(result.finishedAt))} · ${result.total} 词 · 回顾 ${result.reviewed || 0} 词</span></div><div class="pr-score"><strong>${scoreOf(result)}</strong><span>首答得分 / 100</span></div></section><div class="pr-result-counts"><span><strong>${counts[0]}</strong>想起了</span><span><strong>${counts[1]}</strong>有点模糊</span><span><strong>${counts[2]}</strong>未记住</span></div><div class="pr-action-row pr-result-actions">${weak.length ? button('result-weak',`再练这 ${weak.length} 个薄弱词`,'','pr-primary') : ''}${button('result-again','再练同一组','','pr-secondary')}${button('setup','重新选题','','pr-quiet')}${button('history','学习记录','','pr-quiet')}</div><section class="pr-panel"><div class="pr-panel-heading"><h2>每个词的积累</h2><div class="pr-result-heading-controls"><span>熟练度按历次首答计算</span>${rateControl()}</div></div><div class="pr-result-words">${result.answers.map(answer => { const learned=mastery(answer.key); return `<div class="pr-result-word"><div><strong lang="nb">${e(answer.word)}</strong><p>${e(answer.meaning)}</p></div><span class="pr-result-rating pr-points-${answer.points}">${e(RATINGS[answer.points])} · ${answer.points} 分</span><div class="pr-mastery"><span>${learned.text} · ${learned.percent}%</span><div><span style="width:${learned.percent}%"></span></div></div>${state.words.has(answer.key) ? button('result-word','重听',`data-pr-key="${e(answer.key)}"`,'pr-small pr-quiet') : ''}</div>`; }).join('')}</div></section>`);
   }
   function renderHistory() {
     state.screen = 'history';
@@ -364,10 +358,8 @@
     if (!state.selected.size) { announce('请先选择练习范围。'); return; }
     const name = $('#pr-set-name').value.trim();
     if (!name) { $('#pr-set-name').focus(); announce('给这组选题取个名字，就可以随时重练。'); return; }
-    const poolSize = poolFor(state.selected).size;
-    state.limit = Math.max(1,Math.min(poolSize,Math.floor(Number($('#pr-limit')?.value) || 20)));
     state.mode = $('#pr-order')?.value === 'weak' ? 'weak' : 'random';
-    const config = {sources:[...state.selected],limit:state.limit,mode:state.mode};
+    const config = {sources:[...state.selected],mode:state.mode};
     const existing = state.store.sets.find(item => item.name === name);
     const save = () => {
       if (existing) Object.assign(existing,config,{updatedAt:now()});
@@ -377,9 +369,9 @@
     if (existing) confirmDialog('更新同名组合？',`“${name}”已存在，更新后会使用当前选题与词数。`,[{action:'confirm-run',text:'更新组合',primary:true,run:save},{action:'confirm-close',text:'取消'}]);
     else save();
   }
-  function reviewKeys(keys,label,limit=keys.length) {
+  function reviewKeys(keys,label) {
     if (!keys.length) { announce('目前没有需要复习的薄弱词，先完成一组练习吧。'); return; }
-    startSession({sources:[],mode:'weak',limit},keys,label);
+    startSession({sources:[],mode:'weak'},keys,label);
   }
   function exportRecords() {
     try {
@@ -405,7 +397,7 @@
       case 'setup': navigate('setup'); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
-      case 'weak': reviewKeys(weakKeys(),'薄弱词复习',Math.min(state.limit,weakKeys().length)); break;
+      case 'weak': reviewKeys(weakKeys(),'薄弱词复习'); break;
       case 'clear-selection': state.selected.clear(); updateSelectionUI(); break;
       case 'expand-chapters': state.root.querySelectorAll('.pr-source-chapter').forEach(detail => { detail.open = true; }); break;
       case 'expand-basics': $('#pr-basic-sources')?.scrollIntoView({block:'start',behavior:'smooth'}); break;
@@ -418,7 +410,7 @@
         break;
       }
       case 'recent-start': { const config = state.store.recent[Number(target.dataset.prIndex)]; if (config) startSession(config); break; }
-      case 'start': startSession({sources:[...state.selected],limit:Number($('#pr-limit').value),mode:$('#pr-order').value}); break;
+      case 'start': startSession({sources:[...state.selected],mode:$('#pr-order').value}); break;
       case 'resume': resume(); break;
       case 'pause': if (session?.paused) resume(); else { pause(); renderSession(); } break;
       case 'exit': if (session) confirmDialog('离开这次练习？','可以保留当前进度，回来继续听。',[
@@ -438,7 +430,7 @@
       case 'review-start': if (session) { session.phase='review'; session.index=0; session.paused=false; persist(); renderSession(); playCurrent(); } break;
       case 'finish': finish(); break;
       case 'result-weak': if (state.result) reviewKeys(state.result.answers.filter(answer => answer.points < 2).map(answer => answer.key),'本次薄弱词复习'); break;
-      case 'result-again': if (state.result) startSession({sources:state.result.sources,limit:state.result.total,mode:state.result.mode},state.result.customKeys || null,state.result.label); break;
+      case 'result-again': if (state.result) startSession({sources:state.result.sources,mode:state.result.mode},state.result.customKeys || null,state.result.label); break;
       case 'result-word': { const word=state.words.get(target.dataset.prKey); stopAudio(); if (word) Promise.resolve(state.deps.pronounce?.(word)).catch(() => announce('读音暂时无法播放，请稍后重试。')); break; }
       case 'history-detail': { const result=state.store.history.find(item => item.id === id); if (result) renderResult(result,true); break; }
       case 'history-weak': { const result=state.store.history.find(item => item.id === id); if (result) reviewKeys(result.answers.filter(answer => answer.points < 2).map(answer => answer.key),`${dateLabel(result.finishedAt)} · 错词复习`); break; }
@@ -461,17 +453,7 @@
         chapter.sections.forEach(section => { if (section.token !== token) state.selected.add(section.token); });
       } else if (input.checked) state.selected.add(token); else state.selected.delete(token);
       updateSelectionUI();
-    } else if (input.id === 'pr-limit') {
-      state.limit = Math.max(1,Math.min(poolFor(state.selected).size || 1,Math.floor(Number(input.value) || 20))); updateSelectionUI();
     } else if (input.id === 'pr-order') { state.mode=input.value === 'weak' ? 'weak' : 'random'; draft(); }
-  }
-  function onInput(event) {
-    const input = event.target;
-    if (!state.root?.contains(input) || input.id !== 'pr-limit' || input.value.trim() === '' || !Number.isFinite(Number(input.value))) return;
-    state.limit = Math.max(1,Math.min(poolFor(state.selected).size || 1,Math.floor(Number(input.value))));
-    const counter = $('#pr-start-count');
-    if (counter) counter.textContent = Math.min(state.limit,poolFor(state.selected).size);
-    draft();
   }
   function onKey(event) {
     if (!state.visible || state.screen !== 'session' || state.root.hidden || event.altKey || event.ctrlKey || event.metaKey || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
@@ -512,14 +494,13 @@
       state.store=readStore();
       document.addEventListener('click',onClick);
       document.addEventListener('change',onChange);
-      document.addEventListener('input',onInput);
       document.addEventListener('keydown',onKey);
       window.addEventListener('beforeunload',() => { if (currentSession()) { currentSession().paused=true; persist(); } });
       document.addEventListener('visibilitychange',() => { if (document.hidden && currentSession() && state.visible) { pause(); if (state.screen === 'session') renderSession(); } });
       state.initialized=true;
     }
     recoverActive();
-    applyConfig(state.store.draft || state.store.recent[0] || {sources:state.chapters[0] ? [state.chapters[0].token] : [],limit:20,mode:'random'});
+    applyConfig(state.store.draft || state.store.recent[0] || {sources:state.chapters[0] ? [state.chapters[0].token] : [],mode:'random'});
     renderSetup();
   }
   function show() {
