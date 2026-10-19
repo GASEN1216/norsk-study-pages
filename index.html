@@ -6,7 +6,8 @@
   <meta name="theme-color" content="#21483e">
   <meta name="description" content="结合教材、练习册、章节录音与课堂资料的挪威语学习书房。在线阅读、听读课文、学习词汇与基础知识。">
   <title>Norsk 学习书房 · 挪威语学习</title>
-  <link rel="stylesheet" href="styles.css?v=20261019-4">
+  <link rel="stylesheet" href="styles.css?v=20261019-5">
+  <link rel="stylesheet" href="practice.css?v=20261019-5">
 </head>
 <body>
   <svg class="svg-definitions" aria-hidden="true"><defs>
@@ -24,6 +25,9 @@
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8m-8 4h6"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-fullscreen" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
   </defs></svg>
 
   <header class="site-header">
@@ -35,6 +39,7 @@
       <button class="nav-button active" data-view="reading"><svg><use href="#i-book"/></svg><span>阅读</span></button>
       <button class="nav-button" data-view="vocabulary"><svg><use href="#i-words"/></svg><span>单词表</span></button>
       <button class="nav-button" data-view="basics"><svg><use href="#i-spark"/></svg><span>基础常识</span></button>
+      <button class="nav-button" data-view="practice"><svg><use href="#i-check"/></svg><span>练习</span></button>
     </nav>
     <div class="header-meta"><span class="status-dot"></span>Bokmål <span class="header-divider">/</span> 挪威语</div>
   </header>
@@ -60,7 +65,7 @@
       <section id="reading-view" class="view" aria-label="在线阅读">
         <div class="reader-toolbar">
           <div class="reader-location"><svg><use href="#i-book"/></svg><span id="reader-book-title">教材</span><span class="reader-location-divider">/</span><span id="reader-section-title">正在载入目录</span></div>
-          <div class="reader-tools"><label class="zoom-control"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option></select></label><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
+          <div class="reader-tools"><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
         </div>
         <div class="reader-audio-note" id="reading-audio-note" role="note" hidden></div>
         <div class="pdf-stage" id="pdf-stage">
@@ -73,14 +78,15 @@
           <button class="page-button" id="next-page" aria-label="下一页"><span>下一页</span><svg><use href="#i-chevron"/></svg></button>
         </div>
         <details class="lesson-materials" id="lesson-materials"><summary><svg><use href="#i-file"/></svg><span>课堂资料与 PPT</span><span id="lesson-count" class="muted"></span><svg class="details-chevron"><use href="#i-chevron"/></svg></summary><div id="lesson-list" class="lesson-list"></div></details>
-        <p class="reader-tip">目录标注教材印刷页码，下方为 PDF 文件页码。可用键盘 ← → 翻页。</p>
+        <p class="reader-tip">← → 翻页 · 双击页面切换整页与宽度 · 目录为印刷页码，下方为 PDF 页码</p>
       </section>
 
       <section id="vocabulary-view" class="view" aria-label="课文单词表" hidden>
-        <div class="vocabulary-intro"><div><p class="section-kicker">ORD I SAMMENHENG</p><p>把单词放回句子里，记得更牢。</p></div><div class="word-total"><strong id="word-count">0</strong><span>个词语</span></div></div>
+        <div class="vocabulary-intro"><div><p class="section-kicker">ORDLISTE</p><p>教材章末词表，按原书小节学习。</p></div><div class="word-total"><strong id="word-count">0</strong><span>个词语</span></div></div>
         <div class="word-toolbar"><label class="search-field"><svg><use href="#i-search"/></svg><input id="vocab-search" type="search" placeholder="搜索单词、释义或课文例句" autocomplete="off" aria-label="搜索单词"></label><label class="sort-label"><span>排序</span><select id="vocab-sort" aria-label="单词排序"><option value="easy">由易到难</option><option value="hard">由难到易</option><option value="alpha">字母顺序</option></select></label></div>
         <div class="vocab-table"><div class="vocab-table-head"><span>单词 · 音节 · 读音</span><span>课文中的句子</span></div><div id="vocab-rows"></div></div>
       </section>
+      <section id="practice-view" class="view" aria-label="词汇练习" hidden></section>
 
       <section id="basics-view" class="view" aria-label="挪威语基础常识" hidden>
         <div class="basics-intro"><div class="basics-mark">å</div><div><p class="section-kicker">DET GRUNNLEGGENDE</p><h2 id="basics-title">从最常用的开始</h2><p id="basics-description">建立你的挪威语日常词汇。</p></div></div>
@@ -98,7 +104,8 @@
     <select id="audio-speed" aria-label="播放速度"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select><button id="audio-close" class="icon-button" aria-label="关闭播放器"><svg><use href="#i-close"/></svg></button>
     <audio id="lesson-audio" preload="metadata"></audio>
   </section>
+  <audio id="word-audio" preload="none"></audio>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.js?v=20261019-4"></script>
+  <script type="module" src="app.js?v=20261019-5"></script>
 </body>
 </html>

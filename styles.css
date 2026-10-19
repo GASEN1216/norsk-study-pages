@@ -41,3 +41,55 @@
 .toc-audio-note{display:block;font-size:12px;line-height:1.7;color:#976039;margin-top:3px}
 .reader-audio-note{border:1px solid #e3d9c3;border-bottom:0;background:#fbf2df;color:#805c33;padding:12px 18px;font-size:13px;line-height:1.8}
 @media(max-width:720px){.reader-audio-note{padding:11px 12px;font-size:12px}}
+/* The reader uses the available screen height; zoomed pages can still be panned. */
+body[data-view=reading] .workspace{height:calc(100dvh - var(--header));min-height:0}
+body[data-view=reading] .main{height:100%;display:flex;flex-direction:column;padding:16px 28px 10px;overflow:hidden}
+body[data-view=reading] .content-heading{margin-bottom:12px;flex-shrink:0}
+body[data-view=reading] .main-footer{display:none}
+#reading-view:not([hidden]){display:flex;flex-direction:column;flex:1;min-height:0}
+#reading-view .reader-toolbar{min-height:48px;padding:7px 14px;flex-shrink:0;gap:10px}
+#reading-view .reader-location{flex:1;overflow:hidden}
+#reading-view .reader-tools{gap:5px;flex-shrink:0}
+#reading-view .reader-tools .icon-button{width:28px;height:28px}
+#reading-view .zoom-control select{max-width:108px}
+#reading-view .pdf-stage{flex:1;height:auto;min-height:0;max-height:none;overflow:auto;scrollbar-gutter:auto;padding:10px;overscroll-behavior:contain}
+#reading-view .pdf-stage canvas{flex-shrink:0;margin:0}
+#reading-view .page-controls{min-height:43px;padding:5px 15px;flex-shrink:0}
+#reading-view .lesson-materials{margin-top:7px;flex-shrink:0;max-height:160px;overflow:auto}
+#reading-view .lesson-materials>summary{padding:7px 14px}
+#reading-view .reader-tip{margin:5px 0 0;font-size:10px;line-height:1.5;flex-shrink:0}
+#reading-view .reader-audio-note{padding:6px 14px;font-size:12px;flex-shrink:0;max-height:72px;overflow:auto}
+body[data-view=reading].audio-open .main{padding-bottom:103px}
+#reading-view:fullscreen{height:100dvh;max-width:none;background:var(--paper);padding:12px;display:flex;flex-direction:column}
+#reading-view:fullscreen .pdf-stage{min-height:0}
+#reading-view:fullscreen .reader-tip,#reading-view:fullscreen .lesson-materials,#reading-view:fullscreen .reader-audio-note{display:none}
+body.reader-focus[data-view=reading] .site-header,body.reader-focus[data-view=reading] .sidebar,body.reader-focus[data-view=reading] .content-heading{display:none}
+body.reader-focus[data-view=reading] .workspace{height:100dvh}
+body.reader-focus[data-view=reading] .main{width:100%;max-width:none;padding:8px}
+.category-level{display:block;font-weight:400;color:#859276;font-size:10px;margin-top:2px}
+.word-grammar{font-size:12px;color:#607752;line-height:1.8;margin:6px 0 0;overflow-wrap:anywhere}
+.word-source{font-size:11px;color:#76876a;margin-top:5px}
+@media(min-width:961px) and (max-width:1250px){.site-header .header-meta{display:none}.main-nav{left:auto;right:24px;transform:none}.nav-button{padding:10px 17px}}
+@media(max-width:960px){.nav-button{padding:9px 13px}body[data-view=reading] .main{padding:12px 16px 9px}}
+@media(max-width:720px){
+ .nav-button{padding:7px 5px;font-size:11px;gap:5px}.nav-button svg{width:14px;height:14px}
+ body[data-view=reading] .main{padding:10px 10px 7px}.content-heading .eyebrow{font-size:7px}
+ body[data-view=reading] .content-heading{margin-bottom:8px}.content-heading h1{font-size:19px}
+ #reading-view .reader-toolbar{flex-wrap:wrap;padding:5px 8px;gap:2px;min-height:44px}
+ #reading-view .reader-location{min-width:70px;font-size:10px}
+ #reading-view .reader-location #reader-book-title{display:none}
+ #reading-view .reader-tools{gap:2px}
+ #reading-view .reader-tools .icon-button{width:24px;height:26px;padding:4px}
+ #reading-view .reader-tools .icon-button svg{width:16px;height:16px}
+ #reading-view .zoom-control select{width:83px;font-size:11px;max-width:83px}
+ #reading-view .pdf-stage{padding:6px;min-height:0}
+ #reading-view .page-controls{padding:4px 8px;min-height:40px}
+ #reading-view .lesson-materials{max-height:120px;margin-top:5px}
+ #reading-view .lesson-materials>summary{padding:5px 9px;font-size:11px}
+ #reading-view .reader-tip{font-size:9px;margin-top:4px}
+ body[data-view=reading].audio-open .main{padding-bottom:125px}
+ #reading-view:fullscreen{padding:6px}
+}
+@media(max-width:360px){#reading-view .reader-location{flex-basis:100%}#reading-view .reader-tools{margin-left:auto}}
+.word-spelling{overflow-wrap:anywhere}.sentence-ref{flex-wrap:wrap}.word-cell{min-width:0}
+.example-label{display:block;font:11px var(--sans);color:#849276;margin-bottom:5px;letter-spacing:.4px}
