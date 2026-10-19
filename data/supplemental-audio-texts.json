@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "status": "synthetic_audio_generated",
+  "source": {
+    "pdfPages": [
+      118,
+      119
+    ],
+    "printedPages": [
+      116,
+      117
+    ],
+    "language": "nb-NO",
+    "book": "textbook"
+  },
+  "note": "8.5、8.6 是人工核对教材原页后生成的合成补读，非教材原录音。完整正文和对话已逐句核对；不包含练习题、语法框或无关歌曲。",
+  "sections": [
+    {
+      "id": "8.5",
+      "title": "Jeg er butikkmedarbeider",
+      "page": 118,
+      "printedPage": 116,
+      "sourceNumber": "8.5",
+      "bodyText": "Jeg er butikkmedarbeider og jobber i en matbutikk. Jeg har mange forskjellige oppgaver i butikken. Noen dager rydder jeg varer på plass i hyllene, og jeg må kaste gamle varer. Det liker jeg ikke. Jeg må også bestille nye varer. Noen dager sitter jeg i kassa og tar betalt for varene. Jeg trives i jobben, for jeg møter mange mennesker hver dag. Nesten alle kundene er hyggelige, men noen kunder hilser ikke på meg i kassa, og noen ganger snakker de i mobiltelefonen. Da blir jeg litt irritert, for det er uhøflig.",
+      "dialogue": {
+        "title": "I kassa på matbutikken",
+        "lines": [
+          {
+            "speaker": "Butikkmedarbeider",
+            "text": "Trenger du pose?"
+          },
+          {
+            "speaker": "Kunde",
+            "text": "Nei, takk."
+          },
+          {
+            "speaker": "Butikkmedarbeider",
+            "text": "Da blir det 59 kroner. Vil du ha kvittering?"
+          },
+          {
+            "speaker": "Kunde",
+            "text": "Ja, takk."
+          },
+          {
+            "speaker": "Butikkmedarbeider",
+            "text": "God helg!"
+          },
+          {
+            "speaker": "Kunde",
+            "text": "Takk i like måte!"
+          }
+        ]
+      },
+      "text": "Jeg er butikkmedarbeider\n\nJeg er butikkmedarbeider og jobber i en matbutikk. Jeg har mange forskjellige oppgaver i butikken. Noen dager rydder jeg varer på plass i hyllene, og jeg må kaste gamle varer. Det liker jeg ikke. Jeg må også bestille nye varer. Noen dager sitter jeg i kassa og tar betalt for varene. Jeg trives i jobben, for jeg møter mange mennesker hver dag. Nesten alle kundene er hyggelige, men noen kunder hilser ikke på meg i kassa, og noen ganger snakker de i mobiltelefonen. Da blir jeg litt irritert, for det er uhøflig.\n\nI kassa på matbutikken\nButikkmedarbeider: Trenger du pose?\nKunde: Nei, takk.\nButikkmedarbeider: Da blir det 59 kroner. Vil du ha kvittering?\nKunde: Ja, takk.\nButikkmedarbeider: God helg!\nKunde: Takk i like måte!",
+      "spokenText": "Jeg er butikkmedarbeider.\n\nJeg er butikkmedarbeider og jobber i en matbutikk. Jeg har mange forskjellige oppgaver i butikken. Noen dager rydder jeg varer på plass i hyllene, og jeg må kaste gamle varer. Det liker jeg ikke. Jeg må også bestille nye varer. Noen dager sitter jeg i kassa og tar betalt for varene. Jeg trives i jobben, for jeg møter mange mennesker hver dag. Nesten alle kundene er hyggelige, men noen kunder hilser ikke på meg i kassa, og noen ganger snakker de i mobiltelefonen. Da blir jeg litt irritert, for det er uhøflig.\n\nI kassa på matbutikken.\nTrenger du pose?\nNei, takk.\nDa blir det 59 kroner. Vil du ha kvittering?\nJa, takk.\nGod helg!\nTakk i like måte!",
+      "spokenNormalization": [],
+      "source": {
+        "book": "textbook",
+        "page": 118,
+        "printedPage": 116
+      },
+      "verification": {
+        "status": "verified",
+        "excluded": [
+          "Muntlige oppgaver: three oral exercise questions.",
+          "Grammatikk / Adjektiv box: irritert and uhøflig inflection examples.",
+          "Photo, illustration, running footer and page number."
+        ],
+        "correctionsVsCleanReadingTexts": [
+          "Correct reading order: the narrative appears above the checkout dialogue; the cleaned OCR had dialogue sentences before the narrative.",
+          "Restored the dialogue heading I kassa på matbutikken and all printed speaker labels.",
+          "Restored omitted dialogue utterances Nei, takk.; Ja, takk.; God helg!."
+        ],
+        "notes": "正文在前、对话在后，顺序遵循原页。对话角色标签保留在 text 中；spokenText 仅朗读对话内容。未添加练习题、语法框、页面脚注或不存在的原录音编号。",
+        "method": "人工逐句对照教材 PDF 原页图像核对。"
+      },
+      "audio": {
+        "file": "audio/8.5.mp3",
+        "kind": "synthetic",
+        "label": "合成补读",
+        "voice": "nb-NO-PernilleNeural",
+        "rate": "-8%",
+        "duration": 55.992
+      }
+    },
+    {
+      "id": "8.6",
+      "title": "Jeg er frisør",
+      "page": 119,
+      "printedPage": 117,
+      "sourceNumber": null,
+      "bodyText": "Jeg er frisør og jobber på en frisørsalong som heter Saks & Kam. Det er en interessant jobb. Jeg har gode kollegaer, og jeg møter mange spennende mennesker. Jeg liker veldig godt å jobbe som frisør. Mange kunder klipper seg hos oss. Først vasker jeg håret til kundene, og etterpå klipper jeg dem. Kundene betaler og går hjem med ny frisyre. De føler seg fine, og da blir jeg glad.",
+      "dialogue": {
+        "title": "Hos frisøren",
+        "lines": [
+          {
+            "speaker": "Ingrid",
+            "text": "Hvordan vil du ha håret?"
+          },
+          {
+            "speaker": "Bjørnar",
+            "text": "Jeg pleier å ha det kort i nakken."
+          },
+          {
+            "speaker": "Ingrid",
+            "text": "Skal jeg klippe det kort ved ørene også?"
+          },
+          {
+            "speaker": "Bjørnar",
+            "text": "Ja, takk! Hva koster det å klippe seg her?"
+          },
+          {
+            "speaker": "Ingrid",
+            "text": "Det koster 399 kroner for en herreklipp."
+          }
+        ]
+      },
+      "text": "Jeg er frisør\n\nJeg er frisør og jobber på en frisørsalong som heter Saks & Kam. Det er en interessant jobb. Jeg har gode kollegaer, og jeg møter mange spennende mennesker. Jeg liker veldig godt å jobbe som frisør. Mange kunder klipper seg hos oss. Først vasker jeg håret til kundene, og etterpå klipper jeg dem. Kundene betaler og går hjem med ny frisyre. De føler seg fine, og da blir jeg glad.\n\nHos frisøren\nIngrid: Hvordan vil du ha håret?\nBjørnar: Jeg pleier å ha det kort i nakken.\nIngrid: Skal jeg klippe det kort ved ørene også?\nBjørnar: Ja, takk! Hva koster det å klippe seg her?\nIngrid: Det koster 399 kroner for en herreklipp.",
+      "spokenText": "Jeg er frisør.\n\nJeg er frisør og jobber på en frisørsalong som heter Saks og Kam. Det er en interessant jobb. Jeg har gode kollegaer, og jeg møter mange spennende mennesker. Jeg liker veldig godt å jobbe som frisør. Mange kunder klipper seg hos oss. Først vasker jeg håret til kundene, og etterpå klipper jeg dem. Kundene betaler og går hjem med ny frisyre. De føler seg fine, og da blir jeg glad.\n\nHos frisøren.\nHvordan vil du ha håret?\nJeg pleier å ha det kort i nakken.\nSkal jeg klippe det kort ved ørene også?\nJa, takk! Hva koster det å klippe seg her?\nDet koster 399 kroner for en herreklipp.",
+      "spokenNormalization": [
+        "Saks & Kam is pronounced Saks og Kam; the source spelling remains unchanged in bodyText and text."
+      ],
+      "source": {
+        "book": "textbook",
+        "page": 119,
+        "printedPage": 117
+      },
+      "verification": {
+        "status": "verified",
+        "excluded": [
+          "Muntlige oppgaver: three oral exercise questions.",
+          "Separate song/poem box Sånne som oss and its attribution.",
+          "Illustration, running footer and page number."
+        ],
+        "correctionsVsCleanReadingTexts": [
+          "Restored the dialogue heading Hos frisøren and all printed speaker labels.",
+          "Restored Bjørnar's omitted Ja, takk! before Hva koster det å klippe seg her?.",
+          "The printed vocational text has no 8.6 number; 8.6 is only the website navigation identifier."
+        ],
+        "notes": "正文在前、对话在后，顺序遵循原页。对话角色标签保留在 text 中；spokenText 仅朗读对话内容。未添加练习题、语法框、页面脚注或不存在的原录音编号。",
+        "method": "人工逐句对照教材 PDF 原页图像核对。"
+      },
+      "audio": {
+        "file": "audio/8.6.mp3",
+        "kind": "synthetic",
+        "label": "合成补读",
+        "voice": "nb-NO-PernilleNeural",
+        "rate": "-8%",
+        "duration": 49.008
+      }
+    }
+  ]
+}

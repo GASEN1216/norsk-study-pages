@@ -1,0 +1,2370 @@
+{
+  "books": {
+    "textbook": {
+      "title": "God i norsk 1 · Tekstbok A1–A2",
+      "pages": 251,
+      "file": "assets/textbook.pdf",
+      "chapters": [
+        {
+          "id": "1",
+          "title": "Vi blir kjent",
+          "page": 10,
+          "printedPage": 9,
+          "sections": [
+            {
+              "id": "1.1",
+              "title": "Hvor kommer du fra?",
+              "page": 11,
+              "printedPage": 10,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.2",
+              "title": "Hva heter du?",
+              "page": 13,
+              "printedPage": 12,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.3",
+              "title": "Nå bor jeg i Norge",
+              "page": 15,
+              "printedPage": 14,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.4",
+              "title": "Jeg snakker litt norsk",
+              "page": 17,
+              "printedPage": 16,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.5",
+              "title": "Yrkestekst: Jeg er lærer",
+              "page": 19,
+              "printedPage": 18,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.pronunciation",
+              "title": "Uttale",
+              "page": 20,
+              "printedPage": 19,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "1.grammar",
+              "title": "Grammatikk",
+              "page": 20,
+              "printedPage": 19,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "1.words",
+              "title": "Ordliste",
+              "page": 21,
+              "printedPage": 20,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "2",
+          "title": "Hvordan går det?",
+          "page": 22,
+          "printedPage": 21,
+          "sections": [
+            {
+              "id": "2.1",
+              "title": "Kjenner du Marek?",
+              "page": 23,
+              "printedPage": 22,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.2",
+              "title": "Jeg kom til Norge i mai",
+              "page": 25,
+              "printedPage": 24,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.3",
+              "title": "Jeg savner dem",
+              "page": 27,
+              "printedPage": 26,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.4",
+              "title": "Hva betyr det?",
+              "page": 29,
+              "printedPage": 28,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.5",
+              "title": "Yrkestekst: Jeg er lege",
+              "page": 32,
+              "printedPage": 31,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.pronunciation",
+              "title": "Uttale",
+              "page": 33,
+              "printedPage": 32,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "2.grammar",
+              "title": "Grammatikk",
+              "page": 35,
+              "printedPage": 33,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "2.words",
+              "title": "Ordliste",
+              "page": 36,
+              "printedPage": 34,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "3",
+          "title": "Familie og fritid",
+          "page": 37,
+          "printedPage": 35,
+          "sections": [
+            {
+              "id": "3.1",
+              "title": "De forteller om familien",
+              "page": 38,
+              "printedPage": 36,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.2",
+              "title": "Jeg kommer ikke på norskkurs i dag",
+              "page": 40,
+              "printedPage": 38,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.3",
+              "title": "Sompit skal besøke svigermor",
+              "page": 42,
+              "printedPage": 40,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.4",
+              "title": "Skal vi gå på konsert?",
+              "page": 44,
+              "printedPage": 42,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.5",
+              "title": "Yrkestekst: Jeg er bilmekaniker",
+              "page": 46,
+              "printedPage": 44,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.pronunciation",
+              "title": "Uttale",
+              "page": 47,
+              "printedPage": 45,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "3.grammar",
+              "title": "Grammatikk",
+              "page": 47,
+              "printedPage": 45,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "3.words",
+              "title": "Ordliste",
+              "page": 50,
+              "printedPage": 48,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "4",
+          "title": "En vanlig dag",
+          "page": 51,
+          "printedPage": 49,
+          "sections": [
+            {
+              "id": "4.1",
+              "title": "Hva er klokka?",
+              "page": 52,
+              "printedPage": 50,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.2",
+              "title": "Hjemme hos Bjørnar",
+              "page": 54,
+              "printedPage": 52,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.3",
+              "title": "Skal vi møtes en dag?",
+              "page": 56,
+              "printedPage": 54,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.4",
+              "title": "På kafé",
+              "page": 58,
+              "printedPage": 56,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.5",
+              "title": "Yrkestekst: Jeg er servitør",
+              "page": 61,
+              "printedPage": 59,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.pronunciation",
+              "title": "Uttale",
+              "page": 62,
+              "printedPage": 60,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "4.grammar",
+              "title": "Grammatikk",
+              "page": 62,
+              "printedPage": 60,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "4.words",
+              "title": "Ordliste",
+              "page": 64,
+              "printedPage": 62,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "5",
+          "title": "Hvordan er været?",
+          "page": 65,
+          "printedPage": 63,
+          "sections": [
+            {
+              "id": "5.1",
+              "title": "Liker du været i Norge?",
+              "page": 68,
+              "printedPage": 66,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.2",
+              "title": "På stranda",
+              "page": 70,
+              "printedPage": 68,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.3",
+              "title": "Jeg savner sommeren",
+              "page": 72,
+              "printedPage": 70,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.4",
+              "title": "Hvilken dato er det?",
+              "page": 74,
+              "printedPage": 72,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.5",
+              "title": "Yrkestekst: Jeg er barnehageassistent",
+              "page": 76,
+              "printedPage": 74,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.pronunciation",
+              "title": "Uttale",
+              "page": 79,
+              "printedPage": 77,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "5.grammar",
+              "title": "Grammatikk",
+              "page": 79,
+              "printedPage": 77,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "5.words",
+              "title": "Ordliste",
+              "page": 80,
+              "printedPage": 78,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "6",
+          "title": "Hva gjorde du i går?",
+          "page": 81,
+          "printedPage": 79,
+          "sections": [
+            {
+              "id": "6.1",
+              "title": "Hva gjorde du i går?",
+              "page": 82,
+              "printedPage": 80,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.2",
+              "title": "Hva gjorde du i helga?",
+              "page": 84,
+              "printedPage": 82,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.3",
+              "title": "Hva gjorde du i fritida i hjemlandet?",
+              "page": 86,
+              "printedPage": 84,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.4",
+              "title": "Når kom du til Norge?",
+              "page": 88,
+              "printedPage": 86,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.5",
+              "title": "Yrkestekst: Jeg er hotellmedarbeider",
+              "page": 90,
+              "printedPage": 88,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.pronunciation",
+              "title": "Uttale",
+              "page": 91,
+              "printedPage": 89,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "6.grammar",
+              "title": "Grammatikk",
+              "page": 91,
+              "printedPage": 89,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "6.words",
+              "title": "Ordliste",
+              "page": 92,
+              "printedPage": 90,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "7",
+          "title": "God tur!",
+          "page": 93,
+          "printedPage": 91,
+          "sections": [
+            {
+              "id": "7.1",
+              "title": "Unnskyld, hvordan kommer jeg til Frognerparken?",
+              "page": 94,
+              "printedPage": 92,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.2",
+              "title": "Hva gjorde du i Bergen?",
+              "page": 96,
+              "printedPage": 94,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.3",
+              "title": "Unnskyld at jeg kommer for sent!",
+              "page": 98,
+              "printedPage": 96,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.4",
+              "title": "Går denne bussen til Førde?",
+              "page": 100,
+              "printedPage": 98,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.5",
+              "title": "Yrkestekst: Jeg er bussjåfør",
+              "page": 103,
+              "printedPage": 101,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.pronunciation",
+              "title": "Uttale",
+              "page": 104,
+              "printedPage": 102,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "7.grammar",
+              "title": "Grammatikk",
+              "page": 104,
+              "printedPage": 102,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "7.words",
+              "title": "Ordliste",
+              "page": 106,
+              "printedPage": 104,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "8",
+          "title": "På handletur",
+          "page": 107,
+          "printedPage": 105,
+          "sections": [
+            {
+              "id": "8.1",
+              "title": "Ingrid leter etter bil på finn.no",
+              "page": 108,
+              "printedPage": 106,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.2",
+              "title": "Bjørnar liker å gå på loppemarked",
+              "page": 110,
+              "printedPage": 108,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.3",
+              "title": "Vi bare kikker",
+              "page": 112,
+              "printedPage": 110,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.4",
+              "title": "Marit handler til bursdagsmiddag",
+              "page": 116,
+              "printedPage": 114,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.5",
+              "title": "Yrkestekst: Jeg er butikkmedarbeider",
+              "page": 118,
+              "printedPage": 116,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.6",
+              "title": "Yrkestekst 2: Jeg er frisør",
+              "page": 119,
+              "printedPage": 117,
+              "kind": "text",
+              "sourceNumber": null,
+              "note": "The second vocational text is unnumbered in the printed contents.",
+              "pageVerified": true
+            },
+            {
+              "id": "8.pronunciation",
+              "title": "Uttale",
+              "page": 120,
+              "printedPage": 118,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "8.grammar",
+              "title": "Grammatikk",
+              "page": 120,
+              "printedPage": 118,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "8.words",
+              "title": "Ordliste",
+              "page": 122,
+              "printedPage": 120,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "9",
+          "title": "Her bor jeg",
+          "page": 123,
+          "printedPage": 121,
+          "sections": [
+            {
+              "id": "9.1",
+              "title": "Hvordan bor du?",
+              "page": 124,
+              "printedPage": 122,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.2",
+              "title": "Marek har flyttet",
+              "page": 126,
+              "printedPage": 124,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.3",
+              "title": "Hvor lenge har du bodd her?",
+              "page": 128,
+              "printedPage": 126,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.4",
+              "title": "Har du vært på dugnad?",
+              "page": 130,
+              "printedPage": 128,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.5",
+              "title": "Yrkestekst: Jeg er snekker",
+              "page": 134,
+              "printedPage": 132,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.pronunciation",
+              "title": "Uttale",
+              "page": 135,
+              "printedPage": 133,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "9.grammar",
+              "title": "Grammatikk",
+              "page": 135,
+              "printedPage": 133,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "9.words",
+              "title": "Ordliste",
+              "page": 138,
+              "printedPage": 136,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "10",
+          "title": "Det må vi feire!",
+          "page": 139,
+          "printedPage": 137,
+          "sections": [
+            {
+              "id": "10.1",
+              "title": "Jeg gleder meg til bursdagen min",
+              "page": 140,
+              "printedPage": 138,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.2",
+              "title": "Vil dere komme i bryllupet vårt?",
+              "page": 142,
+              "printedPage": 140,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.3",
+              "title": "Vennene våre giftet seg i helga",
+              "page": 144,
+              "printedPage": 142,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.4",
+              "title": "Innflyttingsfest hos Marek og Ewa",
+              "page": 146,
+              "printedPage": 144,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.5",
+              "title": "Yrkestekst: Jeg er kokk",
+              "page": 149,
+              "printedPage": 147,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.grammar",
+              "title": "Grammatikk",
+              "page": 150,
+              "printedPage": 148,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "10.words",
+              "title": "Ordliste",
+              "page": 151,
+              "printedPage": 149,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "11",
+          "title": "Det er typisk norsk",
+          "page": 152,
+          "printedPage": 150,
+          "sections": [
+            {
+              "id": "11.1",
+              "title": "Hva er typisk norsk?",
+              "page": 154,
+              "printedPage": 152,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.2",
+              "title": "Det er typisk norsk å dra på hytta",
+              "page": 158,
+              "printedPage": 156,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.3",
+              "title": "Norsk geografi",
+              "page": 160,
+              "printedPage": 158,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.4",
+              "title": "En hilsen fra Hurtigruten",
+              "page": 164,
+              "printedPage": 162,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.5",
+              "title": "Yrkestekst: Jeg er turistguide",
+              "page": 167,
+              "printedPage": 165,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.pronunciation",
+              "title": "Uttale",
+              "page": 168,
+              "printedPage": 166,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "11.grammar",
+              "title": "Grammatikk",
+              "page": 168,
+              "printedPage": 166,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "11.words",
+              "title": "Ordliste",
+              "page": 170,
+              "printedPage": 168,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "12",
+          "title": "Kosthold og helse",
+          "page": 171,
+          "printedPage": 169,
+          "sections": [
+            {
+              "id": "12.1",
+              "title": "Hvordan føler du deg?",
+              "page": 172,
+              "printedPage": 170,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.2",
+              "title": "Jeg føler meg litt dårlig",
+              "page": 174,
+              "printedPage": 172,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.3",
+              "title": "Vi må holde oss i form",
+              "page": 176,
+              "printedPage": 174,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.4",
+              "title": "Vi må prøve å spise sunt",
+              "page": 178,
+              "printedPage": 176,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.5",
+              "title": "Yrkestekst: Jeg er pleieassistent",
+              "page": 180,
+              "printedPage": 178,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.pronunciation",
+              "title": "Uttale",
+              "page": 182,
+              "printedPage": 180,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "12.grammar",
+              "title": "Grammatikk",
+              "page": 183,
+              "printedPage": 181,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "12.words",
+              "title": "Ordliste",
+              "page": 184,
+              "printedPage": 182,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "13",
+          "title": "Utdanning for alle",
+          "page": 185,
+          "printedPage": 183,
+          "sections": [
+            {
+              "id": "13.1",
+              "title": "Skole i Norge",
+              "page": 186,
+              "printedPage": 184,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.pronunciation",
+              "title": "Uttale",
+              "page": 187,
+              "printedPage": 185,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "13.2",
+              "title": "Skal du på foreldremøte?",
+              "page": 189,
+              "printedPage": 187,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.3",
+              "title": "Yrkesfaglig opplæring i Norge",
+              "page": 190,
+              "printedPage": 188,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.4",
+              "title": "Å studere i Norge",
+              "page": 192,
+              "printedPage": 190,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.5",
+              "title": "Yrkestekst: Jeg er renholder",
+              "page": 193,
+              "printedPage": 191,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.grammar",
+              "title": "Grammatikk",
+              "page": 194,
+              "printedPage": 192,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "13.words",
+              "title": "Ordliste",
+              "page": 196,
+              "printedPage": 194,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "14",
+          "title": "Jeg vil finne en jobb!",
+          "page": 197,
+          "printedPage": 195,
+          "sections": [
+            {
+              "id": "14.1",
+              "title": "Har du erfaring?",
+              "page": 198,
+              "printedPage": 196,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.2",
+              "title": "På sjefens kontor",
+              "page": 200,
+              "printedPage": 198,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.3",
+              "title": "Arbeidsliv",
+              "page": 202,
+              "printedPage": 200,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.4",
+              "title": "Vanskelige situasjoner på jobben",
+              "page": 204,
+              "printedPage": 202,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.5",
+              "title": "Yrkestekst: Jeg er barneskolelærer",
+              "page": 206,
+              "printedPage": 204,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.pronunciation",
+              "title": "Uttale",
+              "page": 209,
+              "printedPage": 207,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "14.grammar",
+              "title": "Grammatikk",
+              "page": 209,
+              "printedPage": 207,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "14.words",
+              "title": "Ordliste",
+              "page": 210,
+              "printedPage": 208,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "15",
+          "title": "Innvandrer i Norge",
+          "page": 211,
+          "printedPage": 209,
+          "sections": [
+            {
+              "id": "15.1",
+              "title": "«Du må finne den hemmelige døra.»",
+              "page": 212,
+              "printedPage": 210,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.pronunciation",
+              "title": "Uttale",
+              "page": 212,
+              "printedPage": 210,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "15.2",
+              "title": "«Jeg vil vise innvandrerkvinner at alt er mulig!»",
+              "page": 214,
+              "printedPage": 212,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.3",
+              "title": "«Kast deg ut i samtaler med nordmenn!»",
+              "page": 216,
+              "printedPage": 214,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.4",
+              "title": "«Du kan klare nesten alt hvis du jobber hardt!»",
+              "page": 218,
+              "printedPage": 216,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.5",
+              "title": "Hun: Er det sant?",
+              "page": 221,
+              "printedPage": 219,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.grammar",
+              "title": "Grammatikk",
+              "page": 223,
+              "printedPage": 221,
+              "kind": "grammar",
+              "pageVerified": true
+            },
+            {
+              "id": "15.words",
+              "title": "Ordliste",
+              "page": 224,
+              "printedPage": 222,
+              "kind": "words",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        }
+      ],
+      "appendices": [
+        {
+          "id": "grammar",
+          "title": "Minigrammatikk",
+          "page": 225,
+          "printedPage": 223,
+          "sections": [
+            {
+              "id": "grammar.1",
+              "title": "Ordklasser",
+              "page": 225,
+              "printedPage": 223,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.2",
+              "title": "Verb",
+              "page": 225,
+              "printedPage": 223,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.3",
+              "title": "Substantiv",
+              "page": 229,
+              "printedPage": 227,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.4",
+              "title": "Pronomen",
+              "page": 231,
+              "printedPage": 229,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.5",
+              "title": "Adjektiv",
+              "page": 232,
+              "printedPage": 230,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.6",
+              "title": "Adverb",
+              "page": 235,
+              "printedPage": 233,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.7",
+              "title": "Determinativer",
+              "page": 236,
+              "printedPage": 234,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.8",
+              "title": "Preposisjoner",
+              "page": 237,
+              "printedPage": 235,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.9",
+              "title": "Konjunksjoner",
+              "page": 238,
+              "printedPage": 236,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.10",
+              "title": "Subjunksjoner",
+              "page": 238,
+              "printedPage": 236,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.11",
+              "title": "Interjeksjoner",
+              "page": 239,
+              "printedPage": 237,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.12",
+              "title": "Setningsledd",
+              "page": 239,
+              "printedPage": 237,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.13",
+              "title": "Setninger",
+              "page": 240,
+              "printedPage": 238,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.14",
+              "title": "Tegnsetting",
+              "page": 241,
+              "printedPage": 239,
+              "pageVerified": true
+            },
+            {
+              "id": "grammar.15",
+              "title": "Uttale",
+              "page": 242,
+              "printedPage": 240,
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "wordlist",
+          "title": "Alfabetisk ordliste",
+          "page": 244,
+          "printedPage": 242,
+          "sections": [],
+          "pageVerified": true
+        }
+      ]
+    },
+    "workbook": {
+      "title": "God i norsk 1 · Arbeidsbok A1–A2",
+      "pages": 230,
+      "file": "assets/workbook.pdf",
+      "chapters": [
+        {
+          "id": "1",
+          "title": "Vi blir kjent",
+          "page": 7,
+          "printedPage": 7,
+          "sections": [
+            {
+              "id": "1.1",
+              "title": "Hvor kommer du fra?",
+              "page": 7,
+              "printedPage": 7,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.2",
+              "title": "Hva heter du?",
+              "page": 9,
+              "printedPage": 9,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.3",
+              "title": "Nå bor jeg i Norge",
+              "page": 11,
+              "printedPage": 11,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.4",
+              "title": "Jeg snakker litt norsk",
+              "page": 14,
+              "printedPage": 14,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.5",
+              "title": "Yrkestekst: Jeg er lærer",
+              "page": 18,
+              "printedPage": 18,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "1.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 18,
+              "printedPage": 18,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "1.listening",
+              "title": "Lytteoppgaver",
+              "page": 19,
+              "printedPage": 19,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "1.practice",
+              "title": "Øve til prøve",
+              "page": 22,
+              "printedPage": 22,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "2",
+          "title": "Hvordan går det?",
+          "page": 23,
+          "printedPage": 23,
+          "sections": [
+            {
+              "id": "2.1",
+              "title": "Kjenner du Marek?",
+              "page": 24,
+              "printedPage": 24,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.2",
+              "title": "Jeg kom til Norge i mai",
+              "page": 28,
+              "printedPage": 27,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.3",
+              "title": "Jeg savner dem",
+              "page": 31,
+              "printedPage": 31,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.4",
+              "title": "Hva betyr det?",
+              "page": 34,
+              "printedPage": 34,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.5",
+              "title": "Yrkestekst: Jeg er lege",
+              "page": 34,
+              "printedPage": 34,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "2.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 37,
+              "printedPage": 37,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "2.listening",
+              "title": "Lytteoppgaver",
+              "page": 37,
+              "printedPage": 37,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "2.practice",
+              "title": "Øve til prøve",
+              "page": 38,
+              "printedPage": 38,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "3",
+          "title": "Familie og fritid",
+          "page": 39,
+          "printedPage": 39,
+          "sections": [
+            {
+              "id": "3.1",
+              "title": "De forteller om familien",
+              "page": 39,
+              "printedPage": 39,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.2",
+              "title": "Jeg kommer ikke på norskkurs i dag",
+              "page": 42,
+              "printedPage": 42,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.3",
+              "title": "Sompit skal besøke svigermor",
+              "page": 43,
+              "printedPage": 43,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.4",
+              "title": "Skal vi gå på konsert?",
+              "page": 45,
+              "printedPage": 45,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.5",
+              "title": "Yrkestekst: Jeg er bilmekaniker",
+              "page": 47,
+              "printedPage": 47,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "3.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 50,
+              "printedPage": 50,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "3.listening",
+              "title": "Lytteoppgaver",
+              "page": 51,
+              "printedPage": 51,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "3.practice",
+              "title": "Øve til prøve",
+              "page": 52,
+              "printedPage": 52,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "4",
+          "title": "En vanlig dag",
+          "page": 54,
+          "printedPage": 54,
+          "sections": [
+            {
+              "id": "4.1",
+              "title": "Hva er klokka?",
+              "page": 54,
+              "printedPage": 54,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.2",
+              "title": "Hjemme hos Bjørnar",
+              "page": 57,
+              "printedPage": 57,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.3",
+              "title": "Skal vi møtes en dag?",
+              "page": 60,
+              "printedPage": 60,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.4",
+              "title": "På kafé",
+              "page": 62,
+              "printedPage": 62,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.5",
+              "title": "Yrkestekst: Jeg er servitør",
+              "page": 65,
+              "printedPage": 65,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "4.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 66,
+              "printedPage": 66,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "4.listening",
+              "title": "Lytteoppgaver",
+              "page": 66,
+              "printedPage": 66,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "4.practice",
+              "title": "Øve til prøve",
+              "page": 67,
+              "printedPage": 67,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "5",
+          "title": "Hvordan er været?",
+          "page": 69,
+          "printedPage": 69,
+          "sections": [
+            {
+              "id": "5.1",
+              "title": "Liker du været i Norge?",
+              "page": 69,
+              "printedPage": 69,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.2",
+              "title": "På stranda",
+              "page": 73,
+              "printedPage": 72,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.3",
+              "title": "Jeg savner sommeren",
+              "page": 74,
+              "printedPage": 73,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.4",
+              "title": "Hvilken dato er det?",
+              "page": 76,
+              "printedPage": 75,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.5",
+              "title": "Yrkestekst: Jeg er barnehageassistent",
+              "page": 79,
+              "printedPage": 77,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "5.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 82,
+              "printedPage": 79,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "5.listening",
+              "title": "Lytteoppgaver",
+              "page": 83,
+              "printedPage": 80,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "5.practice",
+              "title": "Øve til prøve",
+              "page": 85,
+              "printedPage": 82,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "6",
+          "title": "Hva gjorde du i går?",
+          "page": 86,
+          "printedPage": 83,
+          "sections": [
+            {
+              "id": "6.1",
+              "title": "Hva gjorde du i går?",
+              "page": 86,
+              "printedPage": 83,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.2",
+              "title": "Hva gjorde du i helga?",
+              "page": 90,
+              "printedPage": 87,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.3",
+              "title": "Hva gjorde du i fritida i hjemlandet?",
+              "page": 92,
+              "printedPage": 89,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.4",
+              "title": "Når kom du til Norge?",
+              "page": 94,
+              "printedPage": 91,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.5",
+              "title": "Yrkestekst: Jeg er hotellmedarbeider",
+              "page": 97,
+              "printedPage": 94,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "6.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 98,
+              "printedPage": 95,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "6.listening",
+              "title": "Lytteoppgaver",
+              "page": 99,
+              "printedPage": 96,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "6.practice",
+              "title": "Øve til prøve",
+              "page": 100,
+              "printedPage": 97,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "7",
+          "title": "God tur!",
+          "page": 101,
+          "printedPage": 98,
+          "sections": [
+            {
+              "id": "7.1",
+              "title": "Unnskyld, hvordan kommer jeg til Frognerparken?",
+              "page": 101,
+              "printedPage": 98,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.2",
+              "title": "Hva gjorde du i Bergen?",
+              "page": 104,
+              "printedPage": 101,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.3",
+              "title": "Unnskyld at jeg kommer for sent!",
+              "page": 106,
+              "printedPage": 103,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.4",
+              "title": "Går denne bussen til Førde?",
+              "page": 109,
+              "printedPage": 106,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.5",
+              "title": "Yrkestekst: Jeg er bussjåfør",
+              "page": 112,
+              "printedPage": 109,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "7.pronunciation",
+              "title": "Uttaleoppgaver",
+              "page": 113,
+              "printedPage": 110,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "7.listening",
+              "title": "Lytteoppgaver",
+              "page": 113,
+              "printedPage": 110,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "7.practice",
+              "title": "Øve til prøve",
+              "page": 115,
+              "printedPage": 112,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "8",
+          "title": "På handletur",
+          "page": 116,
+          "printedPage": 113,
+          "sections": [
+            {
+              "id": "8.1",
+              "title": "Ingrid leter etter bil på finn.no",
+              "page": 116,
+              "printedPage": 113,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.2",
+              "title": "Bjørnar liker å gå på loppemarked",
+              "page": 119,
+              "printedPage": 116,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.3",
+              "title": "Vi bare kikker",
+              "page": 120,
+              "printedPage": 117,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.4",
+              "title": "Marit handler til bursdagsmiddag",
+              "page": 124,
+              "printedPage": 121,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.5",
+              "title": "Yrkestekst: Jeg er butikkmedarbeider",
+              "page": 125,
+              "printedPage": 122,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "8.6",
+              "title": "Yrkestekst 2: Jeg er frisør",
+              "page": 126,
+              "printedPage": 123,
+              "kind": "text",
+              "sourceNumber": null,
+              "note": "The second vocational text is unnumbered in the printed contents.",
+              "pageVerified": true
+            },
+            {
+              "id": "8.pronunciation",
+              "title": "Uttale",
+              "page": 126,
+              "printedPage": 123,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "8.listening",
+              "title": "Lytteoppgaver",
+              "page": 129,
+              "printedPage": 124,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "8.practice",
+              "title": "Øve til prøve",
+              "page": 130,
+              "printedPage": 125,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "9",
+          "title": "Her bor jeg!",
+          "page": 132,
+          "printedPage": 127,
+          "sections": [
+            {
+              "id": "9.1",
+              "title": "Hvordan bor du?",
+              "page": 132,
+              "printedPage": 127,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.2",
+              "title": "Marek har flyttet",
+              "page": 134,
+              "printedPage": 129,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.3",
+              "title": "Hvor lenge har du bodd her?",
+              "page": 136,
+              "printedPage": 131,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.4",
+              "title": "Har du vært på dugnad?",
+              "page": 139,
+              "printedPage": 134,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.5",
+              "title": "Yrkestekst: Jeg er snekker",
+              "page": 143,
+              "printedPage": 138,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "9.pronunciation",
+              "title": "Uttale",
+              "page": 144,
+              "printedPage": 139,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "9.listening",
+              "title": "Lytteoppgaver",
+              "page": 145,
+              "printedPage": 140,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "9.practice",
+              "title": "Øve til prøve",
+              "page": 146,
+              "printedPage": 141,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "10",
+          "title": "Det må vi feire!",
+          "page": 147,
+          "printedPage": 142,
+          "sections": [
+            {
+              "id": "10.1",
+              "title": "Jeg gleder meg til bursdagen min",
+              "page": 147,
+              "printedPage": 142,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.2",
+              "title": "Vil dere komme i bryllupet vårt?",
+              "page": 149,
+              "printedPage": 144,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.3",
+              "title": "Vennene våre giftet seg i helga",
+              "page": 150,
+              "printedPage": 145,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.4",
+              "title": "Innflyttingsfest hos Marek og Ewa",
+              "page": 151,
+              "printedPage": 146,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.5",
+              "title": "Yrkestekst: Jeg er kokk",
+              "page": 156,
+              "printedPage": 151,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "10.pronunciation",
+              "title": "Uttale",
+              "page": 156,
+              "printedPage": 151,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "10.listening",
+              "title": "Lytteoppgaver",
+              "page": 157,
+              "printedPage": 152,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "10.practice",
+              "title": "Øve til prøve",
+              "page": 158,
+              "printedPage": 153,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "11",
+          "title": "Det er typisk norsk",
+          "page": 159,
+          "printedPage": 154,
+          "sections": [
+            {
+              "id": "11.1",
+              "title": "Hva er typisk norsk?",
+              "page": 160,
+              "printedPage": 155,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.2",
+              "title": "Det er typisk norsk å dra på hytta",
+              "page": 162,
+              "printedPage": 157,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.3",
+              "title": "Norsk geografi",
+              "page": 164,
+              "printedPage": 159,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.4",
+              "title": "En hilsen fra Hurtigruten",
+              "page": 166,
+              "printedPage": 161,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.5",
+              "title": "Yrkestekst: Jeg er turistguide",
+              "page": 169,
+              "printedPage": 164,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "11.pronunciation",
+              "title": "Uttale",
+              "page": 170,
+              "printedPage": 165,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "11.listening",
+              "title": "Lytteoppgaver",
+              "page": 170,
+              "printedPage": 165,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "11.practice",
+              "title": "Øve til prøve",
+              "page": 171,
+              "printedPage": 166,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "12",
+          "title": "Kosthold og helse",
+          "page": 173,
+          "printedPage": 168,
+          "sections": [
+            {
+              "id": "12.1",
+              "title": "Hvordan føler du deg?",
+              "page": 173,
+              "printedPage": 168,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.2",
+              "title": "Jeg føler meg litt dårlig",
+              "page": 176,
+              "printedPage": 171,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.3",
+              "title": "Vi må holde oss i form",
+              "page": 178,
+              "printedPage": 173,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.4",
+              "title": "Vi må prøve å spise sunt",
+              "page": 178,
+              "printedPage": 173,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.5",
+              "title": "Yrkestekst: Jeg er pleieassistent",
+              "page": 180,
+              "printedPage": 175,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "12.pronunciation",
+              "title": "Uttale",
+              "page": 183,
+              "printedPage": 178,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "12.listening",
+              "title": "Lytteoppgaver",
+              "page": 183,
+              "printedPage": 178,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "12.practice",
+              "title": "Øve til prøve",
+              "page": 184,
+              "printedPage": 179,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "13",
+          "title": "Utdanning for alle",
+          "page": 186,
+          "printedPage": 181,
+          "sections": [
+            {
+              "id": "13.1",
+              "title": "Skolesystemet i Norge",
+              "page": 186,
+              "printedPage": 181,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.2",
+              "title": "Skal du på foreldremøte?",
+              "page": 188,
+              "printedPage": 183,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.3",
+              "title": "Yrkesfaglig opplæring i Norge",
+              "page": 190,
+              "printedPage": 185,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.4",
+              "title": "Å studere i Norge",
+              "page": 192,
+              "printedPage": 187,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.5",
+              "title": "Yrkestekst: Jeg er renholder",
+              "page": 194,
+              "printedPage": 189,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "13.pronunciation",
+              "title": "Uttale",
+              "page": 195,
+              "printedPage": 190,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "13.listening",
+              "title": "Lytteoppgaver",
+              "page": 196,
+              "printedPage": 191,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "13.practice",
+              "title": "Øve til prøve",
+              "page": 197,
+              "printedPage": 192,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "14",
+          "title": "Jeg vil finne en jobb!",
+          "page": 199,
+          "printedPage": 194,
+          "sections": [
+            {
+              "id": "14.1",
+              "title": "Har du erfaring?",
+              "page": 199,
+              "printedPage": 194,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.2",
+              "title": "På sjefens kontor",
+              "page": 202,
+              "printedPage": 197,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.3",
+              "title": "Arbeidsliv",
+              "page": 203,
+              "printedPage": 198,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.4",
+              "title": "Vanskelige situasjoner på jobben",
+              "page": 204,
+              "printedPage": 199,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.5",
+              "title": "Yrkestekst: Jeg er barneskolelærer",
+              "page": 207,
+              "printedPage": 202,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "14.pronunciation",
+              "title": "Uttale",
+              "page": 208,
+              "printedPage": 203,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "14.listening",
+              "title": "Lytteoppgaver",
+              "page": 209,
+              "printedPage": 204,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "14.practice",
+              "title": "Øve til prøve",
+              "page": 210,
+              "printedPage": 205,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        },
+        {
+          "id": "15",
+          "title": "Innvandrer i Norge",
+          "page": 212,
+          "printedPage": 207,
+          "sections": [
+            {
+              "id": "15.1",
+              "title": "«Du må finne den hemmelige døra.»",
+              "page": 212,
+              "printedPage": 207,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.2",
+              "title": "«Jeg vil vise innvandrerkvinner at alt er mulig!»",
+              "page": 215,
+              "printedPage": 210,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.3",
+              "title": "«Kast deg ut i samtaler med nordmenn!»",
+              "page": 218,
+              "printedPage": 213,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.4",
+              "title": "«Du kan klare nesten alt hvis du jobber hardt!»",
+              "page": 220,
+              "printedPage": 215,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.5",
+              "title": "Hun: Er det sant? Men ... du ... nei ... tuller du bare?",
+              "page": 224,
+              "printedPage": 219,
+              "kind": "text",
+              "pageVerified": true
+            },
+            {
+              "id": "15.pronunciation",
+              "title": "Uttale",
+              "page": 225,
+              "printedPage": 220,
+              "kind": "pronunciation",
+              "pageVerified": true
+            },
+            {
+              "id": "15.listening",
+              "title": "Lytteoppgaver",
+              "page": 226,
+              "printedPage": 221,
+              "kind": "listening",
+              "pageVerified": true
+            },
+            {
+              "id": "15.practice",
+              "title": "Øve til prøve",
+              "page": 227,
+              "printedPage": 222,
+              "kind": "practice",
+              "pageVerified": true
+            }
+          ],
+          "pageVerified": true
+        }
+      ],
+      "appendices": [
+        {
+          "id": "illustrations",
+          "title": "Illustrasjonsliste",
+          "page": 228,
+          "printedPage": 223,
+          "sections": [],
+          "pageVerified": true
+        },
+        {
+          "id": "game",
+          "title": "Slik kan du bruke stigespillet på baksiden",
+          "page": 229,
+          "printedPage": 224,
+          "sections": [],
+          "pageVerified": true
+        },
+        {
+          "id": "gameboard",
+          "title": "Stigespill · bakside",
+          "page": 230,
+          "printedPage": null,
+          "sections": [],
+          "pageVerified": false
+        }
+      ]
+    }
+  }
+}

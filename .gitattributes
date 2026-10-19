@@ -1,0 +1,8 @@
+*.pdf binary
+*.mp3 binary
+*.pptx binary
+*.json text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.html text eol=lf
+*.css text eol=lf
