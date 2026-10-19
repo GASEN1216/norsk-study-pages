@@ -98,3 +98,23 @@ body.reader-focus[data-view=reading] .main{width:100%;max-width:none;padding:8px
 .word-rate-control.compact{margin-right:3px}
 .word-rate-control.compact select{font-size:11px;min-height:28px;padding:3px 2px;max-width:68px}
 .word-rate-control select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* Keep the directory and its footer anchored while the lesson scrolls. */
+.site-header{position:sticky;top:0}
+.sidebar{overflow:hidden;align-self:flex-start}
+.sidebar-heading,.book-switch,.sidebar-subtitle,.sidebar-footer{flex-shrink:0}
+.toc{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#cbd4c0 transparent}
+@media(min-width:721px){.sidebar{top:var(--header);height:calc(100dvh - var(--header))}}
+.compare-launch{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #d8e2cd;border-radius:6px;font-size:12px;white-space:nowrap;background:#eef3e7;color:var(--green)}
+.compare-launch svg{width:15px;height:15px}
+.compare-launch:hover{background:#dfead5}
+body[data-view=compare] .workspace{height:calc(100dvh - var(--header));min-height:0}
+body[data-view=compare] #sidebar,body[data-view=compare] .content-heading,body[data-view=compare] .main-footer{display:none}
+body[data-view=compare] .main{width:100%;max-width:none;height:100%;padding:10px 16px;overflow:hidden;display:flex;flex-direction:column}
+body[data-view=compare] .audio-dock{left:20px;right:20px}
+@media(max-width:720px){
+ .sidebar{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+ .compare-launch{padding:5px 6px;font-size:10px;gap:3px}.compare-launch svg{display:none}
+ body[data-view=compare] .main{padding:7px}
+ body[data-view=compare] .audio-dock{left:12px;right:12px}
+}

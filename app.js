@@ -1,4 +1,5 @@
-import './practice.js?v=20261019-6';
+import './practice.js?v=20261019-7';
+import './compare.js?v=20261019-7';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -21,6 +22,7 @@ try {
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
 } catch {}
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','听一听，想一想，再记牢一点']};
+labels.compare = ['LES SIDE OM SIDE · 双页对照','教材与练习册','两本书，各自翻阅'];
 
 function safeURL(path) {
   if (!path) return '';
@@ -101,9 +103,29 @@ function openSidebar() {
   $('#sidebar-shade').hidden = false;
   $('#open-sidebar').setAttribute('aria-expanded','true');
 }
+function compareSeed() {
+  const seed = {};
+  const currentChapter = findEntry(state.readingId)?.chapter;
+  for (const book of ['textbook','workbook']) {
+    const match = findEntry(state.readingId,book) || findEntry(currentChapter?.id,book);
+    const first = allChapters(book)[0];
+    seed[book] = book === state.book ? {page:state.page,id:state.readingId} : {page:Number(match?.entry.page || first?.page) || 1,id:str(match?.entry.id || first?.id)};
+  }
+  return seed;
+}
 function setView(view, updateHash = true) {
   if (!labels[view]) view = 'reading';
   if (state.view === 'practice' && view !== 'practice') { window.NorskPractice?.hide(); pauseOtherAudio(); }
+  if (state.view === 'compare' && view !== 'compare') {
+    $('#word-audio').before($('#audio-dock'));
+    window.NorskCompare?.hide();
+  }
+  if (state.view === 'reading' && view !== 'reading') {
+    ++state.pdfRun;
+    try { state.renderTask?.cancel(); } catch {}
+    state.renderTask = null;
+    document.body.classList.remove('reader-focus');
+  }
   state.view = view;
   document.body.dataset.view = view;
   if (view === 'practice') {
@@ -112,8 +134,9 @@ function setView(view, updateHash = true) {
     document.body.classList.remove('audio-open');
   }
   $$('.nav-button').forEach(button => {
-    button.classList.toggle('active', button.dataset.view === view);
-    button.setAttribute('aria-current', button.dataset.view === view ? 'page' : 'false');
+    const active = button.dataset.view === (view === 'compare' ? 'reading' : view);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-current', active ? 'page' : 'false');
   });
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view;
   $('#content-eyebrow').textContent = labels[view][0];
@@ -127,6 +150,11 @@ function setView(view, updateHash = true) {
     if (view === 'vocabulary') renderVocabulary();
     if (view === 'basics') renderBasics();
     if (view === 'practice') { $('#content-title').textContent = '练习'; window.NorskPractice?.show(); }
+    if (view === 'compare') {
+      $('#content-title').textContent = labels.compare[1];
+      $('#compare-view').append($('#audio-dock'));
+      window.NorskCompare?.show(compareSeed());
+    }
   } else $('#content-title').textContent = labels[view][1];
   if (updateHash && location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
   window.scrollTo(0,0);
@@ -135,6 +163,7 @@ function setView(view, updateHash = true) {
 
 function renderTOC() {
   const toc = $('#toc');
+  if (state.view === 'compare') return;
   if (state.view === 'practice') { toc.innerHTML = window.NorskPractice?.renderTOC() || ''; return; }
   if (state.view === 'basics') {
     const categories = state.data.basics?.categories || [];
@@ -556,6 +585,11 @@ $('#close-sidebar').addEventListener('click',closeSidebar);
 $('#sidebar-shade').addEventListener('click',closeSidebar);
 $('#prev-page').addEventListener('click',() => goPage(state.page-1));
 $('#next-page').addEventListener('click',() => goPage(state.page+1));
+$('#open-compare').addEventListener('click',async () => {
+  if (!state.ready) return;
+  if (document.fullscreenElement) { try { await document.exitFullscreen(); } catch {} }
+  setView('compare');
+});
 $('#page-form').addEventListener('submit',event => { event.preventDefault(); goPage(Number($('#page-input').value)); });
 $('#zoom-select').addEventListener('change',renderPDF);
 $('#zoom-in').addEventListener('click',() => changeZoom(1));
@@ -610,7 +644,7 @@ if ('ResizeObserver' in window) new ResizeObserver(() => {
 async function initialize() {
   const names = ['catalog','documents','audio','vocabulary','basics','lessons','pronunciation'];
   const results = await Promise.allSettled(names.map(async name => {
-    const response = await fetch(`data/${name}.json?v=20261019-6`);
+    const response = await fetch(`data/${name}.json?v=20261019-7`);
     if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
     return response.json();
   }));
@@ -641,6 +675,16 @@ async function initialize() {
   state.vocabularyId = str(state.data.vocabulary?.chapters?.[0]?.id || allChapters('textbook')[0]?.id || '');
   state.basicId = str(state.data.basics?.categories?.[0]?.id || '');
   window.NorskPractice?.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl()});
+  window.NorskCompare?.init({data:state.data,getPDF,documentPart,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,onClose:positions => {
+    const position = positions?.workbook;
+    if (position) {
+      state.book = 'workbook'; state.page = position.page; state.readingId = str(position.id);
+      const current = findEntry(state.readingId);
+      if (current) state.expanded.add(`workbook:${current.chapter.id}`);
+      saveReading();
+    }
+    setView('reading');
+  }});
   const current = findEntry(state.readingId);
   if (current) state.expanded.add(`${state.book}:${current.chapter.id}`);
   state.ready = true;
