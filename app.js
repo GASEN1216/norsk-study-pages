@@ -1,6 +1,6 @@
-import {createDataLoader} from './loader.mjs?v=20261022-community-server1';
+import {createDataLoader} from './loader.mjs?v=20261022-practice-ui2';
 
-const VERSION = '20261022-community-server1';
+const VERSION = '20261022-practice-ui2';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -373,7 +373,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-community-server1').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-practice-ui2').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
