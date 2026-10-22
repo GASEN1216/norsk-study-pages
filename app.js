@@ -1,6 +1,6 @@
-import {createDataLoader} from './loader.mjs?v=20261022-practice-ui2';
+import {createDataLoader} from './loader.mjs?v=20261022-levels3';
 
-const VERSION = '20261022-practice-ui2';
+const VERSION = '20261022-levels3';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -66,9 +66,16 @@ function prepareCommunity() {
   }).catch(error => { communityLoad = null; communityAttempt++; throw error; });
   return communityLoad;
 }
-async function openCommunity() {
-  try { (await prepareCommunity()).open(); }
-  catch { notify('排行榜暂时无法打开，请稍后重试。'); }
+async function mountCommunity(container) {
+  try { return await (await prepareCommunity()).mount(container); }
+  catch {
+    if (container.isConnected) container.innerHTML = '<p class="community-offline">排行榜暂时无法打开，请稍后重试。</p>';
+    return false;
+  }
+}
+// Being on the site earns online XP, so heartbeats start on every view, not only in practice.
+function startPresence() {
+  prepareCommunity().then(community => community.startPresence()).catch(() => {});
 }
 function submitPracticeResult(result) {
   return prepareCommunity().then(community => community.submitResult(result)).catch(() => false);
@@ -83,7 +90,7 @@ async function prepareView(view) {
   if (view === 'practice') {
     await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyIndex().then(index => Promise.all(index.chapters.map(chapter => vocabularyChapter(chapter.id))))]);
     if (!state.practiceInitialized) {
-      window.NorskPractice.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),openCommunity,submitPracticeResult});
+      window.NorskPractice.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult});
       state.practiceInitialized = true;
       prepareCommunity().catch(() => {});
     }
@@ -373,7 +380,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-practice-ui2').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-levels3').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -794,6 +801,7 @@ async function loadAudioMetadata() {
   if (state.ready && state.view === 'compare') window.NorskCompare?.refreshAudio();
 }
 async function initialize() {
+  startPresence();
   showPDFMessage('正在载入阅读目录…');
   loadAudioMetadata();
   try {

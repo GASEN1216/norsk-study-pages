@@ -11,8 +11,8 @@
     match:{title:'配对消除',description:'限时配对，错配加时'},
     listen:{title:'听音选义',description:'听读音，选出意思'}
   };
-  // Leaderboard API only accepts these activities; listening stays local.
-  const RANKED = ['learn','quiz','match'];
+  // Every finished activity earns leaderboard XP; self-rated cards earn participation XP only.
+  const RANKED = ['cards','learn','quiz','match','listen'];
   const QUIZ_TYPES = ['judge','choice','spell'];
   const activityOf = config => ACTIVITIES[config?.activity] ? config.activity : 'listen';
   const defaultQuiz = () => ({types:[...QUIZ_TYPES],direction:'to-nb'});
@@ -31,7 +31,6 @@
   const ICONS = {
     close:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
     speaker:'<path d="M11 5 6.5 9H3.5v6h3l4.5 4z"/><path d="M15.5 8.8a4.6 4.6 0 0 1 0 6.4M18.4 6a8.6 8.6 0 0 1 0 12"/>',
-    mute:'<path d="M11 5 6.5 9H3.5v6h3l4.5 4z"/><path d="m16 9.5 5 5m0-5-5 5"/>',
     pause:'<path d="M9 5.5v13M15 5.5v13"/>',
     play:'<path d="M8 5.5v13l10.5-6.5z"/>',
     star:'<path d="m12 3.8 2.5 5.1 5.6.8-4 3.9.9 5.6-5-2.6-5 2.6.9-5.6-4-3.9 5.6-.8z"/>',
@@ -54,8 +53,6 @@
   const now = () => new Date().toISOString();
   // Effects belong to a fresh answer event, never to rendering or restored history.
   const effects = {context:null,voices:new Set(),audioToken:0,visualTimer:null,visualNodes:[],lastCompletedId:null};
-  const soundInner = withLabel => `${icon(state.store.feedbackSound ? 'speaker' : 'mute')}${withLabel ? `<span>音效${state.store.feedbackSound ? '开' : '关'}</span>` : ''}`;
-  const soundControl = (withLabel=false) => button('sound',soundInner(withLabel),`aria-pressed="${state.store.feedbackSound}" aria-label="${state.store.feedbackSound ? '关闭' : '开启'}练习音效" title="练习音效${state.store.feedbackSound ? '已开启' : '已关闭'}" ${withLabel ? 'data-pr-label="1"' : ''}`,withLabel ? 'pr-quiet pr-sound-toggle' : 'pr-icon-button pr-sound-toggle');
   function unlockFeedbackAudio(event) {
     if (!event?.isTrusted || !state.store.feedbackSound || document.hidden) return;
     try {
@@ -119,18 +116,6 @@
     if (kind === 'complete') card.insertAdjacentHTML?.('beforeend',`<div class="pr-completion-burst" aria-hidden="true">${Array.from({length:18},(_,index) => `<i style="--pr-x:${8+index*5}%;--pr-drift:${(index%5-2)*22}px;--pr-delay:${index%4*35}ms;--pr-turn:${(index%2 ? 1 : -1)*(150+index*16)}deg"></i>`).join('')}</div>`);
     if (typeof setTimeout === 'function') effects.visualTimer=setTimeout(clearFeedbackVisual,kind === 'complete' ? 1500 : 800);
   }
-  function toggleSound(event) {
-    state.store.feedbackSound=!state.store.feedbackSound;
-    if (state.store.feedbackSound) unlockFeedbackAudio(event); else stopFeedbackAudio();
-    persist();
-    // Update only the toggle so the spelling draft, caret and keyboard stay intact.
-    state.root?.querySelectorAll('[data-practice-action="sound"]').forEach(control => {
-      control.innerHTML=soundInner(control.dataset?.prLabel === '1');
-      control.setAttribute('aria-pressed',String(state.store.feedbackSound));
-      control.setAttribute('aria-label',`${state.store.feedbackSound ? '关闭' : '开启'}练习音效`);
-      control.title=`练习音效${state.store.feedbackSound ? '已开启' : '已关闭'}`;
-    });
-  }
   const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;
   const currentSession = () => state.store.active;
   const currentKeys = session => session.phase === 'review' ? session.reviewKeys : session.firstKeys;
@@ -153,7 +138,7 @@
       if (!raw) return blankStore();
       const value = JSON.parse(raw);
       if (!value || value.version !== 1 || !Array.isArray(value.sets) || !Array.isArray(value.history) || !value.stats || typeof value.stats !== 'object') throw new Error('Invalid practice history');
-      return {...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:value.feedbackSound !== false,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}};
+      return {...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:true,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}};
     } catch {
       storageFailure('本机学习记录暂时无法读取。本次仍可练习，新进度可能无法在刷新后恢复。');
       return blankStore();
@@ -307,7 +292,20 @@
     state.screen = 'setup';
     const active = currentSession();
     const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>继续${e(ACTIVITIES[activityOf(active)].title)}</strong><span>${Object.keys(active.answers || {}).length} / ${active.firstKeys.length} 词</span></div>${button('resume','继续','','pr-primary')}</section>` : '';
-    shell(`<div class="pr-home">${resumeBanner}<h2 class="pr-home-title">今天练什么？</h2><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-setup-footer">${button('history','学习记录','','pr-quiet')}${button('community','排行榜','','pr-quiet')}${soundControl(true)}</div></div>`);
+    shell(`<div class="pr-home">${resumeBanner}<h2 class="pr-home-title">今天练什么？</h2><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
+    const slot = $('#pr-community-slot');
+    if (slot) state.deps.mountCommunity?.(slot);
+  }
+  function historyStats() {
+    return `<div class="pr-history-stats"><span><b>${Object.keys(state.store.stats).length}</b>已练词语</span><span><b>${state.store.history.length}</b>完成次数</span><span><b>${weakKeys().length}</b>薄弱词</span></div>`;
+  }
+  function historyEntry(result,actions=true) {
+    const activity=activityOf(result), summary=resultSummary(result);
+    return `<article class="pr-history-entry"><span class="pr-mode-icon is-${activity}">${icon(activity)}</span><button type="button" class="pr-history-main" data-practice-action="history-detail" data-pr-id="${e(result.id)}"><strong>${e(ACTIVITIES[activity].title)}</strong><span>${e(result.label)} · ${e(dateLabel(result.finishedAt))}</span></button><span class="pr-history-score">${summary.score}<small>${summary.unit}</small></span>${actions && result.answers.some(answer => answer.points < 2) ? button('history-weak','练错词',`data-pr-id="${e(result.id)}"`,'pr-small pr-quiet') : ''}</article>`;
+  }
+  function historyColumn() {
+    const history = state.store.history;
+    return `<section class="pr-home-history" aria-labelledby="pr-home-history-title"><div class="pr-column-head"><h3 id="pr-home-history-title">学习记录</h3>${history.length ? button('history',`全部 ${history.length}`,'','pr-small pr-quiet') : ''}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.slice(0,6).map(result => historyEntry(result,false)).join('')}</div>` : '<p class="pr-column-empty">完成一组练习后，记录会出现在这里。</p>'}</section>`;
   }
   function scopeOptions() {
     const quiz = state.activity === 'quiz' ? `<div class="pr-setting-block"><span class="pr-setting-label">题型</span><div class="pr-chip-group" role="group" aria-label="测验题型">${[['judge','判断'],['choice','选择'],['spell','拼写']].map(([value,label]) => `<label class="pr-chip"><input type="checkbox" data-pr-quiz-type="${value}" ${state.quiz.types.includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div><label class="pr-setting-block"><span class="pr-setting-label">方向</span><select id="pr-quiz-direction"><option value="to-nb" ${state.quiz.direction === 'to-nb' ? 'selected' : ''}>中文 → 挪威语</option><option value="to-zh" ${state.quiz.direction === 'to-zh' ? 'selected' : ''}>挪威语 → 中文</option><option value="mixed" ${state.quiz.direction === 'mixed' ? 'selected' : ''}>混合</option></select></label>` : '';
@@ -448,7 +446,7 @@
   }
   function sessionBar(session) {
     const {done,total,review} = progressOf(session), percent = Math.round(done/Math.max(total,1)*100), match = activityOf(session) === 'match';
-    return `<div class="pr-session-bar${review ? ' is-review' : ''}">${iconButton('exit','close','退出练习')}<div class="pr-progress" role="progressbar" aria-label="${review ? '错词重练进度' : '练习进度'}" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${percent}%"></span></div><span class="pr-progress-count">${review ? '<b>重练</b>' : ''}${done}/${total}</span>${rateControl()}${soundControl()}${match ? iconButton('pause',session.paused ? 'play' : 'pause',session.paused ? '继续' : '暂停') : ''}</div>`;
+    return `<div class="pr-session-bar${review ? ' is-review' : ''}">${iconButton('exit','close','退出练习')}<div class="pr-progress" role="progressbar" aria-label="${review ? '错词重练进度' : '练习进度'}" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${percent}%"></span></div><span class="pr-progress-count">${review ? '<b>重练</b>' : ''}${done}/${total}</span>${rateControl()}${match ? iconButton('pause',session.paused ? 'play' : 'pause',session.paused ? '继续' : '暂停') : ''}</div>`;
   }
   function renderSession() {
     const session = currentSession();
@@ -873,7 +871,7 @@
   function renderHistory() {
     state.screen = 'history';
     const history = state.store.history;
-    shell(`<div class="pr-page-head"><h2>学习记录</h2>${history.length ? button('export','导出','','pr-quiet') : ''}${button('setup','返回','','pr-secondary')}</div><div class="pr-history-stats"><span><b>${Object.keys(state.store.stats).length}</b>已练词语</span><span><b>${history.length}</b>完成次数</span><span><b>${weakKeys().length}</b>薄弱词</span></div>${history.length ? `<div class="pr-history-list">${history.map(result => { const activity=activityOf(result), summary=resultSummary(result); return `<article class="pr-history-entry"><span class="pr-history-icon">${icon(activity)}</span><button type="button" class="pr-history-main" data-practice-action="history-detail" data-pr-id="${e(result.id)}"><strong>${e(ACTIVITIES[activity].title)}</strong><span>${e(result.label)} · ${e(dateLabel(result.finishedAt))}</span></button><span class="pr-history-score">${summary.score}<small>${summary.unit}</small></span>${result.answers.some(answer => answer.points < 2) ? button('history-weak','练错词',`data-pr-id="${e(result.id)}"`,'pr-small pr-quiet') : ''}</article>`; }).join('')}</div>` : '<section class="pr-empty"><h3>还没有练习记录</h3><p>完成一组练习后会出现在这里。</p></section>'}`);
+    shell(`<div class="pr-history-page"><div class="pr-page-head"><h2>学习记录</h2>${history.length ? button('export','导出','','pr-quiet') : ''}${button('setup','返回','','pr-secondary')}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.map(result => historyEntry(result)).join('')}</div>` : '<section class="pr-empty"><h3>还没有练习记录</h3><p>完成一组练习后会出现在这里。</p></section>'}</div>`);
   }
   function closeDialogs() {
     for (const dialog of state.root?.querySelectorAll('dialog[open]') || []) dialog.close();
@@ -955,10 +953,8 @@
     const session = currentSession();
     const id = target.dataset.prId;
     switch (action) {
-      case 'sound': toggleSound(event); break;
       case 'setup': navigate('setup'); break;
       case 'history': navigate('history'); break;
-      case 'community': syncCommunity(); state.deps.openCommunity?.(); break;
       case 'export': exportRecords(); break;
       case 'weak': reviewKeys(weakKeys(),'薄弱词复习',state.activity,state.quiz); break;
       case 'favorites': { const keys=favoriteKeys(); if (!keys.length) { announce('先在练习中点星标收藏词语，就能在这里复习。'); break; } startSession({sources:[],mode:state.mode,activity:state.activity,quiz:state.quiz},keys,'收藏词语'); break; }
