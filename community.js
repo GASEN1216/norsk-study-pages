@@ -16,7 +16,7 @@
     registration:null, flushing:null, startup:null, container:null, notify:null,
     period:'week', board:null, status:'idle', error:'', request:0, loadedAt:0, expanded:false, rulesOpen:false,
     editing:false, draft:'', saving:false, nameError:'', nameMessage:'', pending:0,
-    stats:null, presenceTimer:null, presenceBusy:null, lastPing:0,
+    stats:null, presenceTimer:null, presenceBusy:null, lastPing:0, confirmName:'', refreshing:null,
   };
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const count = value => [...String(value)].length;
@@ -253,6 +253,21 @@
     if (!entry || !Number.isInteger(entry.rank) || entry.rank < 1 || typeof entry.id !== 'string' || typeof entry.nickname !== 'string' || !whole(entry.xp) || !whole(entry.words)) throw issue('service_unavailable');
     return {rank:entry.rank,id:entry.id,nickname:entry.nickname,xp:entry.xp,words:entry.words,level:Number.isInteger(entry.level) && entry.level >= 1 ? entry.level : null};
   }
+  // Refresh the ranking list in place, without a loading state; failures keep the last list.
+  function refreshList() {
+    if (state.refreshing || !isMounted() || state.status !== 'ready' || !state.identity) return state.refreshing || Promise.resolve(false);
+    const token=state.request, period=state.period;
+    state.refreshing=(async () => {
+      const board=await request(`/leaderboard?period=${period}&deviceId=${encodeURIComponent(state.identity.deviceId)}`);
+      if (token !== state.request || period !== state.period || state.status !== 'ready') return false;
+      if (board.period !== period || !Array.isArray(board.entries)) throw issue('service_unavailable');
+      const entries=board.entries.map(cleanEntry), me=board.me ? cleanEntry(board.me) : null;
+      if (me && me.id !== state.profile?.id) throw issue('service_unavailable');
+      state.board={period,entries,me,updatedAt:board.updatedAt}; state.loadedAt=Date.now();
+      render(); return true;
+    })().catch(() => false).finally(() => { state.refreshing=null; });
+    return state.refreshing;
+  }
   async function loadBoard() {
     const token=++state.request, period=state.period;
     state.status='loading'; state.error=''; render();
@@ -304,7 +319,8 @@
     const name=state.profile?.nickname || state.identity?.nickname;
     const stats=state.stats, info=levelInfo(stats?.xp || 0), me=state.status === 'ready' ? state.board?.me : null;
     const percent=Math.round(Math.min(1,Math.max(0,info.progress))*100);
-    const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
+    const confirm=state.confirmName ? `<div class="nc-confirm" role="alertdialog" aria-labelledby="nc-confirm-text"><p id="nc-confirm-text">已有学习者叫「${escapeHTML(state.confirmName)}」。同名会视为同一个人，经验和排名合并计算。这是你吗？</p><div>${button('confirm-name','是我，使用这个名字','nc-primary')}${button('cancel-confirm','换个名字','nc-quiet')}</div></div>` : '';
+    const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
     return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div><div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '总榜'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
   }
   function render() {
@@ -313,7 +329,7 @@
     const focused=document.activeElement;
     const focusId=container.contains?.(focused) ? focused?.id : null;
     const selection=focusId === 'nc-nickname' ? [focused.selectionStart,focused.selectionEnd] : null;
-    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。练习每天最多 5,000 XP。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
+    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
     if (focusId) {
       const next=container.querySelector?.('#'+focusId);
       next?.focus?.({preventScroll:true});
@@ -336,11 +352,13 @@
       } else if (action === 'edit') {
         state.editing=true; state.draft=state.profile?.nickname || state.identity?.nickname || ''; state.nameError=''; state.nameMessage=''; render();
         container.querySelector?.('#nc-nickname')?.focus?.(); container.querySelector?.('#nc-nickname')?.select?.();
-      } else if (action === 'cancel-edit' && !state.saving) { state.editing=false; state.nameError=''; render(); }
+      } else if (action === 'cancel-edit' && !state.saving) { state.editing=false; state.nameError=''; state.confirmName=''; render(); }
+      else if (action === 'confirm-name') void saveNickname(true);
+      else if (action === 'cancel-confirm') { state.confirmName=''; render(); container.querySelector?.('#nc-nickname')?.focus?.(); }
     });
     container.addEventListener('input',event => {
       if (event.target.id !== 'nc-nickname') return;
-      state.draft=[...event.target.value].slice(0,20).join('');
+      state.draft=[...event.target.value].slice(0,20).join(''); state.confirmName='';
       event.target.value=state.draft;
       const counter=container.querySelector?.('#nc-name-count'); if (counter) counter.textContent=`${count(state.draft)}/20`;
     });
@@ -352,22 +370,26 @@
       container.querySelector?.('#nc-tab-'+next)?.click?.(); container.querySelector?.('#nc-tab-'+next)?.focus?.({preventScroll:true});
     });
   }
-  async function saveNickname() {
+  async function saveNickname(confirm=false) {
     if (state.saving) return false;
-    const nickname=state.draft.trim();
-    state.nameMessage=''; state.nameError='';
+    const nickname=confirm ? state.confirmName : state.draft.trim();
+    state.nameMessage=''; state.nameError=''; state.confirmName='';
     if (!nickname || count(nickname) > 20 || CONTROL.test(nickname)) {
       state.nameError='请输入 1–20 个字符，不要包含换行或特殊控制符。'; render(); state.container?.querySelector?.('#nc-nickname')?.focus?.(); return false;
     }
     state.saving=true; render();
     try {
       await ensureRegistered();
-      const response=await request('/profile',{method:'PATCH',body:{nickname},auth:true});
+      const response=await request('/profile',{method:'PATCH',body:confirm ? {nickname,confirm:true} : {nickname},auth:true});
       applyProfile(response.profile);
-      state.editing=false; state.nameMessage='昵称已更新。'; state.saving=false;
-      announce('昵称已更新。');
+      state.editing=false; state.nameMessage=response.shared ? '已和同名的你合并。' : '昵称已更新。'; state.saving=false;
+      announce(state.nameMessage);
       await loadBoard(); return true;
-    } catch (error) { state.nameError=friendly(error,true); state.saving=false; render(); return false; }
+    } catch (error) {
+      state.saving=false;
+      if (error?.code === 'nickname_exists') { state.confirmName=nickname; render(); return false; }
+      state.nameError=friendly(error,true); render(); return false;
+    }
   }
   // The host re-creates the container on every render; keep data and refresh only when stale.
   async function mount(container) {
@@ -390,6 +412,7 @@
       const reply=await request('/presence',{method:'POST',body:{visible:true},auth:true});
       if (reply.accepted !== true) throw issue('service_unavailable');
       if (applyStats(reply.stats)) render();
+      await refreshList();
       return true;
     })().catch(() => false).finally(() => { state.presenceBusy=null; });
     return state.presenceBusy;

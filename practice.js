@@ -398,11 +398,11 @@
     const session = currentSession();
     return session && sessionPool(session).get(currentKey(session));
   }
-  // Prompt audio must never reveal a Norwegian answer before it is submitted.
+  // Spelling practice may read the word first; in the quiz, audio must not reveal an answer early.
   function promptAudioAllowed(session) {
     const activity = activityOf(session);
     if (activity === 'match') return false;
-    if (activity === 'cards') return true;
+    if (activity === 'cards' || activity === 'learn') return true;
     const question = session.questions?.[currentKey(session)];
     return !question || !!question.audio || question.direction === 'to-zh' || answered(session);
   }
@@ -428,7 +428,7 @@
     if (activity === 'match') return;
     if (activity === 'cards') { if (!session.cardsReverse) playCurrent(); return; }
     const question = session.questions?.[currentKey(session)];
-    if (!question || question.audio || question.direction === 'to-zh') playCurrent();
+    if (!question || question.audio || question.direction === 'to-zh' || activity === 'learn') playCurrent();
   }
   function pause() {
     if (!currentSession()) return;
@@ -596,9 +596,10 @@
     const expected=question.type === 'judge' ? (question.truth ? '正确' : '错误') : question.direction === 'to-zh' ? item.meaning : item.word;
     grade(correct ? 2 : 0,{type:question.type,direction:question.direction,audio:!!question.audio,submitted:unknown ? '不知道' : submitted,expected,correct,unknown,prompt:question.direction === 'to-zh' ? item.word : item.meaning,proposed:question.proposed || '',choice:question.type === 'choice' ? Number(value) : null,...(matchedKey !== key ? {matchedKey} : {})});
   }
+  const touchScreen = () => !!window.matchMedia?.('(pointer: coarse)').matches;
+  // A physical keyboard always types into the field, so desktops simply keep the on-screen layout.
   function keyboardMode() {
-    if (state.store.keyboardChoice) return state.store.keyboardMode === 'system' ? 'system' : 'screen';
-    return window.matchMedia?.('(pointer: coarse)').matches ? 'screen' : 'system';
+    return touchScreen() && state.store.keyboardChoice && state.store.keyboardMode === 'system' ? 'system' : 'screen';
   }
   function renderQuestion(session,item) {
     const activity=activityOf(session), key=currentKey(session), question=session.questions?.[key], done=answered(session), detail=questionDetails(session)[key];
@@ -607,11 +608,11 @@
     let prompt;
     if (question.audio) prompt=`<button type="button" class="pr-listen-button" data-practice-action="replay" aria-label="播放读音">${icon('speaker')}</button>${done ? `<p class="pr-listen-reveal" lang="nb">${e(item.word)}</p>` : ''}`;
     else if (question.type === 'judge') prompt=`<div class="pr-judge"><span class="${toZh ? 'pr-prompt-word' : 'pr-prompt-text'}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</span><span class="pr-judge-equals" aria-label="是否等于">=</span><span class="${toZh ? 'pr-prompt-text' : 'pr-prompt-word'}" ${toZh ? '' : 'lang="nb"'}>${e(question.proposed)}</span></div>`;
-    else prompt=`<div class="pr-prompt-row"><h2 class="pr-prompt${toZh ? ' is-word' : ''}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</h2>${toZh ? iconButton('replay','speaker','朗读','','pr-prompt-speaker') : ''}</div>`;
+    else prompt=`<div class="pr-prompt-row"><h2 class="pr-prompt${toZh ? ' is-word' : ''}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</h2>${toZh || activity === 'learn' ? iconButton('replay','speaker',toZh ? '朗读' : '听读音','','pr-prompt-speaker') : ''}</div>`;
     let answerUI='';
     if (question.type === 'spell') {
       const mode=keyboardMode(), value=done ? (detail?.unknown ? '' : detail?.submitted || '') : session.inputDraft || '';
-      answerUI=`<form class="pr-answer-form" id="pr-answer-form"><label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" inputmode="${mode === 'system' ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}></form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用设备键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle')}</div>`}`;
+      answerUI=`<form class="pr-answer-form" id="pr-answer-form"><label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}></form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用手机键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
     } else if (question.type === 'choice') {
       answerUI=`<div class="pr-choice-grid${question.options.some(option => option.text.length > 14) ? ' is-long' : ''}">${question.options.map((option,index) => {
         const tone=done ? (option.key === key ? ' is-correct' : detail?.choice === index ? ' is-wrong' : ' is-dim') : '';
@@ -1043,9 +1044,10 @@
     const accents=['æ','ø','å','é'];
     if (keyboardMode() === 'system') return `<div class="pr-keyboard-row pr-keyboard-accents">${accents.map(letter => button('letter',letter,`data-pr-letter="${letter}"`,'pr-key')).join('')}</div>`;
     const symbols=state.keyboardPage === 'symbols';
-    const rows=symbols ? ['1234567890'.split(''),['.',',','?','!','-',"'",':','/'],['(',')','+','%','&','backspace']] : ['qwertyuiop'.split(''),'asdfghjkl'.split(''),[...'zxcvbnm','backspace']];
+    // Same places as a Norwegian keyboard: Å right of P, Ø and Æ right of L.
+    const rows=symbols ? ['1234567890'.split(''),['.',',','?','!','-',"'",':','/'],['(',')','+','%','&','backspace']] : ['qwertyuiopå'.split(''),'asdfghjkløæ'.split(''),[...'zxcvbnmé','backspace']];
     const key = letter => button('letter',letter === 'backspace' ? '⌫' : e(letter),`data-pr-letter="${e(letter)}"${letter === 'backspace' ? ' aria-label="退格"' : ''}`,'pr-key'+(letter === 'backspace' ? ' pr-key-wide' : ''));
-    return `<div class="pr-keyboard" role="group" aria-label="挪威语屏幕键盘">${rows.map(row => `<div class="pr-keyboard-row">${row.map(key).join('')}</div>`).join('')}<div class="pr-keyboard-row">${button('keyboard-page',symbols ? 'ABC' : '123','aria-label="'+(symbols ? '切换字母键盘' : '切换数字和符号')+'"','pr-key pr-key-wide')}${accents.map(key).join('')}${button('letter','空格','data-pr-letter=" " aria-label="空格"','pr-key pr-key-space')}</div></div>`;
+    return `<div class="pr-keyboard${symbols ? ' is-symbols' : ''}" role="group" aria-label="挪威语屏幕键盘">${rows.map(row => `<div class="pr-keyboard-row">${row.map(key).join('')}</div>`).join('')}<div class="pr-keyboard-row">${button('keyboard-page',symbols ? 'ABC' : '123','aria-label="'+(symbols ? '切换字母键盘' : '切换数字和符号')+'"','pr-key pr-key-wide')}${button('letter','空格','data-pr-letter=" " aria-label="空格"','pr-key pr-key-space')}${button('letter','-','data-pr-letter="-"','pr-key')}</div></div>`;
   }
   function consecutiveCorrect(session) {
     const keys=currentKeys(session), answers=answerMap(session);
