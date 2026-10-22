@@ -1,6 +1,6 @@
-import {createDataLoader} from './loader.mjs?v=20261022-audio15';
+import {createDataLoader} from './loader.mjs?v=20261022-practice-live1';
 
-const VERSION = '20261022-audio15';
+const VERSION = '20261022-practice-live1';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -58,6 +58,21 @@ function loadFeature(name) {
   featureLoads.set(name,promise);
   return promise;
 }
+let communityLoad, communityAttempt = 0;
+function prepareCommunity() {
+  if (!communityLoad) communityLoad = import(`./community-config.js?v=${VERSION}${communityAttempt ? `&retry=${communityAttempt}` : ''}`).then(() => loadFeature('community')).then(() => {
+    window.NorskCommunity.init({notify});
+    return window.NorskCommunity;
+  }).catch(error => { communityLoad = null; communityAttempt++; throw error; });
+  return communityLoad;
+}
+async function openCommunity() {
+  try { (await prepareCommunity()).open(); }
+  catch { notify('排行榜暂时无法打开，请稍后重试。'); }
+}
+function submitPracticeResult(result) {
+  return prepareCommunity().then(community => community.submitResult(result)).catch(() => false);
+}
 async function prepareView(view) {
   if (['vocabulary','basics','practice'].includes(view)) loadData('pronunciation').catch(error => console.warn('读音目录未载入',error));
   if (view === 'vocabulary') await vocabularyIndex();
@@ -68,8 +83,9 @@ async function prepareView(view) {
   if (view === 'practice') {
     await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyIndex().then(index => Promise.all(index.chapters.map(chapter => vocabularyChapter(chapter.id))))]);
     if (!state.practiceInitialized) {
-      window.NorskPractice.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl()});
+      window.NorskPractice.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),openCommunity,submitPracticeResult});
       state.practiceInitialized = true;
+      prepareCommunity().catch(() => {});
     }
   }
   if (view === 'compare') {
@@ -102,7 +118,7 @@ try {
   const savedRate = Number(localStorage.getItem('norsk-word-rate-v1'));
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
 } catch {}
-const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','听一听，想一想，再记牢一点']};
+const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','一段专注的练习时间']};
 labels.compare = ['LES SIDE OM SIDE · 双页对照','教材与练习册','两本书，各自翻阅'];
 
 function safeURL(path) {
@@ -357,7 +373,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-audio15').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-practice-live1').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
