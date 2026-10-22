@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#21483e">
   <meta name="description" content="结合教材、练习册、章节录音与课堂资料的挪威语学习书房。在线阅读、听读课文、学习词汇与基础知识。">
   <title>Norsk 学习书房 · 挪威语学习</title>
-  <link rel="stylesheet" href="styles.css?v=20261022-books2">
+  <link rel="stylesheet" href="styles.css?v=20261022-library3">
 </head>
 <body>
   <svg class="svg-definitions" aria-hidden="true"><defs>
@@ -62,6 +62,10 @@
         <span class="heading-note" id="heading-note">让文字与声音相遇</span>
       </div>
 
+      <div class="study-series-bar" id="study-series-bar" hidden>
+        <label for="study-series-select"><span>学习教材</span><select id="study-series-select" aria-label="选择单词表和练习教材"></select></label>
+        <button class="text-button" data-action="open-basics">公共基础常识 ↗</button>
+      </div>
       <section id="reading-view" class="view" aria-label="在线阅读">
         <div class="reader-toolbar">
           <div class="reader-location"><svg><use href="#i-book"/></svg><span id="reader-book-title">教材</span><span class="reader-location-divider">/</span><span id="reader-section-title">正在载入目录</span></div>
@@ -84,7 +88,7 @@
       <section id="compare-view" class="view" aria-label="书籍双页对照" hidden></section>
 
       <section id="vocabulary-view" class="view" aria-label="课文单词表" hidden>
-        <div class="vocabulary-intro"><div><p class="section-kicker">ORDLISTE</p><p>教材章末词表，按原书小节学习。</p></div><div class="word-total"><strong id="word-count">0</strong><span>个词语</span></div></div>
+        <div class="vocabulary-intro"><div><p class="section-kicker" id="vocabulary-series-name">教材单词表</p><p>按当前教材的章节和小节学习。</p></div><div class="word-total"><strong id="word-count">0</strong><span>个词语</span></div></div>
         <div class="word-toolbar"><label class="search-field"><svg><use href="#i-search"/></svg><input id="vocab-search" type="search" placeholder="搜索单词、释义或课文例句" autocomplete="off" aria-label="搜索单词"></label><label class="sort-label"><span>排序</span><select id="vocab-sort" aria-label="单词排序"><option value="easy">由易到难</option><option value="hard">由难到易</option><option value="alpha">字母顺序</option></select></label></div>
         <div class="vocab-table"><div class="vocab-table-head"><span>单词 · 音节 · 读音</span><span>课文中的句子</span></div><div id="vocab-rows"></div></div>
       </section>
@@ -108,6 +112,6 @@
   </section>
   <audio id="word-audio" preload="none"></audio>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.js?v=20261022-books2"></script>
+  <script type="module" src="app.js?v=20261022-library3"></script>
 </body>
 </html>

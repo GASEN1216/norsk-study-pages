@@ -123,3 +123,12 @@ body[data-view=compare] .audio-dock{left:20px;right:20px}
  body[data-view=compare] .main{padding:7px}
  body[data-view=compare] .audio-dock{left:12px;right:12px}
 }
+
+/* The same textbook selector is available above vocabulary and practice. */
+.study-series-bar{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 22px;padding:13px 17px;border:1px solid #dce4d4;background:#f9fbf5;border-radius:10px}
+.study-series-bar[hidden]{display:none}
+.study-series-bar label{display:flex;align-items:center;gap:12px;min-width:0;color:#718366;font-size:12px}
+.study-series-bar select{min-width:170px;max-width:100%;border:0;background:transparent;color:var(--green);font:600 16px var(--sans);padding:6px 24px 6px 4px;cursor:pointer}
+.study-series-bar select:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:4px}
+.study-series-bar .text-button{white-space:nowrap;font-size:11px}
+@media(max-width:480px){.study-series-bar{gap:9px;padding:11px 12px}.study-series-bar label{gap:6px;flex-wrap:wrap}.study-series-bar label>span{font-size:10px}.study-series-bar select{min-width:120px;font-size:15px}.study-series-bar .text-button{font-size:10px}}

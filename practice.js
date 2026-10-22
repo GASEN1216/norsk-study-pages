@@ -2,7 +2,8 @@
 (() => {
   'use strict';
   if (window.NorskPractice) return;
-  const STORAGE_KEY = 'norsk-practice-v1';
+  const LEGACY_STORAGE_KEY = 'norsk-practice-v1';
+  const storageKeyFor = seriesId => seriesId === 'god-i-norsk' ? LEGACY_STORAGE_KEY : `${LEGACY_STORAGE_KEY}:${encodeURIComponent(seriesId)}`;
   const RATINGS = {2:'认识',1:'模糊',0:'不认识'};
   const ACTIVITIES = {
     cards:{title:'翻面词卡',description:'翻面回想，不会的再来'},
@@ -24,7 +25,7 @@
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
-  const state = {root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null};
+  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null};
   const $ = selector => state.root?.querySelector(selector);
   const e = value => (state.deps.escapeHTML || (text => String(text ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))))(value);
   const button = (action,text,extra='',kind='') => `<button type="button" class="pr-button ${kind}" data-practice-action="${action}" ${extra}>${text}</button>`;
@@ -134,7 +135,7 @@
   }
   function readStore() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(state.storageKey);
       if (!raw) return blankStore();
       const value = JSON.parse(raw);
       if (!value || value.version !== 1 || !Array.isArray(value.sets) || !Array.isArray(value.history) || !value.stats || typeof value.stats !== 'object') throw new Error('Invalid practice history');
@@ -144,11 +145,12 @@
       return blankStore();
     }
   }
-  function persist() {
-    try { localStorage.setItem(STORAGE_KEY,JSON.stringify(state.store)); }
+  function persistStore(store,key) {
+    try { localStorage.setItem(key,JSON.stringify(store)); }
     catch { storageFailure('本机存储空间不足或暂不可用。本次仍可练习，刷新后可能丢失新进度。'); }
-    syncSidebar();
+    if (store === state.store) syncSidebar();
   }
+  function persist() { persistStore(state.store,state.storageKey); }
   function clearTimers() {
     if (typeof clearTimeout === 'function') { if (state.speakTimer != null) clearTimeout(state.speakTimer); if (state.advanceTimer != null) clearTimeout(state.advanceTimer); }
     state.speakTimer=null; state.advanceTimer=null;
@@ -216,8 +218,9 @@
       return source;
     };
     for (const chapter of data?.vocabulary?.chapters || []) {
-      const label = `第 ${chapter.id} 章 · ${chapter.title}`;
-      const sections = (chapter.sections || []).map(section => ({...section,...add(`section:${section.id}`,`${section.id} ${section.title}`,section.words)}));
+      const number = chapter.number ?? chapter.id;
+      const label = `第 ${number} 章 · ${chapter.title}`;
+      const sections = (chapter.sections || []).map(section => ({...section,...add(`section:${section.id}`,`${section.number ?? (/^[\d.]+$/.test(String(section.id)) ? section.id : '')} ${section.title}`.trim(),section.words)}));
       const chapterWords = Array.isArray(chapter.words) ? chapter.words : (chapter.sections || []).flatMap(section => section.words || []);
       const source = add(`chapter:${chapter.id}`,label,chapterWords);
       state.chapters.push({...chapter,...source,sections});
@@ -292,7 +295,7 @@
     state.screen = 'setup';
     const active = currentSession();
     const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>继续${e(ACTIVITIES[activityOf(active)].title)}</strong><span>${Object.keys(active.answers || {}).length} / ${active.firstKeys.length} 词</span></div>${button('resume','继续','','pr-primary')}</section>` : '';
-    shell(`<div class="pr-home">${resumeBanner}<h2 class="pr-home-title">今天练什么？</h2><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
+    shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">今天练什么？</h2><span class="pr-series-label">${e(state.seriesTitle)}</span></div><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
     const slot = $('#pr-community-slot');
     if (slot) state.deps.mountCommunity?.(slot);
   }
@@ -317,7 +320,7 @@
     const pool = poolFor(state.selected), weak = weakKeys().length, favorites = favoriteKeys().length;
     const quick = weak || favorites ? `<div class="pr-quick-row">${weak ? button('weak',`薄弱词 <b>${weak}</b>`,'','pr-chip-button') : ''}${favorites ? button('favorites',`${icon('star',true)}收藏 <b>${favorites}</b>`,'','pr-chip-button') : ''}</div>` : '';
     const minimum = state.activity === 'match' ? 2 : 1;
-    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab','教材词汇',`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','基础常识',`data-pr-tab="basics" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section></div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','公共基础常识',`data-pr-tab="basics" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section></div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
     filterScope();
     updateSelectionUI(false);
     if (!dialog.open) { dialog.showModal?.(); $('#pr-scope-title')?.focus?.(); }
@@ -379,7 +382,7 @@
       if (activity === 'match' && pool.size < 2) { announce('配对消除至少需要 2 个词，请多选一些词语。'); return; }
       const mode = config.mode || state.mode;
       const firstKeys = selectKeys(pool,mode);
-      const session = {id:uid(),startedAt:now(),sources,label:label || selectedLabel(sources),mode,activity,quiz:quizConfig(config.quiz),firstKeys,customKeys:customKeys ? [...pool.keys()] : null,reviewKeys:[],reviewAnswers:{},details:{},reviewDetails:{},phase:'first',index:0,answers:{},paused:false,flipped:false,cardsReverse:false,inputDraft:''};
+      const session = {id:uid(),seriesId:state.seriesId,seriesTitle:state.seriesTitle,startedAt:now(),sources,label:label || selectedLabel(sources),mode,activity,quiz:quizConfig(config.quiz),firstKeys,customKeys:customKeys ? [...pool.keys()] : null,reviewKeys:[],reviewAnswers:{},details:{},reviewDetails:{},phase:'first',index:0,answers:{},paused:false,flipped:false,cardsReverse:false,inputDraft:''};
       if (['learn','quiz','listen'].includes(activity)) session.questions = makeQuestions(pool,firstKeys,activity,session.quiz);
       if (activity === 'match') { session.match={round:0,elapsedMs:0,penaltyMs:0,errors:{},matched:[],selected:null,wrong:[]}; makeMatchRound(session,pool); }
       state.store.active = session; state.keyboardPage='letters';
@@ -816,7 +819,7 @@
     if (state.advanceTimer != null && typeof clearTimeout === 'function') clearTimeout(state.advanceTimer);
     state.advanceTimer=null;
     const pool = sessionPool(session);
-    const result = {id:session.id,startedAt:session.startedAt,finishedAt:now(),label:session.label,sources:session.sources,customKeys:session.customKeys,mode:session.mode,activity:activityOf(session),quiz:session.quiz,total:session.firstKeys.length,reviewed:Object.keys(session.reviewAnswers).length,answers:session.firstKeys.map(key => ({key,word:pool.get(key)?.word || key,meaning:pool.get(key)?.meaning || '',points:session.answers[key] ?? 0,...(session.details?.[key] ? {detail:session.details[key]} : {})}))};
+    const result = {id:session.id,seriesId:session.seriesId || state.seriesId,seriesTitle:session.seriesTitle || state.seriesTitle,startedAt:session.startedAt,finishedAt:now(),label:session.label,sources:session.sources,customKeys:session.customKeys,mode:session.mode,activity:activityOf(session),quiz:session.quiz,total:session.firstKeys.length,reviewed:Object.keys(session.reviewAnswers).length,answers:session.firstKeys.map(key => ({key,word:pool.get(key)?.word || key,meaning:pool.get(key)?.meaning || '',points:session.answers[key] ?? 0,...(session.details?.[key] ? {detail:session.details[key]} : {})}))};
     if (result.activity === 'match') {
       result.timeMs=matchTime(session); result.penaltyMs=session.match.penaltyMs;
       const signature=matchSignature(session), best=state.store.matchBest?.[signature];
@@ -831,20 +834,24 @@
     syncCommunity();
   }
   function syncCommunity() {
-    if (state.communitySync || typeof state.deps.submitPracticeResult !== 'function' || !state.store.communityPending?.length) return state.communitySync || Promise.resolve(false);
-    state.communitySync=(async () => {
-      while (state.store.communityPending.length) {
-        const id=state.store.communityPending[0], result=state.store.history.find(item => item.id === id);
+    const store=state.store, key=state.storageKey, submit=state.deps.submitPracticeResult;
+    if (state.syncs.has(key)) return state.syncs.get(key);
+    if (typeof submit !== 'function' || !store.communityPending?.length) return Promise.resolve(false);
+    // Finish against the captured store when the learner changes books mid-request.
+    const sync=(async () => {
+      while (store.communityPending.length) {
+        const id=store.communityPending[0], result=store.history.find(item => item.id === id);
         if (result && RANKED.includes(activityOf(result))) {
-          try { if (await state.deps.submitPracticeResult(result) !== true) return false; }
+          try { if (await submit(result) !== true) return false; }
           catch { return false; }
         }
-        state.store.communityPending=state.store.communityPending.filter(item => item !== id);
-        persist();
+        store.communityPending=store.communityPending.filter(item => item !== id);
+        persistStore(store,key);
       }
       return true;
-    })().finally(() => { state.communitySync=null; });
-    return state.communitySync;
+    })().finally(() => { state.syncs.delete(key); if (state.communitySync === sync) state.communitySync=null; });
+    state.syncs.set(key,sync); state.communitySync=sync;
+    return sync;
   }
   function dateLabel(date) {
     try { return new Date(date).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -924,11 +931,11 @@
   const reviewActivity = activity => ['quiz','match'].includes(activity) ? 'learn' : activity;
   function exportRecords() {
     try {
-      const backup = {version:1,exportedAt:now(),sets:state.store.sets,stats:state.store.stats,history:state.store.history,active:state.store.active,draft:state.store.draft,recent:state.store.recent,favorites:state.store.favorites,matchBest:state.store.matchBest};
+      const backup = {version:1,seriesId:state.seriesId,seriesTitle:state.seriesTitle,exportedAt:now(),sets:state.store.sets,stats:state.store.stats,history:state.store.history,active:state.store.active,draft:state.store.draft,recent:state.store.recent,favorites:state.store.favorites,matchBest:state.store.matchBest};
       const url = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json;charset=utf-8'}));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `norsk-practice-${now().slice(0,10)}.json`;
+      link.download = `norsk-practice-${state.seriesId}-${now().slice(0,10)}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1163,10 +1170,26 @@
   function init(deps) {
     state.root = document.querySelector('#practice-view');
     if (!state.root) return;
+    const seriesId=deps.series?.id || 'god-i-norsk';
+    const changing=state.initialized && seriesId !== state.seriesId;
+    if (changing) {
+      hide(); closeDialogs(); persist();
+      state.stores.set(state.seriesId,state.store);
+      state.selected=new Set(); state.result=null; state.pending=null;
+      state.screen='setup'; state.scopeTab='chapters'; state.scopeQuery='';
+      state.keyboardPage='letters'; state.justMatched=[]; state.flipAnimation=false;
+      state.storageError=''; state.communitySync=null;
+    }
     state.deps = {...state.deps,...deps};
+    state.seriesId=seriesId;
+    state.seriesTitle=deps.series?.title || 'God i norsk';
+    state.storageKey=storageKeyFor(seriesId);
     indexData(deps.data);
+    if (!state.initialized || changing) {
+      state.store=state.stores.get(seriesId) || readStore();
+      state.stores.set(seriesId,state.store);
+    }
     if (!state.initialized) {
-      state.store=readStore();
       document.addEventListener('click',onClick);
       document.addEventListener('change',onChange);
       document.addEventListener('input',onInput);

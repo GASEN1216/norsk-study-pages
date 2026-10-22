@@ -411,5 +411,5 @@
   function refreshAudio() {
     if (state.open) for (const pane of Object.values(state.panes)) renderTOC(pane);
   }
-  window.NorskCompare={init,show,hide,isOpen:() => state.open,resize,refreshAudio};
+  window.NorskCompare={init,show,hide,isOpen:() => state.open,resize,refreshAudio,positions};
 })();

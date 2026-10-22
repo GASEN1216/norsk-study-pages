@@ -1,7 +1,8 @@
-import {createDataLoader} from './loader.mjs?v=20261022-books2';
-import {createReadingLibrary} from './reading-library.mjs?v=20261022-books2';
+import {createDataLoader} from './loader.mjs?v=20261022-library3';
+import {createReadingLibrary} from './reading-library.mjs?v=20261022-library3';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261022-library3';
 
-const VERSION = '20261022-books2';
+const VERSION = '20261022-library3';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -20,16 +21,40 @@ const featureLoads = new Map();
 const featureAttempts = new Map();
 const loading = message => `<div class="empty-state" role="status"><span class="loader"></span><p>${escapeHTML(message)}</p></div>`;
 
-async function vocabularyIndex() {
-  if (!state.data.vocabulary) state.data.vocabulary = await loadData('vocabulary-index');
-  return state.data.vocabulary;
+const vocabularyLibrary = createVocabularyLibrary(loadData);
+state.vocabularySelections = new Map();
+const activeSeriesId = () => state.library?.seriesFor(state.book) || 'god-i-norsk';
+const activeSeriesTitle = () => state.library?.series.find(item => item.id === activeSeriesId())?.title || 'God i norsk';
+const vocabularyBook = () => state.vocabularyDescriptor?.bookId || 'textbook';
+const vocabularyIndex = (seriesId = activeSeriesId()) => vocabularyLibrary.index(seriesId);
+const vocabularyChapter = (id,seriesId = activeSeriesId()) => vocabularyLibrary.chapter(seriesId,id);
+function activateVocabulary(seriesId,descriptor,vocabulary) {
+  if (state.vocabularySeriesId && state.vocabularyId) state.vocabularySelections.set(state.vocabularySeriesId,state.vocabularyId);
+  state.vocabularySeriesId = seriesId;
+  state.vocabularyDescriptor = descriptor;
+  state.data.vocabulary = vocabulary;
+  const saved = state.vocabularySelections.get(seriesId);
+  state.vocabularyId = vocabulary.chapters.some(chapter => str(chapter.id) === saved || (chapter.sections || []).some(section => str(section.id) === saved)) ? saved : str(vocabulary.chapters[0]?.id || '');
+  const chapter = vocabulary.chapters.find(item => str(item.id) === state.vocabularyId || (item.sections || []).some(section => str(section.id) === state.vocabularyId));
+  if (chapter) state.expanded.add(`${descriptor.bookId}:${chapter.id}`);
 }
-async function vocabularyChapter(id) {
-  const index = await vocabularyIndex();
-  const chapter = index.chapters.find(chapter => str(chapter.id) === str(id) || chapter.sections.some(section => str(section.id) === str(id)));
-  if (!chapter || Array.isArray(chapter.words)) return;
-  const content = await loadData(`vocabulary-chapter-${chapter.id}`, chapter.file);
-  Object.assign(chapter, content);
+function renderStudyPicker() {
+  const selector = $('#study-series-select');
+  if (!state.library || !selector) return;
+  selector.innerHTML = state.library.series.map(item => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.title)}</option>`).join('');
+  selector.value = activeSeriesId();
+  $('#study-series-bar').hidden = !['vocabulary','practice'].includes(state.view);
+  $('#vocabulary-series-name').textContent = `${activeSeriesTitle()} · 单词表`;
+}
+function selectStudySeries(seriesId) {
+  if (!state.library || seriesId === activeSeriesId()) return;
+  if (state.view === 'practice') window.NorskPractice?.hide();
+  pauseOtherAudio();
+  const view = state.view;
+  switchBook(state.library.bookForSeries(seriesId));
+  $('#vocab-search').value = '';
+  renderStudyPicker();
+  if (['vocabulary','practice'].includes(view)) setView(view,false);
 }
 function loadFeature(name) {
   if (featureLoads.has(name)) return featureLoads.get(name);
@@ -81,18 +106,26 @@ function startPresence() {
 function submitPracticeResult(result) {
   return prepareCommunity().then(community => community.submitResult(result)).catch(() => false);
 }
-async function prepareView(view) {
+async function prepareView(view,viewRun = state.viewRun) {
+  const seriesId = activeSeriesId();
+  const current = () => viewRun === state.viewRun && seriesId === activeSeriesId();
   if (['vocabulary','basics','practice'].includes(view)) loadData('pronunciation').catch(error => console.warn('读音目录未载入',error));
-  if (view === 'vocabulary') await vocabularyIndex();
+  if (view === 'vocabulary') {
+    const [descriptor,vocabulary] = await Promise.all([vocabularyLibrary.descriptor(seriesId),vocabularyIndex(seriesId)]);
+    if (current()) activateVocabulary(seriesId,descriptor,vocabulary);
+  }
   if (view === 'basics') {
     await loadData('basics');
     if (!state.basicId) state.basicId = str(state.data.basics.categories?.[0]?.id || '');
   }
   if (view === 'practice') {
-    await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyIndex().then(index => Promise.all(index.chapters.map(chapter => vocabularyChapter(chapter.id))))]);
-    if (!state.practiceInitialized) {
-      window.NorskPractice.init({data:state.data,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult});
+    const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId)]);
+    if (!current()) return;
+    activateVocabulary(seriesId,descriptor,vocabulary);
+    if (!state.practiceInitialized || state.practiceSeriesId !== seriesId) {
+      window.NorskPractice.init({data:{...state.data,vocabulary},series:descriptor,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult});
       state.practiceInitialized = true;
+      state.practiceSeriesId = seriesId;
       prepareCommunity().catch(() => {});
     }
   }
@@ -100,17 +133,7 @@ async function prepareView(view) {
     await loadFeature('compare');
     if (!state.compareInitialized) {
       window.NorskCompare.init({data:state.data,getPDF,documentPart,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,onClose:positions => {
-        saveReading();
-        for (const position of Object.values(positions || {})) {
-          if (position?.book) state.library.remember(position.book,position,false);
-        }
-        const position = Object.values(positions || {}).find(item => item?.book === state.book) || positions?.workbook;
-        if (position) {
-          state.book = position.book || 'workbook'; state.page = position.page; state.readingId = str(position.id);
-          const current = findEntry(state.readingId);
-          if (current) state.expanded.add(`${state.book}:${current.chapter.id}`);
-          saveReading();
-        }
+        rememberComparePositions(positions);
         setView('reading');
       }});
       state.compareInitialized = true;
@@ -172,7 +195,8 @@ function switchBook(book) {
   state.readingId = position.id;
   const current = findEntry(state.readingId);
   if (current) state.expanded.add(`${book}:${current.chapter.id}`);
-  updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); saveReading();
+  if (state.view === 'reading') { updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); }
+  saveReading();
 }
 function allChapters(book = state.book) {
   const data = bookData(book);
@@ -220,7 +244,7 @@ function closestEntry() {
   return current;
 }
 function entryNumber(entry, isChapter = false) {
-  const id = str(entry.id);
+  const id = str(entry.number ?? entry.id);
   return /^(?:[\d.]+|\d+\.[A-Z])$/.test(id) ? (isChapter ? id.padStart(2,'0') : id) : '';
 }
 function closeSidebar() {
@@ -246,11 +270,28 @@ function compareSeed() {
   }
   return seed;
 }
+function rememberComparePositions(positions) {
+  if (!state.library) return;
+  saveReading();
+  for (const position of Object.values(positions || {})) {
+    if (position?.book) state.library.remember(position.book,position,false);
+  }
+  const position = Object.values(positions || {}).find(item => item?.book === state.book) || positions?.workbook;
+  if (position?.book && bookData(position.book)) {
+    state.book = position.book;
+    state.page = position.page;
+    state.readingId = str(position.id);
+    const current = findEntry(state.readingId);
+    if (current) state.expanded.add(`${state.book}:${current.chapter.id}`);
+    saveReading();
+  }
+}
 async function setView(view, updateHash = true) {
   if (!labels[view]) view = 'reading';
   const run = ++state.viewRun;
   if (state.view === 'practice' && view !== 'practice') { window.NorskPractice?.hide(); pauseOtherAudio(); }
   if (state.view === 'compare' && view !== 'compare') {
+    rememberComparePositions(window.NorskCompare?.positions?.());
     $('#word-audio').before($('#audio-dock'));
     window.NorskCompare?.hide();
   }
@@ -276,26 +317,27 @@ async function setView(view, updateHash = true) {
   $('#content-eyebrow').textContent = labels[view][0];
   $('#heading-note').textContent = labels[view][2];
   $('#book-picker').hidden = view !== 'reading';
+  renderStudyPicker();
   $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : '学习目录';
-  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? 'God i norsk · 教材 Ordliste' : view === 'practice' ? '选一组词语，每天复习一点。' : '循着目录，慢慢学会。';
+  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? `${activeSeriesTitle()} · 教材词汇` : view === 'practice' ? '选一组词语，每天复习一点。' : '循着目录，慢慢学会。';
   $('#content-title').textContent = labels[view][1];
   if (updateHash && location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
   window.scrollTo(0,0);
   closeSidebar();
   if (state.ready) {
-    if (view === 'vocabulary' && !state.data.vocabulary) $('#vocab-rows').innerHTML = loading('正在载入词表目录…');
+    if (view === 'vocabulary' && (!state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId())) $('#vocab-rows').innerHTML = loading('正在载入词表目录…');
     if (view === 'basics' && !state.data.basics) $('#basics-items').innerHTML = loading('正在载入基础知识…');
-    if (view === 'practice' && !state.practiceInitialized) $('#practice-view').innerHTML = loading('正在准备练习词语…');
+    if (view === 'practice' && (!state.practiceInitialized || state.practiceSeriesId !== activeSeriesId())) $('#practice-view').innerHTML = loading('正在准备练习词语…');
     if (view === 'compare' && !state.compareInitialized) $('#compare-view').innerHTML = loading('正在准备双页对照…');
     if (!['reading','compare'].includes(view)) $('#toc').innerHTML = loading('正在准备目录…');
-    try { await prepareView(view); }
+    try { await prepareView(view,run); }
     catch(error) { if (run === state.viewRun) viewError(view,error); return; }
     if (run !== state.viewRun) return;
     renderTOC();
     if (view === 'reading') { updateReadingTitle(); renderPDF(); renderLessons(); }
     if (view === 'vocabulary') renderVocabulary();
     if (view === 'basics') renderBasics();
-    if (view === 'practice') { $('#content-title').textContent = '练习'; window.NorskPractice?.show(); }
+    if (view === 'practice') { $('#content-title').textContent = `${activeSeriesTitle()} · 练习`; window.NorskPractice?.show(); }
     if (view === 'compare') {
       $('#content-title').textContent = labels.compare[1];
       $('#compare-view').append($('#audio-dock'));
@@ -313,15 +355,15 @@ function renderTOC() {
     toc.innerHTML = categories.length ? categories.map((category,index) => `<button class="toc-basic ${str(category.id) === state.basicId ? 'selected' : ''}" data-action="category" data-id="${escapeHTML(category.id)}" ${str(category.id) === state.basicId ? 'aria-current="true"' : ''}><span class="category-index">${str(index+1).padStart(2,'0')}</span><span>${escapeHTML(category.title)}${category.levelLabel ? `<small class="category-level">${escapeHTML(category.levelLabel)}</small>` : ''}</span><span class="category-count">${(category.items || []).length}</span></button>`).join('') : empty('基础知识暂未载入');
     return;
   }
-  const tocBook = state.view === 'vocabulary' ? 'textbook' : state.book;
+  const tocBook = state.view === 'vocabulary' ? vocabularyBook() : state.book;
   const selected = state.view === 'vocabulary' ? state.vocabularyId : state.readingId;
   const book = bookData(tocBook);
   if (!book) { toc.innerHTML = empty('目录载入失败','请刷新页面重试'); return; }
   const chapters = state.view === 'vocabulary' ? (state.data.vocabulary?.chapters || []).map(chapter => {
-    const catalogChapter = (book.chapters || []).find(item => str(item.id) === str(chapter.id));
-    return {...chapter,...catalogChapter,sections:(chapter.sections || []).map(section => {
-      const catalogSection = (catalogChapter?.sections || []).find(item => str(item.id) === str(section.id));
-      return {...section,...catalogSection};
+    const catalogChapter = (book.chapters || []).find(item => str(item.id) === str(chapter.readingId ?? chapter.number ?? chapter.id));
+    return {...catalogChapter,...chapter,sections:(chapter.sections || []).map(section => {
+      const catalogSection = (catalogChapter?.sections || []).find(item => str(item.id) === str(section.readingId ?? section.number ?? section.id));
+      return {...catalogSection,...section};
     })};
   }) : allChapters(tocBook);
   if (!chapters.length) { toc.innerHTML = empty('词表目录暂未载入','请刷新页面重试'); return; }
@@ -343,22 +385,22 @@ function tocEntry(entry,chapter,book,isChapter,selected) {
   return `<button class="toc-title" data-action="select-entry" data-id="${escapeHTML(entry.id)}" data-book="${book}" ${selected === str(entry.id) ? 'aria-current="true"' : ''}><span class="toc-number">${escapeHTML(entryNumber(entry,isChapter))}</span><span class="toc-label">${escapeHTML(entry.title)}${audioNote ? `<span class="toc-audio-note">${audioNote}</span>` : ''}</span></button>${state.view === 'reading' ? `<span class="toc-page" title="印刷页码">${escapeHTML(page)}</span>` : ''}${playable ? `<button class="toc-audio" data-action="entry-audio" data-id="${escapeHTML(entry.id)}" title="${escapeHTML(audioLabel)}" aria-label="${escapeHTML(audioLabel)}" ${recording ? '' : 'disabled'}>${icon('play')}</button>` : ''}`;
 }
 function selectEntry(id,book = state.book) {
-  const found = findEntry(id,book);
-  if (!found) return;
-  state.expanded.add(`${book}:${found.chapter.id}`);
   if (state.view === 'vocabulary') {
+    const chapter = state.data.vocabulary?.chapters.find(item => str(item.id) === str(id) || (item.sections || []).some(section => str(section.id) === str(id)));
+    if (!chapter) return;
+    state.expanded.add(`${vocabularyBook()}:${chapter.id}`);
     state.vocabularyId = str(id);
+    state.vocabularySelections.set(activeSeriesId(),state.vocabularyId);
     $('#vocab-search').value = '';
     renderVocabulary();
   } else {
+    const found = findEntry(id,book);
+    if (!found) return;
+    state.expanded.add(`${book}:${found.chapter.id}`);
     if (state.book !== book) switchBook(book);
-    state.book = book;
     state.readingId = str(id);
     state.page = Math.max(1,Number(found.entry.page) || 1);
-    updateReadingTitle();
-    renderPDF();
-    renderLessons();
-    saveReading();
+    updateReadingTitle(); renderPDF(); renderLessons(); saveReading();
   }
   renderTOC();
   closeSidebar();
@@ -412,7 +454,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-books2').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-library3').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -530,7 +572,7 @@ function vocabularySelection() {
     const section = (chapter.sections || []).find(section => str(section.id) === state.vocabularyId);
     if (section) return {title:section.title,words:(section.words || []).map(word => ({...word,sectionId:section.id,sectionTitle:section.title}))};
   }
-  return {title:findEntry(state.vocabularyId,'textbook')?.entry?.title || '单词表',words:[]};
+  return {title:findEntry(state.vocabularyId,vocabularyBook())?.entry?.title || '单词表',words:[]};
 }
 function phonetics(item) {
   const syllables = Array.isArray(item.syllables) ? item.syllables.join(' · ') : item.syllables;
@@ -551,7 +593,7 @@ function setWordRate(value) {
   if (state.speechItem && 'speechSynthesis' in window && speechSynthesis.speaking && !speechSynthesis.paused) pronounce(state.speechItem);
 }
 function wordGrammar(item) {
-  const genders = {m:'阳性',f:'阴性',n:'中性','m/f':'阴性 / 阳性','f/m':'阴性 / 阳性'};
+  const genders = {m:'阳性',f:'阴性',n:'中性','m/f':'阴性 / 阳性','f/m':'阴性 / 阳性','m/n':'阳性 / 中性','f/n':'阴性 / 中性'};
   const gender = genders[item.gender] || item.gender;
   const details = [item.pos,gender,item.article].filter(Boolean);
   const sourceForms = item.formsExpanded?.length ? item.formsExpanded : item.forms;
@@ -574,15 +616,16 @@ function vocabularyExample(word) {
   return '<span class="muted">可点击原词表查看用法。</span>';
 }
 async function renderVocabulary() {
-  if (state.view !== 'vocabulary' || !state.data.vocabulary) return;
+  if (state.view !== 'vocabulary' || !state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId()) return;
   const id = state.vocabularyId;
+  const seriesId = activeSeriesId();
   const run = state.viewRun;
-  const chapter = state.data.vocabulary.chapters.find(chapter => str(chapter.id) === id || chapter.sections.some(section => str(section.id) === id));
+  const chapter = state.data.vocabulary.chapters.find(chapter => str(chapter.id) === id || (chapter.sections || []).some(section => str(section.id) === id));
   if (chapter && !Array.isArray(chapter.words)) {
     state.words = [];
     $('#word-count').textContent = '—';
     $('#vocab-rows').innerHTML = loading('正在载入本章词语…');
-    try { await vocabularyChapter(id); }
+    try { await vocabularyChapter(id,seriesId); }
     catch(error) { if (run === state.viewRun && id === state.vocabularyId) viewError('vocabulary',error); return; }
     if (run !== state.viewRun || id !== state.vocabularyId) return;
   }
@@ -594,7 +637,7 @@ async function renderVocabulary() {
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
-  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button>${wordRateControl(word.word)}<span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p>${phonetics(word)}${wordGrammar(word)}</div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-page="${Number(word.sourcePage)}" title="查看教材 Ordliste">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
+  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button>${wordRateControl(word.word)}<span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p>${phonetics(word)}${wordGrammar(word)}</div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
 }
 function renderBasics() {
   const categories = state.data.basics?.categories || [];
@@ -723,7 +766,7 @@ function toggleAudio() {
 
 document.addEventListener('change',event => {
   if (event.target.matches('[data-word-rate]')) setWordRate(event.target.value);
-  if (event.target.matches('#series-select')) switchBook(state.library.bookForSeries(event.target.value));
+  if (event.target.matches('#series-select, #study-series-select')) selectStudySeries(event.target.value);
 });
 document.addEventListener('click',event => {
   const view = event.target.closest('.nav-button[data-view]');
@@ -756,7 +799,8 @@ document.addEventListener('click',event => {
       break;
     case 'category': state.basicId = id; $('#basics-search').value = ''; renderTOC(); renderBasics(); closeSidebar(); break;
     case 'pronounce': pronounce(action.dataset.kind === 'basics' ? state.basicItems[Number(action.dataset.index)] : state.words[Number(action.dataset.index)]); break;
-    case 'sentence-page': switchBook('textbook'); setView('reading'); goPage(Number(action.dataset.page)); break;
+    case 'open-basics': setView('basics'); break;
+    case 'sentence-page': switchBook(book || vocabularyBook()); setView('reading'); goPage(Number(action.dataset.page)); break;
     case 'retry-pdf': state.ready ? renderPDF() : initialize(); break;
     case 'retry-view': setView(state.view,false); break;
     case 'retry-lessons': renderLessons(); break;
