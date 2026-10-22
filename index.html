@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#21483e">
   <meta name="description" content="结合教材、练习册、章节录音与课堂资料的挪威语学习书房。在线阅读、听读课文、学习词汇与基础知识。">
   <title>Norsk 学习书房 · 挪威语学习</title>
-  <link rel="stylesheet" href="styles.css?v=20261022-names4">
+  <link rel="stylesheet" href="styles.css?v=20261022-books2">
 </head>
 <body>
   <svg class="svg-definitions" aria-hidden="true"><defs>
@@ -47,8 +47,9 @@
     <button class="sidebar-shade" id="sidebar-shade" aria-label="关闭目录" hidden></button>
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-heading"><span id="sidebar-label">学习目录</span><button class="icon-button mobile-only" id="close-sidebar" aria-label="关闭目录"><svg><use href="#i-close"/></svg></button></div>
-      <div class="book-switch" id="book-switch" role="group" aria-label="选择书籍">
-        <button data-book="textbook" class="selected">教材</button><button data-book="workbook">练习册</button>
+      <div class="book-picker" id="book-picker">
+        <label class="series-picker" for="series-select"><span>教材系列</span><select id="series-select" aria-label="选择教材系列"></select></label>
+        <div class="book-switch" id="book-switch" role="group" aria-label="选择教材或练习册"></div>
       </div>
       <div class="sidebar-subtitle" id="sidebar-subtitle">循着目录，慢慢学会。</div>
       <nav class="toc" id="toc" aria-label="章节与小节目录"><div class="skeleton"></div><div class="skeleton short"></div><div class="skeleton"></div></nav>
@@ -64,7 +65,7 @@
       <section id="reading-view" class="view" aria-label="在线阅读">
         <div class="reader-toolbar">
           <div class="reader-location"><svg><use href="#i-book"/></svg><span id="reader-book-title">教材</span><span class="reader-location-divider">/</span><span id="reader-section-title">正在载入目录</span></div>
-          <div class="reader-tools"><button id="open-compare" class="compare-launch" title="左边教材，右边练习册"><svg><use href="#i-book"/></svg><span>双页对照</span></button><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
+          <div class="reader-tools"><button id="open-compare" class="compare-launch" title="两侧独立选书与翻页"><svg><use href="#i-book"/></svg><span>双页对照</span></button><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
         </div>
         <div class="reader-audio-note" id="reading-audio-note" role="note" hidden></div>
         <div class="pdf-stage" id="pdf-stage">
@@ -80,7 +81,7 @@
         <p class="reader-tip">← → 翻页 · 双击页面切换整页与宽度 · 目录为印刷页码，下方为 PDF 页码</p>
       </section>
 
-      <section id="compare-view" class="view" aria-label="教材与练习册双页对照" hidden></section>
+      <section id="compare-view" class="view" aria-label="书籍双页对照" hidden></section>
 
       <section id="vocabulary-view" class="view" aria-label="课文单词表" hidden>
         <div class="vocabulary-intro"><div><p class="section-kicker">ORDLISTE</p><p>教材章末词表，按原书小节学习。</p></div><div class="word-total"><strong id="word-count">0</strong><span>个词语</span></div></div>
@@ -107,6 +108,6 @@
   </section>
   <audio id="word-audio" preload="none"></audio>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.js?v=20261022-names4"></script>
+  <script type="module" src="app.js?v=20261022-books2"></script>
 </body>
 </html>

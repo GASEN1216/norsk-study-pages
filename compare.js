@@ -2,21 +2,24 @@
 (() => {
   'use strict';
   if (window.NorskCompare) return;
-  const STORAGE_KEY = 'norsk-compare-v1';
+  const STORAGE_KEY = 'norsk-compare-v2';
   const BOOKS = ['textbook','workbook'];
   const LABELS = {textbook:'教材',workbook:'练习册'};
   const ZOOMS = ['fit-page','fit-width','0.75','1','1.25','1.5','2','3'];
-  const makePane = book => ({book,page:1,id:'',zoom:'fit-page',tocOpen:false,expanded:new Set(),scroll:{left:0,top:0},run:0,task:null,settling:Promise.resolve(),dirty:true,error:false,resizeTimer:null,stageSize:''});
+  const makePane = book => ({slot:book,book,positions:{},page:1,id:'',zoom:'fit-page',tocOpen:false,expanded:new Set(),scroll:{left:0,top:0},run:0,task:null,settling:Promise.resolve(),dirty:true,error:false,resizeTimer:null,stageSize:''});
   const state = {root:null,deps:{},panes:{textbook:makePane('textbook'),workbook:makePane('workbook')},open:false,initialized:false,openedOnce:false,saved:false,mobileBook:'textbook',resizeTimer:null,saveTimer:null,storageWarning:false,focusFallback:false,observer:null};
   const e = value => (state.deps.escapeHTML || (text => String(text ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))))(value);
   const str = value => String(value ?? '');
   const $ = selector => state.root?.querySelector(selector);
-  const paneNode = pane => $(`[data-cp-pane="${pane.book}"]`);
+  const paneNode = pane => $(`[data-cp-pane="${pane.slot}"]`);
   const node = (pane,selector) => paneNode(pane)?.querySelector(selector);
   const symbol = name => state.deps.icon?.(name) || '';
   const notify = message => state.deps.notify?.(message);
   const mobile = () => window.matchMedia('(max-width: 680px)').matches;
   const bookData = book => state.deps.data?.catalog?.books?.[book];
+  const bookLabel = book => bookData(book)?.label || (bookData(book)?.kind === 'workbook' ? '练习册' : LABELS[book] || '教材');
+  const seriesOf = book => bookData(book)?.seriesId || 'god-i-norsk';
+  const availableBooks = () => Object.keys(state.deps.data?.catalog?.books || {});
   const chapters = book => [...(bookData(book)?.chapters || []),...(bookData(book)?.appendices || [])];
   const totalPages = book => Math.max(1,Number(bookData(book)?.pages) || 1);
   const button = (action,text,book='',attrs='',className='') => `<button type="button" class="cp-button ${className}" data-compare-action="${action}" ${book ? `data-cp-book="${book}"` : ''} ${attrs}>${text}</button>`;
@@ -43,14 +46,36 @@
     return {page,id:str(match?.entry?.id)};
   }
   function positions() {
-    return Object.fromEntries(BOOKS.map(book => [book,{page:state.panes[book].page,id:state.panes[book].id}]));
+    return Object.fromEntries(BOOKS.map(slot => [slot,{book:state.panes[slot].book,page:state.panes[slot].page,id:state.panes[slot].id}]));
+  }
+  function remember(pane) {
+    pane.positions[pane.book]={page:pane.page,id:pane.id,zoom:pane.zoom,tocOpen:pane.tocOpen,expanded:[...pane.expanded],scroll:{...pane.scroll}};
+  }
+  function restorePane(pane,value={}) {
+    const book=pane.book;
+    Object.assign(pane,validPosition(book,value));
+    pane.zoom=ZOOMS.includes(str(value.zoom)) ? str(value.zoom) : 'fit-page';
+    pane.tocOpen=typeof value.tocOpen === 'boolean' ? value.tocOpen : window.innerWidth >= 1260;
+    pane.expanded=new Set((Array.isArray(value.expanded) ? value.expanded : []).map(str).filter(id => chapters(book).some(chapter => str(chapter.id) === id)));
+    const match=findEntry(book,pane.id);
+    if (match) pane.expanded.add(str(match.chapter.id));
+    pane.scroll={left:Math.max(0,Number(value.scroll?.left) || 0),top:Math.max(0,Number(value.scroll?.top) || 0)};
+  }
+  function switchBook(pane,book,seed) {
+    if (!pane || !bookData(book)) return false;
+    remember(pane); cancelRender(pane);
+    pane.book=book;
+    restorePane(pane,pane.positions[book] || seed || {});
+    updatePane(pane); renderTOC(pane); save(); render(pane);
+    return true;
   }
   function save() {
     clearTimeout(state.saveTimer);
-    const record={version:1,mobileBook:state.mobileBook};
-    for (const book of BOOKS) {
-      const pane=state.panes[book];
-      record[book]={page:pane.page,id:pane.id,zoom:pane.zoom,tocOpen:pane.tocOpen,expanded:[...pane.expanded],scroll:pane.scroll};
+    const record={version:2,mobileBook:state.mobileBook,seriesId:state.seriesId,panes:{}};
+    for (const slot of BOOKS) {
+      const pane=state.panes[slot];
+      remember(pane);
+      record.panes[slot]={book:pane.book,positions:pane.positions};
     }
     try { localStorage.setItem(STORAGE_KEY,JSON.stringify(record)); }
     catch {
@@ -60,18 +85,16 @@
   }
   function restore() {
     let saved=null;
-    try { saved=JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch {}
-    state.saved=!!(saved?.version === 1 && saved.textbook && saved.workbook);
-    for (const book of BOOKS) {
-      const pane=state.panes[book];
-      const value=state.saved ? saved[book] : {};
-      Object.assign(pane,validPosition(book,value));
-      pane.zoom=ZOOMS.includes(str(value.zoom)) ? str(value.zoom) : 'fit-page';
-      pane.tocOpen=typeof value.tocOpen === 'boolean' ? value.tocOpen : window.innerWidth >= 1260;
-      pane.expanded=new Set((Array.isArray(value.expanded) ? value.expanded : []).map(str).filter(id => chapters(book).some(chapter => str(chapter.id) === id)));
-      const match=findEntry(book,pane.id);
-      if (match) pane.expanded.add(str(match.chapter.id));
-      pane.scroll={left:Math.max(0,Number(value.scroll?.left) || 0),top:Math.max(0,Number(value.scroll?.top) || 0)};
+    try { saved=JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem('norsk-compare-v1') || 'null'); } catch {}
+    state.saved=!!((saved?.version === 2 && saved.panes) || (saved?.version === 1 && saved.textbook && saved.workbook));
+    state.seriesId=state.saved ? str(saved.seriesId || 'god-i-norsk') : '';
+    for (const slot of BOOKS) {
+      const pane=state.panes[slot];
+      const stored=saved?.version === 2 ? saved.panes?.[slot] : null;
+      pane.book=bookData(stored?.book) ? stored.book : bookData(slot) ? slot : availableBooks()[0];
+      pane.positions=Object.fromEntries(Object.entries(stored?.positions || {}).filter(([book,value]) => bookData(book) && value && typeof value === 'object'));
+      if (saved?.version === 1 && saved[slot]) pane.positions[slot]=saved[slot];
+      restorePane(pane,pane.positions[pane.book] || {});
     }
     if (BOOKS.includes(saved?.mobileBook)) state.mobileBook=saved.mobileBook;
   }
@@ -89,12 +112,22 @@
     const labels={'fit-page':'整页适配','fit-width':'适合宽度','0.75':'75%','1':'100%','1.25':'125%','1.5':'150%','2':'200%','3':'300%'};
     return ZOOMS.map(value => `<option value="${value}" ${value === selected ? 'selected' : ''}>${labels[value]}</option>`).join('');
   }
+  function bookOptions(selected) {
+    const groups=new Map();
+    const series=state.deps.data?.catalog?.series || [];
+    for (const book of availableBooks()) {
+      const id=seriesOf(book);
+      if (!groups.has(id)) groups.set(id,[]);
+      groups.get(id).push(book);
+    }
+    return [...groups].map(([id,books]) => `<optgroup label="${e(series.find(item => item.id === id)?.title || (id === 'god-i-norsk' ? 'God i norsk' : id))}">${books.map(book => `<option value="${e(book)}" ${book === selected ? 'selected' : ''}>${e(bookData(book).title || bookLabel(book))}</option>`).join('')}</optgroup>`).join('');
+  }
   function paneHTML(book) {
     const pane=state.panes[book];
-    return `<section class="cp-pane ${pane.tocOpen ? '' : 'cp-toc-closed'}" data-cp-pane="${book}" aria-label="${LABELS[book]}独立阅读区"><header class="cp-pane-heading"><div><h2>${LABELS[book]}</h2><span title="${e(bookData(book)?.title)}">${e(bookData(book)?.title || LABELS[book])}</span></div>${button('toc',`${symbol('menu')}<span>目录</span>`,book,`aria-expanded="${pane.tocOpen}" aria-controls="cp-${book}-toc"`,'cp-directory-toggle')}</header><div class="cp-pane-body"><aside class="cp-directory" id="cp-${book}-toc" aria-label="${LABELS[book]}章节目录" ${pane.tocOpen ? '' : 'hidden'}><div class="cp-directory-heading"><span>章节与小节</span>${button('toc',symbol('close') || '关闭',book,`aria-label="隐藏${LABELS[book]}目录"`,'cp-icon-button')}</div><nav class="cp-catalog" aria-label="${LABELS[book]}完整目录"></nav></aside><div class="cp-document"><div class="cp-toolbar"><span class="cp-current-title"></span><label class="cp-zoom-label"><span class="sr-only">${LABELS[book]}页面缩放</span><select data-cp-zoom="${book}" aria-label="${LABELS[book]}页面缩放">${zoomOptions(pane.zoom)}</select></label><a class="cp-download cp-icon-button" aria-label="下载${LABELS[book]}当前 PDF 分册" title="下载当前 PDF 分册" target="_blank" rel="noopener noreferrer">${symbol('download') || '下载'}</a></div><div class="cp-stage" tabindex="0" aria-label="${LABELS[book]} PDF 页面"><div class="cp-page-area"><canvas class="cp-canvas" role="img" hidden></canvas></div><div class="cp-message" role="status"></div></div><footer class="cp-page-controls">${button('prev',`${symbol('left')}<span>上一页</span>`,book,`aria-label="${LABELS[book]}上一页"`,'cp-page-button')}<form class="cp-page-form" data-cp-form="${book}"><label for="cp-${book}-page">PDF</label><input id="cp-${book}-page" aria-label="${LABELS[book]} PDF 页码" type="number" min="1" max="${totalPages(book)}" step="1" inputmode="numeric" value="${pane.page}"><span class="cp-total">/ ${totalPages(book)}</span><button type="submit" class="cp-button cp-jump">跳转</button></form>${button('next',`<span>下一页</span>${symbol('chevron')}`,book,`aria-label="${LABELS[book]}下一页"`,'cp-page-button')}</footer></div></div></section>`;
+    return `<section class="cp-pane ${pane.tocOpen ? '' : 'cp-toc-closed'}" data-cp-pane="${book}" aria-label="${book === 'textbook' ? '左侧' : '右侧'}独立阅读区"><header class="cp-pane-heading"><div><h2>${book === 'textbook' ? '左侧' : '右侧'}</h2><select class="cp-book-select" data-cp-select="${book}" aria-label="${book === 'textbook' ? '左侧' : '右侧'}选择书籍">${bookOptions(pane.book)}</select></div>${button('toc',`${symbol('menu')}<span>目录</span>`,book,`aria-expanded="${pane.tocOpen}" aria-controls="cp-${book}-toc"`,'cp-directory-toggle')}</header><div class="cp-pane-body"><aside class="cp-directory" id="cp-${book}-toc" aria-label="${book === 'textbook' ? '左侧' : '右侧'}章节目录" ${pane.tocOpen ? '' : 'hidden'}><div class="cp-directory-heading"><span>章节与小节</span>${button('toc',symbol('close') || '关闭',book,`aria-label="隐藏${book === 'textbook' ? '左侧' : '右侧'}目录"`,'cp-icon-button')}</div><nav class="cp-catalog" aria-label="${book === 'textbook' ? '左侧' : '右侧'}完整目录"></nav></aside><div class="cp-document"><div class="cp-toolbar"><span class="cp-current-title"></span><label class="cp-zoom-label"><span class="sr-only">${book === 'textbook' ? '左侧' : '右侧'}页面缩放</span><select data-cp-zoom="${book}" aria-label="${book === 'textbook' ? '左侧' : '右侧'}页面缩放">${zoomOptions(pane.zoom)}</select></label><a class="cp-download cp-icon-button" aria-label="下载${book === 'textbook' ? '左侧' : '右侧'}当前 PDF 分册" title="下载当前 PDF 分册" target="_blank" rel="noopener noreferrer">${symbol('download') || '下载'}</a></div><div class="cp-stage" tabindex="0" aria-label="${book === 'textbook' ? '左侧' : '右侧'} PDF 页面"><div class="cp-page-area"><canvas class="cp-canvas" role="img" hidden></canvas></div><div class="cp-message" role="status"></div></div><footer class="cp-page-controls">${button('prev',`${symbol('left')}<span>上一页</span>`,book,`aria-label="${book === 'textbook' ? '左侧' : '右侧'}上一页"`,'cp-page-button')}<form class="cp-page-form" data-cp-form="${book}"><label for="cp-${book}-page">PDF</label><input id="cp-${book}-page" aria-label="${book === 'textbook' ? '左侧' : '右侧'} PDF 页码" type="number" min="1" max="${totalPages(pane.book)}" step="1" inputmode="numeric" value="${pane.page}"><span class="cp-total">/ ${totalPages(pane.book)}</span><button type="submit" class="cp-button cp-jump">跳转</button></form>${button('next',`<span>下一页</span>${symbol('chevron')}`,book,`aria-label="${book === 'textbook' ? '左侧' : '右侧'}下一页"`,'cp-page-button')}</footer></div></div></section>`;
   }
   function build() {
-    state.root.innerHTML=`<div class="cp-shell"><header class="cp-topbar"><div class="cp-title"><span>教材与练习册</span><h1>对照阅读</h1></div><div class="cp-mobile-switch" role="tablist" aria-label="选择阅读一侧">${BOOKS.map(book => button('mobile',LABELS[book],book,`role="tab" aria-selected="${state.mobileBook === book}"`)).join('')}</div><div class="cp-top-actions">${button('fullscreen','全屏对照','','aria-pressed="false"','cp-fullscreen')}${button('close',`${symbol('left')}<span>返回单页</span>`,'','','cp-close')}</div></header><div class="cp-panes">${BOOKS.map(paneHTML).join('')}</div></div>`;
+    state.root.innerHTML=`<div class="cp-shell"><header class="cp-topbar"><div class="cp-title"><span>按需选择两侧书籍</span><h1>对照阅读</h1></div><div class="cp-mobile-switch" role="tablist" aria-label="选择阅读一侧">${BOOKS.map(book => button('mobile',book === 'textbook' ? '左侧' : '右侧',book,`role="tab" aria-selected="${state.mobileBook === book}"`)).join('')}</div><div class="cp-top-actions">${button('fullscreen','全屏对照','','aria-pressed="false"','cp-fullscreen')}${button('close',`${symbol('left')}<span>返回单页</span>`,'','','cp-close')}</div></header><div class="cp-panes">${BOOKS.map(paneHTML).join('')}</div></div>`;
     state.root.dataset.cpMobile=state.mobileBook;
     for (const book of BOOKS) {
       const pane=state.panes[book];
@@ -109,10 +142,10 @@
   }
   function entryHTML(pane,entry,chapter,isChapter=false) {
     const id=str(entry.id);
-    const number=/^[\d.]+$/.test(id) ? (isChapter ? id.padStart(2,'0') : id) : '';
-    const recording=pane.book === 'textbook' ? state.deps.entryAudio?.(entry,chapter) : null;
+    const number=/^(?:[\d.]+|\d+\.[A-Z])$/.test(id) ? (isChapter ? id.padStart(2,'0') : id) : '';
+    const recording=pane.book === 'textbook' ? state.deps.entryAudio?.(entry,chapter,pane.book) : null;
     const synthetic=recording?.kind === 'synthetic';
-    return `${button('entry',`${number ? `<span class="cp-entry-number">${e(number)}</span>` : ''}<span class="cp-entry-label">${e(entry.title)}${synthetic ? '<small class="cp-synthetic">合成补读</small>' : ''}</span>`,pane.book,`data-cp-id="${e(id)}" aria-label="${LABELS[pane.book]} ${e(number)} ${e(entry.title)}" ${pane.id === id ? 'aria-current="page"' : ''}`,'cp-entry')}<span class="cp-print-page" title="印刷页码">${e(entry.printedPage ?? '')}</span>${recording?.file ? button('audio',symbol('play') || '▶',pane.book,`data-cp-id="${e(id)}" aria-label="播放${LABELS[pane.book]} ${e(entry.title)}${synthetic ? ' · 合成补读' : ''}" title="${synthetic ? '播放合成补读' : '播放课文录音'}"`,'cp-audio') : ''}`;
+    return `${button('entry',`${number ? `<span class="cp-entry-number">${e(number)}</span>` : ''}<span class="cp-entry-label">${e(entry.title)}${synthetic ? '<small class="cp-synthetic">合成补读</small>' : ''}</span>`,pane.slot,`data-cp-id="${e(id)}" aria-label="${bookLabel(pane.book)} ${e(number)} ${e(entry.title)}" ${pane.id === id ? 'aria-current="page"' : ''}`,'cp-entry')}<span class="cp-print-page" title="印刷页码">${e(entry.printedPage ?? '')}</span>${recording?.file ? button('audio',symbol('play') || '▶',pane.slot,`data-cp-id="${e(id)}" aria-label="播放${bookLabel(pane.book)} ${e(entry.title)}${synthetic ? ' · 合成补读' : ''}" title="${synthetic ? '播放合成补读' : '播放课文录音'}"`,'cp-audio') : ''}`;
   }
   function renderTOC(pane) {
     const list=node(pane,'.cp-catalog');
@@ -122,10 +155,16 @@
     list.innerHTML=all.length ? all.map((chapter,index) => {
       const expanded=pane.expanded.has(str(chapter.id));
       const sections=chapter.sections || [];
-      return `${index === count && (bookData(pane.book)?.appendices || []).length ? '<div class="cp-appendix-label">附录</div>' : ''}<div class="cp-catalog-group" data-cp-group="${e(chapter.id)}"><div class="cp-chapter-row ${pane.id === str(chapter.id) ? 'cp-selected' : ''}">${sections.length ? button('expand',symbol('chevron') || '›',pane.book,`data-cp-id="${e(chapter.id)}" aria-label="${expanded ? '收起' : '展开'}${LABELS[pane.book]} ${e(chapter.title)}" aria-expanded="${expanded}"`,'cp-expand') : '<span class="cp-toggle-spacer"></span>'}${entryHTML(pane,chapter,chapter,true)}</div>${sections.length ? `<div class="cp-sections" ${expanded ? '' : 'hidden'}>${sections.map(section => `<div class="cp-section-row ${pane.id === str(section.id) ? 'cp-selected' : ''}">${entryHTML(pane,section,chapter)}</div>`).join('')}</div>` : ''}</div>`;
+      return `${index === count && (bookData(pane.book)?.appendices || []).length ? '<div class="cp-appendix-label">附录</div>' : ''}<div class="cp-catalog-group" data-cp-group="${e(chapter.id)}"><div class="cp-chapter-row ${pane.id === str(chapter.id) ? 'cp-selected' : ''}">${sections.length ? button('expand',symbol('chevron') || '›',pane.slot,`data-cp-id="${e(chapter.id)}" aria-label="${expanded ? '收起' : '展开'}${bookLabel(pane.book)} ${e(chapter.title)}" aria-expanded="${expanded}"`,'cp-expand') : '<span class="cp-toggle-spacer"></span>'}${entryHTML(pane,chapter,chapter,true)}</div>${sections.length ? `<div class="cp-sections" ${expanded ? '' : 'hidden'}>${sections.map(section => `<div class="cp-section-row ${pane.id === str(section.id) ? 'cp-selected' : ''}">${entryHTML(pane,section,chapter)}</div>`).join('')}</div>` : ''}</div>`;
     }).join('') : '<p class="cp-directory-empty">目录暂未载入。</p>';
   }
   function updatePane(pane) {
+    const selector=node(pane,'.cp-book-select');
+    if (selector) { selector.innerHTML=bookOptions(pane.book); selector.value=pane.book; }
+    const total=node(pane,'.cp-total');
+    if (total) total.textContent=`/ ${totalPages(pane.book)}`;
+    const zoom=node(pane,`[data-cp-zoom="${pane.slot}"]`);
+    if (zoom) zoom.value=pane.zoom;
     const match=findEntry(pane.book,pane.id);
     node(pane,'.cp-current-title').textContent=match?.entry?.title || '开始阅读';
     node(pane,'.cp-current-title').title=match?.entry?.title || '';
@@ -139,7 +178,7 @@
     link.hidden=!url; if (url) link.href=url;
     const toggle=node(pane,'.cp-directory-toggle');
     toggle.setAttribute('aria-expanded',str(pane.tocOpen));
-    toggle.setAttribute('aria-label',`${LABELS[pane.book]}目录`);
+    toggle.setAttribute('aria-label',`${bookLabel(pane.book)}目录`);
     node(pane,'.cp-directory').hidden=!pane.tocOpen;
     paneNode(pane).classList.toggle('cp-toc-closed',!pane.tocOpen);
   }
@@ -153,10 +192,10 @@
     }
     pane.dirty=true;
   }
-  function paneVisible(pane) { return state.open && !state.root.hidden && (!mobile() || state.mobileBook === pane.book); }
+  function paneVisible(pane) { return state.open && !state.root.hidden && (!mobile() || state.mobileBook === pane.slot); }
   function renderMessage(pane,message,error=false) {
     const box=node(pane,'.cp-message');
-    box.innerHTML=`${error ? '' : '<span class="cp-loader" aria-hidden="true"></span>'}<p>${e(message)}</p>${error ? button('retry','重新载入',pane.book,'','cp-retry') : ''}`;
+    box.innerHTML=`${error ? '' : '<span class="cp-loader" aria-hidden="true"></span>'}<p>${e(message)}</p>${error ? button('retry','重新载入',pane.slot,'','cp-retry') : ''}`;
     box.hidden=false; node(pane,'.cp-canvas').hidden=true; pane.error=error;
   }
   async function render(pane) {
@@ -187,7 +226,7 @@
       const canvas=node(pane,'.cp-canvas');
       canvas.width=Math.max(1,Math.floor(viewport.width*ratio)); canvas.height=Math.max(1,Math.floor(viewport.height*ratio));
       canvas.style.width=`${Math.floor(viewport.width)}px`; canvas.style.height=`${Math.floor(viewport.height)}px`;
-      canvas.setAttribute('aria-label',`${LABELS[pane.book]}，PDF 第 ${pane.page} 页`);
+      canvas.setAttribute('aria-label',`${bookLabel(pane.book)}，PDF 第 ${pane.page} 页`);
       task=pdfPage.render({canvasContext:canvas.getContext('2d'),viewport,transform:ratio === 1 ? undefined : [ratio,0,0,ratio,0,0]});
       pane.task=task;
       await task.promise;
@@ -204,7 +243,7 @@
     const page=Number(value);
     if (!Number.isInteger(page) || page < 1 || page > totalPages(pane.book)) {
       node(pane,'input[type="number"]').setAttribute('aria-invalid','true');
-      notify(`${LABELS[pane.book]}页码请输入 1–${totalPages(pane.book)} 的整数。`);
+      notify(`${bookLabel(pane.book)}页码请输入 1–${totalPages(pane.book)} 的整数。`);
       return false;
     }
     pane.page=page;
@@ -263,10 +302,10 @@
       }
       case 'audio': {
         const match=findEntry(pane.book,target.dataset.cpId);
-        if (match && state.deps.entryAudio?.(match.entry,match.chapter)?.file) {
+        if (pane.book === 'textbook' && match && state.deps.entryAudio?.(match.entry,match.chapter,pane.book)?.file) {
           goPage(pane,Number(match.entry.page),match.entry.id);
           if (mobile()) { pane.tocOpen=false; updatePane(pane); save(); }
-          Promise.resolve(state.deps.playEntry?.(str(match.entry.id))).catch(() => notify('这段录音暂时无法播放，请稍后重试。'));
+          Promise.resolve(state.deps.playEntry?.(str(match.entry.id),pane.book)).catch(() => notify('这段录音暂时无法播放，请稍后重试。'));
         }
         break;
       }
@@ -277,7 +316,7 @@
         const group=target.closest('.cp-catalog-group');
         group.querySelector('.cp-sections').hidden=!expanded;
         target.setAttribute('aria-expanded',str(expanded));
-        target.setAttribute('aria-label',`${expanded ? '收起' : '展开'}${LABELS[pane.book]} ${findEntry(pane.book,id)?.entry?.title || '章节'}`);
+        target.setAttribute('aria-label',`${expanded ? '收起' : '展开'}${bookLabel(pane.book)} ${findEntry(pane.book,id)?.entry?.title || '章节'}`);
         save(); break;
       }
     }
@@ -305,6 +344,8 @@
         event.preventDefault(); goPage(state.panes[form.dataset.cpForm],form.querySelector('input').value);
       });
       state.root.addEventListener('change',event => {
+        const selectedSlot=event.target.dataset.cpSelect;
+        if (selectedSlot) { switchBook(state.panes[selectedSlot],event.target.value); return; }
         const book=event.target.dataset.cpZoom;
         if (!book || !ZOOMS.includes(event.target.value)) return;
         const pane=state.panes[book]; pane.zoom=event.target.value; save(); render(pane);
@@ -336,15 +377,21 @@
       state.initialized=true;
     }
   }
-  function show(seed) {
+  function show(seed,options={}) {
     if (!state.initialized) return;
-    if (!state.openedOnce && !state.saved && seed) {
-      for (const book of BOOKS) {
-        if (!seed[book]) continue;
-        Object.assign(state.panes[book],validPosition(book,seed[book]));
-        const match=findEntry(book,state.panes[book].id);
-        if (match) state.panes[book].expanded.add(str(match.chapter.id));
+    const seriesId=options.seriesId || state.seriesId || seriesOf(state.panes.textbook.book);
+    if (seriesId !== state.seriesId || (!state.openedOnce && !state.saved)) {
+      const books=availableBooks().filter(book => seriesOf(book) === seriesId);
+      const left=books.find(book => bookData(book)?.kind === 'textbook' || book === 'textbook') || books[0];
+      const right=books.find(book => bookData(book)?.kind === 'workbook' || book === 'workbook') || left;
+      for (const [slot,book] of [['textbook',left],['workbook',right]]) {
+        if (!book) continue;
+        const pane=state.panes[slot];
+        if (state.openedOnce || state.saved) remember(pane);
+        cancelRender(pane); pane.book=book;
+        restorePane(pane,pane.positions[book] || seed?.[book] || {});
       }
+      state.seriesId=seriesId;
     }
     state.open=true; state.openedOnce=true; state.root.hidden=false;
     for (const pane of Object.values(state.panes)) { updatePane(pane); renderTOC(pane); }

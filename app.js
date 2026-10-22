@@ -1,6 +1,7 @@
-import {createDataLoader} from './loader.mjs?v=20261022-names4';
+import {createDataLoader} from './loader.mjs?v=20261022-books2';
+import {createReadingLibrary} from './reading-library.mjs?v=20261022-books2';
 
-const VERSION = '20261022-names4';
+const VERSION = '20261022-books2';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -99,11 +100,15 @@ async function prepareView(view) {
     await loadFeature('compare');
     if (!state.compareInitialized) {
       window.NorskCompare.init({data:state.data,getPDF,documentPart,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,onClose:positions => {
-        const position = positions?.workbook;
+        saveReading();
+        for (const position of Object.values(positions || {})) {
+          if (position?.book) state.library.remember(position.book,position,false);
+        }
+        const position = Object.values(positions || {}).find(item => item?.book === state.book) || positions?.workbook;
         if (position) {
-          state.book = 'workbook'; state.page = position.page; state.readingId = str(position.id);
+          state.book = position.book || 'workbook'; state.page = position.page; state.readingId = str(position.id);
           const current = findEntry(state.readingId);
-          if (current) state.expanded.add(`workbook:${current.chapter.id}`);
+          if (current) state.expanded.add(`${state.book}:${current.chapter.id}`);
           saveReading();
         }
         setView('reading');
@@ -126,7 +131,7 @@ try {
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
 } catch {}
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','一段专注的练习时间']};
-labels.compare = ['LES SIDE OM SIDE · 双页对照','教材与练习册','两本书，各自翻阅'];
+labels.compare = ['LES SIDE OM SIDE · 双页对照','双页对照','选择书籍，各自翻阅'];
 
 function safeURL(path) {
   if (!path) return '';
@@ -143,9 +148,32 @@ function notify(message, duration = 4200) {
   state.toastTimer = setTimeout(() => { toast.hidden = true; }, duration);
 }
 function saveReading() {
-  try { localStorage.setItem('norsk-reading-v1', JSON.stringify({book:state.book,page:state.page,id:state.readingId})); } catch {}
+  state.library?.remember(state.book,{page:state.page,id:state.readingId});
 }
 function bookData(book = state.book) { return state.data.catalog?.books?.[book]; }
+function renderBookPicker() {
+  if (!state.library) return;
+  const seriesId = state.library.seriesFor(state.book);
+  const select = $('#series-select');
+  if (!select.options.length) select.innerHTML = state.library.series.map(series => `<option value="${escapeHTML(series.id)}">${escapeHTML(series.title)}</option>`).join('');
+  select.value = seriesId;
+  $('#book-switch').innerHTML = state.library.booksFor(seriesId).map(book => `<button data-book="${escapeHTML(book)}" class="${book === state.book ? 'selected' : ''}" aria-pressed="${book === state.book}">${escapeHTML(bookData(book).label || (bookData(book).kind === 'workbook' || book === 'workbook' ? '练习册' : '教材'))}</button>`).join('');
+}
+function switchBook(book) {
+  if (!bookData(book) || book === state.book) return;
+  saveReading();
+  ++state.audioToken;
+  audio.pause();
+  $('#audio-dock').hidden = true;
+  document.body.classList.remove('audio-open');
+  state.book = book;
+  const position = state.library.positionFor(book);
+  state.page = position.page;
+  state.readingId = position.id;
+  const current = findEntry(state.readingId);
+  if (current) state.expanded.add(`${book}:${current.chapter.id}`);
+  updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); saveReading();
+}
 function allChapters(book = state.book) {
   const data = bookData(book);
   return [...(data?.chapters || []), ...(data?.appendices || [])];
@@ -178,7 +206,7 @@ function entryAudio(entry, chapter) {
 function activeChapter(book = state.book) {
   let current = null;
   for (const chapter of allChapters(book)) {
-    if (Number(chapter.page) <= state.page) current = chapter;
+    if (Number(chapter.page) <= state.page && (!current || Number(chapter.page) >= Number(current.page))) current = chapter;
   }
   return current || allChapters(book)[0];
 }
@@ -186,14 +214,14 @@ function closestEntry() {
   let current;
   for (const chapter of allChapters()) {
     for (const entry of [chapter, ...(chapter.sections || [])]) {
-      if (Number(entry.page) <= state.page) current = entry;
+      if (Number(entry.page) <= state.page && (!current || Number(entry.page) >= Number(current.page))) current = entry;
     }
   }
   return current;
 }
 function entryNumber(entry, isChapter = false) {
   const id = str(entry.id);
-  return /^[\d.]+$/.test(id) ? (isChapter ? id.padStart(2,'0') : id) : '';
+  return /^(?:[\d.]+|\d+\.[A-Z])$/.test(id) ? (isChapter ? id.padStart(2,'0') : id) : '';
 }
 function closeSidebar() {
   $('#sidebar').classList.remove('open');
@@ -209,11 +237,12 @@ function openSidebar() {
 }
 function compareSeed() {
   const seed = {};
+  saveReading();
   const currentChapter = findEntry(state.readingId)?.chapter;
-  for (const book of ['textbook','workbook']) {
+  for (const book of state.library.booksFor(state.library.seriesFor(state.book))) {
     const match = findEntry(state.readingId,book) || findEntry(currentChapter?.id,book);
     const first = allChapters(book)[0];
-    seed[book] = book === state.book ? {page:state.page,id:state.readingId} : {page:Number(match?.entry.page || first?.page) || 1,id:str(match?.entry.id || first?.id)};
+    seed[book] = book === state.book ? {page:state.page,id:state.readingId} : state.library.hasPosition(book) ? state.library.positionFor(book) : {page:Number(match?.entry.page || first?.page) || 1,id:str(match?.entry.id || first?.id)};
   }
   return seed;
 }
@@ -246,9 +275,9 @@ async function setView(view, updateHash = true) {
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view;
   $('#content-eyebrow').textContent = labels[view][0];
   $('#heading-note').textContent = labels[view][2];
-  $('#book-switch').hidden = view !== 'reading';
+  $('#book-picker').hidden = view !== 'reading';
   $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : '学习目录';
-  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? '教材 Ordliste，按章与小节查阅。' : view === 'practice' ? '选一组词语，每天复习一点。' : '循着目录，慢慢学会。';
+  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? 'God i norsk · 教材 Ordliste' : view === 'practice' ? '选一组词语，每天复习一点。' : '循着目录，慢慢学会。';
   $('#content-title').textContent = labels[view][1];
   if (updateHash && location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
   window.scrollTo(0,0);
@@ -270,7 +299,7 @@ async function setView(view, updateHash = true) {
     if (view === 'compare') {
       $('#content-title').textContent = labels.compare[1];
       $('#compare-view').append($('#audio-dock'));
-      window.NorskCompare?.show(compareSeed());
+      window.NorskCompare?.show(compareSeed(),{seriesId:state.library.seriesFor(state.book)});
     }
   }
 }
@@ -322,6 +351,7 @@ function selectEntry(id,book = state.book) {
     $('#vocab-search').value = '';
     renderVocabulary();
   } else {
+    if (state.book !== book) switchBook(book);
     state.book = book;
     state.readingId = str(id);
     state.page = Math.max(1,Number(found.entry.page) || 1);
@@ -336,8 +366,10 @@ function selectEntry(id,book = state.book) {
 function updateReadingTitle() {
   const book = bookData();
   const entry = findEntry(state.readingId)?.entry;
-  $('#content-title').textContent = state.book === 'textbook' ? '教材阅读' : '练习册阅读';
-  $('#reader-book-title').textContent = book?.title || (state.book === 'textbook' ? '教材' : '练习册');
+  const series = state.library?.series.find(item => item.id === state.library.seriesFor(state.book));
+  $('#content-title').textContent = series?.title || '阅读';
+  $('#reader-book-title').textContent = book?.title || '教材';
+  renderBookPicker();
   $('#reader-section-title').textContent = entry?.title || '开始阅读';
   $('#page-total').textContent = `/ ${book?.pages || '—'}`;
   $('#page-input').value = state.page;
@@ -348,7 +380,7 @@ function updateReadingTitle() {
   const chapter = findEntry(state.readingId)?.chapter || activeChapter();
   const missing = state.book === 'textbook' ? chapterAudio(chapter)?.missingSections || [] : [];
   const audioNote = $('#reading-audio-note');
-  if (state.audioError) {
+  if (state.audioError && state.book === 'textbook') {
     audioNote.hidden = false;
     audioNote.innerHTML = '课文录音目录暂时未载入。<button class="text-button" data-action="retry-audio">重新载入</button>';
     return;
@@ -380,7 +412,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-names4').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-books2').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -457,8 +489,8 @@ function goPage(value) {
   }
   state.page = page;
   const closest = closestEntry();
+  state.readingId = str(closest?.id || '');
   if (closest) {
-    state.readingId = str(closest.id);
     const found = findEntry(closest.id);
     if (found) state.expanded.add(`${state.book}:${found.chapter.id}`);
   }
@@ -466,6 +498,8 @@ function goPage(value) {
 }
 
 async function renderLessons() {
+  $('#lesson-materials').hidden = state.book !== 'textbook';
+  if (state.book !== 'textbook') return;
   if (!state.data.lessons) {
     if (!$('#lesson-materials').open) return;
     $('#lesson-list').innerHTML = loading('正在载入课堂资料…');
@@ -689,6 +723,7 @@ function toggleAudio() {
 
 document.addEventListener('change',event => {
   if (event.target.matches('[data-word-rate]')) setWordRate(event.target.value);
+  if (event.target.matches('#series-select')) switchBook(state.library.bookForSeries(event.target.value));
 });
 document.addEventListener('click',event => {
   const view = event.target.closest('.nav-button[data-view]');
@@ -696,11 +731,7 @@ document.addEventListener('click',event => {
   if (event.target.closest('#sidebar [data-practice-action]')) { closeSidebar(); return; }
   const bookButton = event.target.closest('#book-switch [data-book]');
   if (bookButton) {
-    state.book = bookButton.dataset.book;
-    state.page = Number(allChapters()[0]?.page) || 1;
-    state.readingId = str(allChapters()[0]?.id || '');
-    state.expanded.add(`${state.book}:${state.readingId}`);
-    updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); saveReading();
+    switchBook(bookButton.dataset.book);
     return;
   }
   const action = event.target.closest('[data-action]');
@@ -725,7 +756,7 @@ document.addEventListener('click',event => {
       break;
     case 'category': state.basicId = id; $('#basics-search').value = ''; renderTOC(); renderBasics(); closeSidebar(); break;
     case 'pronounce': pronounce(action.dataset.kind === 'basics' ? state.basicItems[Number(action.dataset.index)] : state.words[Number(action.dataset.index)]); break;
-    case 'sentence-page': state.book = 'textbook'; setView('reading'); goPage(Number(action.dataset.page)); break;
+    case 'sentence-page': switchBook('textbook'); setView('reading'); goPage(Number(action.dataset.page)); break;
     case 'retry-pdf': state.ready ? renderPDF() : initialize(); break;
     case 'retry-view': setView(state.view,false); break;
     case 'retry-lessons': renderLessons(); break;
@@ -815,19 +846,13 @@ async function initialize() {
     $('#content-title').textContent = '教材阅读';
     return;
   }
-  try {
-    const saved = JSON.parse(localStorage.getItem('norsk-reading-v1') || 'null');
-    if (saved && state.data.catalog.books[saved.book]) {
-      state.book = saved.book;
-      state.page = Math.min(Math.max(1,Number(saved.page) || 1),Number(bookData()?.pages) || 1);
-      state.readingId = findEntry(saved.id) ? str(saved.id) : '';
-    }
-  } catch {}
-  if (!state.readingId) {
-    const firstChapter = allChapters()[0];
-    state.readingId = str(firstChapter?.id || '');
-    state.page = Number(firstChapter?.page) || 1;
-  }
+  let storage;
+  try { storage = window.localStorage; } catch { storage = {getItem:() => null,setItem:() => {}}; }
+  state.library = createReadingLibrary(state.data.catalog,storage);
+  state.book = state.library.currentBook;
+  const position = state.library.positionFor(state.book);
+  state.page = position.page;
+  state.readingId = position.id;
   state.vocabularyId = str(state.data.vocabulary?.chapters?.[0]?.id || allChapters('textbook')[0]?.id || '');
   state.basicId = str(state.data.basics?.categories?.[0]?.id || '');
   const current = findEntry(state.readingId);

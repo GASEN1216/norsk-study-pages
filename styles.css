@@ -103,6 +103,11 @@ body.reader-focus[data-view=reading] .main{width:100%;max-width:none;padding:8px
 .site-header{position:sticky;top:0}
 .sidebar{overflow:hidden;align-self:flex-start}
 .sidebar-heading,.book-switch,.sidebar-subtitle,.sidebar-footer{flex-shrink:0}
+.book-picker{flex-shrink:0}
+.series-picker{display:flex;flex-direction:column;gap:7px;margin:0 3px 12px;color:#78866c;font-size:11px}
+.series-picker select{width:100%;min-height:40px;padding:8px 10px;border:1px solid #d6dfcc;border-radius:7px;color:var(--green);background:#fffef9;font:500 14px var(--sans);cursor:pointer}
+.series-picker select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+#book-switch{flex-wrap:wrap}
 .toc{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#cbd4c0 transparent}
 @media(min-width:721px){.sidebar{top:var(--header);height:calc(100dvh - var(--header))}}
 .compare-launch{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid #d8e2cd;border-radius:6px;font-size:12px;white-space:nowrap;background:#eef3e7;color:var(--green)}
