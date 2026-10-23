@@ -9,7 +9,6 @@
   const TIMEOUT_MS = 12000;
   const PRESENCE_MS = 60000;
   const CEREMONY_KEY = 'norsk-community-ceremony-v1';
-  const TROPHY_KEY = 'norsk-community-trophies-v1';
   const WEEK = /^\d{4}-\d{2}-\d{2}$/;
   const ACTIVITIES = ['learn','quiz','match','cards','listen'];
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -202,7 +201,8 @@
         if (!next) return true;
         const reply=await request('/results',{method:'POST',body:next,auth:true});
         if (reply.accepted !== true) throw issue('service_unavailable');
-        if (applyStats(reply.stats) && reply.duplicate !== true && whole(reply.xp) && reply.xp > 0) celebrateXP(reply.xp);
+        const before=state.stats?.xp;
+        if (applyStats(reply.stats) && reply.duplicate !== true && whole(before) && levelInfo(state.stats.xp).level > levelInfo(before).level) announce(`升到 Lv.${levelInfo(state.stats.xp).level} 了`);
         // A lost response or failed local write leaves this item safe to retry: the server keys it by sessionId.
         acknowledgeResult(next);
       }
@@ -253,44 +253,21 @@
     state.stats={xp:stats.xp,today:stats.today,week:stats.week,onlineToday:stats.onlineToday,onlineLimit:whole(stats.onlineLimit) ? stats.onlineLimit : 240};
     return true;
   }
-  // The celebration layer is optional; it only decorates what the server already accepted.
-  function celebrateXP(gained) {
-    const now=levelInfo(state.stats.xp), before=levelInfo(state.stats.xp-gained);
-    try { window.NorskCelebrate?.xp?.({gained,level:now.level,previousLevel:before.level,icons:levelIcons(now.level)}); } catch { /* Decoration only. */ }
-  }
-  function readTrophies() {
-    try { const saved=JSON.parse(localStorage.getItem(TROPHY_KEY) || 'null'); return saved && saved.version === 1 && saved.weeks && typeof saved.weeks === 'object' ? saved.weeks : {}; }
-    catch { return {}; }
-  }
-  function myTrophies() {
-    const counts={1:0,2:0,3:0};
-    for (const item of Object.values(readTrophies())) if ([1,2,3].includes(item?.rank) && (!state.profile || item.id === state.profile.id)) counts[item.rank]++;
-    return counts;
-  }
-  function keepTrophy(weekStart,me) {
-    if (!me || me.rank > 3) return;
-    const weeks=readTrophies();
-    if (weeks[weekStart]?.rank === me.rank && weeks[weekStart]?.id === me.id) return;
-    weeks[weekStart]={rank:me.rank,id:me.id};
-    try { localStorage.setItem(TROPHY_KEY,JSON.stringify({version:1,weeks})); } catch { /* The ceremony still shows the trophy. */ }
-  }
-  // Last week's top three are fetched once in a while; old servers without the period simply show nothing.
+  // Last week's top three; servers without this period simply skip the ceremony.
   function loadLastWeek() {
     if (state.lastWeekLoad || !state.identity || (state.lastWeekAt && Date.now()-state.lastWeekAt < 1800000)) return state.lastWeekLoad || Promise.resolve(false);
     state.lastWeekLoad=(async () => {
       const board=await request(`/leaderboard?period=lastweek&deviceId=${encodeURIComponent(state.identity.deviceId)}`);
       state.lastWeekAt=Date.now();
       if (board.period !== 'lastweek' || !Array.isArray(board.entries) || !WEEK.test(board.weekStart || '')) return false;
-      const entries=board.entries.map(cleanEntry).filter(entry => entry.rank <= 3 && entry.xp > 0).slice(0,3), me=board.me ? cleanEntry(board.me) : null;
-      if (me && me.id !== state.profile?.id) return false;
-      state.lastWeek={weekStart:board.weekStart,entries,me};
-      keepTrophy(board.weekStart,me);
-      render(); maybeCeremony();
+      const entries=board.entries.map(cleanEntry).filter(entry => entry.rank <= 3 && entry.xp > 0).slice(0,3);
+      state.lastWeek={weekStart:board.weekStart,entries};
+      maybeCeremony();
       return true;
     })().catch(() => { state.lastWeekAt=Date.now(); return false; }).finally(() => { state.lastWeekLoad=null; });
     return state.lastWeekLoad;
   }
-  // Each browser sees each week's ceremony once, the first time the leaderboard is open in the new week.
+  // Each browser sees each week's award ceremony once, the first time the leaderboard opens in the new week.
   function maybeCeremony() {
     const week=state.lastWeek;
     if (!week?.entries.length || !isMounted() || document.visibilityState === 'hidden') return;
@@ -302,12 +279,7 @@
       return;
     }
     try { localStorage.setItem(CEREMONY_KEY,week.weekStart); } catch { return; }
-    playCeremony();
-  }
-  function playCeremony() {
-    const week=state.lastWeek;
-    if (!week?.entries.length) return;
-    try { void window.NorskCelebrate?.ceremony?.({entries:week.entries,weekStart:week.weekStart,meId:state.profile?.id || ''}); } catch { /* Decoration only. */ }
+    try { void window.NorskCelebrate.ceremony({entries:week.entries,weekStart:week.weekStart,meId:state.profile?.id || ''}); } catch { /* Decoration only. */ }
   }
   function cleanEntry(entry) {
     if (!entry || !Number.isInteger(entry.rank) || entry.rank < 1 || typeof entry.id !== 'string' || typeof entry.nickname !== 'string' || !whole(entry.xp) || !whole(entry.words)) throw issue('service_unavailable');
@@ -358,7 +330,6 @@
       moon:'<path class="nc-fill" d="M15.5 3.5A8.7 8.7 0 1 0 20.6 16 7 7 0 0 1 15.5 3.5z"/>',
       sun:'<circle class="nc-fill" cx="12" cy="12" r="4.4"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
       crown:'<path class="nc-fill" d="M3.5 8.5 8 12l4-6.5 4 6.5 4.5-3.5-1.6 9.5H5.1z"/>',
-      cup:'<path d="M7.5 6H4.5c0 3.5 1.6 5 3.6 5.2M16.5 6h3c0 3.5-1.6 5-3.6 5.2"/><path class="nc-fill" d="M7 3.5h10V8c0 3.6-2.2 6-5 6.3C9.2 14 7 11.6 7 8z"/><path class="nc-fill" d="M10.6 14.2h2.8v3h-2.8zM8 17.2h8l.8 3.3H7.2z"/>',
     };
     return `<svg class="nc-icon nc-icon-${name}" viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
   }
@@ -382,18 +353,7 @@
     const percent=Math.round(Math.min(1,Math.max(0,info.progress))*100);
     const confirm=state.confirmName ? `<div class="nc-confirm" role="alertdialog" aria-labelledby="nc-confirm-text"><p id="nc-confirm-text">已有学习者叫「${escapeHTML(state.confirmName)}」。同名会视为同一个人，经验和排名合并计算。这是你吗？</p><div>${button('confirm-name','是我，使用这个名字','nc-primary')}${button('cancel-confirm','换个名字','nc-quiet')}</div></div>` : '';
     const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
-    return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div>${trophyShelf()}<div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '总榜'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
-  }
-  function trophyShelf() {
-    const counts=myTrophies(), total=counts[1]+counts[2]+counts[3];
-    if (!total) return '';
-    const labels={1:'冠军',2:'亚军',3:'季军'};
-    return `<div class="nc-trophies" aria-label="我的奖杯：${[1,2,3].filter(rank => counts[rank]).map(rank => `${labels[rank]} ${counts[rank]} 次`).join('，')}"><span class="nc-trophies-label">我的奖杯</span>${[1,2,3].filter(rank => counts[rank]).map(rank => `<span class="nc-trophy is-${rank}" title="周${labels[rank]} ${counts[rank]} 次">${icon('cup')}${counts[rank] > 1 ? `<b>×${counts[rank]}</b>` : ''}</span>`).join('')}</div>`;
-  }
-  function honorsMarkup() {
-    const week=state.lastWeek;
-    if (!week?.entries.length) return '';
-    return `<section class="nc-honors" aria-label="上周前三名"><div class="nc-honors-head"><strong>上周领奖台</strong>${button('ceremony','颁奖回放','nc-quiet nc-honors-replay')}</div><ol>${week.entries.map(entry => `<li class="nc-honor is-${entry.rank}${entry.id === state.profile?.id ? ' is-me' : ''}"><span class="nc-trophy is-${entry.rank}">${icon('cup')}</span><span class="nc-name">${escapeHTML(entry.nickname)}</span><span class="nc-honor-xp">${formatNumber(entry.xp)}</span></li>`).join('')}</ol></section>`;
+    return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div><div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '总榜'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
   }
   function render() {
     const container=state.container;
@@ -401,7 +361,7 @@
     const focused=document.activeElement;
     const focusId=container.contains?.(focused) ? focused?.id : null;
     const selection=focusId === 'nc-nickname' ? [focused.selectionStart,focused.selectionEnd] : null;
-    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}${honorsMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。练习每天最多 5,000 XP。</li><li>每周一（北京时间）为上周前三名颁发奖杯，进入练习页时播放颁奖典礼；拿到的奖杯会放进你的荣誉柜。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
+    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
     if (focusId) {
       const next=container.querySelector?.('#'+focusId);
       next?.focus?.({preventScroll:true});
@@ -417,7 +377,6 @@
       const action=target.dataset.ncAction;
       if (action === 'retry') void loadBoard();
       else if (action === 'more') { state.expanded=!state.expanded; render(); }
-      else if (action === 'ceremony') playCeremony();
       else if (action === 'rules') { event.preventDefault(); state.rulesOpen=!state.rulesOpen; render(); }
       else if (action === 'period' && state.period !== target.dataset.ncPeriod) {
         state.period=target.dataset.ncPeriod === 'all' ? 'all' : 'week'; state.expanded=false; void loadBoard();

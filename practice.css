@@ -240,9 +240,6 @@ body[data-view="practice"]:has(.pr-session-bar) .main-footer,body[data-view="pra
 .pr-results-hero{display:flex;align-items:center;gap:26px;max-width:720px;margin:0 auto;padding:28px 30px;background:#eaf2e6;border:1px solid #d6e3cf;border-radius:24px}
 .pr-score{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;width:118px;height:118px;border-radius:50%;background:var(--pr-paper);box-shadow:0 0 0 8px #d9e8d3;color:var(--pr-green)}
 .pr-score strong{font:500 42px/1 var(--serif,Georgia,serif);letter-spacing:-1px}.pr-score span{font-size:13px;color:var(--pr-muted);margin-top:4px}
-.pr-stars{display:flex;gap:4px;margin:0 0 6px}.pr-stars span{display:grid;place-items:center;color:#d5ddd0}.pr-stars span.is-on{color:#e0a92e}.pr-stars svg{width:26px;height:26px;stroke-width:1.4}
-.pr-stars.is-fresh span{animation:pr-star-in .45s calc(.5s + var(--i)*.18s) cubic-bezier(.2,1.8,.4,1) both}
-@keyframes pr-star-in{0%{opacity:0;transform:scale(.2) rotate(-50deg)}100%{opacity:1;transform:none}}
 .pr-results-copy{min-width:0}.pr-results-copy h2{font-size:25px;margin-bottom:6px}.pr-results-copy p{color:var(--pr-muted);font-size:14px;overflow-wrap:anywhere}
 .pr-result-actions{display:flex;flex-wrap:wrap;gap:10px;max-width:720px;margin:18px auto 22px}
 .pr-result-actions .pr-primary{min-width:150px}
@@ -327,7 +324,7 @@ body[data-view="practice"] .main-footer{margin-top:22px}
 .pr-feedback .pr-next{flex-basis:100%;min-height:50px}
 .pr-match-board{gap:10px}.pr-match-col{gap:8px}.pr-match-tile{min-height:56px;font-size:15px;padding:8px}.pr-match-tile[lang="nb"]{font-size:16px}
 .pr-timer{font-size:28px}
-.pr-results-hero{flex-direction:column;text-align:center;gap:16px;padding:24px 18px}.pr-stars{justify-content:center}
+.pr-results-hero{flex-direction:column;text-align:center;gap:16px;padding:24px 18px}
 .pr-result-actions{flex-direction:column}.pr-result-actions .pr-button{width:100%}
 .pr-result-word{padding:6px 12px 6px 6px}
 .pr-history-entry{flex-wrap:wrap}.pr-history-main{flex-basis:calc(100% - 140px)}

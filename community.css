@@ -51,18 +51,3 @@
 @media(max-width:640px){.nc-panel{padding:16px 12px 10px;border-radius:20px}.nc-row{grid-template-columns:28px minmax(0,1fr) auto 62px;gap:6px;padding:4px 4px}}
 @media(prefers-reduced-motion:reduce){.nc-panel *{animation:none!important;transition:none!important}}
 .nc-confirm{margin-top:10px;padding:12px;border-radius:12px;background:#fff8e8;border:1px solid #ecdcb7;font-size:14px;color:#6b5320}.nc-confirm>div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-/* Weekly trophies */
-.nc-trophy{display:inline-flex;align-items:center;gap:1px;flex:none}.nc-trophy .nc-icon{width:20px;height:20px}
-.nc-trophy.is-1{color:#d6a330}.nc-trophy.is-2{color:#98a3a8}.nc-trophy.is-3{color:#c08457}
-.nc-trophy b{font-size:12px;color:var(--nc-muted)}
-.nc-trophies{display:flex;align-items:center;gap:8px;margin-top:10px;padding:6px 10px;border-radius:12px;background:#ffffffb3}
-.nc-trophies-label{font-size:13px;color:var(--nc-muted);margin-right:2px}
-.nc-honors{margin-top:12px;padding:12px 12px 8px;border-radius:16px;background:linear-gradient(135deg,#12302a,#21483e);color:#fffdf5}
-.nc-honors-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
-.nc-honors-head strong{font-size:14px;letter-spacing:.5px;color:#f5c542}
-.nc-honors .nc-honors-replay{min-height:30px;padding:2px 10px;color:#b9cfc4;font-size:13px}.nc-honors .nc-honors-replay:hover{color:#fffdf5;background:#ffffff14}
-.nc-honors ol{list-style:none;padding:0;display:grid;gap:2px}
-.nc-honor{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:32px;padding:2px 4px;border-radius:8px}
-.nc-honor.is-me{background:#f5c54226}
-.nc-honor.is-1 .nc-trophy.is-1{color:#f5c542}.nc-honor .nc-trophy.is-2{color:#d5dde1}.nc-honor .nc-trophy.is-3{color:#e0a07a}
-.nc-honor-xp{font-size:13px;color:#b9cfc4;font-variant-numeric:tabular-nums}
