@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#21483e">
   <meta name="description" content="结合教材、练习册、章节录音与课堂资料的挪威语学习书房。在线阅读、听读课文、学习词汇与基础知识。">
   <title>Norsk 学习书房 · 挪威语学习</title>
-  <link rel="stylesheet" href="styles.css?v=20261023-roomy1">
+  <link rel="stylesheet" href="styles.css?v=20261023-tools1">
 </head>
 <body>
   <svg class="svg-definitions" aria-hidden="true"><defs>
@@ -27,6 +27,7 @@
     <symbol id="i-fullscreen" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
     <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8m4 0h4M4 17h4m4 0h8"/><circle cx="14" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
   </defs></svg>
 
   <header class="site-header">
@@ -48,7 +49,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-heading"><span id="sidebar-label">学习目录</span><button class="icon-button mobile-only" id="close-sidebar" aria-label="关闭目录"><svg><use href="#i-close"/></svg></button></div>
       <div class="book-picker" id="book-picker">
-        <label class="series-picker" for="series-select"><span>教材系列</span><select id="series-select" aria-label="选择教材系列"></select></label>
+        <div class="series-picker"><button type="button" class="series-current" id="series-button" data-action="toggle-series" aria-haspopup="listbox" aria-expanded="false" aria-controls="series-menu"><span class="series-kicker">教材系列</span><span class="series-title" id="series-title">God i norsk</span><svg class="series-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button><div class="series-menu" id="series-menu" role="listbox" aria-label="选择教材系列" hidden></div></div>
         <div class="book-switch" id="book-switch" role="group" aria-label="选择教材或练习册"></div>
       </div>
       <div class="sidebar-subtitle" id="sidebar-subtitle">循着目录，慢慢学会。</div>
@@ -60,12 +61,19 @@
       <div class="content-heading">
         <div class="heading-left"><button class="icon-button menu-button" id="open-sidebar" aria-label="打开学习目录"><svg><use href="#i-menu"/></svg></button><div><div class="eyebrow" id="content-eyebrow">LES & LYTT · 阅读与听力</div><h1 id="content-title">阅读</h1></div></div>
         <span class="heading-note" id="heading-note">让文字与声音相遇</span>
+        <div class="heading-tools">
+          <label class="heading-search" id="heading-search"><svg aria-hidden="true"><use href="#i-search"/></svg><input id="vocab-search" type="search" placeholder="搜索单词、释义或例句" autocomplete="off" aria-label="搜索单词"><input id="basics-search" type="search" placeholder="在当前分类中搜索" autocomplete="off" aria-label="搜索基础常识"></label>
+          <button type="button" class="tool-button" id="search-button" data-action="toggle-search" aria-label="搜索" aria-expanded="false" title="搜索"><svg class="when-closed" aria-hidden="true"><use href="#i-search"/></svg><svg class="when-open" aria-hidden="true"><use href="#i-close"/></svg></button>
+          <div class="settings-wrap">
+            <button type="button" class="tool-button" id="settings-button" data-action="toggle-settings" aria-label="设置" aria-expanded="false" aria-controls="settings-menu" title="设置"><svg aria-hidden="true"><use href="#i-sliders"/></svg></button>
+            <div class="settings-menu" id="settings-menu" role="dialog" aria-label="设置" hidden>
+              <div class="setting-group"><p class="setting-label">单词读速</p><div class="segmented" id="rate-options"></div></div>
+              <div class="setting-group vocab-only"><p class="setting-label">排序</p><div class="segmented"><button type="button" data-action="vocab-sort" data-sort="easy" aria-pressed="true">由易到难</button><button type="button" data-action="vocab-sort" data-sort="hard" aria-pressed="false">由难到易</button><button type="button" data-action="vocab-sort" data-sort="alpha" aria-pressed="false">字母顺序</button></div></div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="study-series-bar" id="study-series-bar" hidden>
-        <label for="study-series-select"><span>学习教材</span><select id="study-series-select" aria-label="选择单词表和练习教材"></select></label>
-        <button class="text-button" data-action="open-basics">公共基础常识 ↗</button>
-      </div>
       <section id="reading-view" class="view" aria-label="在线阅读">
         <div class="reader-toolbar">
           <div class="reader-location"><svg><use href="#i-book"/></svg><span id="reader-book-title">教材</span><span class="reader-location-divider">/</span><span id="reader-section-title">正在载入目录</span></div>
@@ -88,15 +96,13 @@
       <section id="compare-view" class="view" aria-label="书籍双页对照" hidden></section>
 
       <section id="vocabulary-view" class="view" aria-label="课文单词表" hidden>
-        <div class="word-toolbar"><label class="search-field"><svg><use href="#i-search"/></svg><input id="vocab-search" type="search" placeholder="搜索单词、释义或课文例句" autocomplete="off" aria-label="搜索单词"></label><div class="word-toolbar-tools"><span id="vocab-rate"></span><label class="sort-label"><span>排序</span><select id="vocab-sort" aria-label="单词排序"><option value="easy">由易到难</option><option value="hard">由难到易</option><option value="alpha">字母顺序</option></select></label></div></div>
         <p class="word-total">共 <strong id="word-count">0</strong> 个词语</p>
         <div class="vocab-table"><div id="vocab-rows"></div></div>
       </section>
       <section id="practice-view" class="view" aria-label="词汇练习" hidden></section>
 
       <section id="basics-view" class="view" aria-label="挪威语基础常识" hidden>
-        <div class="basics-intro"><div class="basics-mark">å</div><div><p class="section-kicker">DET GRUNNLEGGENDE</p><h2 id="basics-title">从最常用的开始</h2><p id="basics-description">建立你的挪威语日常词汇。</p></div></div>
-        <label class="search-field basics-search"><svg><use href="#i-search"/></svg><input id="basics-search" type="search" placeholder="在当前分类中搜索" aria-label="搜索基础常识"></label>
+        <p class="basics-description" id="basics-description">建立你的挪威语日常词汇。</p>
         <div id="basics-items" class="basics-grid"></div>
       </section>
       <footer class="main-footer"><span>NORSK 学习书房</span><span>Les. Lytt. Lær. <span class="footer-dot">·</span> 阅读，聆听，学会。</span></footer>
@@ -112,6 +118,6 @@
   </section>
   <audio id="word-audio" preload="none"></audio>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.js?v=20261023-roomy1"></script>
+  <script type="module" src="app.js?v=20261023-tools1"></script>
 </body>
 </html>

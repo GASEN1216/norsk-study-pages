@@ -1,8 +1,8 @@
-import {createDataLoader} from './loader.mjs?v=20261023-roomy1';
-import {createReadingLibrary} from './reading-library.mjs?v=20261023-roomy1';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-roomy1';
+import {createDataLoader} from './loader.mjs?v=20261023-tools1';
+import {createReadingLibrary} from './reading-library.mjs?v=20261023-tools1';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-tools1';
 
-const VERSION = '20261023-roomy1';
+const VERSION = '20261023-tools1';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -39,11 +39,43 @@ function activateVocabulary(seriesId,descriptor,vocabulary) {
   if (chapter) state.expanded.add(`${descriptor.bookId}:${chapter.id}`);
 }
 function renderStudyPicker() {
-  const selector = $('#study-series-select');
-  if (!state.library || !selector) return;
-  selector.innerHTML = state.library.series.map(item => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.title)}</option>`).join('');
-  selector.value = activeSeriesId();
-  $('#study-series-bar').hidden = !['vocabulary','practice'].includes(state.view);
+  if (!state.library) return;
+  const current = activeSeriesId();
+  $('#series-title').textContent = activeSeriesTitle();
+  $('#series-menu').innerHTML = state.library.series.map(item => {
+    const books = state.library.booksFor(item.id).map(book => bookData(book)?.label || '教材').join(' · ');
+    return `<button type="button" role="option" class="series-option" data-action="choose-series" data-id="${escapeHTML(item.id)}" aria-selected="${item.id === current}"><span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(books)}</small></span>${item.id === current ? icon('check') : ''}</button>`;
+  }).join('');
+  $('#book-picker').hidden = !['reading','vocabulary'].includes(state.view);
+}
+function toggleSeriesMenu(open = $('#series-menu').hidden) {
+  $('#series-menu').hidden = !open;
+  $('#series-button').setAttribute('aria-expanded',str(open));
+}
+function toggleSettings(open = $('#settings-menu').hidden) {
+  $('#settings-menu').hidden = !open;
+  $('#settings-button').setAttribute('aria-expanded',str(open));
+}
+const activeSearch = () => state.view === 'basics' ? $('#basics-search') : $('#vocab-search');
+function toggleSearch(open = !$('#heading-search').classList.contains('open')) {
+  const input = activeSearch();
+  $('#heading-search').classList.toggle('open',open);
+  $('#search-button').setAttribute('aria-expanded',str(open));
+  $('#search-button').setAttribute('aria-label',open ? '关闭搜索' : '搜索');
+  if (open) { input.focus(); return; }
+  if (!input.value) return;
+  input.value = '';
+  if (state.view === 'basics') renderBasics(); else renderVocabulary();
+}
+function renderRateOptions() {
+  $('#rate-options').innerHTML = wordRates.map(rate => `<button type="button" data-action="word-rate" data-rate="${rate}" aria-pressed="${rate === state.wordRate}">${rate}×</button>`).join('');
+}
+function setVocabSort(order) {
+  if (!['easy','hard','alpha'].includes(order)) return;
+  state.vocabSort = order;
+  $$('[data-action="vocab-sort"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.sort === order)));
+  try { localStorage.setItem('norsk-vocab-sort-v1',order); } catch {}
+  renderVocabulary();
 }
 function selectStudySeries(seriesId) {
   if (!state.library || seriesId === activeSeriesId()) return;
@@ -122,7 +154,7 @@ async function prepareView(view,viewRun = state.viewRun) {
     if (!current()) return;
     activateVocabulary(seriesId,descriptor,vocabulary);
     if (!state.practiceInitialized || state.practiceSeriesId !== seriesId) {
-      window.NorskPractice.init({data:{...state.data,vocabulary},series:descriptor,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult});
+      window.NorskPractice.init({data:{...state.data,vocabulary},series:descriptor,pronounce,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries});
       state.practiceInitialized = true;
       state.practiceSeriesId = seriesId;
       prepareCommunity().catch(() => {});
@@ -151,7 +183,11 @@ const wordRates = [.5,.75,1,1.25,1.5];
 try {
   const savedRate = Number(localStorage.getItem('norsk-word-rate-v1'));
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
+  const savedSort = localStorage.getItem('norsk-vocab-sort-v1');
+  if (['easy','hard','alpha'].includes(savedSort)) state.vocabSort = savedSort;
 } catch {}
+renderRateOptions();
+$$('[data-action="vocab-sort"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.sort === (state.vocabSort || 'easy'))));
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','一段专注的练习时间']};
 labels.compare = ['LES SIDE OM SIDE · 双页对照','双页对照','选择书籍，各自翻阅'];
 
@@ -176,10 +212,10 @@ function bookData(book = state.book) { return state.data.catalog?.books?.[book];
 function renderBookPicker() {
   if (!state.library) return;
   const seriesId = state.library.seriesFor(state.book);
-  const select = $('#series-select');
-  if (!select.options.length) select.innerHTML = state.library.series.map(series => `<option value="${escapeHTML(series.id)}">${escapeHTML(series.title)}</option>`).join('');
-  select.value = seriesId;
-  $('#book-switch').innerHTML = state.library.booksFor(seriesId).map(book => `<button data-book="${escapeHTML(book)}" class="${book === state.book ? 'selected' : ''}" aria-pressed="${book === state.book}">${escapeHTML(bookData(book).label || (bookData(book).kind === 'workbook' || book === 'workbook' ? '练习册' : '教材'))}</button>`).join('');
+  renderStudyPicker();
+  const books = state.library.booksFor(seriesId);
+  $('#book-switch').hidden = books.length < 2;
+  $('#book-switch').innerHTML = books.map(book => `<button data-book="${escapeHTML(book)}" class="${book === state.book ? 'selected' : ''}" aria-pressed="${book === state.book}">${escapeHTML(bookData(book).label || (bookData(book).kind === 'workbook' || book === 'workbook' ? '练习册' : '教材'))}</button>`).join('');
 }
 function switchBook(book) {
   if (!bookData(book) || book === state.book) return;
@@ -315,7 +351,9 @@ async function setView(view, updateHash = true) {
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view;
   $('#content-eyebrow').textContent = labels[view][0];
   $('#heading-note').textContent = labels[view][2];
-  $('#book-picker').hidden = view !== 'reading';
+  toggleSettings(false);
+  toggleSeriesMenu(false);
+  $('#heading-search').classList.toggle('open',!!activeSearch().value);
   renderStudyPicker();
   $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : '学习目录';
   $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? `${activeSeriesTitle()} · 教材词汇` : view === 'practice' ? '选一组词语，每天复习一点。' : '循着目录，慢慢学会。';
@@ -453,7 +491,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-roomy1').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-tools1').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -588,6 +626,7 @@ function setWordRate(value) {
   pronunciationAudio.playbackRate = rate;
   pronunciationAudio.preservesPitch = true;
   $$('[data-word-rate]').forEach(select => { select.value = String(rate); });
+  renderRateOptions();
   try { localStorage.setItem('norsk-word-rate-v1',String(rate)); } catch {}
   if (state.speechItem && 'speechSynthesis' in window && speechSynthesis.speaking && !speechSynthesis.paused) pronounce(state.speechItem);
 }
@@ -630,12 +669,11 @@ async function renderVocabulary() {
   }
   const selection = vocabularySelection();
   const query = $('#vocab-search').value.trim().toLocaleLowerCase('nb');
-  const order = $('#vocab-sort').value;
+  const order = state.vocabSort || 'easy';
   state.words = selection.words.filter(word => !query || [word.word,word.meaning,word.sentence,word.example,word.usage,word.syllables,word.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
   state.words.sort((a,b) => order === 'alpha' ? str(a.word).localeCompare(str(b.word),'nb') : ((Number(a.difficulty) || 3) - (Number(b.difficulty) || 3)) * (order === 'hard' ? -1 : 1) || str(a.word).localeCompare(str(b.word),'nb'));
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
-  if (!$('#vocab-rate').innerHTML) $('#vocab-rate').innerHTML = wordRateControl();
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
   $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p><div class="word-details">${phonetics(word)}${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
 }
@@ -648,11 +686,12 @@ function renderBasics() {
   }
   state.basicId = str(category.id);
   $('#content-title').textContent = category.title;
-  $('#basics-title').textContent = category.title;
-  $('#basics-description').textContent = category.description || category.subtitle || '';
+  $('#content-eyebrow').textContent = category.subtitle || labels.basics[0];
+  $('#basics-description').textContent = category.description || '';
+  $('#basics-description').hidden = !category.description;
   const query = $('#basics-search').value.trim().toLocaleLowerCase('nb');
   state.basicItems = (category.items || []).filter(item => !query || [item.word,item.meaning,item.note,item.example,item.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
-  $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button>${wordRateControl(item.word)}</div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
+  $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button></div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
 }
 
 function pauseOtherAudio() {
@@ -766,9 +805,10 @@ function toggleAudio() {
 
 document.addEventListener('change',event => {
   if (event.target.matches('[data-word-rate]')) setWordRate(event.target.value);
-  if (event.target.matches('#series-select, #study-series-select')) selectStudySeries(event.target.value);
 });
 document.addEventListener('click',event => {
+  if (!event.target.closest('.series-picker')) toggleSeriesMenu(false);
+  if (!event.target.closest('.settings-wrap')) toggleSettings(false);
   const view = event.target.closest('.nav-button[data-view]');
   if (view) { setView(view.dataset.view); return; }
   if (event.target.closest('#sidebar [data-practice-action]')) { closeSidebar(); return; }
@@ -792,6 +832,12 @@ document.addEventListener('click',event => {
       break;
     }
     case 'select-entry': selectEntry(id,book); break;
+    case 'toggle-series': toggleSeriesMenu(); break;
+    case 'choose-series': toggleSeriesMenu(false); closeSidebar(); selectStudySeries(id); break;
+    case 'toggle-search': toggleSearch(); break;
+    case 'toggle-settings': toggleSettings(); break;
+    case 'word-rate': setWordRate(action.dataset.rate); break;
+    case 'vocab-sort': setVocabSort(action.dataset.sort); break;
     case 'entry-audio':
       if (state.book !== 'textbook' || state.readingId !== id) selectEntry(id,'textbook');
       playEntry(id);
@@ -836,7 +882,6 @@ document.addEventListener('fullscreenchange',() => {
   if (state.view === 'reading') renderPDF();
 });
 $('#vocab-search').addEventListener('input',renderVocabulary);
-$('#vocab-sort').addEventListener('change',renderVocabulary);
 $('#basics-search').addEventListener('input',renderBasics);
 $('#lesson-materials').addEventListener('toggle',() => { if ($('#lesson-materials').open && state.ready) renderLessons(); });
 $('#audio-play').addEventListener('click',toggleAudio);
@@ -852,6 +897,11 @@ for (const event of ['play','pause','loadedmetadata','durationchange','ended']) 
 audio.addEventListener('error',() => { if (!$('#audio-dock').hidden) notify('录音载入失败，请检查网络后重试。'); });
 pronunciationAudio.addEventListener('error',() => notify('这条读音暂时无法播放，请稍后重试。'));
 document.addEventListener('keydown',event => {
+  if (event.key === 'Escape') {
+    toggleSettings(false);
+    toggleSeriesMenu(false);
+    if (event.target.closest?.('#heading-search')) toggleSearch(false);
+  }
   if (event.key === 'Escape') { closeSidebar(); if (document.body.classList.contains('reader-focus')) { document.body.classList.remove('reader-focus'); renderPDF(); } }
   if (state.view !== 'reading' || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName) || event.ctrlKey || event.altKey || event.metaKey) return;
   if (event.key === 'ArrowLeft' && state.page > 1) { event.preventDefault(); goPage(state.page-1); }
