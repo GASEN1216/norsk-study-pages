@@ -1,8 +1,8 @@
-import {createDataLoader} from './loader.mjs?v=20261023-fast-audio';
-import {createReadingLibrary} from './reading-library.mjs?v=20261023-fast-audio';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-fast-audio';
+import {createDataLoader} from './loader.mjs?v=20261023-audio-ahead';
+import {createReadingLibrary} from './reading-library.mjs?v=20261023-audio-ahead';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-audio-ahead';
 
-const VERSION = '20261023-fast-audio';
+const VERSION = '20261023-audio-ahead';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -493,7 +493,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-fast-audio').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-audio-ahead').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -680,7 +680,7 @@ async function renderVocabulary() {
   $('#word-count').textContent = state.words.length;
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
   $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p><div class="word-details">${phonetics(word)}${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
-  prefetchListWords(state.words);
+  prefetchListWords($('#vocab-rows'));
 }
 function renderBasics() {
   const categories = state.data.basics?.categories || [];
@@ -697,7 +697,7 @@ function renderBasics() {
   const query = $('#basics-search').value.trim().toLocaleLowerCase('nb');
   state.basicItems = (category.items || []).filter(item => !query || [item.word,item.meaning,item.note,item.example,item.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
   $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button></div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
-  prefetchListWords(state.basicItems);
+  prefetchListWords($('#basics-items'));
 }
 
 // Word recordings are fetched once and kept in memory. At normal speed they are decoded and
@@ -772,15 +772,33 @@ function unlockWordAudio(event) {
   const context = wordAudioContext();
   if (context?.state === 'suspended') Promise.resolve(context.resume()).catch(() => {});
   const button = event.target?.closest?.('[data-action="pronounce"]');
-  if (button) prefetchPronunciation(button.dataset.kind === 'basics' ? state.basicItems[Number(button.dataset.index)] : state.words[Number(button.dataset.index)]);
+  if (button) prefetchPronunciation(pronounceItem(button));
 }
 document.addEventListener('pointerdown',unlockWordAudio,{capture:true,passive:true});
 document.addEventListener('keydown',unlockWordAudio,{capture:true});
-// Quietly fetch the first words of a list so the first taps sound at once (not when saving data).
-function prefetchListWords(items) {
-  if (navigator.connection?.saveData || !items?.length) return;
-  const run = () => prefetchPronunciation(items.slice(0,30));
-  if ('requestIdleCallback' in window) requestIdleCallback(run,{timeout:2000}); else setTimeout(run,600);
+function pronounceItem(button) {
+  return button.dataset.kind === 'basics' ? state.basicItems[Number(button.dataset.index)] : state.words[Number(button.dataset.index)];
+}
+// Rows fetch their recordings as they come near the screen, so any word in a list sounds at
+// once when tapped (not when saving data). Without IntersectionObserver the first rows are fetched.
+const wordRowObservers = new Map();
+function prefetchListWords(container) {
+  wordRowObservers.get(container)?.disconnect();
+  wordRowObservers.delete(container);
+  const buttons = [...(container?.querySelectorAll('[data-action="pronounce"]') || [])];
+  if (navigator.connection?.saveData || !buttons.length) return;
+  if (!('IntersectionObserver' in window)) {
+    const run = () => prefetchPronunciation(buttons.slice(0,30).map(pronounceItem));
+    if ('requestIdleCallback' in window) requestIdleCallback(run,{timeout:2000}); else setTimeout(run,600);
+    return;
+  }
+  const observer = new IntersectionObserver(entries => {
+    const near = entries.filter(entry => entry.isIntersecting).map(entry => entry.target);
+    near.forEach(button => observer.unobserve(button));
+    if (near.length) prefetchPronunciation(near.map(pronounceItem));
+  },{rootMargin:'400px 0px'});
+  buttons.forEach(button => observer.observe(button));
+  wordRowObservers.set(container,observer);
 }
 function stopWordSource() {
   const source = wordClips.source;
@@ -959,7 +977,7 @@ document.addEventListener('click',event => {
       closeSidebar();
       break;
     case 'category': state.basicId = id; $('#basics-search').value = ''; renderTOC(); renderBasics(); closeSidebar(); break;
-    case 'pronounce': pronounce(action.dataset.kind === 'basics' ? state.basicItems[Number(action.dataset.index)] : state.words[Number(action.dataset.index)]); break;
+    case 'pronounce': pronounce(pronounceItem(action)); break;
     case 'open-basics': setView('basics'); break;
     case 'sentence-page': switchBook(book || vocabularyBook()); setView('reading'); goPage(Number(action.dataset.page)); break;
     case 'retry-pdf': state.ready ? renderPDF() : initialize(); break;

@@ -25,7 +25,7 @@
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
-  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null};
+  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null};
   const $ = selector => state.root?.querySelector(selector);
   const e = value => (state.deps.escapeHTML || (text => String(text ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))))(value);
   const button = (action,text,extra='',kind='') => `<button type="button" class="pr-button ${kind}" data-practice-action="${action}" ${extra}>${text}</button>`;
@@ -205,7 +205,7 @@
     return merged;
   }
   function indexData(data) {
-    state.sources.clear(); state.words.clear(); state.chapters = []; state.basics = [];
+    state.sources.clear(); state.words.clear(); state.prepared.clear(); state.chapters = []; state.basics = [];
     const add = (token,label,words) => {
       const entries = new Map();
       for (const word of words || []) {
@@ -266,6 +266,36 @@
     }
     return keys;
   }
+  function customPool(keys) { return new Map(unique(keys).filter(key => state.words.has(key)).map(key => [key,state.words.get(key)])); }
+  // A session's order is drawn while the learner is still choosing and its first recordings load
+  // meanwhile, so the first word is read as soon as start is pressed.
+  function orderSignature(sources,customKeys,mode,activity) {
+    return JSON.stringify([state.seriesId,activity,mode,customKeys ? unique(customKeys).sort() : [...sources].sort()]);
+  }
+  function prepareOrder(sources,customKeys,mode,activity) {
+    if (!state.deps.prefetch) return;
+    const signature = orderSignature(sources,customKeys,mode,activity);
+    if (state.prepared.has(signature)) return;
+    const pool = customKeys ? customPool(customKeys) : poolFor(sources);
+    if (!pool.size) return;
+    const keys = selectKeys(pool,mode);
+    state.prepared.set(signature,keys);
+    while (state.prepared.size > 8) state.prepared.delete(state.prepared.keys().next().value);
+    const first = activity === 'match' ? matchGroups(keys.slice(0,24),pool)[0] || [] : keys.slice(0,4);
+    state.deps.prefetch(first.map(key => pool.get(key)));
+  }
+  // Ticking several chapters in a row draws once, after the clicks settle.
+  function prepareScopeOrders() {
+    if (!state.deps.prefetch || typeof setTimeout !== 'function') return;
+    if (state.prepareTimer != null) clearTimeout(state.prepareTimer);
+    state.prepareTimer = setTimeout(() => {
+      state.prepareTimer = null;
+      if (state.screen !== 'setup') return;
+      prepareOrder([...state.selected],null,state.mode,state.activity);
+      prepareOrder([],weakKeys(),'weak',state.activity);
+      prepareOrder([],favoriteKeys(),state.mode,state.activity);
+    },150);
+  }
   function applyConfig(config) {
     state.selected = new Set((config.sources || []).filter(token => state.sources.has(token)));
     state.mode = config.mode === 'weak' ? 'weak' : 'random';
@@ -299,6 +329,8 @@
     shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">今天练什么？</h2><span class="pr-series-label">${e(state.seriesTitle)}</span></div><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
     const slot = $('#pr-community-slot');
     if (slot) state.deps.mountCommunity?.(slot);
+    // Continuing an unfinished session reads its current word, so load it already.
+    if (active && active.phase !== 'review-intro') prefetchAhead(active);
   }
   function historyStats() {
     return `<div class="pr-history-stats"><span><b>${Object.keys(state.store.stats).length}</b>已练词语</span><span><b>${state.store.history.length}</b>完成次数</span><span><b>${weakKeys().length}</b>薄弱词</span></div>`;
@@ -373,6 +405,7 @@
     if (start) start.disabled = !pool.size || (state.activity === 'match' && pool.size < 2);
     if (clear) clear.hidden = !pool.size;
     if (save) draft();
+    prepareScopeOrders();
   }
   function rememberConfig(config,label) {
     const signature = JSON.stringify([config.sources.slice().sort(),config.mode,activityOf(config),config.activity === 'quiz' ? quizConfig(config.quiz) : null]);
@@ -382,12 +415,14 @@
     const begin = () => {
       closeDialogs(); stopAudio(); stopMatchClock();
       const sources = config.sources || [...state.selected];
-      const pool = customKeys ? new Map(unique(customKeys).filter(key => state.words.has(key)).map(key => [key,state.words.get(key)])) : poolFor(sources);
+      const pool = customKeys ? customPool(customKeys) : poolFor(sources);
       if (!pool.size) { announce('这组目前没有可练习的词，请重新选择范围。'); return; }
       const activity = activityOf(config);
       if (activity === 'match' && pool.size < 2) { announce('配对消除至少需要 2 个词，请多选一些词语。'); return; }
       const mode = config.mode || state.mode;
-      const firstKeys = selectKeys(pool,mode);
+      const prepared = state.prepared.get(orderSignature(sources,customKeys,mode,activity));
+      state.prepared.clear();
+      const firstKeys = prepared?.length === pool.size && prepared.every(key => pool.has(key)) ? prepared : selectKeys(pool,mode);
       const session = {id:uid(),seriesId:state.seriesId,seriesTitle:state.seriesTitle,startedAt:now(),sources,label:label || selectedLabel(sources),mode,activity,quiz:quizConfig(config.quiz),firstKeys,customKeys:customKeys ? [...pool.keys()] : null,reviewKeys:[],reviewAnswers:{},details:{},reviewDetails:{},phase:'first',index:0,answers:{},paused:false,flipped:false,cardsReverse:false,inputDraft:''};
       if (['learn','quiz','listen'].includes(activity)) session.questions = makeQuestions(pool,firstKeys,activity,session.quiz);
       if (activity === 'match') { session.match={round:0,elapsedMs:0,penaltyMs:0,errors:{},matched:[],selected:null,wrong:[]}; makeMatchRound(session,pool); }
@@ -893,6 +928,9 @@
     state.screen = 'results'; state.result = result;
     const activity=activityOf(result), objective=isObjective(result), summary=resultSummary(result);
     const weak=result.answers.filter(answer => answer.points < 2 && state.words.has(answer.key));
+    // Draw the orders behind 再练一次 and 练错词 now, so either starts with its first word loaded.
+    prepareOrder(result.sources || [],result.customKeys || null,result.mode || state.mode,activity);
+    if (weak.length) prepareOrder([],result.answers.filter(answer => answer.points < 2).map(answer => answer.key),'weak',reviewActivity(activity));
     const rows=[...result.answers].sort((a,b) => a.points-b.points).map(answer => {
       const detail=answer.detail, mark=answer.points === 2 ? 'is-right' : answer.points === 1 ? 'is-unsure' : 'is-wrong';
       const label=objective ? (answer.points === 2 ? icon('check') : icon('cross')) : e(RATINGS[answer.points]);
@@ -1056,7 +1094,7 @@
         chapter.sections.forEach(section => { if (section.token !== token) state.selected.add(section.token); });
       } else if (input.checked) state.selected.add(token); else state.selected.delete(token);
       updateSelectionUI();
-    } else if (input.id === 'pr-order') { state.mode=input.value === 'weak' ? 'weak' : 'random'; draft(); }
+    } else if (input.id === 'pr-order') { state.mode=input.value === 'weak' ? 'weak' : 'random'; draft(); prepareScopeOrders(); }
     else if (input.dataset.prQuizType) {
       const type=input.dataset.prQuizType, types=state.quiz.types;
       if (!QUIZ_TYPES.includes(type)) return;
