@@ -132,3 +132,114 @@ body[data-view=compare] .audio-dock{left:20px;right:20px}
 .study-series-bar select:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:4px}
 .study-series-bar .text-button{white-space:nowrap;font-size:11px}
 @media(max-width:480px){.study-series-bar{gap:9px;padding:11px 12px}.study-series-bar label{gap:6px;flex-wrap:wrap}.study-series-bar label>span{font-size:10px}.study-series-bar select{min-width:120px;font-size:15px}.study-series-bar .text-button{font-size:10px}}
+
+/* Roomier reading and vocabulary: fewer labels, larger type, calmer spacing. */
+.eyebrow{font-size:11px;letter-spacing:1.6px}.content-heading h1{font-size:26px;font-weight:600}
+body[data-view=reading] .sidebar-subtitle,body[data-view=vocabulary] .sidebar-subtitle,body[data-view=reading] .sidebar-footer,body[data-view=vocabulary] .sidebar-footer{display:none}
+body[data-view=reading] .book-picker{padding:0 2px 18px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.book-switch{margin:0 3px}.book-switch button{font-size:13px;padding:8px}
+.sidebar-heading{font-size:15px;margin-bottom:18px}
+.toc{padding-top:12px}
+.toc-group{margin-bottom:2px}
+.toc-chapter{min-height:46px;border-radius:9px}
+.toc-title,.toc-basic{font-size:14px;padding:11px 0;line-height:1.5;color:#3f5538}
+.toc-section{padding-left:30px;margin:1px 0;border-radius:8px}
+.toc-section .toc-title{font-size:13.5px;padding:9px 0;color:#566b4e}
+.toc-number{font-size:11px;color:#9aa58d;min-width:22px}.toc-section .toc-number{font-size:11px;min-width:28px}
+.toc-page{font-size:12px;color:#a2ab96;padding:0 6px}
+.toc-chapter.active,.toc-section.active{background:#e3ebdb;box-shadow:inset 3px 0 0 var(--green)}
+.toc-chapter.active .toc-title,.toc-section.active .toc-title{color:var(--green);font-weight:600}
+.toc-audio{width:30px;height:30px;border-radius:8px}.toc-audio svg{width:13px;height:13px}
+@media(hover:hover){.toc-audio{opacity:0;transition:opacity .15s}.toc-chapter:hover .toc-audio,.toc-section:hover .toc-audio,.toc-chapter.active .toc-audio,.toc-section.active .toc-audio,.toc-audio:focus-visible{opacity:1}}
+
+/* Reading: the book title already sits in the toolbar, so the page gets the height. */
+body[data-view=reading] .content-heading .eyebrow,body[data-view=reading] .heading-note,#reading-view .reader-tip{display:none}
+@media(min-width:721px){body[data-view=reading] .content-heading{display:none}body[data-view=reading] .main{padding:20px 28px 16px}}
+#reading-view .reader-toolbar{min-height:62px;padding:10px 12px 10px 20px;border-radius:14px 14px 0 0;gap:16px}
+#reading-view .reader-location{font-size:14px;gap:10px;color:#7a876f}
+#reading-view .reader-location>svg{width:19px;height:19px}
+#reading-view .reader-location #reader-section-title{font-size:16px;font-weight:600}
+#reading-view .reader-tools{gap:4px}
+#reading-view .reader-tools .icon-button{width:38px;height:38px;border-radius:10px;padding:8px}
+#reading-view .reader-tools .icon-button svg{width:19px;height:19px}
+#reading-view .zoom-control select{font-size:13px;color:var(--green);padding:8px 6px;border-radius:9px;max-width:120px;cursor:pointer}
+#reading-view .zoom-control select:hover{background:#edf1e5}
+#reading-view .compare-launch{padding:8px 14px;font-size:13px;border-radius:10px;gap:7px;margin-right:8px}
+#reading-view .compare-launch svg{width:16px;height:16px}
+#reader-fullscreen{margin-left:8px}
+#reading-view .pdf-stage{padding:18px;background:#e9ebe2}
+#reading-view .pdf-stage canvas{box-shadow:0 6px 24px #31472c1f;border-radius:2px}
+#reading-view .page-controls{min-height:60px;padding:8px 12px;border-radius:0 0 14px 14px}
+#reading-view .page-button{font-size:14px;color:var(--green);padding:9px 16px;border-radius:10px;gap:8px}
+#reading-view .page-button svg{width:17px;height:17px}
+#reading-view .page-button:not(:disabled):hover{background:#edf1e5}
+#reading-view .page-jump{font-size:13px;color:#8a967e;gap:10px}
+#reading-view .page-jump input{width:60px;height:36px;font-size:15px;border-radius:9px;border-color:#d9e1cf}
+#reading-view .page-jump .text-button{font-size:13px;color:var(--green);padding:7px 14px;border:1px solid #d9e1cf;border-radius:9px;background:#f5f8ef}
+#reading-view .page-jump .text-button:hover{background:#e8efdf}
+#reading-view .lesson-materials{margin-top:12px;border-radius:12px;max-height:200px}
+#reading-view .lesson-materials>summary{padding:12px 18px;font-size:14px;gap:10px}
+#reading-view .reader-audio-note{padding:9px 20px;font-size:13px}
+
+/* Vocabulary: one toolbar, then a list of airy word cards. */
+.word-toolbar{gap:12px;margin-bottom:0;align-items:center}
+.word-toolbar .search-field{min-height:50px;border-radius:12px;padding:0 18px;gap:12px}
+.word-toolbar .search-field svg{width:18px;height:18px}
+.word-toolbar .search-field input,.word-toolbar .search-field input::placeholder{font-size:15px}
+.word-toolbar .search-field input{height:48px}
+.word-toolbar-tools{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.word-toolbar .word-rate-control,.word-toolbar .sort-label{gap:8px;font-size:13px;color:#7a876f}
+.word-toolbar .word-rate-control select,.word-toolbar .sort-label select{min-height:50px;padding:0 14px;border:1px solid #dfe5d6;border-radius:12px;background:#fffef9;color:var(--green);font-size:14px;max-width:none;width:auto}
+.word-total{display:block;margin:20px 4px 12px;font-size:14px;color:#7a876f;white-space:normal}
+.word-total strong{font:600 17px var(--sans);color:var(--green);margin:0 2px}
+.vocab-table{border:0;border-radius:0;background:none;overflow:visible}
+#vocab-rows{display:grid;gap:14px}
+.vocab-row{grid-template-columns:minmax(220px,1fr) minmax(280px,1.4fr);gap:36px;padding:26px 28px;border:1px solid var(--line);border-radius:16px;background:var(--white);align-items:stretch;transition:border-color .15s,box-shadow .15s}
+.vocab-row:hover{border-color:#d4ddc9;box-shadow:0 6px 22px #2a45300d}
+.word-cell{display:flex;flex-direction:column}
+.vocab-row .word-topline{gap:12px;flex-wrap:nowrap}
+.vocab-row .word-spelling{font-size:32px;line-height:1.15;color:#24452f}
+.vocab-row .word-pronounce{width:36px;height:36px;padding:8px;flex-shrink:0}
+.vocab-row .word-pronounce svg{width:18px;height:18px}
+.vocab-row .difficulty{display:inline-block;margin-left:auto;font-size:12px;letter-spacing:.5px;border:0;border-radius:999px;padding:3px 11px;background:#eff3e8;color:#6b7d5c;white-space:nowrap;align-self:flex-start;margin-top:6px}
+.vocab-row .word-meaning{font-size:17px;line-height:1.6;color:var(--ink);margin:12px 0 0}
+.word-details{margin-top:auto;padding-top:14px}
+.vocab-row .word-phonetics{font-size:14px;gap:14px;color:#7c8a71}
+.vocab-row .word-grammar{font-size:13px;color:#7c8a71;margin:2px 0 0}
+.vocab-row .sentence-cell{display:flex;flex-direction:column;justify-content:center;padding:20px 24px;border:0;border-radius:12px;background:#f4f7ef}
+.vocab-row .sentence{font-size:21px;line-height:1.65;color:#36532f;margin:0 0 14px}
+.vocab-row .sentence mark{background:#dfeacf;color:#24452a;padding:1px 5px;border-radius:5px}
+.vocab-row .example-label{font-size:12px;margin-bottom:6px}
+.vocab-row .sentence-ref{gap:6px 16px;font-size:12.5px;color:#8a967e}
+.vocab-row .sentence-ref button{font-size:12.5px;color:#4f6f3e}
+@media(max-width:1200px){.vocab-row{grid-template-columns:minmax(200px,1fr) minmax(240px,1.3fr);gap:26px;padding:24px}}
+@media(max-width:960px){.vocab-row{grid-template-columns:1fr;gap:18px;padding:22px}.word-details{margin-top:0}.vocab-row .sentence{font-size:19px}}
+@media(max-width:720px){
+ .content-heading h1{font-size:21px}.eyebrow{font-size:9px}
+ body[data-view=reading] .content-heading{margin-bottom:8px}
+ #reading-view .reader-toolbar{padding:6px 8px;min-height:48px;gap:4px;border-radius:12px 12px 0 0}
+ #reading-view .reader-location{font-size:12px}#reading-view .reader-location #reader-section-title{font-size:14px}
+ #reading-view .reader-tools .icon-button{width:32px;height:32px;padding:6px}
+ #reading-view .compare-launch{padding:6px 9px;font-size:12px;margin-right:2px}
+ #reader-fullscreen{margin-left:0}
+ #reading-view .pdf-stage{padding:8px}
+ #reading-view .page-controls{min-height:50px;padding:5px 6px;border-radius:0 0 12px 12px}
+ #reading-view .page-button{font-size:13px;padding:8px 10px;gap:4px}
+ #reading-view .page-jump{gap:6px}#reading-view .page-jump input{width:50px;height:32px;font-size:14px}#reading-view .page-jump .text-button{padding:5px 10px;font-size:12px}
+ #reading-view .lesson-materials>summary{padding:9px 12px;font-size:13px}
+ .word-toolbar{flex-wrap:wrap;gap:10px}.word-toolbar .search-field{flex:1 1 100%;min-height:46px}.word-toolbar .search-field input{height:44px}
+ .word-toolbar-tools{width:100%}.word-toolbar-tools>*{flex:1}.word-toolbar .word-rate-control select,.word-toolbar .sort-label select{min-height:42px;width:100%;font-size:13px}
+ .word-toolbar .sort-label>span{display:inline}
+ .word-total{margin:16px 2px 10px;font-size:13px}
+ #vocab-rows{gap:12px}
+ .vocab-row{padding:20px 18px;gap:16px;border-radius:14px}
+ .vocab-row .word-spelling{font-size:28px}
+ .vocab-row .word-meaning{font-size:16px}
+ .vocab-row .sentence-cell{padding:16px 18px;border-top:0}
+ .vocab-row .sentence{font-size:18px;margin-bottom:10px}
+}
+.study-series-bar{padding:8px 12px 8px 18px;margin-bottom:18px;border-radius:12px}
+.study-series-bar label{font-size:13px}.study-series-bar .text-button{font-size:13px;padding:8px 12px;border-radius:9px}.study-series-bar .text-button:hover{background:#edf1e5}
+.toc-section{padding-left:22px}.toc-section .toc-number{min-width:27px}
+@media(hover:hover){.toc-chapter,.toc-section{position:relative}.toc-audio{position:absolute;right:3px;top:50%;transform:translateY(-50%);background:inherit}.toc-chapter:hover .toc-audio,.toc-section:hover .toc-audio{background:#e3ebdb}.toc-chapter:hover .toc-page,.toc-section:hover .toc-page{visibility:hidden}.toc-page{min-width:30px;padding-right:8px}}
+@media(max-width:720px){#vocab-rate{display:flex}#vocab-rate>label,.word-toolbar .sort-label{flex:1}}

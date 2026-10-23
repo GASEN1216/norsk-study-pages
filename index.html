@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#21483e">
   <meta name="description" content="结合教材、练习册、章节录音与课堂资料的挪威语学习书房。在线阅读、听读课文、学习词汇与基础知识。">
   <title>Norsk 学习书房 · 挪威语学习</title>
-  <link rel="stylesheet" href="styles.css?v=20261022-library3">
+  <link rel="stylesheet" href="styles.css?v=20261023-roomy1">
 </head>
 <body>
   <svg class="svg-definitions" aria-hidden="true"><defs>
@@ -69,7 +69,7 @@
       <section id="reading-view" class="view" aria-label="在线阅读">
         <div class="reader-toolbar">
           <div class="reader-location"><svg><use href="#i-book"/></svg><span id="reader-book-title">教材</span><span class="reader-location-divider">/</span><span id="reader-section-title">正在载入目录</span></div>
-          <div class="reader-tools"><button id="open-compare" class="compare-launch" title="两侧独立选书与翻页"><svg><use href="#i-book"/></svg><span>双页对照</span></button><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
+          <div class="reader-tools"><button id="open-compare" class="compare-launch" title="两侧独立选书与翻页"><svg><use href="#i-book"/></svg><span>双页对照</span></button><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control" title="双击页面可在完整一页与适合宽度之间切换"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
         </div>
         <div class="reader-audio-note" id="reading-audio-note" role="note" hidden></div>
         <div class="pdf-stage" id="pdf-stage">
@@ -77,9 +77,9 @@
           <canvas id="pdf-canvas" aria-label="教材 PDF 页面" hidden></canvas>
         </div>
         <div class="page-controls">
-          <button class="page-button" id="prev-page" aria-label="上一页"><svg><use href="#i-left"/></svg><span>上一页</span></button>
-          <form class="page-jump" id="page-form"><label for="page-input">PDF 页码</label><input id="page-input" type="number" min="1" value="1" aria-label="跳转到 PDF 页码"><span id="page-total">/ —</span><button type="submit" class="text-button">跳转</button></form>
-          <button class="page-button" id="next-page" aria-label="下一页"><span>下一页</span><svg><use href="#i-chevron"/></svg></button>
+          <button class="page-button" id="prev-page" aria-label="上一页" title="上一页（←）"><svg><use href="#i-left"/></svg><span>上一页</span></button>
+          <form class="page-jump" id="page-form" title="目录中是印刷页码，这里是 PDF 页码"><label for="page-input">PDF 页码</label><input id="page-input" type="number" min="1" value="1" aria-label="跳转到 PDF 页码"><span id="page-total">/ —</span><button type="submit" class="text-button">跳转</button></form>
+          <button class="page-button" id="next-page" aria-label="下一页" title="下一页（→）"><span>下一页</span><svg><use href="#i-chevron"/></svg></button>
         </div>
         <details class="lesson-materials" id="lesson-materials"><summary><svg><use href="#i-file"/></svg><span>课堂资料与 PPT</span><span id="lesson-count" class="muted"></span><svg class="details-chevron"><use href="#i-chevron"/></svg></summary><div id="lesson-list" class="lesson-list"></div></details>
         <p class="reader-tip">← → 翻页 · 双击页面切换整页与宽度 · 目录为印刷页码，下方为 PDF 页码</p>
@@ -88,9 +88,9 @@
       <section id="compare-view" class="view" aria-label="书籍双页对照" hidden></section>
 
       <section id="vocabulary-view" class="view" aria-label="课文单词表" hidden>
-        <div class="vocabulary-intro"><div><p class="section-kicker" id="vocabulary-series-name">教材单词表</p><p>按当前教材的章节和小节学习。</p></div><div class="word-total"><strong id="word-count">0</strong><span>个词语</span></div></div>
-        <div class="word-toolbar"><label class="search-field"><svg><use href="#i-search"/></svg><input id="vocab-search" type="search" placeholder="搜索单词、释义或课文例句" autocomplete="off" aria-label="搜索单词"></label><label class="sort-label"><span>排序</span><select id="vocab-sort" aria-label="单词排序"><option value="easy">由易到难</option><option value="hard">由难到易</option><option value="alpha">字母顺序</option></select></label></div>
-        <div class="vocab-table"><div class="vocab-table-head"><span>单词 · 音节 · 读音</span><span>课文中的句子</span></div><div id="vocab-rows"></div></div>
+        <div class="word-toolbar"><label class="search-field"><svg><use href="#i-search"/></svg><input id="vocab-search" type="search" placeholder="搜索单词、释义或课文例句" autocomplete="off" aria-label="搜索单词"></label><div class="word-toolbar-tools"><span id="vocab-rate"></span><label class="sort-label"><span>排序</span><select id="vocab-sort" aria-label="单词排序"><option value="easy">由易到难</option><option value="hard">由难到易</option><option value="alpha">字母顺序</option></select></label></div></div>
+        <p class="word-total">共 <strong id="word-count">0</strong> 个词语</p>
+        <div class="vocab-table"><div id="vocab-rows"></div></div>
       </section>
       <section id="practice-view" class="view" aria-label="词汇练习" hidden></section>
 
@@ -112,6 +112,6 @@
   </section>
   <audio id="word-audio" preload="none"></audio>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.js?v=20261022-library3"></script>
+  <script type="module" src="app.js?v=20261023-roomy1"></script>
 </body>
 </html>

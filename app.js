@@ -1,8 +1,8 @@
-import {createDataLoader} from './loader.mjs?v=20261022-library3';
-import {createReadingLibrary} from './reading-library.mjs?v=20261022-library3';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261022-library3';
+import {createDataLoader} from './loader.mjs?v=20261023-roomy1';
+import {createReadingLibrary} from './reading-library.mjs?v=20261023-roomy1';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-roomy1';
 
-const VERSION = '20261022-library3';
+const VERSION = '20261023-roomy1';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -44,7 +44,6 @@ function renderStudyPicker() {
   selector.innerHTML = state.library.series.map(item => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.title)}</option>`).join('');
   selector.value = activeSeriesId();
   $('#study-series-bar').hidden = !['vocabulary','practice'].includes(state.view);
-  $('#vocabulary-series-name').textContent = `${activeSeriesTitle()} · 单词表`;
 }
 function selectStudySeries(seriesId) {
   if (!state.library || seriesId === activeSeriesId()) return;
@@ -454,7 +453,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261022-library3').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-roomy1').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -636,8 +635,9 @@ async function renderVocabulary() {
   state.words.sort((a,b) => order === 'alpha' ? str(a.word).localeCompare(str(b.word),'nb') : ((Number(a.difficulty) || 3) - (Number(b.difficulty) || 3)) * (order === 'hard' ? -1 : 1) || str(a.word).localeCompare(str(b.word),'nb'));
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
+  if (!$('#vocab-rate').innerHTML) $('#vocab-rate').innerHTML = wordRateControl();
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
-  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button>${wordRateControl(word.word)}<span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p>${phonetics(word)}${wordGrammar(word)}</div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
+  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p><div class="word-details">${phonetics(word)}${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
 }
 function renderBasics() {
   const categories = state.data.basics?.categories || [];
