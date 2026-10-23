@@ -407,6 +407,14 @@
     const session = currentSession();
     return session && sessionPool(session).get(currentKey(session));
   }
+  // Load the recordings of this word and the next few (or the whole match group) ahead of time,
+  // so every reading in practice starts as soon as it is asked for.
+  function prefetchAhead(session) {
+    if (!session || !state.deps.prefetch) return;
+    const pool = sessionPool(session);
+    const keys = activityOf(session) === 'match' ? session.match?.roundKeys || [] : (currentKeys(session) || []).slice(session.index || 0,(session.index || 0)+4);
+    state.deps.prefetch(keys.map(key => pool.get(key)).filter(Boolean));
+  }
   // Spelling practice may read the word first; in the quiz, audio must not reveal an answer early.
   function promptAudioAllowed(session) {
     const activity = activityOf(session);
@@ -462,6 +470,7 @@
     if (!session) { renderSetup(); return; }
     state.screen = 'session';
     if (session.phase === 'review-intro') { renderReviewIntro(session); return; }
+    prefetchAhead(session);
     const activity = activityOf(session);
     if (activity === 'match') { renderMatch(session); return; }
     ensureQuestions(session);
@@ -1212,7 +1221,14 @@
       document.addEventListener('input',onInput);
       document.addEventListener('submit',onSubmit);
       document.addEventListener('keydown',onKey);
-      document.addEventListener('pointerdown',event => { if (event.button === 0 && state.visible && state.root?.contains(event.target)) { unlockFeedbackAudio(event); if (event.target.closest('[data-pr-letter]')) event.preventDefault(); } });
+      document.addEventListener('pointerdown',event => {
+        if (event.button !== 0 || !state.visible || !state.root?.contains(event.target)) return;
+        unlockFeedbackAudio(event);
+        if (event.target.closest('[data-pr-letter]')) event.preventDefault();
+        // Word buttons in results and word cards start loading their recording before the click lands.
+        const keyed = event.target.closest('[data-pr-key]');
+        if (keyed && state.words.has(keyed.dataset.prKey)) state.deps.prefetch?.([state.words.get(keyed.dataset.prKey)]);
+      });
       window.addEventListener('online',syncCommunity);
       window.addEventListener('beforeunload',() => { stopFeedback(); if (currentSession()) { stopMatchClock(); currentSession().paused=true; persist(); } });
       document.addEventListener('visibilitychange',() => {
