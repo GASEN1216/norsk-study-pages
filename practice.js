@@ -106,7 +106,8 @@
     $('.pr-completion-burst')?.remove?.();
   }
   function stopFeedback() { stopFeedbackAudio(); clearFeedbackVisual(); }
-  function showFeedback(kind) {
+  // extra: {run, xp, match} for the optional celebration layer.
+  function showFeedback(kind,extra={}) {
     clearFeedbackVisual();
     playFeedbackSound(kind);
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
@@ -114,6 +115,12 @@
     if (!card) return;
     card.classList?.add(kind === 'complete' ? 'pr-celebrate' : `pr-pulse-${kind}`);
     effects.visualNodes.push(card);
+    if (kind === 'correct' || kind === 'streak') {
+      const celebrate=window.NorskCelebrate;
+      if (extra.match) celebrate?.matched?.([...(state.root?.querySelectorAll?.('.pr-match-tile.is-just-matched') || [])]);
+      else celebrate?.answer?.({anchor:$('.pr-feedback-mark'),xp:extra.xp || 0});
+      if (kind === 'streak') celebrate?.combo?.(extra.run || 0);
+    }
     if (kind === 'complete') card.insertAdjacentHTML?.('beforeend',`<div class="pr-completion-burst" aria-hidden="true">${Array.from({length:18},(_,index) => `<i style="--pr-x:${8+index*5}%;--pr-drift:${(index%5-2)*22}px;--pr-delay:${index%4*35}ms;--pr-turn:${(index%2 ? 1 : -1)*(150+index*16)}deg"></i>`).join('')}</div>`);
     if (typeof setTimeout === 'function') effects.visualTimer=setTimeout(clearFeedbackVisual,kind === 'complete' ? 1500 : 800);
   }
@@ -731,7 +738,7 @@
       match.correctRun=0;
       match.penaltyMs+=1000; match.errors[word.key]=(match.errors[word.key] || 0)+1; match.wrong=[word.id,meaning.id];
     }
-    persist(); renderSession(); showFeedback(feedback); speak(pool.get(word.key),chimeDelay());
+    persist(); renderSession(); showFeedback(feedback,{run:match.correctRun,match:true}); speak(pool.get(word.key),chimeDelay());
     // A cleared board moves on by itself; the button stays as a fallback.
     if (match.roundDone && typeof setTimeout === 'function') state.advanceTimer=setTimeout(() => { state.advanceTimer=null; if (currentSession() === session) nextMatchRound(); },900);
   }
@@ -787,7 +794,8 @@
     persist(); renderSession();
     if (detail) {
       const run=consecutiveCorrect(session);
-      showFeedback(detail.correct ? (run === 3 || (run >= 5 && run%5 === 0) ? 'streak' : 'correct') : 'wrong');
+      // A first-try right answer earns 2 participation + 8 correct XP on the leaderboard.
+      showFeedback(detail.correct ? (run === 3 || (run >= 5 && run%5 === 0) ? 'streak' : 'correct') : 'wrong',{run,xp:session.phase === 'first' ? 10 : 0});
       // Every answer, right or wrong, is followed by the correct Norwegian pronunciation.
       const pool=sessionPool(session);
       speak((detail.matchedKey && pool.get(detail.matchedKey)) || pool.get(key),chimeDelay());
@@ -825,17 +833,22 @@
     state.advanceTimer=null;
     const pool = sessionPool(session);
     const result = {id:session.id,seriesId:session.seriesId || state.seriesId,seriesTitle:session.seriesTitle || state.seriesTitle,startedAt:session.startedAt,finishedAt:now(),label:session.label,sources:session.sources,customKeys:session.customKeys,mode:session.mode,activity:activityOf(session),quiz:session.quiz,total:session.firstKeys.length,reviewed:Object.keys(session.reviewAnswers).length,answers:session.firstKeys.map(key => ({key,word:pool.get(key)?.word || key,meaning:pool.get(key)?.meaning || '',points:session.answers[key] ?? 0,...(session.details?.[key] ? {detail:session.details[key]} : {})}))};
+    let beatRecord=false;
     if (result.activity === 'match') {
       result.timeMs=matchTime(session); result.penaltyMs=session.match.penaltyMs;
       const signature=matchSignature(session), best=state.store.matchBest?.[signature];
-      result.newBest=!best || result.timeMs < best.timeMs;
+      result.newBest=!best || result.timeMs < best.timeMs; beatRecord=!!best && result.newBest;
       if (result.newBest) (state.store.matchBest ||= {})[signature]={timeMs:result.timeMs,finishedAt:result.finishedAt,total:result.total};
       result.bestMs=state.store.matchBest[signature].timeMs;
     }
     if (!state.store.history.some(item => item.id === result.id)) state.store.history.unshift(result);
     if (RANKED.includes(result.activity)) state.store.communityPending=unique([...(state.store.communityPending || []),result.id]);
     state.store.active = null; state.result = result; persist(); renderResult(result);
-    if (effects.lastCompletedId !== result.id) { effects.lastCompletedId=result.id; showFeedback('complete'); }
+    if (effects.lastCompletedId !== result.id) {
+      effects.lastCompletedId=result.id; showFeedback('complete');
+      const summary=resultSummary(result);
+      window.NorskCelebrate?.complete?.({ratio:starRatio(result),newBest:beatRecord,score:Number(summary.score),decimals:result.activity === 'match' ? 1 : 0,bestRun:result.activity === 'match' ? 0 : longestRun(result),total:result.total,anchor:$('.pr-results-hero')});
+    }
     syncCommunity();
   }
   function syncCommunity() {
@@ -862,6 +875,21 @@
     try { return new Date(date).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
     catch { return ''; }
   }
+  // Share of first answers that were right (self-rated cards use their score).
+  function starRatio(result) {
+    if (!result.total) return 0;
+    return isObjective(result) ? result.answers.filter(answer => answer.points === 2).length/result.total : scoreOf(result)/100;
+  }
+  const starCount = result => { const ratio=starRatio(result); return ratio >= 1 ? 3 : ratio >= .8 ? 2 : ratio >= .5 ? 1 : 0; };
+  function longestRun(result) {
+    let best=0, run=0;
+    for (const answer of result.answers) { run=answer.points === 2 ? run+1 : 0; best=Math.max(best,run); }
+    return best;
+  }
+  function starsMarkup(result,fresh) {
+    const count=starCount(result);
+    return `<div class="pr-stars${fresh ? ' is-fresh' : ''}" role="img" aria-label="获得 ${count} 颗星">${[0,1,2].map(index => `<span class="${index < count ? 'is-on' : ''}" style="--i:${index}">${icon('star',true)}</span>`).join('')}</div>`;
+  }
   function resultSummary(result) {
     const activity=activityOf(result), correct=result.answers.filter(answer => answer.points === 2).length;
     if (activity === 'match') return {score:(result.timeMs/1000).toFixed(1),unit:'秒',headline:result.newBest ? '新纪录！' : '全部配对完成',note:`一次配对成功 ${correct} / ${result.total}`};
@@ -879,7 +907,7 @@
       const mine=objective && answer.points < 2 && detail && activity !== 'match' && !detail.unknown && detail.type !== 'judge' ? `<small>你答 ${e(detail.submitted)}</small>` : objective && detail?.errors ? `<small>错配 ${detail.errors} 次</small>` : '';
       return `<div class="pr-result-word ${mark}">${state.words.has(answer.key) ? button('result-word',icon('speaker'),`data-pr-key="${e(answer.key)}" aria-label="朗读 ${e(answer.word)}"`,'pr-icon-button') : '<span></span>'}<button type="button" class="pr-result-main" data-practice-action="word-card" data-pr-key="${e(answer.key)}" ${state.words.has(answer.key) ? '' : 'disabled'}><strong lang="nb">${e(answer.word)}</strong><span>${e(answer.meaning)}</span>${mine}</button><span class="pr-result-mark" ${objective ? `aria-label="${answer.points === 2 ? '正确' : '错误'}"` : ''}>${label}</span></div>`;
     }).join('');
-    shell(`<section class="pr-results-hero"><div class="pr-score"><strong>${summary.score}</strong><span>${summary.unit}</span></div><div class="pr-results-copy"><h2>${e(summary.headline)}</h2><p>${e(ACTIVITIES[activity].title)} · ${e(result.label)}${fromHistory ? ` · ${e(dateLabel(result.finishedAt))}` : ''}</p>${summary.note ? `<p>${e(summary.note)}</p>` : ''}</div></section><div class="pr-result-actions">${button('result-again',activity === 'match' ? '再玩一次' : '再练一次','','pr-primary')}${weak.length ? button('result-weak',`练错词 ${weak.length}`,'','pr-secondary') : ''}${button(fromHistory ? 'history' : 'setup','返回','','pr-quiet')}</div><section class="pr-result-list" aria-label="答题回顾">${rows}</section>`);
+    shell(`<section class="pr-results-hero"><div class="pr-score"><strong>${summary.score}</strong><span>${summary.unit}</span></div><div class="pr-results-copy">${starsMarkup(result,!fromHistory)}<h2>${e(summary.headline)}</h2><p>${e(ACTIVITIES[activity].title)} · ${e(result.label)}${fromHistory ? ` · ${e(dateLabel(result.finishedAt))}` : ''}</p>${summary.note ? `<p>${e(summary.note)}</p>` : ''}</div></section><div class="pr-result-actions">${button('result-again',activity === 'match' ? '再玩一次' : '再练一次','','pr-primary')}${weak.length ? button('result-weak',`练错词 ${weak.length}`,'','pr-secondary') : ''}${button(fromHistory ? 'history' : 'setup','返回','','pr-quiet')}</div><section class="pr-result-list" aria-label="答题回顾">${rows}</section>`);
   }
   function renderHistory() {
     state.screen = 'history';

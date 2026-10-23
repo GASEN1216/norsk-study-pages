@@ -1,8 +1,8 @@
-import {createDataLoader} from './loader.mjs?v=20261023-tools1';
-import {createReadingLibrary} from './reading-library.mjs?v=20261023-tools1';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-tools1';
+import {createDataLoader} from './loader.mjs?v=20261023-celebrate4';
+import {createReadingLibrary} from './reading-library.mjs?v=20261023-celebrate4';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-celebrate4';
 
-const VERSION = '20261023-tools1';
+const VERSION = '20261023-celebrate4';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -150,6 +150,8 @@ async function prepareView(view,viewRun = state.viewRun) {
     if (!state.basicId) state.basicId = str(state.data.basics.categories?.[0]?.id || '');
   }
   if (view === 'practice') {
+    // Celebrations are decoration: practice starts without them if they fail to load.
+    loadFeature('celebrate').catch(error => console.warn('练习动画未载入',error));
     const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId)]);
     if (!current()) return;
     activateVocabulary(seriesId,descriptor,vocabulary);
@@ -491,7 +493,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-tools1').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-celebrate4').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
