@@ -1,8 +1,8 @@
-import {createDataLoader} from './loader.mjs?v=20261023-ty-conversation';
-import {createReadingLibrary} from './reading-library.mjs?v=20261023-ty-conversation';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-ty-conversation';
+import {createDataLoader} from './loader.mjs?v=20261023-pdf-legacy';
+import {createReadingLibrary} from './reading-library.mjs?v=20261023-pdf-legacy';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-pdf-legacy';
 
-const VERSION = '20261023-ty-conversation';
+const VERSION = '20261023-pdf-legacy';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -493,7 +493,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-ty-conversation').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-pdf-legacy').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -545,7 +545,9 @@ async function renderPDF() {
   } catch(error) {
     if (run !== state.pdfRun || error?.name === 'RenderingCancelledException') return;
     console.error('PDF 加载失败',error);
-    showPDFMessage('页面暂时无法显示','请检查网络后重试；也可点击右上角下载当前 PDF 分册阅读。',true);
+    // A short technical note lets a reader report what failed on their device.
+    const reason = error?.message ? `（${String(error.name || 'Error')}: ${String(error.message).slice(0,80)}）` : '';
+    showPDFMessage('页面暂时无法显示',`请检查网络后重试；也可点击右上角下载当前 PDF 分册阅读。${reason}`,true);
   }
 }
 function changeZoom(direction) {
