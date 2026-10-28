@@ -201,6 +201,14 @@
   async function render(pane) {
     cancelRender(pane);
     if (!paneVisible(pane)) return;
+    const stage=node(pane,'.cp-stage');
+    const renderKey=`${pane.book}:${pane.page}:${pane.zoom}:${stage.clientWidth}:${stage.clientHeight}:${window.devicePixelRatio || 1}`;
+    if (pane.renderedKey === renderKey) {
+      node(pane,'.cp-canvas').hidden=false; node(pane,'.cp-message').hidden=true;
+      stage.scrollLeft=pane.scroll.left; stage.scrollTop=pane.scroll.top;
+      pane.dirty=false; pane.error=false;
+      return;
+    }
     const run=pane.run;
     const part=partFor(pane);
     if (!part?.file) { renderMessage(pane,'这一页的 PDF 暂时无法载入。',true); return; }
@@ -214,7 +222,6 @@
       if (run !== pane.run || !paneVisible(pane)) return;
       await pane.settling;
       if (run !== pane.run || !paneVisible(pane)) return;
-      const stage=node(pane,'.cp-stage');
       if (stage.clientWidth < 30 || stage.clientHeight < 30) return;
       const style=getComputedStyle(stage);
       const width=Math.max(20,stage.clientWidth-parseFloat(style.paddingLeft || 0)-parseFloat(style.paddingRight || 0)-2);
@@ -224,6 +231,7 @@
       const viewport=pdfPage.getViewport({scale});
       const ratio=Math.max(.5,Math.min(window.devicePixelRatio || 1,2,Math.sqrt(16000000/(viewport.width*viewport.height))));
       const canvas=node(pane,'.cp-canvas');
+      pane.renderedKey='';
       canvas.width=Math.max(1,Math.floor(viewport.width*ratio)); canvas.height=Math.max(1,Math.floor(viewport.height*ratio));
       canvas.style.width=`${Math.floor(viewport.width)}px`; canvas.style.height=`${Math.floor(viewport.height)}px`;
       canvas.setAttribute('aria-label',`${bookLabel(pane.book)}，PDF 第 ${pane.page} 页`);
@@ -233,7 +241,7 @@
       if (run !== pane.run || !paneVisible(pane)) return;
       canvas.hidden=false; node(pane,'.cp-message').hidden=true;
       stage.scrollLeft=pane.scroll.left; stage.scrollTop=pane.scroll.top;
-      pane.error=false; pane.dirty=false;
+      pane.error=false; pane.dirty=false; pane.renderedKey=renderKey;
     } catch (error) {
       if (run !== pane.run || error?.name === 'RenderingCancelledException' || !paneVisible(pane)) return;
       renderMessage(pane,'这一页暂时无法显示，请检查网络后重试。',true);

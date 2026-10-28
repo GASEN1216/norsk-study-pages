@@ -1,20 +1,24 @@
-import {createDataLoader} from './loader.mjs?v=20261023-audio-ahead';
-import {createReadingLibrary} from './reading-library.mjs?v=20261023-audio-ahead';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261023-audio-ahead';
+import {createDataLoader} from './loader.mjs?v=20261028-full-audit';
+import {createReadingLibrary} from './reading-library.mjs?v=20261028-full-audit';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261028-full-audit';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261028-full-audit';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261028-full-audit';
 
-const VERSION = '20261023-audio-ahead';
+const VERSION = '20261028-full-audit';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const icon = name => `<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;
 const str = value => String(value ?? '');
+const compareWords = new Intl.Collator('nb').compare;
 const empty = (message, detail = '') => `<div class="empty-state">${icon('book')}<p>${escapeHTML(message)}</p>${detail ? `<small>${escapeHTML(detail)}</small>` : ''}</div>`;
 const state = {
   view: 'reading', book: 'textbook', page: 1, readingId: '', vocabularyId: '', basicId: '',
   expanded: new Set(), data: {}, words: [], basicItems: [], pdfRun: 0, pdfCache: new Map(), renderTask: null,
   audioRange: null, audioToken: 0, pronunciationToken: 0, toastTimer: null, ready: false, pdfScale: 1,
-  wordRate: 1, speechItem: null, viewRun: 0, practiceInitialized: false, compareInitialized: false, audioError: false
+  wordRate: 1, speechItem: null, viewRun: 0, practiceInitialized: false, compareInitialized: false, audioError: false,
+  readMode: 'pdf', currentEntryId: '', endedToken: -1, moreTab: 'honors', moreInitialized: false, pendingDuel: null
 };
 const loadData = createDataLoader(state.data, {version:VERSION});
 const featureLoads = new Map();
@@ -28,6 +32,78 @@ const activeSeriesTitle = () => state.library?.series.find(item => item.id === a
 const vocabularyBook = () => state.vocabularyDescriptor?.bookId || 'textbook';
 const vocabularyIndex = (seriesId = activeSeriesId()) => vocabularyLibrary.index(seriesId);
 const vocabularyChapter = (id,seriesId = activeSeriesId()) => vocabularyLibrary.chapter(seriesId,id);
+// 我的词本 follows the leaderboard nickname: a local working copy, synced with the server in the background.
+try { state.wordbookActive = localStorage.getItem('norsk-vocab-source-v1') === 'wordbook'; } catch { state.wordbookActive = false; }
+let wordbookStore, wordbookSync, wordbookLookupInstance, wordbookAudio = null, wordbookSyncedAt = 0;
+function wordbook() {
+  if (wordbookStore) return wordbookStore;
+  let storage;
+  try { storage = window.localStorage; } catch {}
+  wordbookStore = createWordbookStore({storage:storage || {getItem:() => null,setItem() {}}});
+  wordbookStore.subscribe(() => {
+    wordbookAudio = null;
+    window.NorskPractice?.refreshWordbook?.(wordbookVocabulary(wordbookStore.data));
+    if (wordbookStore.sync.dirty) wordbookSync ? wordbookSync.schedule() : syncWordbook();
+  });
+  window.addEventListener('storage',event => { if ([WORDBOOK_KEY,WORDBOOK_SYNC_KEY].includes(event.key)) wordbookStore.reload(); });
+  return wordbookStore;
+}
+function syncWordbook() {
+  wordbook();
+  if (!wordbookSync) {
+    wordbookSync = createWordbookSync({store:wordbookStore,request:(path,options) => prepareCommunity().then(community => community.request(path,options)),
+      onStatus:(status,detail) => {
+        state.wordbookSync = {status,...detail};
+        if (status !== 'syncing') wordbookSyncedAt = Date.now();
+        window.NorskWordbook?.syncChanged?.();
+      }});
+    window.addEventListener('online',() => wordbookSync.run());
+    document.addEventListener('visibilitychange',() => { if (!document.hidden && Date.now()-wordbookSyncedAt > 60000) wordbookSync.run(); });
+  }
+  return wordbookSync.run();
+}
+function wordbookLookup() {
+  return wordbookLookupInstance ||= createWordbookLookup({loadJSON:loadData,version:VERSION,fetchText:async path => {
+    const controller = new AbortController(), timer = setTimeout(() => controller.abort(),20000);
+    try {
+      const response = await fetch(path,{signal:controller.signal});
+      if (!response.ok) throw new Error(`词典分片：HTTP ${response.status}`);
+      return await response.text();
+    } finally { clearTimeout(timer); }
+  }});
+}
+// The site's own recording for exactly this spelling; null while the recordings list is not loaded.
+function textbookClip(word) {
+  const table = state.data.pronunciation;
+  if (!table) return null;
+  const path = table[str(word).trim().toLocaleLowerCase('nb')];
+  return typeof path === 'string' && /^pronunciation\/[0-9a-f]{20}\.mp3$/.test(path) ? path : '';
+}
+// Readings of wordbook words outside the wordbook, e.g. in a multiplayer round.
+function wordbookClip(word) {
+  if (!wordbookStore) return '';
+  if (!wordbookAudio) {
+    wordbookAudio = new Map();
+    for (const entry of wordbookStore.data.entries) if (entry.audio) wordbookAudio.set(entry.word.toLocaleLowerCase('nb'),entry.audio);
+  }
+  return wordbookAudio.get(str(word).trim().toLocaleLowerCase('nb')) || '';
+}
+function setWordbookActive(active,rerender = true) {
+  state.wordbookActive = active;
+  try { localStorage.setItem('norsk-vocab-source-v1',active ? 'wordbook' : ''); } catch {}
+  if (!active) window.NorskWordbook?.hide();
+  $('#vocab-search').value = '';
+  if (rerender && state.view === 'vocabulary') setView('vocabulary',false);
+  else renderStudyPicker();
+}
+function initWordbookUI() {
+  window.NorskWordbook.init({root:$('#vocabulary-view'),store:wordbook(),syncState:() => state.wordbookSync || {},lookup:wordbookLookup(),
+    clipFor:textbookClip,wordProblem,parseBatch,
+    requestTTS:texts => prepareCommunity().then(community => community.request('/tts',{method:'POST',body:{texts}})),
+    apiURL:path => new URL(`${str(window.NORSK_COMMUNITY_CONFIG?.apiBase || '/api/community').replace(/\/+$/,'')}${path}`,location.href).href,
+    setWords:items => { state.words = items; },prefetchList:prefetchListWords,pronounce,notify,escapeHTML,icon,openLayer,closeLayer,closeSidebar,
+    refreshChrome:() => { renderStudyPicker(); renderTOC(); },isActive:() => state.view === 'vocabulary' && state.wordbookActive});
+}
 function activateVocabulary(seriesId,descriptor,vocabulary) {
   if (state.vocabularySeriesId && state.vocabularyId) state.vocabularySelections.set(state.vocabularySeriesId,state.vocabularyId);
   state.vocabularySeriesId = seriesId;
@@ -40,12 +116,15 @@ function activateVocabulary(seriesId,descriptor,vocabulary) {
 }
 function renderStudyPicker() {
   if (!state.library) return;
-  const current = activeSeriesId();
-  $('#series-title').textContent = activeSeriesTitle();
+  const mine = state.view === 'vocabulary' && state.wordbookActive;
+  const current = mine ? '' : activeSeriesId();
+  $('#series-title').textContent = mine ? wordbook().data.title : activeSeriesTitle();
+  // The word list also offers the learner's own wordbook, below the textbooks.
+  const own = state.view === 'vocabulary' ? `<button type="button" role="option" class="series-option is-wordbook" data-action="choose-series" data-id="wordbook" aria-selected="${mine}"><span><strong>${escapeHTML(wordbook().data.title)}</strong><small>自己的单词和句子 · ${wordbook().data.entries.length} 条</small></span>${mine ? icon('check') : ''}</button>` : '';
   $('#series-menu').innerHTML = state.library.series.map(item => {
     const books = state.library.booksFor(item.id).map(book => bookData(book)?.label || '教材').join(' · ');
     return `<button type="button" role="option" class="series-option" data-action="choose-series" data-id="${escapeHTML(item.id)}" aria-selected="${item.id === current}"><span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(books)}</small></span>${item.id === current ? icon('check') : ''}</button>`;
-  }).join('');
+  }).join('')+own;
   $('#book-picker').hidden = !['reading','vocabulary'].includes(state.view);
 }
 function toggleSeriesMenu(open = $('#series-menu').hidden) {
@@ -53,8 +132,12 @@ function toggleSeriesMenu(open = $('#series-menu').hidden) {
   $('#series-button').setAttribute('aria-expanded',str(open));
 }
 function toggleSettings(open = $('#settings-menu').hidden) {
+  const wasOpen = !$('#settings-menu').hidden, hadFocus = !!document.activeElement?.closest?.('#settings-menu');
   $('#settings-menu').hidden = !open;
   $('#settings-button').setAttribute('aria-expanded',str(open));
+  // The menu is a small dialog: focus enters it on open and returns to its button when it closes.
+  if (open && !wasOpen) ($('#settings-menu [aria-pressed="true"]') || $('#settings-menu button'))?.focus({preventScroll:true});
+  else if (!open && hadFocus) $('#settings-button').focus({preventScroll:true});
 }
 const activeSearch = () => state.view === 'basics' ? $('#basics-search') : $('#vocab-search');
 function toggleSearch(open = !$('#heading-search').classList.contains('open')) {
@@ -78,7 +161,14 @@ function setVocabSort(order) {
   renderVocabulary();
 }
 function selectStudySeries(seriesId) {
-  if (!state.library || seriesId === activeSeriesId()) return;
+  if (!state.library) return;
+  if (seriesId === 'wordbook') { if (!state.wordbookActive) setWordbookActive(true); return; }
+  if (state.wordbookActive && state.view === 'vocabulary') {
+    const same = seriesId === activeSeriesId();
+    setWordbookActive(false,same);
+    if (same) return;
+  }
+  if (seriesId === activeSeriesId()) return;
   if (state.view === 'practice') window.NorskPractice?.hide();
   pauseOtherAudio();
   const view = state.view;
@@ -137,11 +227,111 @@ function startPresence() {
 function submitPracticeResult(result) {
   return prepareCommunity().then(community => community.submitResult(result)).catch(() => false);
 }
+// The listen-and-read reader also owns the playlist and lock-screen controls of the lesson player.
+let readerLoad;
+function prepareReader() {
+  if (!readerLoad) readerLoad = loadFeature('reader').then(() => {
+    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:id => findEntry(id,'textbook'),entryAudio,chapterAudio,allChapters:() => allChapters('textbook'),loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION});
+    return window.NorskReader;
+  }).catch(error => { readerLoad = null; throw error; });
+  return readerLoad;
+}
+function readingTextMode() { return state.readMode === 'text' && state.book === 'textbook'; }
+function applyReadMode() {
+  const text = readingTextMode();
+  if (!text && !$('#reader-text').hidden) window.NorskReader?.hide();
+  document.body.classList.toggle('read-text',text);
+  $$('[data-action="read-mode"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.mode === (text ? 'text' : 'pdf'))));
+  const textButton = $('[data-action="read-mode"][data-mode="text"]');
+  textButton.disabled = state.book !== 'textbook';
+  textButton.title = state.book === 'textbook' ? '逐词显示课文，跟着录音听读' : '听读目前只适用于有原录音的 God i norsk 教材';
+  $('#pdf-stage').hidden = text;
+  $('.page-controls').hidden = text;
+  $('#reader-text').hidden = !text;
+}
+function setReadMode(mode) {
+  state.readMode = mode === 'text' ? 'text' : 'pdf';
+  try { localStorage.setItem('norsk-read-mode-v1',state.readMode); } catch {}
+  renderPDF();
+}
+function showReaderText() {
+  const container = $('#reader-text');
+  if (!window.NorskReader) container.innerHTML = loading('正在准备听读课文…');
+  prepareReader().then(reader => { if (state.view === 'reading' && readingTextMode()) reader.show(container,state.readingId); }).catch(() => {
+    if (state.view === 'reading' && readingTextMode()) container.innerHTML = `${empty('听读课文暂时无法载入','请检查网络后重试。')}<button class="text-button" data-action="retry-pdf">重新载入</button>`;
+  });
+}
+// Opens a God i norsk section as listen-and-read text, from the playlist or the transcript view.
+function openReaderSection(id) {
+  state.readMode = 'text';
+  try { localStorage.setItem('norsk-read-mode-v1','text'); } catch {}
+  if (state.view !== 'reading') setView('reading');
+  selectEntry(id,'textbook');
+}
+function lessonEnded() {
+  if (state.endedToken === state.audioToken) return;
+  state.endedToken = state.audioToken;
+  window.dispatchEvent(new CustomEvent('norsklessonend',{detail:{id:state.currentEntryId}}));
+}
+function seekLesson(delta) {
+  if (!audio.src) return;
+  const {start,end} = audioBounds();
+  audio.currentTime = Math.max(start,Math.min(audio.currentTime+delta,(Number.isFinite(end) ? end : audio.duration)-.05));
+  updateAudioUI();
+}
+async function openDuel(join = '') {
+  try {
+    const [community] = await Promise.all([prepareCommunity(),loadFeature('duel')]);
+    window.NorskDuel.open({community,sources:() => window.NorskPractice?.duelSources?.() || [],pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,join,onExit:() => {
+      if (/[?&]room=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
+      window.NorskPractice?.refreshHonors?.();
+    }});
+  } catch { notify('联机翻翻乐暂时无法打开，请检查网络后重试。'); }
+}
+// Duels draw words from the practice sources, so the practice view is prepared first.
+function requestDuel(join = '') {
+  if (state.view === 'practice' && state.practiceInitialized && state.practiceSeriesId === activeSeriesId()) { openDuel(join); return; }
+  state.pendingDuel = {join};
+  setView('practice');
+}
+// Honors artwork that fails to load is replaced by a drawn medallion, so a badge is never a broken image.
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+function honorFallback(src) {
+  const name = str(src).split('/').pop().replace(/\.webp.*$/,'');
+  const week = /^week-(\d+)(-perfect)?$/.exec(name), trophy = /^trophy-(\d)$/.exec(name);
+  const metal = trophy ? ['#d8b76e','#c9ccc4','#c08a5a'][Number(trophy[1])-1] || '#d8b76e' : week && !week[2] ? '#d1b06a' : '#c8cbc2';
+  const inner = trophy ? '<path d="M46 40h28v10c0 10-6 17-14 18-8-1-14-8-14-18Z M58 68h4v10h-4Z M50 78h20v5H50Z" fill="#f6efd9" opacity=".9"/>'
+    : week && week[2] ? Array.from({length:7},(_,i) => { const a = (i/7)*Math.PI*2-Math.PI/2; return `<circle cx="${60+Math.cos(a)*30}" cy="${60+Math.sin(a)*30}" r="2.6" fill="#f3ead2"/>`; }).join('')
+    : week ? `<text x="60" y="68" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#f3e6c4">${ROMAN[Number(week[1])-1] || ''}</text>`
+    : '<path d="M60 44l4.5 9.6 10.5 1.2-7.8 7.1 2.2 10.4L60 67l-9.4 5.3 2.2-10.4-7.8-7.1 10.5-1.2Z" fill="#f3ead2" opacity=".9"/>';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="${metal}"/><circle cx="60" cy="60" r="49" fill="none" stroke="#fff8" stroke-width="1"/><circle cx="60" cy="60" r="43" fill="#21483e"/><circle cx="60" cy="60" r="40" fill="none" stroke="${metal}" stroke-width=".8" opacity=".7"/>${inner}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+document.addEventListener('error',event => {
+  const image = event.target;
+  if (image?.tagName !== 'IMG' || image.dataset.fallback || !/assets\/honors\//.test(image.getAttribute('src') || '')) return;
+  image.dataset.fallback = '1';
+  image.src = honorFallback(image.getAttribute('src'));
+},true);
+// A newly earned badge, medal, trophy or achievement is shown once, wherever the learner is.
+window.addEventListener('norskhonorschange',event => {
+  if (event.detail?.week) loadFeature('more').then(() => window.NorskMore?.reveal(event.detail)).catch(() => {});
+});
+function setMoreTab(tab) {
+  state.moreTab = tab;
+  if (state.view === 'more') history.replaceState(null,'',`#more/${tab}`);
+  renderTOC();
+}
 async function prepareView(view,viewRun = state.viewRun) {
   const seriesId = activeSeriesId();
   const current = () => viewRun === state.viewRun && seriesId === activeSeriesId();
   if (['vocabulary','basics','practice'].includes(view)) loadData('pronunciation').catch(error => console.warn('读音目录未载入',error));
-  if (view === 'vocabulary') {
+  if (view === 'vocabulary' && state.wordbookActive) {
+    // The textbook recordings decide which entries need a reading from the server, so they load first.
+    await Promise.all([loadFeature('wordbook'),loadData('pronunciation').catch(() => null)]);
+    if (viewRun === state.viewRun) initWordbookUI();
+    syncWordbook();
+  } else if (view === 'vocabulary') {
     const [descriptor,vocabulary] = await Promise.all([vocabularyLibrary.descriptor(seriesId),vocabularyIndex(seriesId)]);
     if (current()) activateVocabulary(seriesId,descriptor,vocabulary);
   }
@@ -156,10 +346,19 @@ async function prepareView(view,viewRun = state.viewRun) {
     if (!current()) return;
     activateVocabulary(seriesId,descriptor,vocabulary);
     if (!state.practiceInitialized || state.practiceSeriesId !== seriesId) {
-      window.NorskPractice.init({data:{...state.data,vocabulary},series:descriptor,pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries});
+      window.NorskPractice.init({data:{...state.data,vocabulary,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
       state.practiceInitialized = true;
       state.practiceSeriesId = seriesId;
       prepareCommunity().catch(() => {});
+      // A wordbook made on another device with this nickname arrives here as well.
+      syncWordbook();
+    }
+  }
+  if (view === 'more') {
+    await loadFeature('more');
+    if (!state.moreInitialized) {
+      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),version:VERSION});
+      state.moreInitialized = true;
     }
   }
   if (view === 'compare') {
@@ -187,11 +386,15 @@ try {
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
   const savedSort = localStorage.getItem('norsk-vocab-sort-v1');
   if (['easy','hard','alpha'].includes(savedSort)) state.vocabSort = savedSort;
+  if (localStorage.getItem('norsk-read-mode-v1') === 'text') state.readMode = 'text';
+  const savedLessonRate = localStorage.getItem('norsk-lesson-rate-v1');
+  if ([...$('#audio-speed').options].some(option => option.value === savedLessonRate)) $('#audio-speed').value = savedLessonRate;
 } catch {}
 renderRateOptions();
 $$('[data-action="vocab-sort"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.sort === (state.vocabSort || 'easy'))));
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','一段专注的练习时间']};
 labels.compare = ['LES SIDE OM SIDE · 双页对照','双页对照','选择书籍，各自翻阅'];
+labels.more = ['MER · 荣誉与听力','更多','荣誉、播放列表与学习工具'];
 
 function safeURL(path) {
   if (!path) return '';
@@ -284,18 +487,67 @@ function entryNumber(entry, isChapter = false) {
   const id = str(entry.number ?? entry.id);
   return /^(?:[\d.]+|\d+\.[A-Z])$/.test(id) ? (isChapter ? id.padStart(2,'0') : id) : '';
 }
+// The directory slides over the page on phones, portrait tablets and phones held sideways (same queries as styles.css).
+const DRAWER = '(max-width: 720px), (max-width: 1024px) and (orientation: portrait), (max-height: 520px)';
+const drawerMode = () => window.matchMedia(DRAWER).matches;
+let sidebarOpen = false;
 function closeSidebar() {
-  $('#sidebar').classList.remove('open');
-  $('#sidebar').inert = window.matchMedia('(max-width: 720px)').matches;
+  const sidebar = $('#sidebar'), wasOpen = sidebarOpen;
+  const hadFocus = wasOpen && sidebar.contains(document.activeElement);
+  sidebarOpen = false;
+  sidebar.classList.remove('open');
+  sidebar.inert = drawerMode();
+  for (const behind of $$('.site-header, #main, #audio-dock')) behind.inert = false;
   $('#sidebar-shade').hidden = true;
   $('#open-sidebar').setAttribute('aria-expanded','false');
+  if (!wasOpen) return;
+  closeLayer('sidebar');
+  if (hadFocus) $('#open-sidebar').focus({preventScroll:true});
 }
 function openSidebar() {
+  sidebarOpen = true;
   $('#sidebar').inert = false;
+  // The page behind the drawer is out of reach while it is open, for touch, Tab and screen readers alike.
+  for (const behind of $$('.site-header, #main, #audio-dock')) behind.inert = true;
   $('#sidebar').classList.add('open');
   $('#sidebar-shade').hidden = false;
   $('#open-sidebar').setAttribute('aria-expanded','true');
+  openLayer('sidebar',closeSidebar);
+  $('#close-sidebar').focus({preventScroll:true});
 }
+// Back closes the topmost layer (directory, stage, playlist, word card) before it leaves the page. Each open layer
+// owns one history entry; closing it from the page drops that entry again and keeps any address set meanwhile.
+const layers = {stack:[],pending:0,skip:0,restore:''};
+function openLayer(name,close) {
+  if (layers.stack.some(layer => layer.name === name)) return;
+  layers.stack.push({name,close});
+  // A layer closed in the same moment hands its entry over instead of leaving it behind.
+  if (layers.pending) { layers.pending--; return; }
+  try { history.pushState(history.state,'',location.href); } catch { /* Back then simply leaves the page. */ }
+}
+function closeLayer(name) {
+  const index = layers.stack.findIndex(layer => layer.name === name);
+  if (index < 0) return;
+  layers.stack.splice(index,1);
+  if (++layers.pending > 1) return;
+  setTimeout(() => {
+    const steps = layers.pending;
+    layers.pending = 0;
+    if (!steps) return;
+    layers.skip++;
+    layers.restore = location.href;
+    try { history.go(-steps); } catch { layers.skip--; layers.restore = ''; }
+  },0);
+}
+window.addEventListener('popstate',() => {
+  if (layers.skip) {
+    layers.skip--;
+    if (layers.restore && location.href !== layers.restore) history.replaceState(history.state,'',layers.restore);
+    layers.restore = '';
+    return;
+  }
+  layers.stack.pop()?.close();
+});
 function compareSeed() {
   const seed = {};
   saveReading();
@@ -326,14 +578,21 @@ function rememberComparePositions(positions) {
 async function setView(view, updateHash = true) {
   if (!labels[view]) view = 'reading';
   const run = ++state.viewRun;
+  clearTimeout(searchTimer);
+  clearListPrefetch();
+  wordClips.prefetch.clear();
   if (state.view === 'practice' && view !== 'practice') { window.NorskPractice?.hide(); pauseOtherAudio(); }
+  if (state.view === 'more' && view !== 'more') window.NorskMore?.hide();
+  if (state.view === 'vocabulary' && view !== 'vocabulary') window.NorskWordbook?.hide();
   if (state.view === 'compare' && view !== 'compare') {
     rememberComparePositions(window.NorskCompare?.positions?.());
     $('#word-audio').before($('#audio-dock'));
     window.NorskCompare?.hide();
   }
   if (state.view === 'reading' && view !== 'reading') {
+    window.NorskReader?.hide();
     ++state.pdfRun;
+    state.pdfLayoutKey = '';
     try { state.renderTask?.cancel(); } catch {}
     state.renderTask = null;
     document.body.classList.remove('reader-focus');
@@ -356,18 +615,23 @@ async function setView(view, updateHash = true) {
   toggleSettings(false);
   toggleSeriesMenu(false);
   $('#heading-search').classList.toggle('open',!!activeSearch().value);
+  $('#search-button').setAttribute('aria-expanded',str(!!activeSearch().value));
+  $('#search-button').setAttribute('aria-label',activeSearch().value ? '关闭搜索' : '搜索');
   renderStudyPicker();
-  $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : '学习目录';
-  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? `${activeSeriesTitle()} · 教材词汇` : view === 'practice' ? '选一组词语，每天复习一点。' : '循着目录，慢慢学会。';
+  $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : view === 'more' ? '更多' : '学习目录';
+  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? (state.wordbookActive ? '自己整理的单词和句子' : `${activeSeriesTitle()} · 教材词汇`) : view === 'practice' ? '选一组词语，每天复习一点。' : view === 'more' ? '徽章、奖杯与随身听。' : '循着目录，慢慢学会。';
   $('#content-title').textContent = labels[view][1];
-  if (updateHash && location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
+  const hash = view === 'more' ? `#more/${state.moreTab}` : `#${view}`;
+  if (updateHash && location.hash !== hash) history.replaceState(null,'',hash);
   window.scrollTo(0,0);
   closeSidebar();
   if (state.ready) {
-    if (view === 'vocabulary' && (!state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId())) $('#vocab-rows').innerHTML = loading('正在载入词表目录…');
+    if (view === 'vocabulary' && !state.wordbookActive && (!state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId())) $('#vocab-rows').innerHTML = loading('正在载入词表目录…');
+    if (view === 'vocabulary' && state.wordbookActive && !window.NorskWordbook) $('#vocab-rows').innerHTML = loading('正在打开我的词本…');
     if (view === 'basics' && !state.data.basics) $('#basics-items').innerHTML = loading('正在载入基础知识…');
     if (view === 'practice' && (!state.practiceInitialized || state.practiceSeriesId !== activeSeriesId())) $('#practice-view').innerHTML = loading('正在准备练习词语…');
     if (view === 'compare' && !state.compareInitialized) $('#compare-view').innerHTML = loading('正在准备双页对照…');
+    if (view === 'more' && !state.moreInitialized) $('#more-view').innerHTML = loading('正在准备…');
     if (!['reading','compare'].includes(view)) $('#toc').innerHTML = loading('正在准备目录…');
     try { await prepareView(view,run); }
     catch(error) { if (run === state.viewRun) viewError(view,error); return; }
@@ -376,7 +640,12 @@ async function setView(view, updateHash = true) {
     if (view === 'reading') { updateReadingTitle(); renderPDF(); renderLessons(); }
     if (view === 'vocabulary') renderVocabulary();
     if (view === 'basics') renderBasics();
-    if (view === 'practice') { $('#content-title').textContent = `${activeSeriesTitle()} · 练习`; window.NorskPractice?.show(); }
+    if (view === 'practice') {
+      $('#content-title').textContent = `${activeSeriesTitle()} · 练习`;
+      window.NorskPractice?.show();
+      if (state.pendingDuel) { const {join} = state.pendingDuel; state.pendingDuel = null; openDuel(join); }
+    }
+    if (view === 'more') window.NorskMore?.show(state.moreTab);
     if (view === 'compare') {
       $('#content-title').textContent = labels.compare[1];
       $('#compare-view').append($('#audio-dock'));
@@ -389,6 +658,8 @@ function renderTOC() {
   const toc = $('#toc');
   if (state.view === 'compare') return;
   if (state.view === 'practice') { toc.innerHTML = window.NorskPractice?.renderTOC() || ''; return; }
+  if (state.view === 'more') { toc.innerHTML = window.NorskMore?.renderTOC(state.moreTab) || ''; return; }
+  if (state.view === 'vocabulary' && state.wordbookActive) { toc.innerHTML = window.NorskWordbook?.renderTOC() || ''; return; }
   if (state.view === 'basics') {
     const categories = state.data.basics?.categories || [];
     toc.innerHTML = categories.length ? categories.map((category,index) => `<button class="toc-basic ${str(category.id) === state.basicId ? 'selected' : ''}" data-action="category" data-id="${escapeHTML(category.id)}" ${str(category.id) === state.basicId ? 'aria-current="true"' : ''}><span class="category-index">${str(index+1).padStart(2,'0')}</span><span>${escapeHTML(category.title)}${category.levelLabel ? `<small class="category-level">${escapeHTML(category.levelLabel)}</small>` : ''}</span><span class="category-count">${(category.items || []).length}</span></button>`).join('') : empty('基础知识暂未载入');
@@ -493,7 +764,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261023-audio-ahead').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261028-full-audit').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -504,10 +775,22 @@ async function getPDF(file) {
 }
 async function renderPDF() {
   if (state.view !== 'reading') return;
+  applyReadMode();
+  if (readingTextMode()) {
+    ++state.pdfRun;
+    state.pdfLayoutKey = '';
+    if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask = null; }
+    showReaderText();
+    return;
+  }
+  const stage = $('#pdf-stage');
+  const layoutKey = [state.book,state.page,$('#zoom-select').value,stage.clientWidth,stage.clientHeight,window.devicePixelRatio || 1].join(':');
+  if (state.pdfLayoutKey === layoutKey) return;
+  state.pdfLayoutKey = layoutKey;
   const run = ++state.pdfRun;
   if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask = null; }
   const part = documentPart(state.page,state.book);
-  if (!part) { showPDFMessage('这一页的 PDF 尚未准备好','请稍后刷新页面，或选择其他章节。',true); return; }
+  if (!part) { state.pdfLayoutKey = ''; showPDFMessage('这一页的 PDF 尚未准备好','请稍后刷新页面，或选择其他章节。',true); return; }
   $('#pdf-download').href = safeURL(part.file);
   showPDFMessage('正在载入这一页…');
   try {
@@ -515,7 +798,6 @@ async function renderPDF() {
     if (run !== state.pdfRun) return;
     const page = await pdf.getPage(state.page - Number(part.startPage) + 1);
     if (run !== state.pdfRun) return;
-    const stage = $('#pdf-stage');
     const style = getComputedStyle(stage);
     const available = Math.max(160, stage.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 2);
     const availableHeight = Math.max(80, stage.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - 2);
@@ -524,7 +806,7 @@ async function renderPDF() {
     const scale = choice === 'fit' ? Math.min(available / natural.width, availableHeight / natural.height) : choice === 'width' ? available / natural.width : Number(choice);
     state.pdfScale = scale;
     const viewport = page.getViewport({scale});
-    const ratio = Math.min(window.devicePixelRatio || 1,2);
+    const ratio = Math.min(window.devicePixelRatio || 1,2,Math.sqrt(16000000/(viewport.width*viewport.height)));
     const canvas = $('#pdf-canvas');
     canvas.width = Math.floor(viewport.width * ratio);
     canvas.height = Math.floor(viewport.height * ratio);
@@ -544,6 +826,7 @@ async function renderPDF() {
     stage.scrollLeft = 0;
   } catch(error) {
     if (run !== state.pdfRun || error?.name === 'RenderingCancelledException') return;
+    state.pdfLayoutKey = '';
     console.error('PDF 加载失败',error);
     // A short technical note lets a reader report what failed on their device.
     const reason = error?.message ? `（${String(error.name || 'Error')}: ${String(error.message).slice(0,80)}）` : '';
@@ -658,6 +941,7 @@ function vocabularyExample(word) {
   return '<span class="muted">可点击原词表查看用法。</span>';
 }
 async function renderVocabulary() {
+  if (state.wordbookActive) { if (state.view === 'vocabulary') window.NorskWordbook?.render(); return; }
   if (state.view !== 'vocabulary' || !state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId()) return;
   const id = state.vocabularyId;
   const seriesId = activeSeriesId();
@@ -675,7 +959,7 @@ async function renderVocabulary() {
   const query = $('#vocab-search').value.trim().toLocaleLowerCase('nb');
   const order = state.vocabSort || 'easy';
   state.words = selection.words.filter(word => !query || [word.word,word.meaning,word.sentence,word.example,word.usage,word.syllables,word.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
-  state.words.sort((a,b) => order === 'alpha' ? str(a.word).localeCompare(str(b.word),'nb') : ((Number(a.difficulty) || 3) - (Number(b.difficulty) || 3)) * (order === 'hard' ? -1 : 1) || str(a.word).localeCompare(str(b.word),'nb'));
+  state.words.sort((a,b) => order === 'alpha' ? compareWords(str(a.word),str(b.word)) : ((Number(a.difficulty) || 3) - (Number(b.difficulty) || 3)) * (order === 'hard' ? -1 : 1) || compareWords(str(a.word),str(b.word)));
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
@@ -696,6 +980,8 @@ function renderBasics() {
   $('#basics-description').hidden = !category.description;
   const query = $('#basics-search').value.trim().toLocaleLowerCase('nb');
   state.basicItems = (category.items || []).filter(item => !query || [item.word,item.meaning,item.note,item.example,item.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
+  // Categories with sentences or long compounds get one card per row on phones, so words do not break mid-word.
+  $('#basics-items').classList.toggle('is-wide',(category.items || []).some(item => str(item.word).length > 16 || str(item.word).split(/\s+/).some(part => part.length > 10)));
   $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button></div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
   prefetchListWords($('#basics-items'));
 }
@@ -703,7 +989,7 @@ function renderBasics() {
 // Word recordings are fetched once and kept in memory. At normal speed they are decoded and
 // played through Web Audio, which starts at once; other speeds use the media element so the
 // pitch is preserved, playing from memory when the clip has been fetched.
-const wordClips = {context:null,bytes:new Map(),loading:new Map(),buffers:new Map(),objectURLs:new Map(),source:null};
+const wordClips = {context:null,bytes:new Map(),loading:new Map(),decoding:new Map(),buffers:new Map(),objectURLs:new Map(),source:null,prefetch:new Map(),prefetchActive:0};
 const WORD_BYTES_LIMIT = 400, WORD_BUFFER_LIMIT = 60;
 // iOS mutes Web Audio with the ring/silent switch unless the page asks for playback audio.
 let wordWebAudio;
@@ -722,7 +1008,7 @@ function wordAudioContext() {
 }
 function pronunciationSource(item) {
   const table = state.data.pronunciation || {};
-  const path = item?.audio || table[item?.word] || table[str(item?.word).toLocaleLowerCase('nb')] || table.words?.[item?.word];
+  const path = item?.audio || table[item?.word] || table[str(item?.word).toLocaleLowerCase('nb')] || table.words?.[item?.word] || wordbookClip(item?.word);
   return path ? safeURL(typeof path === 'string' ? path : path.file) : '';
 }
 function rememberWordClip(url,bytes) {
@@ -734,37 +1020,69 @@ function rememberWordClip(url,bytes) {
   }
 }
 function loadWordClip(url) {
-  if (wordClips.bytes.has(url)) return Promise.resolve(wordClips.bytes.get(url));
+  wordClips.prefetch.delete(url);
+  if (wordClips.bytes.has(url)) {
+    const bytes = wordClips.bytes.get(url);
+    wordClips.bytes.delete(url);
+    wordClips.bytes.set(url,bytes);
+    return Promise.resolve(bytes);
+  }
   if (!wordClips.loading.has(url)) {
-    const request = fetch(url).then(response => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(),20000);
+    const request = fetch(url,{signal:controller.signal}).then(response => {
       if (!response.ok) throw new Error(`读音下载失败：HTTP ${response.status}`);
       return response.arrayBuffer();
-    }).then(bytes => { rememberWordClip(url,bytes); return bytes; }).finally(() => wordClips.loading.delete(url));
+    }).then(bytes => { rememberWordClip(url,bytes); return bytes; }).finally(() => { clearTimeout(timeout); wordClips.loading.delete(url); });
     wordClips.loading.set(url,request);
   }
   return wordClips.loading.get(url);
 }
-async function decodeWordClip(url) {
+function decodeWordClip(url) {
   const cached = wordClips.buffers.get(url);
-  if (cached) { wordClips.buffers.delete(url); wordClips.buffers.set(url,cached); return cached; }
+  if (cached) { wordClips.buffers.delete(url); wordClips.buffers.set(url,cached); return Promise.resolve(cached); }
+  if (wordClips.decoding.has(url)) return wordClips.decoding.get(url);
   const context = wordClips.context;
-  if (!context) return null;
-  const bytes = await loadWordClip(url);
-  // The callback form also works in older Safari, where decodeAudioData returns no promise.
-  const buffer = await new Promise((resolve,reject) => { const result = context.decodeAudioData(bytes.slice(0),resolve,reject); result?.catch?.(reject); });
-  wordClips.buffers.set(url,buffer);
-  while (wordClips.buffers.size > WORD_BUFFER_LIMIT) wordClips.buffers.delete(wordClips.buffers.keys().next().value);
-  return buffer;
+  if (!context) return Promise.resolve(null);
+  const request = loadWordClip(url).then(bytes => {
+    // The callback form also works in older Safari, where decodeAudioData returns no promise.
+    return new Promise((resolve,reject) => { const result = context.decodeAudioData(bytes.slice(0),resolve,reject); result?.catch?.(reject); });
+  }).then(buffer => {
+    wordClips.buffers.set(url,buffer);
+    while (wordClips.buffers.size > WORD_BUFFER_LIMIT) wordClips.buffers.delete(wordClips.buffers.keys().next().value);
+    return buffer;
+  }).finally(() => wordClips.decoding.delete(url));
+  wordClips.decoding.set(url,request);
+  return request;
+}
+function drainWordPrefetch() {
+  while (wordClips.prefetchActive < 4 && wordClips.prefetch.size) {
+    const url = wordClips.prefetch.keys().next().value;
+    wordClips.prefetch.delete(url);
+    wordClips.prefetchActive++;
+    loadWordClip(url).then(() => wordClips.context ? decodeWordClip(url) : null).catch(() => {}).finally(() => {
+      wordClips.prefetchActive--;
+      drainWordPrefetch();
+    });
+  }
 }
 // Fetch, and once audio is unlocked decode, the words that are likely to be read next.
 function prefetchPronunciation(items) {
   const list = [].concat(items || []).filter(Boolean);
   if (!list.length) return;
-  if (!state.data.pronunciation) { loadData('pronunciation').then(() => prefetchPronunciation(list)).catch(() => {}); return; }
+  if (!state.data.pronunciation) {
+    const run = state.viewRun;
+    loadData('pronunciation').then(() => { if (run === state.viewRun) prefetchPronunciation(list); }).catch(() => {});
+    return;
+  }
   for (const item of list) {
     const url = pronunciationSource(item);
-    if (url) loadWordClip(url).then(() => wordClips.context ? decodeWordClip(url) : null).catch(() => {});
+    if (!url || wordClips.loading.has(url) || wordClips.decoding.has(url) || wordClips.buffers.has(url)) continue;
+    if (wordClips.bytes.has(url) && !wordClips.context) continue;
+    wordClips.prefetch.set(url,true);
   }
+  while (wordClips.prefetch.size > WORD_BUFFER_LIMIT) wordClips.prefetch.delete(wordClips.prefetch.keys().next().value);
+  drainWordPrefetch();
 }
 // A tap or key press lets the audio context run, so later readings can start without one.
 function unlockWordAudio(event) {
@@ -782,23 +1100,34 @@ function pronounceItem(button) {
 // Rows fetch their recordings as they come near the screen, so any word in a list sounds at
 // once when tapped (not when saving data). Without IntersectionObserver the first rows are fetched.
 const wordRowObservers = new Map();
+function clearListPrefetch(container) {
+  if (container) { wordRowObservers.get(container)?.(); wordRowObservers.delete(container); return; }
+  for (const dispose of wordRowObservers.values()) dispose();
+  wordRowObservers.clear();
+}
 function prefetchListWords(container) {
-  wordRowObservers.get(container)?.disconnect();
-  wordRowObservers.delete(container);
+  clearListPrefetch(container);
   const buttons = [...(container?.querySelectorAll('[data-action="pronounce"]') || [])];
   if (navigator.connection?.saveData || !buttons.length) return;
+  const items = new Map(buttons.map(button => [button,pronounceItem(button)]));
   if (!('IntersectionObserver' in window)) {
-    const run = () => prefetchPronunciation(buttons.slice(0,30).map(pronounceItem));
-    if ('requestIdleCallback' in window) requestIdleCallback(run,{timeout:2000}); else setTimeout(run,600);
+    const run = () => prefetchPronunciation(buttons.slice(0,12).map(button => items.get(button)));
+    if ('requestIdleCallback' in window) {
+      const task = requestIdleCallback(run,{timeout:2000});
+      wordRowObservers.set(container,() => cancelIdleCallback(task));
+    } else {
+      const task = setTimeout(run,600);
+      wordRowObservers.set(container,() => clearTimeout(task));
+    }
     return;
   }
   const observer = new IntersectionObserver(entries => {
     const near = entries.filter(entry => entry.isIntersecting).map(entry => entry.target);
     near.forEach(button => observer.unobserve(button));
-    if (near.length) prefetchPronunciation(near.map(pronounceItem));
+    if (near.length) prefetchPronunciation(near.map(button => items.get(button)));
   },{rootMargin:'400px 0px'});
   buttons.forEach(button => observer.observe(button));
-  wordRowObservers.set(container,observer);
+  wordRowObservers.set(container,() => observer.disconnect());
 }
 function stopWordSource() {
   const source = wordClips.source;
@@ -818,6 +1147,7 @@ function playWordBuffer(buffer) {
   source.start();
 }
 function pauseOtherAudio() {
+  window.NorskReader?.stopSlice?.();
   ++state.pronunciationToken;
   state.speechItem = null;
   stopWordSource();
@@ -853,7 +1183,8 @@ async function pronounce(item) {
     try { await pronunciationAudio.play(); } catch(error) { if (token === state.pronunciationToken) { console.error('发音播放失败',error); notify('这条读音暂时无法播放，请检查网络后重试。'); } }
     return;
   }
-  if (!('speechSynthesis' in window)) { notify('当前浏览器没有挪威语发音服务。这条词语的录音暂未提供。'); return; }
+  // Wordbook entries whose reading is still being made say so instead of the general message.
+  if (!('speechSynthesis' in window)) { notify(item.audioNote || '当前浏览器没有挪威语发音服务。这条词语的录音暂未提供。'); return; }
   let voices = speechSynthesis.getVoices();
   if (!voices.length) {
     voices = await new Promise(resolve => {
@@ -864,7 +1195,7 @@ async function pronounce(item) {
   }
   if (token !== state.pronunciationToken) return;
   const voice = voices.find(voice => /^nb[-_]/i.test(voice.lang)) || voices.find(voice => /^(no|nb)([-_]|$)/i.test(voice.lang));
-  if (!voice) { notify('此设备未安装挪威语语音，暂时无法朗读这一词语。可在系统语音设置中添加 Norsk Bokmål。',6500); return; }
+  if (!voice) { notify(item.audioNote || '此设备未安装挪威语语音，暂时无法朗读这一词语。可在系统语音设置中添加 Norsk Bokmål。',6500); return; }
   const utterance = new SpeechSynthesisUtterance(item.spoken || item.word);
   utterance.voice = voice;
   utterance.lang = voice.lang;
@@ -892,7 +1223,7 @@ function updateAudioUI() {
   $('#audio-play').innerHTML = icon(audio.paused ? 'play' : 'pause');
   $('#audio-play').setAttribute('aria-label',audio.paused ? '播放音频' : '暂停播放');
 }
-async function playEntry(id) {
+async function playEntry(id,options = {}) {
   const found = findEntry(id,'textbook');
   const source = found && entryAudio(found.entry,found.chapter);
   if (!source?.file) { const missing = found && missingEntryAudio(found.entry,found.chapter); notify(missing ? `原录音缺失：${missing.reason || '提供的音频未包含本节。'}` : '这节课暂未提供对应录音。'); return; }
@@ -901,6 +1232,8 @@ async function playEntry(id) {
   const url = safeURL(source.file);
   if (!url) return;
   audio.pause();
+  state.currentEntryId = str(id);
+  prepareReader().catch(() => {});
   state.audioRange = source.clip ? {start:Number(source.start) || 0,end:Number(source.end) || null} : {start:0,end:null};
   $('#audio-title').textContent = `${found.entry.title}${source.kind === 'synthetic' ? ' · 合成补读' : ''}`;
   $('#audio-label').textContent = `KAPITTEL ${found.chapter.id} · ${source.kind === 'synthetic' ? '合成补读 · 原录音缺失' : '课文音频'}`;
@@ -920,20 +1253,40 @@ async function playEntry(id) {
       });
     }
     if (token !== state.audioToken) return;
-    audio.currentTime = state.audioRange.start;
+    audio.currentTime = state.audioRange.start + Math.max(0,Number(options.offset) || 0);
     audio.playbackRate = Number($('#audio-speed').value);
     updateAudioUI();
+    window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(id),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source.kind === 'synthetic',start:state.audioRange.start}}));
+    if (options.paused) return;
     await audio.play();
   } catch(error) { if (token === state.audioToken) notify('这段录音暂时无法播放，请检查网络后重试。'); }
 }
+function resumeLessonAudio({reveal = false} = {}) {
+  // A closed player stays closed: lock-screen and headset play keys must not start audio nobody can see or stop.
+  // A play button on the page (the sentence stage) brings the player bar back instead.
+  if (!audio.src) return;
+  if ($('#audio-dock').hidden) {
+    if (!reveal) return;
+    $('#audio-dock').hidden = false;
+    document.body.classList.add('audio-open');
+  }
+  pauseOtherAudio();
+  // Cancel an older auto advance before the browser queues the play event.
+  const token = ++state.audioToken;
+  const {start,end} = audioBounds();
+  if (audio.currentTime >= end-.08 || audio.currentTime < start) audio.currentTime = start;
+  return audio.play().catch(() => { if (token === state.audioToken) notify('录音播放失败，请重新选择小节。'); });
+}
+function pauseLessonAudio() {
+  // A user pause also cancels a playEntry() waiting for its audio metadata.
+  ++state.audioToken;
+  pauseOtherAudio();
+  audio.pause();
+}
 function toggleAudio() {
   if (!audio.src) return;
-  pauseOtherAudio();
-  if (audio.paused) {
-    const {start,end} = audioBounds();
-    if (audio.currentTime >= end-.08 || audio.currentTime < start) audio.currentTime = start;
-    audio.play().catch(() => notify('录音播放失败，请重新选择小节。'));
-  } else audio.pause();
+  if (audio.paused) resumeLessonAudio();
+  else pauseLessonAudio();
 }
 
 document.addEventListener('change',event => {
@@ -979,11 +1332,15 @@ document.addEventListener('click',event => {
     case 'category': state.basicId = id; $('#basics-search').value = ''; renderTOC(); renderBasics(); closeSidebar(); break;
     case 'pronounce': pronounce(pronounceItem(action)); break;
     case 'open-basics': setView('basics'); break;
-    case 'sentence-page': switchBook(book || vocabularyBook()); setView('reading'); goPage(Number(action.dataset.page)); break;
+    case 'sentence-page':
+      state.readMode = 'pdf';
+      try { localStorage.setItem('norsk-read-mode-v1','pdf'); } catch {}
+      switchBook(book || vocabularyBook()); setView('reading'); goPage(Number(action.dataset.page)); break;
     case 'retry-pdf': state.ready ? renderPDF() : initialize(); break;
     case 'retry-view': setView(state.view,false); break;
     case 'retry-lessons': renderLessons(); break;
     case 'retry-audio': loadAudioMetadata(); break;
+    case 'read-mode': setReadMode(action.dataset.mode); break;
   }
 });
 $('#open-sidebar').addEventListener('click',openSidebar);
@@ -1014,18 +1371,39 @@ document.addEventListener('fullscreenchange',() => {
   $('#reader-fullscreen').title = expanded ? '退出全屏' : '全屏阅读';
   if (state.view === 'reading') renderPDF();
 });
-$('#vocab-search').addEventListener('input',renderVocabulary);
-$('#basics-search').addEventListener('input',renderBasics);
+let searchTimer;
+function scheduleSearch(event) {
+  clearTimeout(searchTimer);
+  if (event.isComposing) return;
+  searchTimer = setTimeout(() => {
+    if (state.view === 'vocabulary') renderVocabulary();
+    if (state.view === 'basics') renderBasics();
+  },80);
+}
+for (const selector of ['#vocab-search','#basics-search']) {
+  $(selector).addEventListener('input',scheduleSearch);
+  $(selector).addEventListener('compositionend',scheduleSearch);
+}
 $('#lesson-materials').addEventListener('toggle',() => { if ($('#lesson-materials').open && state.ready) renderLessons(); });
 $('#audio-play').addEventListener('click',toggleAudio);
-$('#audio-speed').addEventListener('change',() => { audio.playbackRate = Number($('#audio-speed').value); });
+$('#audio-speed').addEventListener('change',() => {
+  audio.playbackRate = Number($('#audio-speed').value);
+  try { localStorage.setItem('norsk-lesson-rate-v1',$('#audio-speed').value); } catch {}
+});
+$('#audio-back').addEventListener('click',() => seekLesson(-5));
+$('#audio-forward').addEventListener('click',() => seekLesson(5));
+$('#audio-transcript').addEventListener('click',() => prepareReader().then(reader => reader.openTranscript()).catch(() => notify('逐句听读暂时无法打开，请检查网络后重试。')));
+$('#audio-playlist').addEventListener('click',() => prepareReader().then(reader => reader.openPlaylist()).catch(() => notify('播放列表暂时无法打开，请检查网络后重试。')));
 $('#audio-progress').addEventListener('input',event => { const {start,duration} = audioBounds(); if (duration) audio.currentTime = start + Number(event.target.value)/1000*duration; updateAudioUI(); });
-$('#audio-close').addEventListener('click',() => { ++state.audioToken; audio.pause(); $('#audio-dock').hidden = true; document.body.classList.remove('audio-open'); });
+$('#audio-close').addEventListener('click',() => { ++state.audioToken; audio.pause(); $('#audio-dock').hidden = true; document.body.classList.remove('audio-open'); window.dispatchEvent(new CustomEvent('norsklessonclose')); });
 audio.addEventListener('timeupdate',() => {
   const {end} = audioBounds();
-  if (Number.isFinite(end) && audio.currentTime >= end) audio.pause();
+  if (Number.isFinite(end) && audio.currentTime >= end && !audio.paused) { audio.pause(); lessonEnded(); }
   updateAudioUI();
 });
+// Each resume is a new playback cycle, including replaying the same selected lesson.
+audio.addEventListener('play',() => { state.endedToken = -1; });
+audio.addEventListener('ended',lessonEnded);
 for (const event of ['play','pause','loadedmetadata','durationchange','ended']) audio.addEventListener(event,updateAudioUI);
 audio.addEventListener('error',() => { if (!$('#audio-dock').hidden) notify('录音载入失败，请检查网络后重试。'); });
 pronunciationAudio.addEventListener('error',() => notify('这条读音暂时无法播放，请稍后重试。'));
@@ -1035,15 +1413,25 @@ document.addEventListener('keydown',event => {
     toggleSeriesMenu(false);
     if (event.target.closest?.('#heading-search')) toggleSearch(false);
   }
-  if (event.key === 'Escape') { closeSidebar(); if (document.body.classList.contains('reader-focus')) { document.body.classList.remove('reader-focus'); renderPDF(); } }
-  if (state.view !== 'reading' || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName) || event.ctrlKey || event.altKey || event.metaKey) return;
+  // Esc closes only the topmost layer; the reader's own card handler sees the key as handled.
+  if (event.key === 'Escape' && layers.stack.length) { event.preventDefault(); layers.stack.at(-1).close(); }
+  else if (event.key === 'Escape' && document.body.classList.contains('reader-focus')) { document.body.classList.remove('reader-focus'); renderPDF(); }
+  // Arrow keys turn PDF pages, except inside the listen-and-read text where they move between words.
+  if (state.view !== 'reading' || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName) || event.target.closest?.('#reader-text') || event.ctrlKey || event.altKey || event.metaKey) return;
   if (event.key === 'ArrowLeft' && state.page > 1) { event.preventDefault(); goPage(state.page-1); }
   if (event.key === 'ArrowRight' && state.page < Number(bookData()?.pages || 1)) { event.preventDefault(); goPage(state.page+1); }
 });
-window.addEventListener('hashchange',() => setView(location.hash.slice(1),false));
+function viewFromHash() {
+  const [view,tab] = location.hash.slice(1).split('/');
+  if (view === 'more' && tab) state.moreTab = tab;
+  return view;
+}
+window.addEventListener('hashchange',() => setView(viewFromHash(),false));
 let resizeTimer;
 window.addEventListener('resize',() => {
-  $('#sidebar').inert = window.matchMedia('(max-width: 720px)').matches && !$('#sidebar').classList.contains('open');
+  // Turning a tablet to landscape puts the directory back beside the page, so an open drawer closes.
+  if (!drawerMode() && sidebarOpen) closeSidebar();
+  $('#sidebar').inert = drawerMode() && !sidebarOpen;
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => { if (state.ready && state.view === 'reading' && ['fit','width'].includes($('#zoom-select').value)) renderPDF(); },180);
 });
@@ -1085,6 +1473,9 @@ async function initialize() {
   const current = findEntry(state.readingId);
   if (current) state.expanded.add(`${state.book}:${current.chapter.id}`);
   state.ready = true;
-  setView(location.hash.slice(1) || 'reading',false);
+  if (wordbook().data.chapters.length || wordbook().sync.person) syncWordbook();
+  const room = (/[?&]room=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
+  if (room) { state.pendingDuel = {join:room}; setView('practice',false); return; }
+  setView(viewFromHash() || 'reading',false);
 }
 initialize();

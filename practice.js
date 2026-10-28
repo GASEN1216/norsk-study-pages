@@ -25,7 +25,10 @@
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
-  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null};
+  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],mine:[],wordbookTitle:'我的词本',indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
+  let sessionPools = new WeakMap(), checkedQuestions = new WeakSet(), inputSaveTimer = null;
+  let editor = null;
+  const EDITOR_REQUEST = 'norsk-practice-editor-request:';
   const $ = selector => state.root?.querySelector(selector);
   const e = value => (state.deps.escapeHTML || (text => String(text ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))))(value);
   const button = (action,text,extra='',kind='') => `<button type="button" class="pr-button ${kind}" data-practice-action="${action}" ${extra}>${text}</button>`;
@@ -146,12 +149,78 @@
       return blankStore();
     }
   }
+  // One tab owns each textbook's saved record. A takeover saves the old tab first;
+  // the new owner then reads the latest complete record, including deletions.
+  function canEdit() { return editor?.key === state.storageKey && ['owned','memory'].includes(editor.status); }
+  function ownsStore(store,key) { return editor?.key === key && editor.status === 'owned' && store === state.store; }
+  function editorMessage() {
+    if (!editor || editor.status === 'owned') return '';
+    if (editor.status === 'memory') return '当前浏览器无法协调多个标签页的保存。本次仍可练习，但新记录只保留在当前页面；请勿刷新或关闭。';
+    return editor.status === 'waiting' ? '正在连接本机学习记录，暂时只读。' : '这个教材的学习记录正在另一标签页中使用。本页暂时只读。';
+  }
+  function editorMarkup() {
+    const message=editorMessage();
+    return message ? `<p class="pr-storage-warning" role="status">${e(message)}${editor?.status === 'readonly' ? button('takeover','在此继续','','pr-small') : ''}</p>` : '';
+  }
+  function releaseEditor() {
+    const previous=editor;
+    if (!previous) return;
+    if (previous.status === 'owned') {
+      pause(); persist();
+      previous.status='readonly';
+      previous.release?.();
+    } else if (previous.status === 'waiting') previous.status='readonly';
+    else if (previous.status === 'memory') pause();
+  }
+  function acquireEditor(wait=false) {
+    if (editor?.key === state.storageKey && ['owned','waiting'].includes(editor.status)) return;
+    const lock={key:state.storageKey,status:'waiting',release:null};
+    editor=lock;
+    const locks=window.navigator?.locks;
+    const unavailable=() => { if (editor === lock) { lock.status='memory'; renderSetup(); } };
+    if (!locks?.request) { unavailable(); return; }
+    if (wait) {
+      try { localStorage.setItem(EDITOR_REQUEST+lock.key,uid()); }
+      catch { lock.status='readonly'; storageFailure('无法向另一标签页请求继续，请先关闭那一页，再刷新本页。'); renderSetup(); return; }
+    }
+    renderSetup();
+    try {
+      void locks.request(lock.key+':editor',{mode:'exclusive',...(!wait ? {ifAvailable:true} : {})},async acquired => {
+        if (editor !== lock || lock.status !== 'waiting' || state.storageKey !== lock.key) return;
+        if (!acquired) { lock.status='readonly'; renderSetup(); return; }
+        const held=new Promise(resolve => { lock.release=resolve; });
+        lock.status='owned';
+        state.store=readStore(); state.stores.set(state.seriesId,state.store);
+        recoverActive();
+        applyConfig(state.store.draft || state.store.recent[0] || {sources:state.chapters[0] ? [state.chapters[0].token] : [],mode:'random',activity:'cards'});
+        renderSetup(); syncCommunity();
+        await held;
+      }).catch(unavailable);
+    } catch { unavailable(); }
+  }
+  function requireEditor() {
+    if (canEdit()) return true;
+    announce(editorMessage() || '请先连接本机学习记录。');
+    return false;
+  }
   function persistStore(store,key) {
+    if (!ownsStore(store,key)) return;
     try { localStorage.setItem(key,JSON.stringify(store)); }
     catch { storageFailure('本机存储空间不足或暂不可用。本次仍可练习，刷新后可能丢失新进度。'); }
     if (store === state.store) syncSidebar();
   }
-  function persist() { persistStore(state.store,state.storageKey); }
+  function persist() {
+    if (inputSaveTimer != null) clearTimeout(inputSaveTimer);
+    inputSaveTimer = null;
+    persistStore(state.store,state.storageKey);
+  }
+  // Typing updates the live draft immediately; save once after the keystrokes settle.
+  // Answers, navigation, visibility changes and unload still save synchronously.
+  function saveInputDraft() {
+    if (typeof setTimeout !== 'function') { persist(); return; }
+    if (inputSaveTimer != null) clearTimeout(inputSaveTimer);
+    inputSaveTimer = setTimeout(persist,200);
+  }
   function clearTimers() {
     if (typeof clearTimeout === 'function') { if (state.speakTimer != null) clearTimeout(state.speakTimer); if (state.advanceTimer != null) clearTimeout(state.advanceTimer); }
     state.speakTimer=null; state.advanceTimer=null;
@@ -205,7 +274,9 @@
     return merged;
   }
   function indexData(data) {
-    state.sources.clear(); state.words.clear(); state.prepared.clear(); state.chapters = []; state.basics = [];
+    state.sources.clear(); state.words.clear(); state.prepared.clear(); state.chapters = []; state.basics = []; state.mine = [];
+    state.indexed = data;
+    sessionPools = new WeakMap(); checkedQuestions = new WeakSet();
     const add = (token,label,words) => {
       const entries = new Map();
       for (const word of words || []) {
@@ -227,6 +298,31 @@
       state.chapters.push({...chapter,...source,sections});
     }
     for (const category of data?.basics?.categories || []) state.basics.push({...category,...add(`basic:${category.id}`,category.title,category.items)});
+    // The learner's own wordbook: one source per chapter; words keep their own recording (audio).
+    state.wordbookTitle = String(data?.wordbook?.title || '').trim() || '我的词本';
+    for (const chapter of data?.wordbook?.chapters || []) state.mine.push({...chapter,...add(`mine:${chapter.id}`,String(chapter.title || ''),chapter.words)});
+  }
+  // The wordbook changed (an edit, or a sync from another device): only its sources are new. Selections
+  // of chapters that are gone are dropped; an open session keeps going and is checked against the new words.
+  function refreshWordbook(wordbook) {
+    if (!state.indexed) return;
+    if (state.visible && state.screen === 'session' && currentSession()) { state.pendingWordbook = wordbook; return; }
+    state.pendingWordbook = null;
+    indexData({...state.indexed,wordbook});
+    const kept = [...state.selected].filter(token => state.sources.has(token));
+    if (kept.length !== state.selected.size) { state.selected = new Set(kept); if (canEdit()) draft(); }
+    if (currentSession()) { recoverActive(); if (canEdit()) persist(); }
+    if (!state.visible) return;
+    if (state.screen === 'setup' && $('#pr-scope')?.open) renderScope();
+    syncSidebar();
+  }
+  function applyPendingWordbook() { if (state.pendingWordbook) refreshWordbook(state.pendingWordbook); }
+  // Which source tab shows a range: textbook chapters first, then the wordbook, then the basics.
+  function scopeTabFor(tokens) {
+    const list = [...tokens];
+    if (list.some(token => token.startsWith('chapter:') || token.startsWith('section:'))) return 'chapters';
+    if (list.some(token => token.startsWith('mine:'))) return 'wordbook';
+    return list.length ? 'basics' : 'chapters';
   }
   function poolFor(tokens) {
     const pool = new Map();
@@ -238,7 +334,8 @@
     return pool;
   }
   function sessionPool(session) {
-    return session.customKeys ? new Map(session.customKeys.filter(key => state.words.has(key)).map(key => [key,state.words.get(key)])) : poolFor(session.sources);
+    if (!sessionPools.has(session)) sessionPools.set(session,session.customKeys ? customPool(session.customKeys) : poolFor(session.sources));
+    return sessionPools.get(session);
   }
   function selectedLabel(tokens) {
     const labels = tokens.map(token => state.sources.get(token)?.label).filter(Boolean);
@@ -311,11 +408,19 @@
   }
   function shell(content) {
     clearFeedbackVisual();
-    state.root.innerHTML = `<div class="pr-app"><p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog>`;
+    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog>`;
     $('#pr-confirm').addEventListener('cancel',event => { event.preventDefault(); state.pending = null; $('#pr-confirm').close(); if (state.screen === 'session') resume(); });
+    syncBackLayer();
   }
   function sourceCheckbox(source,checked=false) {
     return `<label class="pr-source-row" data-pr-source-search="${e(source.label.toLocaleLowerCase('nb'))}"><input type="checkbox" data-pr-source="${e(source.token)}" ${checked ? 'checked' : ''}><span>${e(source.label)}</span><small>${source.words.length}</small></label>`;
+  }
+  // The wordbook's chapters that have words, with a whole-book row when there are several.
+  function wordbookSources() {
+    const chapters = state.mine.filter(chapter => chapter.words.length);
+    if (!chapters.length) return `<div class="pr-source-empty pr-wordbook-empty"><p>词本还是空的。</p>${button('wordbook-open','去添加','','pr-small')}</div>`;
+    const whole = chapters.length > 1 ? `<label class="pr-source-row pr-wordbook-all" data-pr-source-search="${e(state.wordbookTitle.toLocaleLowerCase('nb'))}"><input type="checkbox" data-pr-wordbook-all="1" ${chapters.every(chapter => state.selected.has(chapter.token)) ? 'checked' : ''}><span>整本</span><small>${poolFor(chapters.map(chapter => chapter.token)).size}</small></label>` : '';
+    return `<div class="pr-chapter-list" id="pr-wordbook-sources">${whole}${chapters.map(chapter => sourceCheckbox(chapter,state.selected.has(chapter.token))).join('')}</div>`;
   }
   function savedGroups() {
     const saved = state.store.sets, recent = state.store.recent;
@@ -324,13 +429,59 @@
   }
   function renderSetup() {
     state.screen = 'setup';
+    applyPendingWordbook();
     const active = currentSession();
     const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>继续${e(ACTIVITIES[activityOf(active)].title)}</strong><span>${Object.keys(active.answers || {}).length} / ${active.firstKeys.length} 词</span></div>${button('resume','继续','','pr-primary')}</section>` : '';
-    shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">今天练什么？</h2><span class="pr-series-label">${e(state.seriesTitle)}</span></div><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
+    shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">今天练什么？</h2><span class="pr-series-label">${e(state.seriesTitle)}</span></div><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
     const slot = $('#pr-community-slot');
     if (slot) state.deps.mountCommunity?.(slot);
+    loadHonors();
     // Continuing an unfinished session reads its current word, so load it already.
     if (active && active.phase !== 'review-intro') prefetchAhead(active);
+  }
+  // One quiet bar between the modes and the records: this week's challenge, today's quests, and the multiplayer game.
+  function goalsMarkup() {
+    const h = state.honors;
+    const duel = `<button type="button" class="pr-goal is-duel" data-practice-action="duel"><span class="pr-goal-label">联机翻翻乐</span><span class="pr-goal-sub">和同学抢翻词对</span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`;
+    if (!h?.week?.challenge) return duel;
+    const c = h.week.challenge, number = String(h.week.n).padStart(2,'0');
+    const quests = h.today?.quests || [];
+    const done = quests.filter(quest => quest.done).length;
+    const value = c.done ? 100 : c.target ? Math.max(0,Math.min(100,Math.round(c.progress/c.target*100))) : 0;
+    return `<button type="button" class="pr-goal is-week${c.done ? ' is-done' : ''}" data-practice-action="honors" aria-label="本周挑战：${e(c.title || '')}，${c.done ? '已完成' : `${Math.min(c.progress,c.target)} / ${c.target}`}"><img class="pr-goal-badge" src="assets/honors/week-${number}.webp" alt="" loading="lazy" decoding="async"><span class="pr-goal-label">本周挑战 <span lang="nb">${e(c.theme || '')}</span></span><span class="pr-goal-sub">${e(c.title || '')}</span><span class="pr-goal-meter"><i style="width:${value}%"></i></span><b class="pr-goal-count">${c.done ? '完成' : `${Math.min(c.progress,c.target)}/${c.target}`}</b></button>
+      <button type="button" class="pr-goal is-quests" data-practice-action="honors" title="${e(quests.map(quest => `${quest.done ? '✓' : '·'} ${quest.title}`).join('；'))}" aria-label="今日任务，完成 ${done} / ${quests.length}"><span class="pr-goal-label">今日任务</span><span class="pr-goal-dots" aria-hidden="true">${quests.map(quest => `<i class="${quest.done ? 'is-done' : ''}"></i>`).join('')}</span><b class="pr-goal-count">${done}/${quests.length}</b></button>${duel}`;
+  }
+  function updateGoals() {
+    const slot = state.visible && state.screen === 'setup' ? $('#pr-goals') : null;
+    if (slot) slot.innerHTML = goalsMarkup();
+  }
+  async function loadHonors(force=false) {
+    const run = ++state.honorsRequest;
+    try {
+      const community = await state.deps.community?.();
+      const honors = await community?.honors?.({force});
+      if (run !== state.honorsRequest) return;
+      if (honors?.week) { state.honors = honors; state.honorsStatus = 'ready'; }
+      else if (!state.honors) state.honorsStatus = 'error';
+    } catch { if (run === state.honorsRequest && !state.honors) state.honorsStatus = 'error'; }
+    updateGoals();
+  }
+  window.addEventListener('norskhonorschange',event => { if (event.detail?.week) { state.honors = event.detail; state.honorsStatus = 'ready'; updateGoals(); } });
+  // Word groups the multiplayer game can draw from: chapters of the current series and the basics.
+  // Word ranges for 联机翻翻乐, shaped like the practice range picker: chapters with their sections,
+  // basics categories, and the learner's own favourites and weak words. Words carry their first sense.
+  function duelSources() {
+    const pick = words => words.filter(word => word?.word && word.meaning).map(word => ({key:word.key,word:word.word,meaning:String(word.meaning).split('；')[0]}));
+    const sources = [];
+    for (const chapter of state.chapters) {
+      sources.push({token:chapter.token,label:chapter.label,group:'chapter',words:pick(chapter.words)});
+      for (const section of chapter.sections) sources.push({token:section.token,label:section.label,group:'section',parent:chapter.token,words:pick(section.words)});
+    }
+    for (const category of state.basics) sources.push({token:category.token,label:category.label,group:'basics',words:pick(category.words)});
+    for (const chapter of state.mine) sources.push({token:chapter.token,label:chapter.label,group:'wordbook',words:pick(chapter.words)});
+    sources.push({token:'favorites',label:'收藏词',group:'mine',words:pick(favoriteKeys().map(key => state.words.get(key)))});
+    sources.push({token:'weak',label:'薄弱词',group:'mine',words:pick(weakKeys().map(key => state.words.get(key)))});
+    return sources.filter(source => source.words.length);
   }
   function historyStats() {
     return `<div class="pr-history-stats"><span><b>${Object.keys(state.store.stats).length}</b>已练词语</span><span><b>${state.store.history.length}</b>完成次数</span><span><b>${weakKeys().length}</b>薄弱词</span></div>`;
@@ -358,7 +509,7 @@
     const pool = poolFor(state.selected), weak = weakKeys().length, favorites = favoriteKeys().length;
     const quick = weak || favorites ? `<div class="pr-quick-row">${weak ? button('weak',`薄弱词 <b>${weak}</b>`,'','pr-chip-button') : ''}${favorites ? button('favorites',`${icon('star',true)}收藏 <b>${favorites}</b>`,'','pr-chip-button') : ''}</div>` : '';
     const minimum = state.activity === 'match' ? 2 : 1;
-    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','公共基础常识',`data-pr-tab="basics" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section></div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','基础常识',`data-pr-tab="basics" aria-label="公共基础常识" title="公共基础常识" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section></div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
     filterScope();
     updateSelectionUI(false);
     if (!dialog.open) { dialog.showModal?.(); $('#pr-scope-title')?.focus?.(); }
@@ -366,7 +517,7 @@
   function loadScope(config) {
     state.selected = new Set((config.sources || []).filter(token => state.sources.has(token)));
     state.scopeQuery = '';
-    state.scopeTab = [...state.selected].some(token => token.startsWith('chapter:') || token.startsWith('section:')) ? 'chapters' : 'basics';
+    state.scopeTab = scopeTabFor(state.selected);
     draft(); renderScope();
   }
   function filterScope() {
@@ -381,23 +532,31 @@
         if (query && !detail.hidden) detail.open = true;
         detail.querySelectorAll('[data-pr-source-search]').forEach(row => { row.hidden = !!query && !chapterTitle.includes(query) && !row.dataset.prSourceSearch.includes(query); });
       });
-    } else all('#pr-basic-sources [data-pr-source-search]').forEach(row => { row.hidden = !!query && !row.dataset.prSourceSearch.includes(query); if (!row.hidden) shown++; });
+    } else all(state.scopeTab === 'wordbook' ? '#pr-wordbook-sources [data-pr-source-search]' : '#pr-basic-sources [data-pr-source-search]').forEach(row => { row.hidden = !!query && !row.dataset.prSourceSearch.includes(query); if (!row.hidden) shown++; });
+    if (state.scopeTab === 'wordbook' && !state.mine.some(chapter => chapter.words.length)) shown = 1;
     const empty = $('#pr-source-empty');
     if (empty) empty.hidden = shown > 0;
   }
   function updateSelectionUI(save=true) {
     if (state.screen !== 'setup') return;
+    const chapterInputs = new Map([...state.root.querySelectorAll('[data-pr-chapter]')].map(node => [node.dataset.prChapter,node]));
+    const sourceInputs = new Map([...state.root.querySelectorAll('[data-pr-source]')].map(node => [node.dataset.prSource,node]));
     for (const chapter of state.chapters) {
-      const input = [...state.root.querySelectorAll('[data-pr-chapter]')].find(node => node.dataset.prChapter === chapter.token);
+      const input = chapterInputs.get(chapter.token);
       if (input) { input.checked = state.selected.has(chapter.token); input.indeterminate = !input.checked && chapter.sections.some(section => state.selected.has(section.token)); }
       for (const section of chapter.sections) {
-        const child = [...state.root.querySelectorAll('[data-pr-source]')].find(node => node.dataset.prSource === section.token);
+        const child = sourceInputs.get(section.token);
         if (child) child.checked = state.selected.has(chapter.token) || state.selected.has(section.token);
       }
     }
-    for (const category of state.basics) {
-      const input = [...state.root.querySelectorAll('[data-pr-source]')].find(node => node.dataset.prSource === category.token);
+    for (const category of [...state.basics,...state.mine]) {
+      const input = sourceInputs.get(category.token);
       if (input) input.checked = state.selected.has(category.token);
+    }
+    const whole = state.root.querySelector('[data-pr-wordbook-all]');
+    if (whole) {
+      const chapters = state.mine.filter(chapter => chapter.words.length), chosen = chapters.filter(chapter => state.selected.has(chapter.token)).length;
+      whole.checked = chosen === chapters.length; whole.indeterminate = chosen > 0 && chosen < chapters.length;
     }
     const pool = poolFor(state.selected);
     const scopeCount = $('#pr-scope-count'), start = $('#pr-start'), clear = state.root.querySelector('[data-practice-action="clear-selection"]');
@@ -412,7 +571,9 @@
     state.store.recent = [{...config,label,usedAt:now(),signature},...state.store.recent.filter(item => JSON.stringify([(item.sources || []).slice().sort(),item.mode,activityOf(item),item.activity === 'quiz' ? quizConfig(item.quiz) : null]) !== signature)].slice(0,6);
   }
   function startSession(config={},customKeys=null,label='') {
+    if (!requireEditor()) return;
     const begin = () => {
+      if (!requireEditor()) return;
       closeDialogs(); stopAudio(); stopMatchClock();
       const sources = config.sources || [...state.selected];
       const pool = customKeys ? customPool(customKeys) : poolFor(sources);
@@ -424,7 +585,9 @@
       state.prepared.clear();
       const firstKeys = prepared?.length === pool.size && prepared.every(key => pool.has(key)) ? prepared : selectKeys(pool,mode);
       const session = {id:uid(),seriesId:state.seriesId,seriesTitle:state.seriesTitle,startedAt:now(),sources,label:label || selectedLabel(sources),mode,activity,quiz:quizConfig(config.quiz),firstKeys,customKeys:customKeys ? [...pool.keys()] : null,reviewKeys:[],reviewAnswers:{},details:{},reviewDetails:{},phase:'first',index:0,answers:{},paused:false,flipped:false,cardsReverse:false,inputDraft:''};
+      sessionPools.set(session,pool);
       if (['learn','quiz','listen'].includes(activity)) session.questions = makeQuestions(pool,firstKeys,activity,session.quiz);
+      checkedQuestions.add(session);
       if (activity === 'match') { session.match={round:0,elapsedMs:0,penaltyMs:0,errors:{},matched:[],selected:null,wrong:[]}; makeMatchRound(session,pool); }
       state.store.active = session; state.keyboardPage='letters';
       if (!customKeys) { const saved={sources,mode,activity,quiz:session.quiz}; applyConfig(saved); rememberConfig(saved,session.label); state.store.draft=saved; }
@@ -665,7 +828,7 @@
     let answerUI='';
     if (question.type === 'spell') {
       const mode=keyboardMode(), value=done ? (detail?.unknown ? '' : detail?.submitted || '') : session.inputDraft || '';
-      answerUI=`<form class="pr-answer-form" id="pr-answer-form"><label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}></form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用手机键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
+      answerUI=`<form class="pr-answer-form" id="pr-answer-form"><label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}></form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用手机键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
     } else if (question.type === 'choice') {
       answerUI=`<div class="pr-choice-grid${question.options.some(option => option.text.length > 14) ? ' is-long' : ''}">${question.options.map((option,index) => {
         const tone=done ? (option.key === key ? ' is-correct' : detail?.choice === index ? ' is-wrong' : ' is-dim') : '';
@@ -890,9 +1053,12 @@
   }
   function syncCommunity() {
     const store=state.store, key=state.storageKey, submit=state.deps.submitPracticeResult;
+    const owner=editor;
+    if (!ownsStore(store,key)) return Promise.resolve(false);
     if (state.syncs.has(key)) return state.syncs.get(key);
     if (typeof submit !== 'function' || !store.communityPending?.length) return Promise.resolve(false);
-    // Finish against the captured store when the learner changes books mid-request.
+    // A successful upload may arrive after another tab takes ownership. Its durable
+    // server receipt can be retried, but the old tab must never overwrite the new owner.
     const sync=(async () => {
       while (store.communityPending.length) {
         const id=store.communityPending[0], result=store.history.find(item => item.id === id);
@@ -900,6 +1066,7 @@
           try { if (await submit(result) !== true) return false; }
           catch { return false; }
         }
+        if (editor !== owner || !ownsStore(store,key)) return false;
         store.communityPending=store.communityPending.filter(item => item !== id);
         persistStore(store,key);
       }
@@ -967,6 +1134,7 @@
     } else { stopAudio(); go(); }
   }
   function resume() {
+    if (!requireEditor()) return;
     const session = currentSession();
     if (!session) return;
     closeDialogs(); session.paused = false; persist(); renderSession(); autoPlay(session); if (activityOf(session) === 'match') startMatchClock();
@@ -1006,6 +1174,11 @@
       announce('学习记录已导出，请保留下载的备份文件。');
     } catch { announce('记录导出失败，请稍后重试。'); }
   }
+  // During a session Back first asks, with the same prompt as the × button; elsewhere it leaves as usual.
+  function syncBackLayer() {
+    if (state.visible && state.screen === 'session' && currentSession()) state.deps.openLayer?.('practice',() => { if (state.visible && state.screen === 'session') exitPrompt(); });
+    else state.deps.closeLayer?.('practice');
+  }
   function exitPrompt() {
     if (!currentSession()) return;
     confirmDialog('离开这次练习？','进度会保存，下次从这里继续。',[
@@ -1015,9 +1188,12 @@
     ]);
   }
   function onClick(event) {
+    const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
+    if (requested === 'takeover') { acquireEditor(true); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','series','wordbook-open','scope-tab'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
-    if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { state.activity=modeTarget.dataset.prActivity; state.scopeQuery=''; if (state.selected.size) state.scopeTab=[...state.selected].some(token => !token.startsWith('basic:')) ? 'chapters' : 'basics'; draft(); renderScope(); return; }
+    if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { state.activity=modeTarget.dataset.prActivity; state.scopeQuery=''; if (state.selected.size) state.scopeTab=scopeTabFor(state.selected); draft(); renderScope(); return; }
     const target = event.target.closest('[data-practice-action]');
     if (!target || !state.initialized) return;
     const action = target.dataset.practiceAction;
@@ -1025,6 +1201,8 @@
     const id = target.dataset.prId;
     switch (action) {
       case 'setup': navigate('setup'); break;
+      case 'duel': state.deps.openDuel?.(); break;
+      case 'honors': state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
       case 'weak': reviewKeys(weakKeys(),'薄弱词复习',state.activity,state.quiz); break;
@@ -1033,7 +1211,8 @@
       case 'scope-open': renderScope(); break;
       case 'scope-close': $('#pr-scope')?.close?.(); break;
       case 'series': if (target.dataset.prSeries !== state.seriesId) { state.reopenActivity=state.activity; state.deps.selectSeries?.(target.dataset.prSeries); } break;
-      case 'scope-tab': state.scopeTab=target.dataset.prTab === 'basics' ? 'basics' : 'chapters'; renderScope(); break;
+      case 'scope-tab': state.scopeTab=['basics','wordbook'].includes(target.dataset.prTab) ? target.dataset.prTab : 'chapters'; renderScope(); break;
+      case 'wordbook-open': $('#pr-scope')?.close?.(); state.deps.openWordbook?.(); break;
       case 'clear-selection': state.selected.clear(); updateSelectionUI(); break;
       case 'save-set': saveSet(); break;
       case 'saved-load': { const set = state.store.sets.find(item => item.id === id); if (set) loadScope(set); break; }
@@ -1078,6 +1257,7 @@
     }
   }
   function onChange(event) {
+    if (!canEdit()) return;
     const input = event.target;
     if (!state.root?.contains(input)) return;
     if (input.dataset.prChapter) {
@@ -1085,6 +1265,9 @@
       if (!chapter) return;
       chapter.sections.forEach(section => state.selected.delete(section.token));
       if (input.checked) state.selected.add(chapter.token); else state.selected.delete(chapter.token);
+      updateSelectionUI();
+    } else if (input.dataset.prWordbookAll) {
+      for (const chapter of state.mine) if (chapter.words.length) { if (input.checked) state.selected.add(chapter.token); else state.selected.delete(chapter.token); }
       updateSelectionUI();
     } else if (input.dataset.prSource) {
       const token = input.dataset.prSource;
@@ -1103,11 +1286,13 @@
     } else if (input.id === 'pr-quiz-direction') { state.quiz=quizConfig({...state.quiz,direction:input.value}); draft(); }
   }
   function onInput(event) {
+    if (!canEdit()) return;
     if (!state.root?.contains(event.target)) return;
     if (event.target.id === 'pr-source-search') { state.scopeQuery=event.target.value; filterScope(); }
-    if (event.target.id === 'pr-answer') { const session=currentSession(); if (session && !session.paused && !answered(session)) { session.inputDraft=event.target.value; persist(); updateAnswerButton(); } }
+    if (event.target.id === 'pr-answer') { const session=currentSession(); if (session && !session.paused && !answered(session)) { session.inputDraft=event.target.value; saveInputDraft(); updateAnswerButton(); } }
   }
   function onSubmit(event) {
+    if (!canEdit()) { if (event.target.id === 'pr-answer-form') event.preventDefault(); return; }
     if (event.target.id !== 'pr-answer-form' || !state.root?.contains(event.target)) return;
     event.preventDefault(); unlockFeedbackAudio(event); submitObjective($('#pr-answer')?.value || '');
   }
@@ -1145,7 +1330,7 @@
     const inserted=letter === 'backspace' ? '' : letter;
     input.value=input.value.slice(0,start)+inserted+input.value.slice(end);
     input.focus?.({preventScroll:true}); input.setSelectionRange?.(start+inserted.length,start+inserted.length);
-    session.inputDraft=input.value; persist(); updateAnswerButton();
+    session.inputDraft=input.value; saveInputDraft(); updateAnswerButton();
   }
   function toggleKeyboardMode() {
     const input=$('#pr-answer'), session=currentSession();
@@ -1156,6 +1341,7 @@
     persist(); renderSession(); $('#pr-answer')?.setSelectionRange?.(start,end);
   }
   function onKey(event) {
+    if (!canEdit()) return;
     if (event.isComposing || event.keyCode === 229 || !state.visible || state.screen !== 'session' || state.root.hidden || event.altKey || event.ctrlKey || event.metaKey) return;
     unlockFeedbackAudio(event);
     if ($('#pr-confirm')?.open) return;
@@ -1187,13 +1373,16 @@
   }
   // Restored or legacy sessions keep their questions; only missing or broken ones are rebuilt.
   function ensureQuestions(session,pool=sessionPool(session)) {
+    if (checkedQuestions.has(session)) return;
     const activity=activityOf(session);
     if (!['learn','quiz','listen'].includes(activity)) return;
     session.questions ||= {};
     const broken=session.firstKeys.filter(key => { const question=session.questions[key]; return !question || (question.options && question.options.some(option => !pool.has(option.key))) || (question.proposedKey && !pool.has(question.proposedKey)); });
-    if (!broken.length) return;
-    const generated=makeQuestions(pool,session.firstKeys,activity,session.quiz);
-    for (const key of broken) session.questions[key]=generated[key];
+    if (broken.length) {
+      const generated=makeQuestions(pool,session.firstKeys,activity,session.quiz);
+      for (const key of broken) session.questions[key]=generated[key];
+    }
+    checkedQuestions.add(session);
   }
   function recoverActive() {
     const session = currentSession();
@@ -1238,6 +1427,7 @@
     const changing=state.initialized && seriesId !== state.seriesId;
     if (changing) {
       hide(); closeDialogs(); persist();
+      releaseEditor();
       state.stores.set(state.seriesId,state.store);
       state.selected=new Set(); state.result=null; state.pending=null;
       state.screen='setup'; state.scopeTab='chapters'; state.scopeQuery='';
@@ -1268,7 +1458,14 @@
         if (keyed && state.words.has(keyed.dataset.prKey)) state.deps.prefetch?.([state.words.get(keyed.dataset.prKey)]);
       });
       window.addEventListener('online',syncCommunity);
+      window.addEventListener('storage',event => {
+        if (event.key === EDITOR_REQUEST+state.storageKey && editor?.status === 'owned') {
+          releaseEditor(); renderSetup();
+        }
+      });
       window.addEventListener('beforeunload',() => { stopFeedback(); if (currentSession()) { stopMatchClock(); currentSession().paused=true; persist(); } });
+      window.addEventListener('pagehide',releaseEditor);
+      window.addEventListener('pageshow',() => { if (editor?.status === 'readonly') acquireEditor(); });
       document.addEventListener('visibilitychange',() => {
         if (!document.hidden) return;
         stopFeedback();
@@ -1282,7 +1479,7 @@
     }
     recoverActive();
     applyConfig(state.store.draft || state.store.recent[0] || {sources:state.chapters[0] ? [state.chapters[0].token] : [],mode:'random',activity:'cards'});
-    renderSetup(); syncCommunity();
+    renderSetup(); acquireEditor(); syncCommunity();
   }
   function show() {
     if (!state.initialized) return;
@@ -1300,8 +1497,13 @@
   }
   function hide() {
     state.visible=false;
+    syncBackLayer();
+    if (state.prepareTimer != null) clearTimeout(state.prepareTimer);
+    state.prepareTimer=null;
     if (currentSession()) pause(); else stopAudio();
+    applyPendingWordbook();
   }
   window.NorskPractice = {init,show,hide,renderTOC};
+  Object.assign(window.NorskPractice,{duelSources,refreshWordbook,refreshHonors:() => loadHonors(true)});
   window.dispatchEvent(new Event('norskpracticeready'));
 })();

@@ -2,11 +2,14 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#21483e">
   <meta name="description" content="结合教材、练习册、章节录音与课堂资料的挪威语学习书房。在线阅读、听读课文、学习词汇与基础知识。">
   <title>Norsk 学习书房 · 挪威语学习</title>
-  <link rel="stylesheet" href="styles.css?v=20261023-audio-ahead">
+  <link rel="modulepreload" href="app.js?v=20261028-full-audit">
+  <link rel="preload" href="data/catalog.json?v=20261028-full-audit" as="fetch" crossorigin>
+  <link rel="preload" href="data/documents.json?v=20261028-full-audit" as="fetch" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=20261028-full-audit">
 </head>
 <body>
   <svg class="svg-definitions" aria-hidden="true"><defs>
@@ -28,6 +31,12 @@
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
     <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
     <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8m4 0h4M4 17h4m4 0h8"/><circle cx="14" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></symbol>
+    <symbol id="i-back5" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4 9.4M4 4.5v4.9h4.9"/><path d="M10.3 9.6h3.4m-3.4 0-.4 2.6c.4-.3.9-.4 1.4-.4 1.2 0 2 .8 2 1.9s-.9 1.9-2.1 1.9c-.7 0-1.3-.3-1.6-.8" stroke-width="1.3"/></symbol>
+    <symbol id="i-fwd5" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3L20 9.4M20 4.5v4.9h-4.9"/><path d="M10.3 9.6h3.4m-3.4 0-.4 2.6c.4-.3.9-.4 1.4-.4 1.2 0 2 .8 2 1.9s-.9 1.9-2.1 1.9c-.7 0-1.3-.3-1.6-.8" stroke-width="1.3"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h7M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 10.5h16M4 15h10M4 19.5h7"/></symbol>
   </defs></svg>
 
   <header class="site-header">
@@ -40,6 +49,7 @@
       <button class="nav-button" data-view="vocabulary"><svg><use href="#i-words"/></svg><span>单词表</span></button>
       <button class="nav-button" data-view="basics"><svg><use href="#i-spark"/></svg><span>基础常识</span></button>
       <button class="nav-button" data-view="practice"><svg><use href="#i-check"/></svg><span>练习</span></button>
+      <button class="nav-button" data-view="more"><svg><use href="#i-more"/></svg><span>更多</span></button>
     </nav>
     <div class="header-meta"><span class="status-dot"></span>Bokmål <span class="header-divider">/</span> 挪威语</div>
   </header>
@@ -77,13 +87,14 @@
       <section id="reading-view" class="view" aria-label="在线阅读">
         <div class="reader-toolbar">
           <div class="reader-location"><svg><use href="#i-book"/></svg><span id="reader-book-title">教材</span><span class="reader-location-divider">/</span><span id="reader-section-title">正在载入目录</span></div>
-          <div class="reader-tools"><button id="open-compare" class="compare-launch" title="两侧独立选书与翻页"><svg><use href="#i-book"/></svg><span>双页对照</span></button><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control" title="双击页面可在完整一页与适合宽度之间切换"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
+          <div class="reader-tools"><div class="read-mode" role="group" aria-label="阅读方式"><button type="button" data-action="read-mode" data-mode="pdf" aria-pressed="true" title="教材原页 PDF">原页</button><button type="button" data-action="read-mode" data-mode="text" aria-pressed="false" title="逐词显示课文，跟着录音听读">听读</button></div><button id="open-compare" class="compare-launch" title="两侧独立选书与翻页"><svg><use href="#i-book"/></svg><span>双页对照</span></button><button id="zoom-out" class="icon-button" aria-label="缩小页面" title="缩小"><svg><use href="#i-minus"/></svg></button><label class="zoom-control" title="双击页面可在完整一页与适合宽度之间切换"><span class="sr-only">页面缩放</span><select id="zoom-select"><option value="fit">完整一页</option><option value="width">适合宽度</option><option value="0.8">80%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option><option value="3">300%</option></select></label><button id="zoom-in" class="icon-button" aria-label="放大页面" title="放大"><svg><use href="#i-plus"/></svg></button><button id="reader-fullscreen" class="icon-button" aria-label="全屏阅读" title="全屏阅读"><svg><use href="#i-fullscreen"/></svg></button><a id="pdf-download" class="icon-button" aria-label="下载当前 PDF 分册" title="下载当前 PDF 分册" download><svg><use href="#i-download"/></svg></a></div>
         </div>
         <div class="reader-audio-note" id="reading-audio-note" role="note" hidden></div>
         <div class="pdf-stage" id="pdf-stage">
           <div class="pdf-message" id="pdf-message"><span class="loader"></span><p>正在准备阅读页面…</p></div>
           <canvas id="pdf-canvas" aria-label="教材 PDF 页面" hidden></canvas>
         </div>
+        <div class="reader-text" id="reader-text" hidden></div>
         <div class="page-controls">
           <button class="page-button" id="prev-page" aria-label="上一页" title="上一页（←）"><svg><use href="#i-left"/></svg><span>上一页</span></button>
           <form class="page-jump" id="page-form" title="目录中是印刷页码，这里是 PDF 页码"><label for="page-input">PDF 页码</label><input id="page-input" type="number" min="1" value="1" aria-label="跳转到 PDF 页码"><span id="page-total">/ —</span><button type="submit" class="text-button">跳转</button></form>
@@ -100,6 +111,7 @@
         <div class="vocab-table"><div id="vocab-rows"></div></div>
       </section>
       <section id="practice-view" class="view" aria-label="词汇练习" hidden></section>
+      <section id="more-view" class="view" aria-label="更多" hidden></section>
 
       <section id="basics-view" class="view" aria-label="挪威语基础常识" hidden>
         <p class="basics-description" id="basics-description">建立你的挪威语日常词汇。</p>
@@ -111,13 +123,13 @@
 
   <section class="audio-dock" id="audio-dock" aria-label="音频播放器" hidden>
     <div class="audio-cover"><svg><use href="#i-volume"/></svg></div><div class="audio-info"><span class="audio-label" id="audio-label">课文音频</span><strong id="audio-title">聆听课文</strong></div>
-    <button id="audio-play" class="audio-play" aria-label="暂停播放"><svg><use href="#i-pause"/></svg></button>
+    <button id="audio-back" class="icon-button audio-skip" aria-label="后退 5 秒" title="后退 5 秒"><svg><use href="#i-back5"/></svg></button><button id="audio-play" class="audio-play" aria-label="暂停播放"><svg><use href="#i-pause"/></svg></button><button id="audio-forward" class="icon-button audio-skip" aria-label="前进 5 秒" title="前进 5 秒"><svg><use href="#i-fwd5"/></svg></button>
     <span class="audio-time" id="audio-current">0:00</span><input type="range" id="audio-progress" min="0" max="1000" value="0" aria-label="音频播放进度"><span class="audio-time" id="audio-duration">0:00</span>
-    <select id="audio-speed" aria-label="播放速度"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select><button id="audio-close" class="icon-button" aria-label="关闭播放器"><svg><use href="#i-close"/></svg></button>
+    <select id="audio-speed" aria-label="播放速度"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="0.9">0.9×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select><button id="audio-transcript" class="icon-button" aria-label="打开逐句听读" title="逐句听读"><svg><use href="#i-text"/></svg></button><button id="audio-playlist" class="icon-button" aria-label="播放列表" title="播放列表"><svg><use href="#i-list"/></svg></button><button id="audio-close" class="icon-button" aria-label="关闭播放器"><svg><use href="#i-close"/></svg></button>
     <audio id="lesson-audio" preload="metadata"></audio>
   </section>
   <audio id="word-audio" preload="none"></audio>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="app.js?v=20261023-audio-ahead"></script>
+  <script type="module" src="app.js?v=20261028-full-audit"></script>
 </body>
 </html>

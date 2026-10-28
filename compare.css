@@ -9,3 +9,7 @@
 @media(max-width:720px){body[data-view=compare].audio-open #compare-view .cp-shell{padding-bottom:111px}}
 
 #compare-view .cp-pane-heading>div{flex:1;align-items:center}#compare-view .cp-book-select{width:100%;min-width:0;max-width:100%;border:1px solid #d8e1cc;border-radius:5px;background:#fffef9;color:#335b3b;font:inherit;font-size:12px;padding:6px 24px 6px 7px;text-overflow:ellipsis;cursor:pointer}#compare-view .cp-book-select:focus-visible{outline:2px solid #66855b;outline-offset:2px}@media(max-width:1000px){#compare-view .cp-pane-heading{gap:6px}#compare-view .cp-pane-heading h2{font-size:12px}#compare-view .cp-pane-heading>div{gap:5px}#compare-view .cp-book-select{font-size:11px;padding-left:5px}#compare-view .cp-directory-toggle{padding:5px 7px}}
+
+/* 2026-10-28: finger-sized targets on touch screens without changing what is drawn; on a phone held sideways the full-screen
+   comparison keeps the pages and page controls, and the book pickers come back when leaving full screen. */
+@media(pointer:coarse){#compare-view .cp-button,#compare-view .cp-icon-button{position:relative}#compare-view .cp-button::after,#compare-view .cp-icon-button::after{content:"";position:absolute;left:0;right:0;top:50%;height:40px;transform:translateY(-50%)}}@media(max-height:520px){#compare-view.cp-focus .cp-pane-heading{display:none}}

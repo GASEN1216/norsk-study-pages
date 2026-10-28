@@ -347,3 +347,47 @@ body[data-view="practice"]:has(.pr-session-bar) .main{padding-top:16px}
 .pr-series-choice .pr-setting-label{flex-shrink:0;font-size:13px;color:var(--pr-muted)}
 .pr-series-options{display:flex;flex-wrap:wrap;gap:6px}
 .pr-series-options .pr-button[aria-pressed="true"]{background:var(--pr-green);border-color:var(--pr-green);color:#fff}
+/* Goals bar: weekly challenge, today's quests and the multiplayer game (2026-10-28). */
+.pr-goals{display:flex;align-items:stretch;margin-top:16px;border:1px solid var(--pr-line);border-radius:20px;background:var(--pr-paper);overflow:hidden}
+.pr-goal{display:flex;align-items:center;gap:10px;min-width:0;padding:12px 18px;text-align:left;color:var(--pr-ink);transition:background .2s ease}
+.pr-goal+.pr-goal{border-left:1px solid var(--pr-line)}
+.pr-goal:hover{background:#f7f9f3}
+.pr-goal.is-week{flex:1 1 52%}
+.pr-goal.is-quests{flex:0 0 auto}
+.pr-goal.is-duel{flex:0 0 auto;margin-left:auto}
+.pr-goal-badge{width:40px;height:40px;flex-shrink:0;object-fit:contain;filter:saturate(.6);transition:filter .6s ease}
+.pr-goal.is-done .pr-goal-badge{filter:none}
+.pr-goal-label{font-size:14px;font-weight:600;white-space:nowrap}
+.pr-goal-label span{font:500 15px var(--serif);color:var(--green);margin-left:2px}
+.pr-goal-sub{font-size:13px;color:var(--pr-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pr-goal-meter{flex:1 1 60px;min-width:40px;max-width:160px;height:4px;border-radius:4px;background:#ebeee3;overflow:hidden;margin-left:auto}
+.pr-goal-meter i{display:block;height:100%;border-radius:inherit;background:var(--green);transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.pr-goal.is-done .pr-goal-meter i{background:#c9a04a}
+.pr-goal-count{font:500 14px var(--serif);color:var(--green);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr-goal.is-done .pr-goal-count{color:#b48d3c}
+.pr-goal-dots{display:flex;gap:5px}
+.pr-goal-dots i{width:8px;height:8px;border-radius:50%;border:1.5px solid #cfd5c4}
+.pr-goal-dots i.is-done{background:var(--green);border-color:var(--green)}
+.pr-goal-arrow{width:15px;height:15px;color:#a3ab98}
+.pr-goal.is-duel .pr-goal-label{color:var(--green)}
+@media(max-width:760px){
+  .pr-goals{flex-wrap:wrap}
+  .pr-goal.is-week{flex:1 1 100%}
+  .pr-goal.is-quests{flex:1 1 auto;border-left:0!important;border-top:1px solid var(--pr-line)}
+  .pr-goal.is-duel{flex:1 1 auto;margin-left:0;border-top:1px solid var(--pr-line)}
+  .pr-goal-sub{display:none}
+  .pr-goal.is-week .pr-goal-sub{display:block;flex:1}
+  .pr-goal-meter{display:none}
+}
+@media(max-width:420px){.pr-goal.is-week .pr-goal-sub{display:none}.pr-goal-meter{display:block}}
+/* 2026-10-28 audit: on portrait tablets the five modes fill both rows (three, then two wider); the challenge strip keeps
+   the week's goal readable; phone sheets keep their buttons clear of the home indicator. */
+@media(min-width:641px) and (max-width:900px){.pr-mode-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.pr-mode-grid>.pr-mode-card{grid-column:span 2}.pr-mode-grid>.pr-mode-card:nth-child(n+4){grid-column:span 3}}
+@media(min-width:761px) and (max-width:1100px){.pr-goal.is-duel .pr-goal-sub{display:none}}
+@media(min-width:761px) and (max-width:860px){.pr-goal.is-week .pr-goal-meter{display:none}}
+.pr-card-dialog{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+@media(max-width:640px){.pr-card-dialog{padding-bottom:calc(22px + env(safe-area-inset-bottom))}.pr-scope-footer{padding-bottom:calc(20px + env(safe-area-inset-bottom))}}
+/* 2026-10-28: the read-only notice keeps its 在此继续 button on the right instead of wrapping it into the sentence. */
+.pr-storage-warning{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;line-height:1.6}.pr-storage-warning>button{margin-left:auto}
+/* 2026-10-28: on phones every match tile has room for two lines, so the two columns stay in step when a meaning wraps. */
+@media(max-width:640px){.pr-match-tile{min-height:62px}}

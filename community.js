@@ -8,6 +8,7 @@
   const RESULT_PREFIX = 'norsk-community-result-v2:';
   const TIMEOUT_MS = 12000;
   const PRESENCE_MS = 60000;
+  const HONORS_TTL_MS = 20000;
   const CEREMONY_KEY = 'norsk-community-ceremony-v1';
   const WEEK = /^\d{4}-\d{2}-\d{2}$/;
   const ACTIVITIES = ['learn','quiz','match','cards','listen'];
@@ -20,11 +21,13 @@
     editing:false, draft:'', saving:false, nameError:'', nameMessage:'', pending:0,
     stats:null, presenceTimer:null, presenceBusy:null, lastPing:0, confirmName:'', refreshing:null,
     lastWeek:null, lastWeekAt:0, lastWeekLoad:null, waitingCelebrate:false,
+    honors:null, honorsAt:0, honorsLoad:null, honorsDirty:false,
   };
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const count = value => [...String(value)].length;
   const formatNumber = value => Number(value).toLocaleString('zh-CN');
   const isMounted = () => Boolean(state.container && state.container.isConnected !== false);
+  const isVisible = () => isMounted() && document.visibilityState !== 'hidden' && !state.container.closest?.('[hidden]');
   function base() {
     const value=String(window.NORSK_COMMUNITY_CONFIG?.apiBase || '/api/community').trim();
     let url;
@@ -161,14 +164,14 @@
     storeEntry(resultKey(payload.sessionId),{version:2,deviceId:currentIdentity().deviceId,sessionId:payload.sessionId,status:'done'});
     readQueue();
   }
-  async function request(path,{method='GET',body,auth=false}={}) {
+  async function request(path,{method='GET',body,auth=false,timeout:limit=TIMEOUT_MS}={}) {
     const headers={Accept:'application/json'};
     if (body) headers['Content-Type']='application/json';
     if (auth) { const device=await prepareIdentity(); headers['X-Device-Id']=device.deviceId; headers.Authorization=`Bearer ${device.deviceSecret}`; }
     const controller=new AbortController();
     let timer;
     try {
-      const timeout=new Promise((_,reject) => { timer=setTimeout(() => { controller.abort(); reject(issue('timeout')); },TIMEOUT_MS); });
+      const timeout=new Promise((_,reject) => { timer=setTimeout(() => { controller.abort(); reject(issue('timeout')); },Math.min(TIMEOUT_MS,Math.max(1000,Number(limit) || TIMEOUT_MS))); });
       const operation=(async () => {
         const response=await fetch(base()+path,{method,headers,credentials:'same-origin',signal:controller.signal,...(body ? {body:JSON.stringify(body)} : {})});
         let data;
@@ -224,7 +227,7 @@
     return state.startup;
   }
   async function recover() {
-    try { const ok=await flushQueue(); if (isMounted()) await loadBoard(); return ok; } catch { return false; }
+    try { const ok=await flushQueue(); if (isVisible()) await loadBoard(); return ok; } catch { return false; }
   }
   function friendly(error,forName=false) {
     if (error?.code === 'storage_unavailable') return '浏览器暂时无法记住你的身份，请允许保存网站数据后重试。';
@@ -270,7 +273,7 @@
   // Each browser sees each week's award ceremony once, the first time the leaderboard opens in the new week.
   function maybeCeremony() {
     const week=state.lastWeek;
-    if (!week?.entries.length || !isMounted() || document.visibilityState === 'hidden') return;
+    if (!week?.entries.length || !isVisible()) return;
     let seen='';
     try { seen=localStorage.getItem(CEREMONY_KEY) || ''; } catch { return; }
     if (seen === week.weekStart) return;
@@ -287,7 +290,7 @@
   }
   // Refresh the ranking list in place, without a loading state; failures keep the last list.
   function refreshList() {
-    if (state.refreshing || !isMounted() || state.status !== 'ready' || !state.identity) return state.refreshing || Promise.resolve(false);
+    if (state.refreshing || !isVisible() || state.status !== 'ready' || !state.identity) return state.refreshing || Promise.resolve(false);
     const token=state.request, period=state.period;
     state.refreshing=(async () => {
       const board=await request(`/leaderboard?period=${period}&deviceId=${encodeURIComponent(state.identity.deviceId)}`);
@@ -306,6 +309,7 @@
     try {
       await ensureRegistered();
       await flushQueue();
+      if (token !== state.request) return false;
       const [profileReply,board]=await Promise.all([
         request('/profile',{auth:true}),
         request(`/leaderboard?period=${period}&deviceId=${encodeURIComponent(state.identity.deviceId)}`),
@@ -352,16 +356,16 @@
     const stats=state.stats, info=levelInfo(stats?.xp || 0), me=state.status === 'ready' ? state.board?.me : null;
     const percent=Math.round(Math.min(1,Math.max(0,info.progress))*100);
     const confirm=state.confirmName ? `<div class="nc-confirm" role="alertdialog" aria-labelledby="nc-confirm-text"><p id="nc-confirm-text">已有学习者叫「${escapeHTML(state.confirmName)}」。同名会视为同一个人，经验和排名合并计算。这是你吗？</p><div>${button('confirm-name','是我，使用这个名字','nc-primary')}${button('cancel-confirm','换个名字','nc-quiet')}</div></div>` : '';
-    const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
+    const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" enterkeyhint="done" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
     return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div><div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '总榜'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
   }
   function render() {
     const container=state.container;
-    if (!container || container.isConnected === false) return;
+    if (!isMounted() || container.closest?.('[hidden]')) return;
     const focused=document.activeElement;
     const focusId=container.contains?.(focused) ? focused?.id : null;
     const selection=focusId === 'nc-nickname' ? [focused.selectionStart,focused.selectionEnd] : null;
-    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
+    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。联机翻翻乐每抢到一对 +10 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
     if (focusId) {
       const next=container.querySelector?.('#'+focusId);
       next?.focus?.({preventScroll:true});
@@ -396,6 +400,13 @@
     });
     container.addEventListener('submit',event => { if (event.target.id === 'nc-name-form') { event.preventDefault(); void saveNickname(); } });
     container.addEventListener('keydown',event => {
+      // Esc leaves the nickname editor without saving and returns to the edit button.
+      if (event.key === 'Escape' && state.editing && !state.saving && event.target.closest?.('#nc-name-form')) {
+        event.preventDefault(); event.stopPropagation();
+        state.editing=false; state.nameError=''; state.confirmName=''; render();
+        container.querySelector?.('[data-nc-action="edit"]')?.focus?.({preventScroll:true});
+        return;
+      }
       if (event.target.getAttribute?.('role') !== 'tab' || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
       event.preventDefault();
       const next=event.key === 'Home' ? 'week' : event.key === 'End' ? 'all' : state.period === 'week' ? 'all' : 'week';
@@ -431,7 +442,8 @@
     try { await prepareIdentity(); }
     catch (error) { state.status='error'; state.error=friendly(error); render(); return false; }
     // A second mount while the first load is still running reuses it.
-    if (state.status === 'loading' || (state.status === 'ready' && state.board?.period === state.period && Date.now()-state.loadedAt < 30000)) return true;
+    if (state.status === 'loading') return true;
+    if (state.status === 'ready' && state.board?.period === state.period && Date.now()-state.loadedAt < 30000) { maybeCeremony(); return true; }
     return loadBoard();
   }
   // Being on the site earns online XP: one heartbeat a minute while the page is visible.
@@ -466,14 +478,51 @@
       // Persist before the first request; do not upload old practice history.
       enqueueResult(payload);
       const ok=await flushQueue();
-      if (isMounted()) await loadBoard();
+      // Quest and challenge progress changed; honors listeners hear about it once the server agrees.
+      if (ok) void loadHonors(true);
+      if (isVisible()) await loadBoard();
       return ok;
     } catch (error) {
       if (error?.code === 'storage_unavailable') announce('排行榜记录暂时无法保存，练习已完成。');
       return false;
     }
   }
+  // Authenticated access for other features (联机翻翻乐). Unlike the calls above it rejects, with error.code set.
+  async function publicRequest(path,options={}) {
+    if (typeof path !== 'string' || !/^\/[\w\-/]*(\?[\w=&%.-]*)?$/.test(path)) throw issue('invalid_request');
+    const {method='GET',body,auth=true,timeout}=options || {};
+    if (!['GET','POST','PATCH'].includes(method)) throw issue('invalid_request');
+    if (auth) await ensureRegistered();
+    return request(path,{method,body,auth,timeout});
+  }
+  async function currentProfile() {
+    const profile=await ensureRegistered();
+    return {id:profile.id,nickname:profile.nickname};
+  }
+  // Quests, the weekly challenge, trophies and achievements. Cached briefly; resolves to the latest known data or null.
+  function loadHonors(force=false) {
+    if (state.honorsLoad) {
+      if (force) state.honorsDirty=true;
+      return state.honorsLoad;
+    }
+    if (!force && state.honors && Date.now()-state.honorsAt < HONORS_TTL_MS) return Promise.resolve(state.honors);
+    // Changes during a request need one follow-up, shared by all waiting consumers.
+    const load=(async () => {
+      await ensureRegistered();
+      do {
+        state.honorsDirty=false;
+        const data=await request('/honors',{auth:true});
+        if (!data.today || !Array.isArray(data.today.quests) || !Array.isArray(data.achievements) || !Array.isArray(data.weeks)) throw issue('service_unavailable');
+        state.honors=data; state.honorsAt=Date.now();
+        try { window.dispatchEvent(new CustomEvent('norskhonorschange',{detail:data})); } catch { /* Listeners are optional. */ }
+      } while (state.honorsDirty);
+      return state.honors;
+    })().catch(() => state.honors).finally(() => { state.honorsLoad=null; });
+    state.honorsLoad=load;
+    return load;
+  }
+  function honors(options) { return loadHonors(options?.force === true); }
 
-  window.NorskCommunity = {init:safe(initialize),mount:safe(mount),startPresence:safe(startPresence),submitResult:safe(submitResult),flush:safe(recover),levelInfo};
+  window.NorskCommunity = {init:safe(initialize),mount:safe(mount),startPresence:safe(startPresence),submitResult:safe(submitResult),flush:safe(recover),levelInfo,request:publicRequest,profile:currentProfile,honors};
   window.dispatchEvent(new Event('norskcommunityready'));
 })();
