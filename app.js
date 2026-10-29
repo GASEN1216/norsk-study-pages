@@ -1,10 +1,10 @@
-import {createDataLoader} from './loader.mjs?v=20261029-straight-brand';
-import {createReadingLibrary} from './reading-library.mjs?v=20261029-straight-brand';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261029-straight-brand';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261029-straight-brand';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261029-straight-brand';
+import {createDataLoader} from './loader.mjs?v=20261029-english-interview';
+import {createReadingLibrary} from './reading-library.mjs?v=20261029-english-interview';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261029-english-interview';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261029-english-interview';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261029-english-interview';
 
-const VERSION = '20261029-straight-brand';
+const VERSION = '20261029-english-interview';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -18,7 +18,7 @@ const state = {
   expanded: new Set(), data: {}, words: [], basicItems: [], pdfRun: 0, pdfCache: new Map(), renderTask: null,
   audioRange: null, audioToken: 0, pronunciationToken: 0, toastTimer: null, ready: false, pdfScale: 1,
   wordRate: 1, speechItem: null, viewRun: 0, practiceInitialized: false, compareInitialized: false, audioError: false,
-  readMode: 'pdf', currentEntryId: '', endedToken: -1, moreTab: 'honors', moreInitialized: false, pendingDuel: null
+  readMode: 'pdf', currentEntryId: '', endedToken: -1, moreTab: 'home', moreInitialized: false, pendingDuel: null
 };
 const loadData = createDataLoader(state.data, {version:VERSION});
 const featureLoads = new Map();
@@ -328,7 +328,7 @@ window.addEventListener('norskhonorschange',event => {
 });
 function setMoreTab(tab) {
   state.moreTab = tab;
-  if (state.view === 'more') history.replaceState(null,'',`#more/${tab}`);
+  if (state.view === 'more') history.replaceState(null,'',tab === 'home' ? '#more' : `#more/${tab}`);
   renderTOC();
 }
 async function prepareView(view,viewRun = state.viewRun) {
@@ -366,7 +366,7 @@ async function prepareView(view,viewRun = state.viewRun) {
   if (view === 'more') {
     await loadFeature('more');
     if (!state.moreInitialized) {
-      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),version:VERSION});
+      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION});
       state.moreInitialized = true;
     }
   }
@@ -403,7 +403,7 @@ renderRateOptions();
 $$('[data-action="vocab-sort"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.sort === (state.vocabSort || 'easy'))));
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','一段专注的练习时间']};
 labels.compare = ['LES SIDE OM SIDE · 双页对照','双页对照','选择书籍，各自翻阅'];
-labels.more = ['MER · 荣誉与听力','更多','荣誉、播放列表与学习工具'];
+labels.more = ['MER · 学习工具','更多','A-team 面试、荣誉与播放列表'];
 
 function safeURL(path) {
   if (!path) return '';
@@ -515,6 +515,7 @@ function closeSidebar() {
 }
 function openSidebar() {
   sidebarOpen = true;
+  showHeader();
   $('#sidebar').inert = false;
   // The page behind the drawer is out of reach while it is open, for touch, Tab and screen readers alike.
   for (const behind of $$('.site-header, #main, #audio-dock')) behind.inert = true;
@@ -586,6 +587,8 @@ function rememberComparePositions(positions) {
 }
 async function setView(view, updateHash = true) {
   if (!labels[view]) view = 'reading';
+  // Tapping 更多 while a tool is open returns to the shelf instead of staying inside it.
+  if (view === 'more' && state.view === 'more' && updateHash) state.moreTab = 'home';
   const run = ++state.viewRun;
   clearTimeout(searchTimer);
   clearListPrefetch();
@@ -628,11 +631,12 @@ async function setView(view, updateHash = true) {
   $('#search-button').setAttribute('aria-label',activeSearch().value ? '关闭搜索' : '搜索');
   renderStudyPicker();
   $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : view === 'more' ? '更多' : '学习目录';
-  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? (state.wordbookActive ? '自己整理的单词和句子' : `${activeSeriesTitle()} · 教材词汇`) : view === 'practice' ? '选一组词语，每天复习一点。' : view === 'more' ? '徽章、奖杯与随身听。' : '循着目录，慢慢学会。';
+  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? (state.wordbookActive ? '自己整理的单词和句子' : `${activeSeriesTitle()} · 教材词汇`) : view === 'practice' ? '选一组词语，每天复习一点。' : view === 'more' ? '面试练习、荣誉与随身听。' : '循着目录，慢慢学会。';
   $('#content-title').textContent = labels[view][1];
-  const hash = view === 'more' ? `#more/${state.moreTab}` : `#${view}`;
+  const hash = view === 'more' ? (state.moreTab === 'home' ? '#more' : `#more/${state.moreTab}`) : `#${view}`;
   if (updateHash && location.hash !== hash) history.replaceState(null,'',hash);
   window.scrollTo(0,0);
+  resetHeaderScroll();
   closeSidebar();
   if (state.ready) {
     if (view === 'vocabulary' && !state.wordbookActive && (!state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId())) $('#vocab-rows').innerHTML = loading('正在载入词表目录…');
@@ -667,7 +671,7 @@ function renderTOC() {
   const toc = $('#toc');
   if (state.view === 'compare') return;
   if (state.view === 'practice') { toc.innerHTML = window.NorskPractice?.renderTOC() || ''; return; }
-  if (state.view === 'more') { toc.innerHTML = window.NorskMore?.renderTOC(state.moreTab) || ''; return; }
+  if (state.view === 'more') { toc.innerHTML = ''; return; }
   if (state.view === 'vocabulary' && state.wordbookActive) { toc.innerHTML = window.NorskWordbook?.renderTOC() || ''; return; }
   if (state.view === 'basics') {
     const categories = state.data.basics?.categories || [];
@@ -773,7 +777,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261029-straight-brand').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261029-english-interview').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -796,6 +800,10 @@ async function renderPDF() {
   const layoutKey = [state.book,state.page,$('#zoom-select').value,stage.clientWidth,stage.clientHeight,window.devicePixelRatio || 1].join(':');
   if (state.pdfLayoutKey === layoutKey) return;
   state.pdfLayoutKey = layoutKey;
+  // The same page laid out again (a rotation, the phone's top bar leaving) keeps the reader's place inside the page.
+  const viewKey = [state.book,state.page,$('#zoom-select').value].join(':');
+  const keepPlace = state.pdfViewKey === viewKey;
+  const previousTop = stage.scrollTop, previousLeft = stage.scrollLeft;
   const run = ++state.pdfRun;
   if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask = null; }
   const part = documentPart(state.page,state.book);
@@ -831,8 +839,10 @@ async function renderPDF() {
     state.renderTask = null;
     $('#pdf-message').hidden = true;
     canvas.hidden = false;
-    stage.scrollTop = 0;
-    stage.scrollLeft = 0;
+    state.pdfViewKey = viewKey;
+    quietHeaderScroll();
+    stage.scrollTop = keepPlace ? previousTop : 0;
+    stage.scrollLeft = keepPlace ? previousLeft : 0;
   } catch(error) {
     if (run !== state.pdfRun || error?.name === 'RenderingCancelledException') return;
     state.pdfLayoutKey = '';
@@ -915,9 +925,16 @@ function vocabularySelection() {
   }
   return {title:findEntry(state.vocabularyId,vocabularyBook())?.entry?.title || '单词表',words:[]};
 }
-function phonetics(item) {
-  const syllables = Array.isArray(item.syllables) ? item.syllables.join(' · ') : item.syllables;
-  return `<div class="word-phonetics">${syllables ? `<span class="syllables" title="音节">${escapeHTML(syllables)}</span>` : ''}${item.ipa ? `<span class="ipa" title="国际音标">${escapeHTML(item.ipa)}</span>` : ''}</div>`;
+function wordIPA(item) {
+  const ipa = str(item.ipa).trim();
+  if (!ipa) return '';
+  const syllables = Array.isArray(item.syllables) ? item.syllables.join(' · ') : str(item.syllables).trim();
+  const title = syllables ? `国际音标 · 音节 ${syllables}` : '国际音标';
+  return `<span class="word-ipa" title="${escapeHTML(title)}">${escapeHTML(ipa)}</span>`;
+}
+function wordMeaning(item) {
+  const english = str(item.english || item.englishGloss).trim();
+  return `<p class="word-meaning${english ? ' has-english' : ''}"><span class="word-meaning-zh">${escapeHTML(item.meaning)}</span>${english ? `<span class="word-english" lang="en">${escapeHTML(english)}</span>` : ''}</p>`;
 }
 function wordRateControl(word = '') {
   return `<label class="word-rate-control${word ? ' compact' : ''}"><span${word ? ' class="sr-only"' : ''}>读速</span><select data-word-rate aria-label="${escapeHTML(word ? `${word} 的读速` : '单词读速')}" title="单词读速，所有单词同步">${wordRates.map(rate => `<option value="${rate}"${rate === state.wordRate ? ' selected' : ''}>${rate}×</option>`).join('')}</select></label>`;
@@ -975,12 +992,12 @@ async function renderVocabulary() {
   const selection = vocabularySelection();
   const query = $('#vocab-search').value.trim().toLocaleLowerCase('nb');
   const order = state.vocabSort || 'easy';
-  state.words = selection.words.filter(word => !query || [word.word,word.meaning,word.sentence,word.example,word.usage,word.syllables,word.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
+  state.words = selection.words.filter(word => !query || [word.word,word.meaning,word.english,word.englishGloss,word.sentence,word.example,word.usage,word.syllables,word.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
   state.words.sort((a,b) => order === 'alpha' ? compareWords(str(a.word),str(b.word)) : ((Number(a.difficulty) || 3) - (Number(b.difficulty) || 3)) * (order === 'hard' ? -1 : 1) || compareWords(str(a.word),str(b.word)));
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
-  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div><p class="word-meaning">${escapeHTML(word.meaning)}</p><div class="word-details">${phonetics(word)}${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
+  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span>${wordIPA(word)}<button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div>${wordMeaning(word)}<div class="word-details">${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
   prefetchListWords($('#vocab-rows'));
 }
 function renderBasics() {
@@ -996,10 +1013,10 @@ function renderBasics() {
   $('#basics-description').textContent = category.description || '';
   $('#basics-description').hidden = !category.description;
   const query = $('#basics-search').value.trim().toLocaleLowerCase('nb');
-  state.basicItems = (category.items || []).filter(item => !query || [item.word,item.meaning,item.note,item.example,item.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
+  state.basicItems = (category.items || []).filter(item => !query || [item.word,item.meaning,item.english,item.englishGloss,item.note,item.example,item.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
   // Categories with sentences or long compounds get one card per row on phones, so words do not break mid-word.
   $('#basics-items').classList.toggle('is-wide',(category.items || []).some(item => str(item.word).length > 16 || str(item.word).split(/\s+/).some(part => part.length > 10)));
-  $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button></div><p class="word-meaning">${escapeHTML(item.meaning)}</p>${phonetics(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
+  $('#basics-items').innerHTML = state.basicItems.length ? state.basicItems.map((item,index) => `<article class="basic-card"><div class="word-topline"><span class="word-head"><span class="word-spelling" lang="nb">${escapeHTML(item.word)}</span>${wordIPA(item)}</span><button class="word-pronounce" data-action="pronounce" data-kind="basics" data-index="${index}" aria-label="播放 ${escapeHTML(item.word)} 的读音">${icon('volume')}</button></div>${wordMeaning(item)}${item.note ? `<p class="basic-note">${escapeHTML(item.note)}</p>` : ''}${item.example ? `<p class="basic-example" lang="nb">${escapeHTML(item.example)}</p>` : ''}</article>`).join('') : `<div style="grid-column:1/-1">${empty('没有找到匹配内容','试试其他单词或中文释义。')}</div>`;
   prefetchListWords($('#basics-items'));
 }
 
@@ -1164,6 +1181,7 @@ function playWordBuffer(buffer) {
   source.start();
 }
 function pauseOtherAudio() {
+  window.NorskMore?.stopAudio?.();
   window.NorskReader?.cancelTrackNavigation?.();
   window.NorskReader?.stopSlice?.();
   ++state.pronunciationToken;
@@ -1582,7 +1600,7 @@ document.addEventListener('keydown',event => {
 });
 function viewFromHash() {
   const [view,tab] = location.hash.slice(1).split('/');
-  if (view === 'more' && tab) state.moreTab = tab;
+  if (view === 'more') state.moreTab = tab && tab !== 'home' ? tab : 'home';
   return view;
 }
 window.addEventListener('hashchange',() => setView(viewFromHash(),false));
@@ -1598,6 +1616,56 @@ if ('ResizeObserver' in window) new ResizeObserver(() => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => { if (state.ready && state.view === 'reading' && ['fit','width'].includes($('#zoom-select').value)) renderPDF(); },120);
 }).observe($('#pdf-stage'));
+
+// On a phone the top bar steps out of the way while the content is scrolled down, and returns as soon as it is scrolled up
+// again (or the page is back at the top). The reader scrolls inside its own panes, so those report their scrolling as well.
+const HEADER_PHONE = '(max-width: 720px)';
+const phoneHeader = window.matchMedia(HEADER_PHONE);
+let headerHidden = false;
+let headerScrollQuiet = 0;
+const headerScrollResets = [];
+function setHeaderHidden(hidden) {
+  const next = Boolean(hidden) && phoneHeader.matches && !document.body.classList.contains('reader-focus');
+  if (next === headerHidden) return;
+  headerHidden = next;
+  document.body.classList.toggle('header-hidden',next);
+}
+function showHeader() { setHeaderHidden(false); }
+// Scrolls the page makes by itself (a new page, a re-render) are not the reader moving, so they leave the bar alone.
+function quietHeaderScroll() { headerScrollQuiet = Date.now() + 260; }
+function resetHeaderScroll() {
+  showHeader();
+  quietHeaderScroll();
+  for (const reset of headerScrollResets) reset();
+}
+function watchHeaderScroll(target,readTop,edge,room,ownPage = false) {
+  let last = readTop(), travel = 0;
+  headerScrollResets.push(() => { last = readTop(); travel = 0; });
+  target.addEventListener('scroll',() => {
+    const top = readTop();
+    const delta = top - last;
+    last = top;
+    // Slow drags arrive as many tiny steps, so the direction is measured over a little travel rather than one event.
+    if (delta > 0) travel = travel > 0 ? travel + delta : delta;
+    else if (delta < 0) travel = travel < 0 ? travel + delta : delta;
+    if (!phoneHeader.matches) { setHeaderHidden(false); return; }
+    if (Date.now() < headerScrollQuiet) return;
+    // Outside the reader the bar is sticky, so hiding it only makes sense once its own height has scrolled away.
+    if (ownPage && !(document.documentElement.scrollHeight > window.innerHeight + 4)) return;
+    if (top <= 2) { setHeaderHidden(false); return; }
+    // The reader hands the bar's height to its own pane, so it only steps aside while there is that much left to scroll:
+    // otherwise the pane would grow past its content and snap back to the top.
+    if (travel > 10 && top > edge() && room() > 0) { travel = 0; setHeaderHidden(true); }
+    else if (travel < -10) { travel = 0; setHeaderHidden(false); }
+  },{passive:true});
+}
+const headerSize = () => $('.site-header')?.offsetHeight || 0;
+const headerEdge = () => headerSize() + 8;
+const paneRoom = pane => () => pane.scrollHeight - pane.clientHeight - pane.scrollTop - headerSize() - 24;
+watchHeaderScroll(window,() => window.scrollY || document.documentElement.scrollTop || 0,headerEdge,() => 1,true);
+watchHeaderScroll($('#pdf-stage'),() => $('#pdf-stage').scrollTop,() => 24,paneRoom($('#pdf-stage')));
+watchHeaderScroll($('#reader-text'),() => $('#reader-text').scrollTop,() => 24,paneRoom($('#reader-text')));
+phoneHeader.addEventListener?.('change',() => { if (!phoneHeader.matches) showHeader(); });
 
 async function loadAudioMetadata() {
   try { await loadData('audio'); state.audioError = false; }

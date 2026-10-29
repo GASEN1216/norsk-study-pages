@@ -1,13 +1,17 @@
-/* 更多: honors (weekly challenge, daily quests, season badges, trophies, achievements) and the
-   lesson playlist. Honors are computed by the community service per learner; artwork is static. */
+/* 更多: a small shelf of tools — interview practice, the lesson playlist and the honors record.
+   Honors are computed by the community service per learner; artwork is static. */
 (() => {
   'use strict';
   if (window.NorskMore) return;
   const SEEN_KEY = 'norsk-honors-seen-v1';
-  const TABS = {honors:{title:'荣誉',note:'徽章、奖杯与成就'},playlist:{title:'播放列表',note:'课文原录音随身听'}};
+  const TOOLS = {
+    interview:{title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
+    playlist:{title:'播放列表',note:'把课文录音排成清单，锁屏也能听',meta:'随身听',icon:'<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="12" width="5" height="9" rx="2"/><rect x="17" y="12" width="5" height="9" rx="2"/>'},
+    honors:{title:'荣誉',note:'赛季徽章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'}
+  };
   const DAYS = ['一','二','三','四','五','六','日'];
   const RANKS = {1:'金杯',2:'银杯',3:'铜杯'};
-  const state = {deps:{},root:null,tab:'honors',visible:false,honors:null,status:'idle',request:0,dialog:null,revealing:false,queue:[]};
+  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,renderRun:0};
   const $ = (selector,root = document) => root.querySelector(selector);
   const e = value => state.deps.escapeHTML ? state.deps.escapeHTML(value) : String(value ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const art = name => `assets/honors/${name}.webp`;
@@ -42,13 +46,42 @@
       changed = state.status !== status;
       state.status = status;
     }
-    if (changed && state.visible && state.tab === 'honors') render();
+    if (changed && state.visible) {
+      if (state.tab === 'honors') render();
+      else if (state.tab === 'home') updateWeek();
+    }
     state.deps.setTab && state.visible && state.deps.setTab(state.tab);
   }
   window.addEventListener('norskhonorschange',event => {
     if (event.detail && event.detail.week) { state.honors = event.detail; state.status = 'ready'; }
-    if (state.visible && state.tab === 'honors') render();
+    if (!state.visible) return;
+    if (state.tab === 'honors') render();
+    else if (state.tab === 'home') updateWeek();
   });
+
+  /* ---------- The shelf ---------- */
+  function weekMarkup() {
+    const week = state.honors?.week, c = week?.challenge;
+    if (!c) return '';
+    const value = c.done ? 100 : pct(c.progress,c.target);
+    return `<button type="button" class="mh-week${c.done ? ' is-done' : ''}" data-more="tab" data-tab="honors">
+      ${img(weekArt(week.n),'','mh-week-art')}
+      <span class="mh-week-body"><small>本周挑战 · 第 ${e(week.n)} 周</small><strong><span lang="nb">${e(c.theme || '')}</span> ${e(c.themeZh || '')}</strong><span class="mh-week-progress"><span class="mh-week-bar" aria-hidden="true"><i style="width:${value}%"></i></span><b>${c.done ? '完成' : `${number(Math.min(c.progress,c.target))}/${number(c.target)}`}</b></span></span>
+      <svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+    </button>`;
+  }
+  function updateWeek() {
+    const slot = state.root && $('#mh-hub-week',state.root);
+    if (slot) slot.innerHTML = weekMarkup();
+  }
+  function hubMarkup() {
+    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">面试练习、随身听和这一季的荣誉，都在这里。</p></header>
+      <div class="mh-tools">${Object.entries(TOOLS).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
+      <div id="mh-hub-week">${weekMarkup()}</div></div>`;
+  }
+  function backBar() {
+    return `<div class="mh-tool-bar"><button type="button" class="mh-back" data-more="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>更多</span></button></div>`;
+  }
 
   /* ---------- Honors page ---------- */
   function ring(progress,target,done) {
@@ -71,7 +104,7 @@
       return `<section class="mh-hero" aria-labelledby="mh-week-title">
         <div class="mh-hero-art">${img(weekArt(pending ? 1 : last),'赛季徽章','mh-hero-badge')}</div>
         <div class="mh-hero-body"><p class="mh-kicker">${pending ? '赛季尚未开始' : `${e(last)} 周赛季已结束`}</p>
-          <h2 id="mh-week-title">${pending ? '每周一个挪威文化主题' : '本赛季已结束'}</h2>
+          <h2 id="mh-week-title" tabindex="-1">${pending ? '每周一个挪威文化主题' : '本赛季已结束'}</h2>
           <p class="mh-note">${pending ? `赛季将于 ${e(h.season?.start || '')} 开始。` : '已获得的徽章、全勤奖章、奖杯和成就可在下方查看。'}</p>
           <div class="mh-week-row"><ol class="mh-days" aria-label="本周练习天数">${days}</ol>
             <div class="mh-perfect"><span>本周已练 ${(week.days || []).filter(Boolean).length} 天<small>${e(weekRange(week.weekStart))}</small></span></div>
@@ -83,7 +116,7 @@
       <div class="mh-hero-art${c.done ? ' is-done' : ''}">${ring(c.progress,c.target,c.done)}${img(weekArt(week.n),`第 ${week.n} 周徽章 ${c.theme || ''}`,'mh-hero-badge')}</div>
       <div class="mh-hero-body">
         <p class="mh-kicker"><span class="mh-kicker-nb">UKENS UTFORDRING · </span>第 ${e(week.n)} / ${e(h.season?.weeks || 20)} 周 · <span class="mh-nowrap">${e(weekRange(week.weekStart))}</span></p>
-        <h2 id="mh-week-title"><span lang="nb">${e(c.theme || '')}</span> ${e(c.themeZh || '')}</h2>
+        <h2 id="mh-week-title" tabindex="-1"><span lang="nb">${e(c.theme || '')}</span> ${e(c.themeZh || '')}</h2>
         ${c.note ? `<p class="mh-note">${e(c.note)}</p>` : ''}
         <div class="mh-goal"><span>${e(c.title || '本周挑战')}</span><strong>${c.done ? '已完成' : `${number(Math.min(c.progress,c.target))} / ${number(c.target)}`}</strong></div>
         ${bar(c.progress,c.target,c.done)}
@@ -140,21 +173,78 @@
       <section class="mh-section" aria-labelledby="mh-trophy-title"><div class="mh-panel-head"><h3 id="mh-trophy-title">奖杯柜</h3><span>每周排行榜前三名</span></div>${trophyShelf(h)}</section>
       <section class="mh-section" aria-labelledby="mh-ach-title"><div class="mh-panel-head"><h3 id="mh-ach-title">成就</h3><span>长期积累的里程碑</span></div><ol class="mh-achievements">${achievementGrid(h)}</ol></section>`;
   }
-  function tabsMarkup() {
-    return `<div class="mh-tabs" role="tablist" aria-label="更多">${Object.entries(TABS).map(([key,tab]) => `<button type="button" role="tab" data-more="tab" data-tab="${key}" aria-selected="${state.tab === key}">${tab.title}</button>`).join('')}</div>`;
+
+  /* ---------- Render ---------- */
+  // The interview module is loaded once and shared by the shelf's picker and its own page.
+  function ensureInterview() {
+    if (state.interview) return Promise.resolve(state.interview);
+    if (!state.interviewLoading) {
+      state.interviewLoading = import(`./interview.mjs${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`).then(module => {
+        state.interview = module.createInterview({version:state.deps.version,stopAudio:() => state.deps.stopAudio?.(),onExit:closeInterview,onStart:openInterviewSession});
+        return state.interview;
+      }).catch(error => { state.interviewLoading = null; throw error; });
+    }
+    return state.interviewLoading;
+  }
+  function pickerLayer() {
+    let layer = document.getElementById?.('mh-interview-picker');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'mh-interview-picker';
+      layer.className = 'mh-interview-picker';
+      document.body.append(layer);
+    }
+    return layer;
+  }
+  // The picker floats over the shelf, the way practice opens its range dialog over the mode cards.
+  function openPicker() {
+    ensureInterview().then(interview => {
+      if (!state.visible || state.tab !== 'home') return;
+      interview.openPicker();
+      interview.mount(pickerLayer());
+    }).catch(() => state.deps.notify?.('面试暂时无法载入，请检查网络后重试。'));
+  }
+  function closeInterview() {
+    const layer = document.getElementById?.('mh-interview-picker');
+    show('home');
+    state.deps.setTab?.('home');
+    layer?.remove();
+    state.root?.querySelector('.mh-tools [data-tab="interview"]')?.focus?.({preventScroll:true});
+  }
+  function openInterviewSession() {
+    show('interview');
+    state.deps.setTab?.('interview');
+    document.getElementById?.('mh-interview-picker')?.remove();
   }
   function render() {
     if (!state.root || !state.visible) return;
+    const run = ++state.renderRun;
+    if (state.tab !== 'interview') state.interview?.unmount();
+    if (state.tab === 'home') {
+      state.root.innerHTML = hubMarkup();
+      return;
+    }
+    if (state.tab === 'interview') {
+      // The session bar carries its own 结束, as practice does, so the page needs no second way back.
+      state.root.innerHTML = `<div class="mh-app"><div class="mh-interview" id="mh-panel-interview"></div></div>`;
+      const mount = () => { const slot = $('.mh-interview',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'interview') state.interview.mount(slot); };
+      if (state.interview) { mount(); return; }
+      ensureInterview().then(mount).catch(() => {
+        const slot = $('.mh-interview',state.root);
+        if (run === state.renderRun && slot && state.visible && state.tab === 'interview') slot.innerHTML = `${backBar()}<div class="mh-offline"><p>问题卡暂时无法载入，请检查网络后重试。</p><button type="button" class="mh-button" data-more="interview-retry">重新载入</button></div>`;
+      });
+      return;
+    }
     if (state.tab === 'playlist') {
-      state.root.innerHTML = `<div class="mh-app">${tabsMarkup()}<div class="mh-playlist"></div></div>`;
-      state.deps.reader().then(reader => { const slot = $('.mh-playlist',state.root); if (slot && state.tab === 'playlist') reader.renderPlaylistPage(slot); }).catch(() => {
+      state.root.innerHTML = `<div class="mh-app">${backBar()}<div class="mh-playlist"></div></div>`;
+      state.deps.reader().then(reader => { const slot = $('.mh-playlist',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'playlist') reader.renderPlaylistPage(slot); }).catch(() => {
         const slot = $('.mh-playlist',state.root);
-        if (slot) slot.innerHTML = '<div class="mh-offline"><p>播放列表暂时无法载入，请检查网络后重试。</p></div>';
+        if (run === state.renderRun && slot && state.visible && state.tab === 'playlist') slot.innerHTML = '<div class="mh-offline"><p>播放列表暂时无法载入，请检查网络后重试。</p></div>';
       });
       return;
     }
     const scroll = window.scrollY;
-    state.root.innerHTML = `<div class="mh-app">${tabsMarkup()}<div class="mh-honors">${honorsMarkup()}</div></div>`;
+    state.root.innerHTML = `<div class="mh-app">${backBar()}<div class="mh-honors">${honorsMarkup()}</div></div>`;
     if (Math.abs(window.scrollY-scroll) > 2) window.scrollTo(0,scroll);
   }
 
@@ -239,24 +329,25 @@
   window.addEventListener('norskduelclose',() => { if (!state.revealing) nextReveal(); });
 
   /* ---------- Shell ---------- */
-  function renderTOC(tab = state.tab) {
-    const h = state.honors;
-    const earned = h ? (h.weeks || []).filter(w => w.challenge?.done).length+(h.trophies || []).length : 0;
-    const counts = {honors:earned ? String(earned) : '',playlist:''};
-    return Object.entries(TABS).map(([key,item],index) => `<button class="toc-basic ${tab === key ? 'selected' : ''}" data-more="tab" data-tab="${key}" ${tab === key ? 'aria-current="true"' : ''}><span class="category-index">${String(index+1).padStart(2,'0')}</span><span>${item.title}<small class="category-level">${item.note}</small></span><span class="category-count">${e(counts[key])}</span></button>`).join('');
-  }
   function onClick(event) {
     const target = event.target.closest('[data-more]');
     if (!target) return;
     const action = target.dataset.more;
     if (action === 'tab') {
-      const inPage = !!target.closest('.mh-tabs');
-      show(target.dataset.tab); state.deps.setTab?.(state.tab);
-      if (inPage) state.root?.querySelector(`.mh-tabs [data-tab="${state.tab}"]`)?.focus({preventScroll:true});
+      if (target.dataset.tab === 'interview') { openPicker(); return; }
+      show(target.dataset.tab,'.mh-back');
+      state.deps.setTab?.(state.tab);
       document.querySelector('#sidebar.open') && document.querySelector('#close-sidebar')?.click();
       return;
     }
+    if (action === 'home') {
+      const from = state.tab;
+      show('home',`[data-tab="${from}"]`);
+      state.deps.setTab?.('home');
+      return;
+    }
     if (!state.root?.contains(target)) return;
+    if (action === 'interview-retry') render();
     if (action === 'retry') { state.status = 'loading'; render(); load(true); }
     if (action === 'badge') openBadge(target.dataset.week);
     if (action === 'duel') state.deps.openDuel?.();
@@ -267,24 +358,19 @@
     if (state.initialized) return;
     state.initialized = true;
     document.addEventListener('click',onClick);
-    // The in-page tabs behave as a tab list: arrows, Home and End switch between 荣誉 and 播放列表.
-    document.addEventListener('keydown',event => {
-      const tab = event.target.closest?.('.mh-tabs [role="tab"]');
-      if (!tab || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
-      const tabs = [...tab.parentElement.querySelectorAll('[role="tab"]')], at = tabs.indexOf(tab);
-      const next = event.key === 'Home' ? tabs[0] : event.key === 'End' ? tabs.at(-1) : tabs[(at+(event.key === 'ArrowRight' ? 1 : -1)+tabs.length) % tabs.length];
-      event.preventDefault();
-      if (next && next !== tab) next.click();
-    });
   }
-  function show(tab = state.tab) {
-    state.tab = TABS[tab] ? tab : 'honors';
+  function show(tab = state.tab,focus = '') {
+    const next = tab === 'home' || TOOLS[tab] ? tab : 'home', changed = state.visible && state.tab !== next;
+    state.tab = next;
     state.visible = true;
     render();
-    if (state.tab === 'honors') load();
+    if (changed) window.scrollTo(0,0);
+    if (next === 'honors' || next === 'home') load();
+    if (focus) state.root?.querySelector(focus)?.focus({preventScroll:true});
   }
-  function hide() { state.visible = false; state.dialog?.close?.(); }
+  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.dialog?.close?.(); }
+  function stopAudio() { state.interview?.stopAudio(); }
 
-  window.NorskMore = {init,show,hide,renderTOC,reveal};
+  window.NorskMore = {init,show,hide,reveal,stopAudio};
   window.dispatchEvent(new Event('norskmoreready'));
 })();

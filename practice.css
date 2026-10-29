@@ -391,3 +391,19 @@ body[data-view="practice"]:has(.pr-session-bar) .main{padding-top:16px}
 .pr-storage-warning{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;line-height:1.6}.pr-storage-warning>button{margin-left:auto}
 /* 2026-10-28: on phones every match tile has room for two lines, so the two columns stay in step when a meaning wraps. */
 @media(max-width:640px){.pr-match-tile{min-height:62px}}
+
+/* 翻面词卡：正面是挪威语和音标，翻过来是中文释义加英文对照。 */
+.pr-flash-english{font:400 20px/1.45 var(--serif,Georgia,serif);color:#5c7063;max-width:100%;overflow-wrap:anywhere}
+.pr-flash-sub-english{display:block;margin-top:5px;font:400 16px/1.4 var(--serif,Georgia,serif);color:#5c7063}
+.pr-card-ipa{font:400 15px/1.4 "Segoe UI",Arial,sans-serif;color:#5c7063;max-width:100%;overflow-wrap:anywhere}
+.pr-card-meaning{display:block}
+/* The word and its IPA wrap together, so a long sentence keeps the speaker at the top right and the IPA under it at full width. */
+.pr-card-word{align-items:flex-start}
+.pr-card-head{flex:0 1 auto;min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:10px}
+.pr-card-english{font:400 16px/1.5 var(--serif,Georgia,serif);color:#5c7063}
+.pr-card-meaning .pr-card-english{display:block;margin-top:2px}
+@media(max-width:720px){
+ .pr-flash-english{font-size:17px}
+ .pr-flash-sub-english{font-size:14px}
+ .pr-card-english{font-size:15px}
+}

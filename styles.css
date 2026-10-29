@@ -391,3 +391,42 @@ body[data-view=reading].audio-open .main{padding-bottom:calc(103px + env(safe-ar
 }
 /* 我的词本 sits below the textbooks in the series menu of the word list. */
 .series-option.is-wordbook{position:relative;margin-top:7px}.series-option.is-wordbook::before{content:"";position:absolute;left:12px;right:12px;top:-4px;border-top:1px solid var(--line)}
+
+/* 单词表卡片：词头与音标同行，中文释义后接英文对照，再下一行是词性与变化。
+   词条数据里的音节仍保留，收进音标的悬停提示，不再重复显示词形。 */
+.word-ipa{font:400 15px/1.35 "Segoe UI","Arial",sans-serif;color:#596e50;letter-spacing:.2px;max-width:100%;overflow-wrap:anywhere}
+.vocab-row .word-topline{align-items:center;gap:10px;flex-wrap:wrap}
+.vocab-row .word-ipa{font-size:17px;position:relative;top:1px;margin-right:2px}
+.vocab-row .word-meaning{margin:11px 0 0}
+.vocab-row .word-english,.word-english{font:400 15px/1.55 var(--serif);color:#596e50;letter-spacing:.2px;overflow-wrap:anywhere}
+.word-english{display:block;margin-top:3px}
+.vocab-row .word-details{margin-top:8px;padding-top:0}
+.vocab-row .word-grammar{color:#7c8a71}
+.basic-card .word-topline{align-items:flex-start;gap:9px;flex-wrap:nowrap}
+/* Word and IPA wrap together, so a long sentence keeps its speaker at the top right instead of on a line of its own. */
+.basic-card .word-head{flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;column-gap:9px;row-gap:2px}
+.basic-card .word-ipa{font-size:14px}
+.basic-card .word-meaning{margin-top:10px}
+.basic-card .word-english{font-size:14px}
+.basic-card .word-pronounce{margin-left:auto}
+@media(max-width:720px){
+ .vocab-row .word-topline{gap:8px}
+ .vocab-row .word-ipa{font-size:15px}
+ .vocab-row .word-meaning{margin-top:9px}
+ .vocab-row .word-english{font-size:15px}
+ .basic-card .word-ipa{font-size:13px}
+ .basic-card .word-english{font-size:13px}
+}
+@media(max-width:380px){
+ .vocab-row .word-topline{row-gap:2px}
+ .vocab-row .word-ipa{font-size:14px}
+}
+/* Phones get the whole screen for what they came for: the top bar slides away while the content moves down and comes back
+   as soon as it moves up again (app.js toggles .header-hidden). The reader scrolls in its own pane, so there the bar also
+   hands its height to the page instead of leaving a gap above it. */
+@media(max-width:720px){
+ .site-header{transition:transform .26s cubic-bezier(.33,.7,.3,1)}
+ body.header-hidden .site-header{transform:translateY(-100%)}
+ body[data-view=reading]:not(.reader-focus) .workspace{transition:height .26s cubic-bezier(.33,.7,.3,1),margin-top .26s cubic-bezier(.33,.7,.3,1)}
+ body[data-view=reading].header-hidden:not(.reader-focus) .workspace{height:100dvh;margin-top:calc(var(--header) * -1)}
+}

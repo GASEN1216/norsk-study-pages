@@ -263,7 +263,7 @@
     if (!existing) return {...word,key,sourceLabels:[label],practiceExamples:examples,practiceTextExamples:textExamples,practiceLearningExamples:learningExamples};
     const merged = {...existing};
     for (const [field,value] of Object.entries(word)) if ((merged[field] == null || merged[field] === '') && value != null) merged[field] = value;
-    for (const field of ['meaning','pos','gender','article']) merged[field] = unique([existing[field],word[field]].flatMap(value => String(value || '').split('；'))).join('；');
+    for (const field of ['meaning','english','pos','gender','article']) merged[field] = unique([existing[field],word[field]].flatMap(value => String(value || '').split('；'))).join('；');
     merged.sourceEntry = unique([existing.sourceEntry,word.sourceEntry]).join('\n');
     merged.sourceLabels = unique([...existing.sourceLabels,label]);
     merged.practiceExamples = unique([...existing.practiceExamples,...examples]);
@@ -704,8 +704,10 @@
   function renderCards(session,item) {
     const key = currentKey(session), done = answered(session), points = answerMap(session)[key];
     const reverse = !!session.cardsReverse, showWord = reverse ? session.flipped : !session.flipped;
-    const main = showWord ? `<span class="pr-flash-word" lang="nb">${e(item.word)}</span>${item.ipa ? `<span class="pr-flash-ipa">${e(item.ipa)}</span>` : ''}` : `<span class="pr-flash-meaning">${e(item.meaning)}</span>`;
-    const sub = session.flipped ? (showWord ? `<span class="pr-flash-sub">${e(item.meaning)}</span>` : `<span class="pr-flash-sub" lang="nb">${e(item.word)}</span>`) : '';
+    const english = String(item.english || item.englishGloss || '').trim();
+    const meaning = `<span class="pr-flash-meaning">${e(item.meaning)}</span>${english ? `<span class="pr-flash-english" lang="en">${e(english)}</span>` : ''}`;
+    const main = showWord ? `<span class="pr-flash-word" lang="nb">${e(item.word)}</span>${item.ipa ? `<span class="pr-flash-ipa">${e(item.ipa)}</span>` : ''}` : meaning;
+    const sub = session.flipped ? (showWord ? `<span class="pr-flash-sub">${e(item.meaning)}${english ? `<span class="pr-flash-sub-english" lang="en">${e(english)}</span>` : ''}</span>` : `<span class="pr-flash-sub" lang="nb">${e(item.word)}</span>`) : '';
     const ratings = done ? `<div class="pr-rated"><span class="pr-rated-chip is-${points}">${e(RATINGS[points])}</span>${button('next','下一张','','pr-primary')}</div>` : `<div class="pr-rating-buttons">${[[0,'不认识','pr-unknown'],[1,'模糊','pr-unsure'],[2,'认识','pr-known']].map(([value,label,kind],index) => button('rate',`${label}<kbd>${index+1}</kbd>`,`data-pr-points="${value}"`,`pr-rating ${kind}`)).join('')}</div>`;
     shell(sessionBar(session)+`<section class="pr-exercise-card pr-cards-card"><button type="button" class="pr-flashcard${session.flipped ? ' is-flipped' : ''}${state.flipAnimation ? ' is-turning' : ''}" data-practice-action="flip" aria-label="翻面" aria-pressed="${session.flipped}">${main}${sub}<span class="pr-flip-mark" aria-hidden="true">${icon('turn')}</span></button><div class="pr-card-tools">${iconButton('previous','left','上一张',session.index && session.phase === 'first' ? '' : 'disabled')}${iconButton('replay','speaker','朗读')}${favoriteButton(key)}${iconButton('card-direction','swap',reverse ? '改为挪威语在正面' : '改为中文在正面',`aria-pressed="${reverse}"`)}</div>${ratings}</section>`);
     state.flipAnimation = false;
@@ -957,7 +959,7 @@
     const genders = {m:'阳性',f:'阴性',n:'中性','f/m':'阴性或阳性','m/f':'阳性或阴性','m/n':'阳性或中性','f/n':'阴性或中性'};
     const gender = plainValue(item.gender).split('；').map(value => genders[value.trim()] || value).join('；');
     const facts = [
-      ['词性',item.pos || item.partOfSpeech],['性别 / 冠词',unique([gender,plainValue(item.article)]).join(' · ')],
+      ['词性',item.pos || item.partOfSpeech],['音节',plainValue(item.syllables)],['性别 / 冠词',unique([gender,plainValue(item.article)]).join(' · ')],
       ['变化形式',plainValue(item.formsExpanded || item.forms || item.inflections || item.conjugation)],['动词变化',verbForms],['语法',plainValue(item.grammar)],
     ].filter(([,value]) => value);
     return facts.length ? `<dl class="pr-word-facts">${facts.map(([label,value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join('')}</dl>` : '';
@@ -967,7 +969,8 @@
     if (!item || !dialog) return;
     const usage = unique([plainValue(item.usage),plainValue(item.note)]);
     const examples = unique([...(item.practiceTextExamples || []),...(item.practiceLearningExamples || [])]).slice(0,3);
-    dialog.innerHTML = `<div class="pr-card-top"><span class="pr-card-handle" aria-hidden="true"></span>${iconButton('card-close','close','关闭词卡')}</div><div class="pr-card-word"><h2 id="pr-card-title" lang="nb">${e(item.word)}</h2>${button('result-word',icon('speaker'),`data-pr-key="${e(key)}" aria-label="朗读 ${e(item.word)}" title="朗读"`,'pr-icon-button')}</div>${item.ipa || item.syllables ? `<p class="pr-card-phonetics">${[item.syllables,item.ipa].filter(Boolean).map(e).join(' · ')}</p>` : ''}${item.meaning ? `<p class="pr-card-meaning">${e(item.meaning)}</p>` : ''}${renderFacts(item)}${usage.length ? `<section class="pr-card-section">${usage.map(text => `<p>${e(text)}</p>`).join('')}</section>` : ''}${examples.length ? `<section class="pr-card-section">${examples.map(example => `<p class="pr-card-example" lang="nb">${e(example)}</p>`).join('')}</section>` : ''}<div class="pr-card-foot">${rateControl()}${favoriteButton(key)}</div>`;
+    const english = String(item.english || item.englishGloss || '').trim();
+    dialog.innerHTML = `<div class="pr-card-top"><span class="pr-card-handle" aria-hidden="true"></span>${iconButton('card-close','close','关闭词卡')}</div><div class="pr-card-word"><div class="pr-card-head"><h2 id="pr-card-title" lang="nb">${e(item.word)}</h2>${item.ipa ? `<span class="pr-card-ipa">${e(item.ipa)}</span>` : ''}</div>${button('result-word',icon('speaker'),`data-pr-key="${e(key)}" aria-label="朗读 ${e(item.word)}" title="朗读"`,'pr-icon-button')}</div>${item.meaning ? `<p class="pr-card-meaning${english ? ' has-english' : ''}"><span>${e(item.meaning)}</span>${english ? `<span class="pr-card-english" lang="en">${e(english)}</span>` : ''}</p>` : ''}${renderFacts(item)}${usage.length ? `<section class="pr-card-section">${usage.map(text => `<p>${e(text)}</p>`).join('')}</section>` : ''}${examples.length ? `<section class="pr-card-section">${examples.map(example => `<p class="pr-card-example" lang="nb">${e(example)}</p>`).join('')}</section>` : ''}<div class="pr-card-foot">${rateControl()}${favoriteButton(key)}</div>`;
     if (!dialog.open) dialog.showModal?.();
   }
   function recordGrade(session,key,points,detail=null) {
