@@ -73,6 +73,9 @@
   function timeIn(meta) {
     const audio = state.deps.audio;
     if (!meta || !audio.src) return null;
+    // A playlist joined into one recording carries this section at its own offset.
+    const joined = state.deps.streamOffset?.(meta.id);
+    if (joined != null) return audio.currentTime-joined;
     const path = audioPath();
     if (sameFile(path,meta.audio)) return audio.currentTime;
     // A whole chapter may be playing; its timeline contains this section's clip.
@@ -703,6 +706,7 @@
     state.shuffleOrder = null;
     try { localStorage.setItem(PLAYLIST_KEY,JSON.stringify(state.playlist)); } catch { /* Kept for this visit only. */ }
     renderSheet(); renderPage(); syncStageOptions(); syncMediaSession();
+    window.dispatchEvent(new Event('norskplaylistchange'));
     const queueButton = state.view && $('[data-rd="queue"]',state.view.root);
     if (queueButton) {
       const queued = state.playlist.items.includes(String(state.view.meta.id));
@@ -759,6 +763,14 @@
     if (next < 0) return items[items.length-1];
     return items[next];
   }
+  function cancelTrackNavigation() { state.trackRun++; }
+  // What the lesson player joins into one recording; a shuffled join tells the list the order it chose.
+  function playlistPlan() {
+    if (!state.index) return null;
+    const {loop,shuffle} = state.playlist;
+    return {items:state.playlist.items.filter(item => sectionMeta(item)),loop,shuffle};
+  }
+  function useOrder(order) { if (state.playlist.shuffle) state.shuffleOrder = order.map(String); }
   async function navigateTrack(step,endedId = null) {
     const current = state.deps.currentEntry?.() || state.stageSection || state.sectionId;
     if (endedId !== null && (String(current) !== endedId || !state.playlist.items.includes(endedId))) return;
@@ -1044,6 +1056,6 @@
     if (!followingVisible()) { cancelAnimationFrame(state.frame); state.frame = 0; }
   }
 
-  window.NorskReader = {init,show,hide,stopSlice,openTranscript,closeTranscript,openPlaylist,closePlaylist,renderPlaylistPage,addToPlaylist};
+  window.NorskReader = {init,show,hide,stopSlice,cancelTrackNavigation,playlistPlan,useOrder,openTranscript,closeTranscript,openPlaylist,closePlaylist,renderPlaylistPage,addToPlaylist};
   window.dispatchEvent(new Event('norskreaderready'));
 })();

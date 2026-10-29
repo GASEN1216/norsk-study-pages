@@ -1,10 +1,10 @@
-import {createDataLoader} from './loader.mjs?v=20261029-background-audio';
-import {createReadingLibrary} from './reading-library.mjs?v=20261029-background-audio';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261029-background-audio';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261029-background-audio';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261029-background-audio';
+import {createDataLoader} from './loader.mjs?v=20261029-playlist-stream';
+import {createReadingLibrary} from './reading-library.mjs?v=20261029-playlist-stream';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261029-playlist-stream';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261029-playlist-stream';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261029-playlist-stream';
 
-const VERSION = '20261029-background-audio';
+const VERSION = '20261029-playlist-stream';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -231,7 +231,7 @@ function submitPracticeResult(result) {
 let readerLoad;
 function prepareReader() {
   if (!readerLoad) readerLoad = loadFeature('reader').then(() => {
-    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:id => findEntry(id,'textbook'),entryAudio,chapterAudio,allChapters:() => allChapters('textbook'),loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION});
+    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:id => findEntry(id,'textbook'),entryAudio,chapterAudio,allChapters:() => allChapters('textbook'),loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION,streamOffset});
     return window.NorskReader;
   }).catch(error => { readerLoad = null; throw error; });
   return readerLoad;
@@ -773,7 +773,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261029-background-audio').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261029-playlist-stream').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1164,6 +1164,7 @@ function playWordBuffer(buffer) {
   source.start();
 }
 function pauseOtherAudio() {
+  window.NorskReader?.cancelTrackNavigation?.();
   window.NorskReader?.stopSlice?.();
   ++state.pronunciationToken;
   state.speechItem = null;
@@ -1242,21 +1243,132 @@ function updateAudioUI() {
   $('#audio-play').innerHTML = icon(audio.paused ? 'play' : 'pause');
   $('#audio-play').setAttribute('aria-label',audio.paused ? '播放音频' : '暂停播放');
 }
+function showLesson(found,source) {
+  $('#audio-title').textContent = `${found.entry.title}${source?.kind === 'synthetic' ? ' · 合成补读' : ''}`;
+  $('#audio-label').textContent = `KAPITTEL ${found.chapter.id} · ${source?.kind === 'synthetic' ? '合成补读 · 原录音缺失' : '课文音频'}`;
+}
+function announceLesson(found,source) {
+  window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(state.currentEntryId),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source?.kind === 'synthetic',start:state.audioRange.start}}));
+}
+
+/* ---------- A playlist joined into one recording ---------- */
+// A phone keeps playing one file while the page sleeps, but a sleeping page cannot start the next file. So a playlist
+// is joined into a single recording that the system player runs through by itself; the page only follows along.
+const STREAM_MAX_BYTES = 80*1024*1024;
+const stream = {active:null,playing:null,building:'',retired:[]};
+function playlistSignature(plan) { return JSON.stringify([plan.items,plan.loop,plan.shuffle]); }
+function joinedSection(id) {
+  const active = stream.active, plan = window.NorskReader?.playlistPlan?.();
+  if (!active || !plan || playlistSignature(plan) !== active.signature) return null;
+  return active.sections.find(item => item.id === str(id)) || null;
+}
+function playingJoined() { return stream.playing && audio.src === stream.playing.url ? stream.playing : null; }
+function streamOffset(id) { return playingJoined()?.sections.find(item => item.id === str(id))?.offset ?? null; }
+function retireStream(entry) {
+  if (entry) stream.retired.push(entry.url);
+  stream.retired = stream.retired.filter(url => { if (url === audio.src) return true; URL.revokeObjectURL(url); return false; });
+}
+async function prepareStream(id) {
+  const plan = window.NorskReader?.playlistPlan?.();
+  if (!plan || plan.items.length < 2 || !plan.items.includes(str(id))) return;
+  const signature = playlistSignature(plan);
+  if (joinedSection(id) || stream.building === signature) return;
+  stream.building = signature;
+  let order;
+  if (plan.shuffle) {
+    const rest = plan.items.filter(item => item !== str(id));
+    for (let last = rest.length-1; last > 0; last--) { const pick = Math.floor(Math.random()*(last+1)); [rest[last],rest[pick]] = [rest[pick],rest[last]]; }
+    order = [str(id),...rest];
+  } else {
+    // A looping list wraps round to its start; a list played once ends with its last lesson.
+    const at = plan.items.indexOf(str(id));
+    order = plan.loop === 'all' ? [...plan.items.slice(at),...plan.items.slice(0,at)] : plan.items.slice(at);
+  }
+  const pieces = [];
+  for (const item of order) {
+    const found = findEntry(item,'textbook'), source = found && entryAudio(found.entry,found.chapter);
+    const url = source?.file && !source.clip ? safeURL(source.file) : '';
+    if (!url) break;
+    pieces.push({id:item,url});
+  }
+  try {
+    const {joinRecordings} = await import(`./playlist-stream.mjs?v=${VERSION}`);
+    const joined = await joinRecordings(pieces,{maxBytes:STREAM_MAX_BYTES,load:url => fetch(url).then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.arrayBuffer();
+    })});
+    if (stream.building !== signature) return;
+    stream.building = '';
+    if (joined.sections.length < 2) return;
+    if (plan.shuffle) window.NorskReader?.useOrder?.(order);
+    const previous = stream.active;
+    stream.active = {url:URL.createObjectURL(joined.blob),sections:joined.sections,signature,loop:plan.loop === 'all' && joined.complete};
+    enterStream();
+    retireStream(previous);
+  } catch(error) {
+    if (stream.building === signature) stream.building = '';
+    console.warn('播放列表未能连成一段',error);
+  }
+}
+// Moves the lesson that is playing onto the joined recording at the same spot.
+function enterStream() {
+  const active = stream.active, section = active?.sections.find(item => item.id === str(state.currentEntryId));
+  if (!section || !audio.src || audio.src === active.url || $('#audio-dock').hidden) return;
+  const position = Math.max(0,audio.currentTime-(state.audioRange?.start || 0)), resume = !audio.paused, first = !playingJoined();
+  const token = ++state.audioToken;
+  stream.playing = active;
+  audio.src = active.url;
+  audio.loop = active.loop;
+  state.audioRange = {start:section.offset,end:section.end};
+  audio.addEventListener('loadedmetadata',() => { if (token === state.audioToken) audio.currentTime = section.offset+position; },{once:true});
+  audio.playbackRate = Number($('#audio-speed').value);
+  if (resume) audio.play().catch(() => {});
+  if (first) notify('播放列表已连成一段：锁屏或切到后台，也会接着播下一节。');
+}
+// The joined recording moves on by itself; the player bar, transcript and lock screen follow it.
+function showJoinedSection(section) {
+  const found = findEntry(section.id,'textbook');
+  if (!found) return;
+  ++state.audioToken;
+  state.currentEntryId = section.id;
+  state.audioRange = {start:section.offset,end:section.end};
+  const source = entryAudio(found.entry,found.chapter);
+  showLesson(found,source);
+  announceLesson(found,source);
+}
+function followStream() {
+  const joined = playingJoined();
+  if (!joined) return false;
+  const time = audio.currentTime, current = joined.sections.find(item => item.id === str(state.currentEntryId));
+  if (current && !audio.paused && time >= current.end-.08 && window.NorskReader?.playlistPlan?.()?.loop === 'one') { audio.currentTime = current.offset; return true; }
+  const section = joined.sections.find(item => time >= item.start && time < item.end) || (time >= joined.sections.at(-1).end ? joined.sections.at(-1) : null);
+  if (section && section.id !== str(state.currentEntryId)) showJoinedSection(section);
+  return true;
+}
+window.addEventListener('norskplaylistchange',() => {
+  const joined = playingJoined(), plan = window.NorskReader?.playlistPlan?.();
+  if (!joined || !plan) return;
+  if (plan.loop !== 'all') audio.loop = false;
+  if (!audio.paused && playlistSignature(plan) !== joined.signature) prepareStream(state.currentEntryId);
+});
+
 async function playEntry(id,options = {}) {
   const found = findEntry(id,'textbook');
   const source = found && entryAudio(found.entry,found.chapter);
   if (!source?.file) { const missing = found && missingEntryAudio(found.entry,found.chapter); notify(missing ? `原录音缺失：${missing.reason || '提供的音频未包含本节。'}` : '这节课暂未提供对应录音。'); return; }
   pauseOtherAudio();
   const token = ++state.audioToken;
-  const url = safeURL(source.file);
+  const joined = joinedSection(id);
+  const url = joined ? stream.active.url : safeURL(source.file);
   if (!url) return;
   // Switching tracks without pausing first keeps a locked phone's audio session alive between playlist items.
   if (options.paused) audio.pause();
   state.currentEntryId = str(id);
   prepareReader().catch(() => {});
-  state.audioRange = source.clip ? {start:Number(source.start) || 0,end:Number(source.end) || null} : {start:0,end:null};
-  $('#audio-title').textContent = `${found.entry.title}${source.kind === 'synthetic' ? ' · 合成补读' : ''}`;
-  $('#audio-label').textContent = `KAPITTEL ${found.chapter.id} · ${source.kind === 'synthetic' ? '合成补读 · 原录音缺失' : '课文音频'}`;
+  state.audioRange = joined ? {start:joined.offset,end:joined.end} : source.clip ? {start:Number(source.start) || 0,end:Number(source.end) || null} : {start:0,end:null};
+  stream.playing = joined ? stream.active : null;
+  audio.loop = !!joined && stream.active.loop;
+  showLesson(found,source);
   $('#audio-dock').hidden = false;
   document.body.classList.add('audio-open');
   const startAt = state.audioRange.start + Math.max(0,Number(options.offset) || 0);
@@ -1287,7 +1399,8 @@ async function playEntry(id,options = {}) {
     if (!playing) audio.currentTime = startAt;
     audio.playbackRate = Number($('#audio-speed').value);
     updateAudioUI();
-    window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(id),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source.kind === 'synthetic',start:state.audioRange.start}}));
+    announceLesson(found,source);
+    if (!joined) prepareStream(id);
     if (options.paused) return;
     await (playing || audio.play());
   } catch(error) { if (token === state.audioToken) notify('这段录音暂时无法播放，请检查网络后重试。'); }
@@ -1435,6 +1548,7 @@ $('#audio-playlist').addEventListener('click',() => prepareReader().then(reader 
 $('#audio-progress').addEventListener('input',event => { const {start,duration} = audioBounds(); if (duration) audio.currentTime = start + Number(event.target.value)/1000*duration; updateAudioUI(); });
 $('#audio-close').addEventListener('click',() => { ++state.audioToken; audio.pause(); $('#audio-dock').hidden = true; document.body.classList.remove('audio-open'); window.dispatchEvent(new CustomEvent('norsklessonclose')); });
 audio.addEventListener('timeupdate',() => {
+  if (followStream()) { updateAudioUI(); return; }
   // Only a clip inside a longer chapter file needs ending by hand; whole files end with the browser's own ended event.
   const {end} = audioBounds();
   if (Number.isFinite(state.audioRange?.end) && Number.isFinite(end) && audio.currentTime >= end && !audio.paused) {
@@ -1446,7 +1560,9 @@ audio.addEventListener('timeupdate',() => {
 });
 // Each resume is a new playback cycle, including replaying the same selected lesson.
 audio.addEventListener('play',() => { state.endedToken = -1; });
-audio.addEventListener('ended',lessonEnded);
+// A sleeping page may have missed the joined recording's last lessons; it ends on its final one.
+audio.addEventListener('ended',() => { followStream(); lessonEnded(); });
+audio.addEventListener('loadstart',() => retireStream());
 for (const event of ['play','pause','loadedmetadata','durationchange','ended']) audio.addEventListener(event,updateAudioUI);
 audio.addEventListener('error',() => { if (!$('#audio-dock').hidden) notify('录音载入失败，请检查网络后重试。'); });
 pronunciationAudio.addEventListener('error',() => notify('这条读音暂时无法播放，请稍后重试。'));

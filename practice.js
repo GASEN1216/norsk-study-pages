@@ -1055,7 +1055,7 @@
     const store=state.store, key=state.storageKey, submit=state.deps.submitPracticeResult;
     const owner=editor;
     if (!ownsStore(store,key)) return Promise.resolve(false);
-    if (state.syncs.has(key)) return state.syncs.get(key);
+    if (state.syncs.has(owner)) return state.syncs.get(owner);
     if (typeof submit !== 'function' || !store.communityPending?.length) return Promise.resolve(false);
     // A successful upload may arrive after another tab takes ownership. Its durable
     // server receipt can be retried, but the old tab must never overwrite the new owner.
@@ -1071,8 +1071,8 @@
         persistStore(store,key);
       }
       return true;
-    })().finally(() => { state.syncs.delete(key); if (state.communitySync === sync) state.communitySync=null; });
-    state.syncs.set(key,sync); state.communitySync=sync;
+    })().finally(() => { if (state.syncs.get(owner) === sync) state.syncs.delete(owner); if (state.communitySync === sync) state.communitySync=null; });
+    state.syncs.set(owner,sync); state.communitySync=sync;
     return sync;
   }
   function dateLabel(date) {
