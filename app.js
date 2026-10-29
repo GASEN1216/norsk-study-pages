@@ -1,10 +1,10 @@
-import {createDataLoader} from './loader.mjs?v=20261028-full-audit';
-import {createReadingLibrary} from './reading-library.mjs?v=20261028-full-audit';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261028-full-audit';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261028-full-audit';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261028-full-audit';
+import {createDataLoader} from './loader.mjs?v=20261029-background-audio';
+import {createReadingLibrary} from './reading-library.mjs?v=20261029-background-audio';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261029-background-audio';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261029-background-audio';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261029-background-audio';
 
-const VERSION = '20261028-full-audit';
+const VERSION = '20261029-background-audio';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -271,6 +271,15 @@ function openReaderSection(id) {
 function lessonEnded() {
   if (state.endedToken === state.audioToken) return;
   state.endedToken = state.audioToken;
+  // A browser that calls every track finished as soon as it starts would otherwise race through the whole playlist.
+  const now = Date.now();
+  state.recentEnds = (state.recentEnds || []).filter(time => now-time < 4000).concat(now);
+  if (state.recentEnds.length > 3) {
+    state.recentEnds = [];
+    audio.pause();
+    notify('播放列表连续跳过了几节，已暂停。请点播放键继续。');
+    return;
+  }
   window.dispatchEvent(new CustomEvent('norsklessonend',{detail:{id:state.currentEntryId}}));
 }
 function seekLesson(delta) {
@@ -764,7 +773,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261028-full-audit').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261029-background-audio').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -863,8 +872,16 @@ function goPage(value) {
   updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); saveReading();
 }
 
+// Class materials are rarely needed, so they stay out of the page until the toolbar button asks for them.
+function showLessons(shown) {
+  state.lessonsShown = shown;
+  $('#lesson-toggle').setAttribute('aria-expanded',str(shown));
+  $('#lesson-materials').hidden = !shown || state.book !== 'textbook';
+  $('#lesson-materials').open = shown;
+}
 async function renderLessons() {
-  $('#lesson-materials').hidden = state.book !== 'textbook';
+  $('#lesson-toggle').hidden = state.book !== 'textbook';
+  $('#lesson-materials').hidden = state.book !== 'textbook' || !state.lessonsShown;
   if (state.book !== 'textbook') return;
   if (!state.data.lessons) {
     if (!$('#lesson-materials').open) return;
@@ -1211,7 +1228,9 @@ function timeLabel(seconds) {
 }
 function audioBounds() {
   const start = state.audioRange?.start || 0;
-  const end = Number.isFinite(state.audioRange?.end) && state.audioRange.end > start ? Math.min(state.audioRange.end,Number.isFinite(audio.duration) ? audio.duration : Infinity) : audio.duration;
+  // Some phone browsers report a duration of 0 until the file is buffered; that is an unknown length, not an ended track.
+  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : NaN;
+  const end = Number.isFinite(state.audioRange?.end) && state.audioRange.end > start ? Math.min(state.audioRange.end,Number.isFinite(duration) ? duration : Infinity) : duration;
   return {start,end,duration:Math.max(0,(end || 0)-start)};
 }
 function updateAudioUI() {
@@ -1231,7 +1250,8 @@ async function playEntry(id,options = {}) {
   const token = ++state.audioToken;
   const url = safeURL(source.file);
   if (!url) return;
-  audio.pause();
+  // Switching tracks without pausing first keeps a locked phone's audio session alive between playlist items.
+  if (options.paused) audio.pause();
   state.currentEntryId = str(id);
   prepareReader().catch(() => {});
   state.audioRange = source.clip ? {start:Number(source.start) || 0,end:Number(source.end) || null} : {start:0,end:null};
@@ -1239,10 +1259,15 @@ async function playEntry(id,options = {}) {
   $('#audio-label').textContent = `KAPITTEL ${found.chapter.id} · ${source.kind === 'synthetic' ? '合成补读 · 原录音缺失' : '课文音频'}`;
   $('#audio-dock').hidden = false;
   document.body.classList.add('audio-open');
+  const startAt = state.audioRange.start + Math.max(0,Number(options.offset) || 0);
+  let playing = null;
   try {
     if (audio.src !== url || audio.readyState < 1) {
       audio.src = url;
-      await new Promise((resolve,reject) => {
+      // A track that starts at the top plays at once: a backgrounded page may only start sound straight from the
+      // previous track's end, not after waiting for metadata.
+      const early = !startAt && !options.paused;
+      const ready = new Promise((resolve,reject) => {
         const cleanup = () => { clearTimeout(timer); audio.removeEventListener('loadedmetadata',loaded); audio.removeEventListener('error',failed); };
         const loaded = () => { cleanup(); resolve(); };
         const failed = () => { cleanup(); reject(new Error('Audio unavailable')); };
@@ -1251,14 +1276,20 @@ async function playEntry(id,options = {}) {
         audio.addEventListener('error',failed,{once:true});
         audio.load();
       });
+      if (early) {
+        audio.playbackRate = Number($('#audio-speed').value);
+        playing = audio.play();
+        playing.catch(() => {});
+      }
+      await ready;
     }
     if (token !== state.audioToken) return;
-    audio.currentTime = state.audioRange.start + Math.max(0,Number(options.offset) || 0);
+    if (!playing) audio.currentTime = startAt;
     audio.playbackRate = Number($('#audio-speed').value);
     updateAudioUI();
     window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(id),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source.kind === 'synthetic',start:state.audioRange.start}}));
     if (options.paused) return;
-    await audio.play();
+    await (playing || audio.play());
   } catch(error) { if (token === state.audioToken) notify('这段录音暂时无法播放，请检查网络后重试。'); }
 }
 function resumeLessonAudio({reveal = false} = {}) {
@@ -1384,7 +1415,14 @@ for (const selector of ['#vocab-search','#basics-search']) {
   $(selector).addEventListener('input',scheduleSearch);
   $(selector).addEventListener('compositionend',scheduleSearch);
 }
-$('#lesson-materials').addEventListener('toggle',() => { if ($('#lesson-materials').open && state.ready) renderLessons(); });
+$('#lesson-materials').addEventListener('toggle',() => {
+  if (!$('#lesson-materials').open) { if (state.lessonsShown) showLessons(false); return; }
+  if (state.ready) renderLessons();
+});
+$('#lesson-toggle').addEventListener('click',() => {
+  showLessons(!state.lessonsShown);
+  if (state.lessonsShown) $('#lesson-materials').scrollIntoView({block:'nearest',behavior:'smooth'});
+});
 $('#audio-play').addEventListener('click',toggleAudio);
 $('#audio-speed').addEventListener('change',() => {
   audio.playbackRate = Number($('#audio-speed').value);
@@ -1397,8 +1435,13 @@ $('#audio-playlist').addEventListener('click',() => prepareReader().then(reader 
 $('#audio-progress').addEventListener('input',event => { const {start,duration} = audioBounds(); if (duration) audio.currentTime = start + Number(event.target.value)/1000*duration; updateAudioUI(); });
 $('#audio-close').addEventListener('click',() => { ++state.audioToken; audio.pause(); $('#audio-dock').hidden = true; document.body.classList.remove('audio-open'); window.dispatchEvent(new CustomEvent('norsklessonclose')); });
 audio.addEventListener('timeupdate',() => {
+  // Only a clip inside a longer chapter file needs ending by hand; whole files end with the browser's own ended event.
   const {end} = audioBounds();
-  if (Number.isFinite(end) && audio.currentTime >= end && !audio.paused) { audio.pause(); lessonEnded(); }
+  if (Number.isFinite(state.audioRange?.end) && Number.isFinite(end) && audio.currentTime >= end && !audio.paused) {
+    const token = state.audioToken;
+    lessonEnded();
+    if (token === state.audioToken) audio.pause();
+  }
   updateAudioUI();
 });
 // Each resume is a new playback cycle, including replaying the same selected lesson.
