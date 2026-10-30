@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261030-notes';
-import {createReadingLibrary} from './reading-library.mjs?v=20261030-notes';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-notes';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-notes';
-import * as notesModel from './notes-store.mjs?v=20261030-notes';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-notes';
+import {createDataLoader} from './loader.mjs?v=20261030-ty-reader2';
+import {createReadingLibrary} from './reading-library.mjs?v=20261030-ty-reader2';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-ty-reader2';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-ty-reader2';
+import * as notesModel from './notes-store.mjs?v=20261030-ty-reader2';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-ty-reader2';
 
-const VERSION = '20261030-notes';
+const VERSION = '20261030-ty-reader2';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -129,7 +129,7 @@ function notePlaceLabel(book,kind,place) {
 }
 function jumpToNote({book,kind,place}) {
   if (!bookData(book)) { notify('这本书暂时不可用。'); return; }
-  if (kind === 'mark') { openReaderSection(place); return; }
+  if (kind === 'mark') { openReaderSection(place,book); return; }
   state.readMode = 'pdf';
   try { localStorage.setItem('norsk-read-mode-v1','pdf'); } catch {}
   if (state.book !== book) switchBook(book);
@@ -329,21 +329,24 @@ function submitPracticeResult(result) {
 let readerLoad;
 function prepareReader() {
   if (!readerLoad) readerLoad = loadFeature('reader').then(() => {
-    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:id => findEntry(id,'textbook'),entryAudio,chapterAudio,allChapters:() => allChapters('textbook'),loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION,streamOffset,
+    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:findAudioEntry,entryAudio,chapterAudio,allChapters,loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,currentBook:() => state.book,bookTitle:book => state.library?.series.find(item => item.id === bookData(book)?.seriesId)?.title || bookData(book)?.title || 'God i norsk',playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION,streamOffset,
       noteBar:context => window.NorskNotes?.cardBar(context) || '',onLesson:view => { if (view) prepareNotes().then(notes => notes.lessonShown(view)).catch(() => {}); else window.NorskNotes?.lessonShown(null); }});
     return window.NorskReader;
   }).catch(error => { readerLoad = null; throw error; });
   return readerLoad;
 }
-function readingTextMode() { return state.readMode === 'text' && state.book === 'textbook'; }
+function hasReader(book = state.book) {
+  return book === 'textbook' || Object.values(audioBook(book)?.chapters || {}).some(chapter => Object.values(chapter.sections || {}).some(section => section.file && section.readerId));
+}
+function readingTextMode() { return state.readMode === 'text' && hasReader(); }
 function applyReadMode() {
   const text = readingTextMode();
   if (!text && !$('#reader-text').hidden) window.NorskReader?.hide();
   document.body.classList.toggle('read-text',text);
   $$('[data-action="read-mode"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.mode === (text ? 'text' : 'pdf'))));
   const textButton = $('[data-action="read-mode"][data-mode="text"]');
-  textButton.disabled = state.book !== 'textbook';
-  textButton.title = state.book === 'textbook' ? '逐词显示课文，跟着录音听读' : '听读目前只适用于有原录音的 God i norsk 教材';
+  textButton.disabled = !hasReader();
+  textButton.title = hasReader() ? '逐词显示课文，跟着录音听读' : '这本书暂未提供听读课文';
   $('#pdf-stage').hidden = text;
   $('.page-controls').hidden = text;
   if (text) { window.NorskNotes?.stopAnnotating(); window.NorskNotes?.pageHidden(); state.notesPage = ''; }
@@ -358,16 +361,19 @@ function setReadMode(mode) {
 function showReaderText() {
   const container = $('#reader-text');
   if (!window.NorskReader) container.innerHTML = loading('正在准备听读课文…');
-  prepareReader().then(reader => { if (state.view === 'reading' && readingTextMode()) reader.show(container,state.readingId); }).catch(() => {
+  prepareReader().then(reader => { if (state.view === 'reading' && readingTextMode()) reader.show(container,state.readingId,state.book); }).catch(() => {
     if (state.view === 'reading' && readingTextMode()) container.innerHTML = `${empty('听读课文暂时无法载入','请检查网络后重试。')}<button class="text-button" data-action="retry-pdf">重新载入</button>`;
   });
 }
-// Opens a God i norsk section as listen-and-read text, from the playlist or the transcript view.
-function openReaderSection(id) {
+// A playlist track has a unique ID; the PDF directory keeps each book's original section ID.
+function openReaderSection(id,book) {
+  const found = findAudioEntry(id,book);
+  if (!found || !hasReader(found.bookId)) return;
   state.readMode = 'text';
   try { localStorage.setItem('norsk-read-mode-v1','text'); } catch {}
   if (state.view !== 'reading') setView('reading');
-  selectEntry(id,'textbook');
+  if (state.book !== found.bookId) switchBook(found.bookId,{keepAudio:state.currentEntryId === str(id) && !$('#audio-dock').hidden});
+  selectEntry(found.entry.id,found.bookId);
 }
 function lessonEnded() {
   if (state.endedToken === state.audioToken) return;
@@ -533,13 +539,15 @@ function renderBookPicker() {
   $('#book-switch').hidden = books.length < 2;
   $('#book-switch').innerHTML = books.map(book => `<button data-book="${escapeHTML(book)}" class="${book === state.book ? 'selected' : ''}" aria-pressed="${book === state.book}">${escapeHTML(bookData(book).label || (bookData(book).kind === 'workbook' || book === 'workbook' ? '练习册' : '教材'))}</button>`).join('');
 }
-function switchBook(book) {
+function switchBook(book,{keepAudio = false} = {}) {
   if (!bookData(book) || book === state.book) return;
   saveReading();
-  ++state.audioToken;
-  audio.pause();
-  $('#audio-dock').hidden = true;
-  document.body.classList.remove('audio-open');
+  if (!keepAudio) {
+    ++state.audioToken;
+    audio.pause();
+    $('#audio-dock').hidden = true;
+    document.body.classList.remove('audio-open');
+  }
   state.book = book;
   const position = state.library.positionFor(book);
   state.page = position.page;
@@ -561,22 +569,44 @@ function findEntry(id, book = state.book) {
   }
   return null;
 }
-function chapterAudio(chapter) {
+function audioBook(book = 'textbook') {
+  return book === 'textbook' ? state.data.audio : state.data.audio?.books?.[book];
+}
+function chapterAudio(chapter,book = 'textbook') {
   if (!chapter) return null;
   const id = str(chapter.id);
-  return state.data.audio?.chapters?.[id] || state.data.audio?.chapters?.[id.replace(/^chapter[-_]?/, '')] || null;
+  return audioBook(book)?.chapters?.[id] || audioBook(book)?.chapters?.[id.replace(/^chapter[-_]?/, '')] || null;
 }
-function missingEntryAudio(entry, chapter) {
-  return (chapterAudio(chapter)?.missingSections || []).find(item => str(item.id) === str(entry.id));
+function missingEntryAudio(entry,chapter,book = 'textbook') {
+  return (chapterAudio(chapter,book)?.missingSections || []).find(item => str(item.id) === str(entry.id));
 }
-function entryAudio(entry, chapter) {
-  const data = chapterAudio(chapter);
+function entryAudio(entry,chapter,book = 'textbook') {
+  const data = chapterAudio(chapter,book);
   if (!data) return null;
   if (str(entry.id) === str(chapter.id)) return data.file ? {...data, start:0, end:data.duration} : null;
   const section = data.sections?.[str(entry.id)];
   if (!section || section.unavailable) return null;
-  if (missingEntryAudio(entry,chapter) && !(section.kind === 'synthetic' && section.file)) return null;
+  if (missingEntryAudio(entry,chapter,book) && !(section.kind === 'synthetic' && section.file)) return null;
   return {...section, file:section.file || data.file, clip:!section.file};
+}
+function audioTrackId(entry,chapter,book = 'textbook') {
+  return book === 'textbook' ? str(entry.id) : str(entryAudio(entry,chapter,book)?.readerId || '');
+}
+function findAudioEntry(id,book) {
+  if (book) {
+    const found = findEntry(id,book);
+    return found ? {...found,bookId:book} : null;
+  }
+  const original = findEntry(id,'textbook');
+  if (original) return {...original,bookId:'textbook'};
+  for (const bookId of Object.keys(state.data.audio?.books || {})) {
+    for (const chapter of allChapters(bookId)) {
+      for (const entry of [chapter,...(chapter.sections || [])]) {
+        if (audioTrackId(entry,chapter,bookId) === str(id)) return {entry,chapter,bookId};
+      }
+    }
+  }
+  return null;
 }
 function activeChapter(book = state.book) {
   let current = null;
@@ -802,14 +832,14 @@ function renderTOC() {
   }).join('');
 }
 function tocEntry(entry,chapter,book,isChapter,selected) {
-  const playable = book === 'textbook' && state.view === 'reading';
-  const recording = playable ? entryAudio(entry,chapter) : null;
-  const missing = playable ? missingEntryAudio(entry,chapter) : null;
+  const playable = !!audioBook(book) && state.view === 'reading';
+  const recording = playable ? entryAudio(entry,chapter,book) : null;
+  const missing = playable ? missingEntryAudio(entry,chapter,book) : null;
   const synthetic = recording?.kind === 'synthetic';
   const audioLabel = synthetic ? `播放 ${entry.title} · 合成补读（原录音缺失）` : recording ? `播放 ${entry.title}` : missing ? `原录音缺失：${missing.reason || entry.title}` : '未提供本节录音';
   const audioNote = synthetic ? '合成补读' : missing ? '原录音缺失' : '';
   const page = entry.printedPage ?? '';
-  return `<button class="toc-title" data-action="select-entry" data-id="${escapeHTML(entry.id)}" data-book="${book}" ${selected === str(entry.id) ? 'aria-current="true"' : ''}><span class="toc-number">${escapeHTML(entryNumber(entry,isChapter))}</span><span class="toc-label">${escapeHTML(entry.title)}${audioNote ? `<span class="toc-audio-note">${audioNote}</span>` : ''}</span></button>${state.view === 'reading' ? `<span class="toc-page" title="印刷页码">${escapeHTML(page)}</span>` : ''}${playable ? `<button class="toc-audio" data-action="entry-audio" data-id="${escapeHTML(entry.id)}" title="${escapeHTML(audioLabel)}" aria-label="${escapeHTML(audioLabel)}" ${recording ? '' : 'disabled'}>${icon('play')}</button>` : ''}`;
+  return `<button class="toc-title" data-action="select-entry" data-id="${escapeHTML(entry.id)}" data-book="${book}" ${selected === str(entry.id) ? 'aria-current="true"' : ''}><span class="toc-number">${escapeHTML(entryNumber(entry,isChapter))}</span><span class="toc-label">${escapeHTML(entry.title)}${audioNote ? `<span class="toc-audio-note">${audioNote}</span>` : ''}</span></button>${state.view === 'reading' ? `<span class="toc-page" title="印刷页码">${escapeHTML(page)}</span>` : ''}${playable ? `<button class="toc-audio" data-action="entry-audio" data-id="${escapeHTML(entry.id)}" data-book="${book}" title="${escapeHTML(audioLabel)}" aria-label="${escapeHTML(audioLabel)}" ${recording ? '' : 'disabled'}>${icon('play')}</button>` : ''}`;
 }
 function selectEntry(id,book = state.book) {
   if (state.view === 'vocabulary') {
@@ -847,7 +877,7 @@ function updateReadingTitle() {
   $('#next-page').disabled = state.page >= Number(book?.pages || 1);
   $$('[data-book]', $('#book-switch')).forEach(button => button.classList.toggle('selected', button.dataset.book === state.book));
   const chapter = findEntry(state.readingId)?.chapter || activeChapter();
-  const missing = state.book === 'textbook' ? chapterAudio(chapter)?.missingSections || [] : [];
+  const missing = chapterAudio(chapter,state.book)?.missingSections || [];
   const audioNote = $('#reading-audio-note');
   if (state.audioError && state.book === 'textbook') {
     audioNote.hidden = false;
@@ -856,7 +886,7 @@ function updateReadingTitle() {
   }
   audioNote.hidden = !missing.length;
   if (missing.length) {
-    const synthesized = missing.filter(item => chapterAudio(chapter)?.sections?.[str(item.id)]?.kind === 'synthetic' && chapterAudio(chapter)?.sections?.[str(item.id)]?.file);
+    const synthesized = missing.filter(item => chapterAudio(chapter,state.book)?.sections?.[str(item.id)]?.kind === 'synthetic' && chapterAudio(chapter,state.book)?.sections?.[str(item.id)]?.file);
     const ids = missing.map(item => item.id).join('、');
     audioNote.textContent = synthesized.length === missing.length ? `原录音缺少 ${ids}，现提供明确标注的合成补读。` : synthesized.length ? `原录音缺少 ${ids}。${synthesized.map(item => item.id).join('、')} 现提供合成补读，其余缺失小节暂无法播放。` : `原录音缺失：${ids}。提供的第 ${chapter.id} 章音频未包含这些小节，对应播放按钮已停用。`;
   }
@@ -889,7 +919,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-notes').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-ty-reader2').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1398,7 +1428,7 @@ function showLesson(found,source) {
   $('#audio-label').textContent = `KAPITTEL ${found.chapter.id} · ${source?.kind === 'synthetic' ? '合成补读 · 原录音缺失' : '课文音频'}`;
 }
 function announceLesson(found,source) {
-  window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(state.currentEntryId),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source?.kind === 'synthetic',start:state.audioRange.start}}));
+  window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(state.currentEntryId),bookId:found.bookId || 'textbook',readingId:str(found.entry.id),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source?.kind === 'synthetic',start:state.audioRange.start}}));
 }
 
 /* ---------- A playlist joined into one recording ---------- */
@@ -1436,7 +1466,7 @@ async function prepareStream(id) {
   }
   const pieces = [];
   for (const item of order) {
-    const found = findEntry(item,'textbook'), source = found && entryAudio(found.entry,found.chapter);
+    const found = findAudioEntry(item), source = found && entryAudio(found.entry,found.chapter,found.bookId);
     const url = source?.file && !source.clip ? safeURL(source.file) : '';
     if (!url) break;
     pieces.push({id:item,url});
@@ -1477,12 +1507,12 @@ function enterStream() {
 }
 // The joined recording moves on by itself; the player bar, transcript and lock screen follow it.
 function showJoinedSection(section) {
-  const found = findEntry(section.id,'textbook');
+  const found = findAudioEntry(section.id);
   if (!found) return;
   ++state.audioToken;
   state.currentEntryId = section.id;
   state.audioRange = {start:section.offset,end:section.end};
-  const source = entryAudio(found.entry,found.chapter);
+  const source = entryAudio(found.entry,found.chapter,found.bookId);
   showLesson(found,source);
   announceLesson(found,source);
 }
@@ -1503,9 +1533,11 @@ window.addEventListener('norskplaylistchange',() => {
 });
 
 async function playEntry(id,options = {}) {
-  const found = findEntry(id,'textbook');
-  const source = found && entryAudio(found.entry,found.chapter);
-  if (!source?.file) { const missing = found && missingEntryAudio(found.entry,found.chapter); notify(missing ? `原录音缺失：${missing.reason || '提供的音频未包含本节。'}` : '这节课暂未提供对应录音。'); return; }
+  const found = findAudioEntry(id,options.book);
+  const source = found && entryAudio(found.entry,found.chapter,found.bookId);
+  if (!source?.file) { const missing = found && missingEntryAudio(found.entry,found.chapter,found.bookId); notify(missing ? `原录音缺失：${missing.reason || '提供的音频未包含本节。'}` : '这节课暂未提供对应录音。'); return; }
+  id = audioTrackId(found.entry,found.chapter,found.bookId);
+  if (!id) return;
   pauseOtherAudio();
   const token = ++state.audioToken;
   const joined = joinedSection(id);
@@ -1618,11 +1650,14 @@ document.addEventListener('click',event => {
     case 'toggle-settings': toggleSettings(); break;
     case 'word-rate': setWordRate(action.dataset.rate); break;
     case 'vocab-sort': setVocabSort(action.dataset.sort); break;
-    case 'entry-audio':
-      if (state.book !== 'textbook' || state.readingId !== id) selectEntry(id,'textbook');
-      playEntry(id);
+    case 'entry-audio': {
+      const selectedBook = book || 'textbook';
+      if (state.book !== selectedBook || state.readingId !== id) selectEntry(id,selectedBook);
+      const found = findEntry(id,selectedBook);
+      if (found) playEntry(audioTrackId(found.entry,found.chapter,selectedBook));
       closeSidebar();
       break;
+    }
     case 'category': state.basicId = id; $('#basics-search').value = ''; renderTOC(); renderBasics(); closeSidebar(); break;
     case 'pronounce': pronounce(pronounceItem(action)); break;
     case 'open-basics': setView('basics'); break;
@@ -1802,7 +1837,12 @@ phoneHeader.addEventListener?.('change',() => { if (!phoneHeader.matches) showHe
 async function loadAudioMetadata() {
   try { await loadData('audio'); state.audioError = false; }
   catch(error) { state.audioError = true; console.warn('课文录音目录未载入',error); }
-  if (state.ready && state.view === 'reading') { updateReadingTitle(); renderTOC(); }
+  if (state.ready && state.view === 'reading') {
+    const wasText = document.body.classList.contains('read-text');
+    updateReadingTitle(); renderTOC();
+    if (wasText !== readingTextMode()) renderPDF();
+    else applyReadMode();
+  }
   if (state.ready && state.view === 'compare') window.NorskCompare?.refreshAudio();
 }
 async function initialize() {

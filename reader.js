@@ -12,7 +12,7 @@
   const LOOP_LABELS = {all:'列表循环',one:'单节循环',off:'播完停止'};
   const RATES = ['0.5','0.75','0.9','1','1.25','1.5'];
   const state = {
-    deps:{}, initialized:false, index:null, indexLoad:null, container:null, sectionId:'', data:null, view:null, visible:false, showRun:0,
+    deps:{}, initialized:false, index:null, indexLoad:null, container:null, sectionId:'', bookId:'textbook', data:null, view:null, visible:false, showRun:0,
     current:{sentence:-1,word:-1}, frame:0, followPausedUntil:0, press:null, selection:null, popover:null,
     showZh:true, stage:null, stageSection:'', sheet:null, slice:null, sliceTimer:0, sliceRun:0, sliceCancel:null,
     playlist:{items:[],loop:'all',shuffle:false}, shuffleOrder:null, page:null, playingSection:'', lastScroll:0, trackRun:0,
@@ -32,7 +32,8 @@
   function loadIndex() {
     if (state.index) return Promise.resolve(state.index);
     if (!state.indexLoad) state.indexLoad = state.deps.loadData('reader-index','data/reader-index.json').then(index => {
-      state.index = {...index,byId:new Map((index.sections || []).map(item => [String(item.id),item]))};
+      const sections = (index.sections || []).map(item => ({...item,bookId:item.bookId || 'textbook',readingId:String(item.readingId ?? item.id)}));
+      state.index = {...index,sections,byId:new Map(sections.map(item => [String(item.id),item]))};
       return state.index;
     }).catch(error => { state.indexLoad = null; throw error; });
     return state.indexLoad;
@@ -51,18 +52,21 @@
     return state.meaningLoad;
   }
   const sectionMeta = id => state.index?.byId.get(String(id)) || null;
-  function chapterSections(chapterId) {
-    return (state.index?.sections || []).filter(item => String(item.chapter) === String(chapterId));
+  const bookOf = meta => meta?.bookId || 'textbook';
+  const readingId = meta => String(meta?.readingId ?? meta?.id ?? '');
+  const bookTitle = book => state.deps.bookTitle?.(book) || (book === 'textbook' ? 'God i norsk' : book);
+  function chapterSections(chapterId,book = state.bookId) {
+    return (state.index?.sections || []).filter(item => String(item.chapter) === String(chapterId) && bookOf(item) === book);
   }
-  function chapterOf(id) {
+  function chapterOf(id,book = state.bookId) {
     const meta = sectionMeta(id);
-    if (meta) return String(meta.chapter);
-    const found = state.deps.findEntry(id);
+    if (meta && bookOf(meta) === book) return String(meta.chapter);
+    const found = state.deps.findEntry?.(id,book);
     return found ? String(found.chapter.id) : '';
   }
   function sectionTitle(id) {
     const meta = sectionMeta(id);
-    return meta ? `${meta.id} ${meta.title}` : String(id);
+    return meta ? `${readingId(meta)} ${meta.title}` : String(id);
   }
 
   /* ---------- Time inside the shown section, whichever file is playing ---------- */
@@ -79,8 +83,8 @@
     const path = audioPath();
     if (sameFile(path,meta.audio)) return audio.currentTime;
     // A whole chapter may be playing; its timeline contains this section's clip.
-    const chapter = state.deps.chapterAudio?.({id:meta.chapter});
-    const section = chapter?.sections?.[meta.id];
+    const chapter = state.deps.chapterAudio?.({id:meta.chapter},bookOf(meta));
+    const section = chapter?.sections?.[readingId(meta)];
     if (chapter?.file && section && Number.isFinite(Number(section.start)) && sameFile(path,chapter.file)) return audio.currentTime-Number(section.start);
     return null;
   }
@@ -120,7 +124,8 @@
     return `<p class="rd-sentence${sentence.heading ? ' is-heading' : ''}${sentence.subheading ? ' is-subheading' : ''}" data-s="${index}"><button type="button" class="rd-say" data-rd="from" data-s="${index}" aria-label="从这一句开始播放" title="从这一句开始播放">${icon('play')}</button>${speaker}<span class="rd-line" lang="nb">${html}</span>${zh}</p>`;
   }
   function neighbours(id) {
-    const list = state.index?.sections || [];
+    const book = bookOf(sectionMeta(id));
+    const list = (state.index?.sections || []).filter(item => bookOf(item) === book);
     const at = list.findIndex(item => String(item.id) === String(id));
     return {previous:at > 0 ? list[at-1] : null,next:at >= 0 && at < list.length-1 ? list[at+1] : null};
   }
@@ -130,7 +135,7 @@
     const translated = (data.sentences || []).some(sentence => sentence.zh);
     state.container.innerHTML = `<article class="rd-lesson${state.showZh && translated ? ' show-zh' : ''}" data-section="${e(meta.id)}">
       <header class="rd-head">
-        <p class="rd-kicker">KAPITTEL ${e(meta.chapter)} · ${e(meta.id)}${meta.synthetic ? ' · 合成补读' : ''}</p>
+        <p class="rd-kicker">KAPITTEL ${e(meta.chapter)} · ${e(readingId(meta))}${meta.synthetic ? ' · 合成补读' : ''}</p>
         <h2 class="rd-title" lang="nb">${e(meta.title)}</h2>
         <p class="rd-meta">${clock(meta.duration)} · ${data.sentences.length} 句 · ${meta.synthetic ? '原录音缺失，按教材原文合成朗读' : '教材原录音'}</p>
         <div class="rd-actions">
@@ -143,8 +148,8 @@
       <div class="rd-text">${data.sentences.map((sentence,index) => sentenceMarkup(sentence,index,data.lexicon)).join('')}</div>
       <p class="rd-hint">点词查义 · 按住拖过几个词，回放这段原声<span class="rd-hint-keys"> · 键盘：方向键选词，Shift 加方向键选一段，Enter 查看</span></p>
       <nav class="rd-pager" aria-label="上一节与下一节">
-        ${previous ? `<button type="button" class="rd-page" data-rd="open" data-id="${e(previous.id)}">${icon('left')}<span><small>上一节</small>${e(previous.id)} ${e(previous.title)}</span></button>` : '<span></span>'}
-        ${next ? `<button type="button" class="rd-page is-next" data-rd="open" data-id="${e(next.id)}"><span><small>下一节</small>${e(next.id)} ${e(next.title)}</span>${icon('chevron')}</button>` : '<span></span>'}
+        ${previous ? `<button type="button" class="rd-page" data-rd="open" data-id="${e(previous.id)}">${icon('left')}<span><small>上一节</small>${e(readingId(previous))} ${e(previous.title)}</span></button>` : '<span></span>'}
+        ${next ? `<button type="button" class="rd-page is-next" data-rd="open" data-id="${e(next.id)}"><span><small>下一节</small>${e(readingId(next))} ${e(next.title)}</span>${icon('chevron')}</button>` : '<span></span>'}
       </nav>
     </article><div class="rd-pop" role="dialog" aria-label="词语释义" hidden></div>`;
     state.view = {meta,data,root:$('.rd-lesson',state.container),sentences:$$('.rd-sentence',state.container)};
@@ -156,19 +161,20 @@
   }
   function renderChapter(chapterId,note = '') {
     const sections = chapterSections(chapterId);
-    const found = state.deps.findEntry(chapterId);
+    const found = state.deps.findEntry(chapterId,state.bookId);
     state.view = null;
     state.deps.onLesson?.(null);
     state.container.innerHTML = `<article class="rd-lesson is-overview">
       <header class="rd-head"><p class="rd-kicker">KAPITTEL ${e(chapterId)} · 听读</p><h2 class="rd-title" lang="nb">${e(found?.chapter?.title || `第 ${chapterId} 章`)}</h2>${note ? `<p class="rd-meta">${e(note)}</p>` : '<p class="rd-meta">选择一节，逐词阅读并跟着原录音听。</p>'}
       ${sections.length ? `<div class="rd-actions"><button type="button" class="rd-button is-primary" data-rd="play-chapter" data-id="${e(chapterId)}">${icon('play')}<span>整章依次播放</span></button><button type="button" class="rd-button" data-rd="queue-chapter" data-id="${e(chapterId)}">${icon('plus')}<span>整章加入播放列表</span></button></div>` : ''}</header>
-      ${sections.length ? `<ol class="rd-sections">${sections.map(item => `<li><button type="button" class="rd-section-card" data-rd="open" data-id="${e(item.id)}"><span class="rd-section-no">${e(item.id)}</span><span class="rd-section-title" lang="nb">${e(item.title)}</span><span class="rd-section-meta">${clock(item.duration)} · ${item.sentences} 句${item.synthetic ? ' · 合成补读' : ''}</span></button></li>`).join('')}</ol>` : '<p class="rd-empty">这一章暂无可听读的录音课文。</p>'}
+      ${sections.length ? `<ol class="rd-sections">${sections.map(item => `<li><button type="button" class="rd-section-card" data-rd="open" data-id="${e(item.id)}"><span class="rd-section-no">${e(readingId(item))}</span><span class="rd-section-title" lang="nb">${e(item.title)}</span><span class="rd-section-meta">${clock(item.duration)} · ${item.sentences} 句${item.synthetic ? ' · 合成补读' : ''}</span></button></li>`).join('')}</ol>` : '<p class="rd-empty">这一章暂无可听读的录音课文。</p>'}
     </article>`;
   }
-  async function show(container,entryId) {
+  async function show(container,entryId,book = state.deps.currentBook?.() || 'textbook') {
     state.container = container;
     if (!container) return;
-    if (String(entryId || '') !== state.sectionId) stopSlice();
+    if ((String(entryId || '') !== state.sectionId && String(entryId || '') !== readingId(state.view?.meta)) || book !== state.bookId) stopSlice();
+    state.bookId = book;
     state.visible = true;
     const run = ++state.showRun;
     let index;
@@ -179,10 +185,12 @@
     }
     if (run !== state.showRun) return;
     let id = String(entryId || '');
-    if (!index.byId.has(id)) {
-      const chapter = chapterOf(id) || String(index.sections?.[0]?.chapter || '1');
-      if (state.sectionId === `chapter:${chapter}` && container.querySelector('.rd-lesson')) return;
-      state.sectionId = `chapter:${chapter}`;
+    const matching = index.sections.find(item => bookOf(item) === book && (readingId(item) === id || String(item.id) === id));
+    if (matching) id = String(matching.id);
+    if (!matching) {
+      const chapter = chapterOf(id,book) || String(index.sections.find(item => bookOf(item) === book)?.chapter || '1');
+      if (state.sectionId === `chapter:${book}:${chapter}` && container.querySelector('.rd-lesson')) return;
+      state.sectionId = `chapter:${book}:${chapter}`;
       closePopover();
       renderChapter(chapter,id && id !== chapter ? '这一节没有原录音，选择本章其他小节听读。' : '');
       return;
@@ -563,7 +571,7 @@
     const chapter = state.deps.chapterAudio?.({id:playing});
     if (chapter && state.deps.audio.src) {
       const t = state.deps.audio.currentTime;
-      const inside = chapterSections(playing).find(item => { const section = chapter.sections?.[item.id]; return section && t >= Number(section.start) && t < Number(section.end); });
+      const inside = chapterSections(playing,'textbook').find(item => { const section = chapter.sections?.[readingId(item)]; return section && t >= Number(section.start) && t < Number(section.end); });
       if (inside) return inside;
     }
     return sectionMeta(state.sectionId) || null;
@@ -644,8 +652,8 @@
     state.stageSection = String(meta.id);
     const stage = state.stage;
     stage.stageData = null;
-    $('.rd-stage-title strong',stage).textContent = `${meta.id} ${meta.title}`;
-    $('.rd-stage-title span',stage).textContent = `God i norsk · Kapittel ${meta.chapter}${meta.synthetic ? ' · 合成补读' : ''}`;
+    $('.rd-stage-title strong',stage).textContent = `${readingId(meta)} ${meta.title}`;
+    $('.rd-stage-title span',stage).textContent = `${bookTitle(bookOf(meta))} · Kapittel ${meta.chapter}${meta.synthetic ? ' · 合成补读' : ''}`;
     const lines = $('.rd-stage-lines',stage);
     lines.innerHTML = '<p class="rd-stage-line is-loading">正在载入…</p>';
     try {
@@ -808,13 +816,16 @@
     const total = items.reduce((sum,id) => sum+Number(sectionMeta(id).duration || 0),0);
     return `<p class="rd-list-total">${items.length} 节 · 共 ${clock(total)}</p><ol class="rd-list">${items.map((id,index) => {
       const meta = sectionMeta(id), playing = id === current;
-      return `<li class="rd-list-row${playing ? ' is-playing' : ''}"><button type="button" class="rd-list-main" data-rd="list-play" data-id="${e(id)}"><span class="rd-list-no">${playing ? '<i class="rd-eq" aria-hidden="true"><b></b><b></b><b></b></i>' : e(meta.id)}</span><span class="rd-list-title" lang="nb">${e(meta.title)}<small>第 ${e(meta.chapter)} 章 · ${clock(meta.duration)}${meta.synthetic ? ' · 合成补读' : ''}</small></span></button>${compact ? '' : `<button type="button" class="rd-list-icon" data-rd="list-up" data-id="${e(id)}" aria-label="上移" ${index ? '' : 'disabled'}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>`}<button type="button" class="rd-list-icon" data-rd="list-open" data-id="${e(id)}" aria-label="打开课文">${icon('text')}</button><button type="button" class="rd-list-icon" data-rd="list-remove" data-id="${e(id)}" aria-label="移出播放列表">${icon('close')}</button></li>`;
+      return `<li class="rd-list-row${playing ? ' is-playing' : ''}"><button type="button" class="rd-list-main" data-rd="list-play" data-id="${e(id)}"><span class="rd-list-no">${playing ? '<i class="rd-eq" aria-hidden="true"><b></b><b></b><b></b></i>' : e(readingId(meta))}</span><span class="rd-list-title" lang="nb">${e(meta.title)}<small>第 ${e(meta.chapter)} 章 · ${clock(meta.duration)}${meta.synthetic ? ' · 合成补读' : ''}</small></span></button>${compact ? '' : `<button type="button" class="rd-list-icon" data-rd="list-up" data-id="${e(id)}" aria-label="上移" ${index ? '' : 'disabled'}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg></button>`}<button type="button" class="rd-list-icon" data-rd="list-open" data-id="${e(id)}" aria-label="打开课文">${icon('text')}</button><button type="button" class="rd-list-icon" data-rd="list-remove" data-id="${e(id)}" aria-label="移出播放列表">${icon('close')}</button></li>`;
     }).join('')}</ol>`;
   }
   function adderMarkup() {
-    const chapters = [...new Set((state.index?.sections || []).map(item => String(item.chapter)))];
-    return `<div class="rd-adder"><p class="rd-adder-title">添加课文</p><div class="rd-adder-chips"><button type="button" class="rd-chip" data-rd="add-all">全部 ${state.index?.sections?.length || 0} 节</button>${chapters.map(chapter => `<button type="button" class="rd-chip" data-rd="add-chapter" data-id="${e(chapter)}">第 ${e(chapter)} 章</button>`).join('')}</div>
-      <details class="rd-adder-detail"><summary>按小节挑选</summary>${chapters.map(chapter => `<div class="rd-adder-chapter"><p>第 ${e(chapter)} 章</p>${chapterSections(chapter).map(item => { const queued = state.playlist.items.includes(String(item.id)); return `<button type="button" class="rd-adder-row" data-rd="${queued ? 'list-remove' : 'add-one'}" data-id="${e(item.id)}" aria-pressed="${queued}"><span>${e(item.id)}</span><span lang="nb">${e(item.title)}</span><small>${clock(item.duration)}</small>${icon(queued ? 'check' : 'plus')}</button>`; }).join('')}</div>`).join('')}</details></div>`;
+    const sections = state.index?.sections || [];
+    const chapters = [...new Map(sections.map(item => [`${bookOf(item)}:${item.chapter}`,{chapter:String(item.chapter),book:bookOf(item)}])).values()];
+    const multipleBooks = new Set(sections.map(bookOf)).size > 1;
+    const label = ({chapter,book}) => `${multipleBooks ? `${e(bookTitle(book))} · ` : ''}第 ${e(chapter)} 章`;
+    return `<div class="rd-adder"><p class="rd-adder-title">添加课文</p><div class="rd-adder-chips"><button type="button" class="rd-chip" data-rd="add-all">全部 ${sections.length} 节</button>${chapters.map(group => `<button type="button" class="rd-chip" data-rd="add-chapter" data-id="${e(group.chapter)}" data-book="${e(group.book)}">${label(group)}</button>`).join('')}</div>
+      <details class="rd-adder-detail"><summary>按小节挑选</summary>${chapters.map(group => `<div class="rd-adder-chapter"><p>${label(group)}</p>${chapterSections(group.chapter,group.book).map(item => { const queued = state.playlist.items.includes(String(item.id)); return `<button type="button" class="rd-adder-row" data-rd="${queued ? 'list-remove' : 'add-one'}" data-id="${e(item.id)}" aria-pressed="${queued}"><span>${e(readingId(item))}</span><span lang="nb">${e(item.title)}</span><small>${clock(item.duration)}</small>${icon(queued ? 'check' : 'plus')}</button>`; }).join('')}</div>`).join('')}</details></div>`;
   }
   function modeBar() {
     // Loop and shuffle only mean something once there is a list to play.
@@ -893,7 +904,7 @@
       const meta = sectionMeta(id);
       const found = state.deps.findEntry(id);
       try {
-        session.metadata = new MediaMetadata({title:meta ? `${meta.id} ${meta.title}` : (found?.entry?.title || 'God i norsk'),artist:`God i norsk · Kapittel ${detail.chapter || meta?.chapter || ''}`,album:'Norsk 学习书房',artwork:[{src:new URL('assets/honors/player-cover.webp',document.baseURI).href,sizes:'384x384',type:'image/webp'}]});
+        session.metadata = new MediaMetadata({title:meta ? `${readingId(meta)} ${meta.title}` : (found?.entry?.title || bookTitle(detail.bookId || 'textbook')),artist:`${bookTitle(meta ? bookOf(meta) : detail.bookId || 'textbook')} · Kapittel ${detail.chapter || meta?.chapter || ''}`,album:'Norsk 学习书房',artwork:[{src:new URL('assets/honors/player-cover.webp',document.baseURI).href,sizes:'384x384',type:'image/webp'}]});
       } catch { /* Metadata is optional. */ }
     }
     const set = (action,handler) => { try { session.setActionHandler(action,handler); } catch { /* Unsupported action. */ } };
@@ -1003,7 +1014,7 @@
       case 'list-remove': removeFromPlaylist(id); break;
       case 'list-up': moveInPlaylist(id,-1); break;
       case 'add-all': addToPlaylist((state.index?.sections || []).map(item => item.id)); break;
-      case 'add-chapter': addToPlaylist(chapterSections(id).map(item => item.id)); break;
+      case 'add-chapter': addToPlaylist(chapterSections(id,target.dataset.book || 'textbook').map(item => item.id)); break;
       case 'add-one': addToPlaylist([id]); break;
     }
   }

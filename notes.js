@@ -583,7 +583,9 @@ function placeDock() {
 }
 
 /* ================= Highlights and thoughts in 听读 ================= */
-const marksHere = () => ui.lesson ? ui.store.marksIn('textbook',ui.lesson.meta.id) : [];
+const lessonBook = view => view?.meta?.bookId || 'textbook';
+const lessonPlace = view => String(view?.meta?.readingId ?? view?.meta?.id ?? '');
+const marksHere = () => ui.lesson ? ui.store.marksIn(lessonBook(ui.lesson),lessonPlace(ui.lesson)) : [];
 const covers = (mark,range) => !(mark.s1 < range.from.s || (mark.s1 === range.from.s && mark.w1 < range.from.w) || mark.s0 > range.to.s || (mark.s0 === range.to.s && mark.w0 > range.to.w));
 // A highlight keeps the sentence it began in; after the lesson text is rebuilt it follows that sentence.
 function anchored(data,view = ui.lesson) {
@@ -641,7 +643,7 @@ function paintMarks() {
   if (!layer || !glyphs) return;
   const box = layer.getBoundingClientRect();
   let html = '', buttons = '';
-  if (ui.showOthers) for (const other of ui.others.key === `textbook:${view.meta.id}` ? ui.others.items.filter(item => item.kind === 'mark') : []) {
+  if (ui.showOthers) for (const other of ui.others.key === `${lessonBook(view)}:${lessonPlace(view)}` ? ui.others.items.filter(item => item.kind === 'mark') : []) {
     const data = anchored(normalizeMark(other.data),view);
     if (!data) continue;
     for (const rect of rangeRects(view,data,box)) html += `<i class="nt-other-line" style="left:${rect.left}px;top:${rect.top+rect.height-5}px;width:${rect.width}px"></i>`;
@@ -711,7 +713,7 @@ function saveMark({color,note,shared,range,markId}) {
   data.quote = quoteFor(view,data);
   return guard(() => {
     for (const item of overlapping) if (item !== keep) ui.store.remove(item.id);
-    return ui.store.save({id:keep?.id || newId('m'),kind:'mark',book:'textbook',place:String(view.meta.id),data});
+    return ui.store.save({id:keep?.id || newId('m'),kind:'mark',book:lessonBook(view),place:lessonPlace(view),data});
   });
 }
 function cardAction(action,button) {
@@ -898,7 +900,7 @@ function sharedEntry(item,{showPlace = true,overlay = false} = {}) {
 }
 
 /* ================= The drawer beside the page ================= */
-const readingPlace = () => ui.lesson && document.body.classList.contains('read-text') ? {book:'textbook',kind:'mark',place:String(ui.lesson.meta.id)}
+const readingPlace = () => ui.lesson && document.body.classList.contains('read-text') ? {book:lessonBook(ui.lesson),kind:'mark',place:lessonPlace(ui.lesson)}
   : ui.ink ? {book:ui.ink.book,kind:'page',place:ui.ink.page} : null;
 function openDrawer(tab = ui.drawerTab) {
   ui.drawerTab = tab;
@@ -1251,7 +1253,7 @@ async function uncomment(id,button) {
 function jumpTo(item) {
   if (item.kind === 'mark') ui.pendingMark = item.id || '';
   ui.deps.jump({book:item.book,kind:item.kind,place:String(item.place)});
-  if (item.kind === 'mark' && ui.lesson && String(ui.lesson.meta.id) === String(item.place) && ui.pendingMark) { const markId = ui.pendingMark; ui.pendingMark = ''; focusMark(markId); }
+  if (item.kind === 'mark' && ui.lesson && lessonBook(ui.lesson) === item.book && lessonPlace(ui.lesson) === String(item.place) && ui.pendingMark) { const markId = ui.pendingMark; ui.pendingMark = ''; focusMark(markId); }
 }
 
 /* ================= Setup ================= */
