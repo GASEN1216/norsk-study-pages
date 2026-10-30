@@ -103,8 +103,11 @@
   }
   function applyProfile(profile) {
     if (!profile || typeof profile.id !== 'string' || !profile.id || profile.id.length > 128 || typeof profile.nickname !== 'string' || !profile.nickname.trim() || count(profile.nickname) > 20 || (state.profile && profile.id !== state.profile.id)) throw issue('service_unavailable');
+    const renamed=state.identity.nickname !== profile.nickname;
     state.profile={id:profile.id,nickname:profile.nickname};
     state.identity.nickname=profile.nickname;
+    // Notes keep each nickname apart, so they look again when the name changes.
+    if (renamed) { try { window.dispatchEvent(new CustomEvent('norskprofilechange',{detail:{nickname:profile.nickname}})); } catch { /* Listeners are optional. */ } }
     try { localStorage.setItem(DEVICE_KEY,JSON.stringify({version:1,...state.identity})); } catch { /* A name cache is optional; credentials were saved before registration. */ }
     return state.profile;
   }

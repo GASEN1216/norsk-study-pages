@@ -376,3 +376,8 @@ button.ai-card:hover{border-color:#acbd97;box-shadow:0 6px 22px #2c4b2b0d}
   .mh-tool,.mh-week,.ai-mode-chip,button.ai-card,.ai-listen,.ai-hear,.ai-stop,.ai-next,.ai-start-button,.ai-progress-track i{transition:none}
   .ai-card.is-entering,.ai-card.is-flipping,.ai-sound-bars i{animation:none}
 }
+
+/* 笔记 joins the shelf: four tools in one row on wide screens, two by two in between. */
+.mh-tool.is-notes{--tone:#9a6b2f;--tone-bg:#f6ecd8}
+@media(min-width:1201px){.mh-tools{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:721px) and (max-width:1200px){.mh-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}

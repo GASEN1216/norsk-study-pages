@@ -1,10 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261030-audio-pdf';
-import {createReadingLibrary} from './reading-library.mjs?v=20261030-audio-pdf';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-audio-pdf';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-audio-pdf';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-audio-pdf';
+import {createDataLoader} from './loader.mjs?v=20261030-notes';
+import {createReadingLibrary} from './reading-library.mjs?v=20261030-notes';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-notes';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-notes';
+import * as notesModel from './notes-store.mjs?v=20261030-notes';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-notes';
 
-const VERSION = '20261030-audio-pdf';
+const VERSION = '20261030-notes';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -71,6 +72,103 @@ function wordbookLookup() {
       return await response.text();
     } finally { clearTimeout(timer); }
   }});
+}
+// Reading notes follow the nickname too, but each nickname keeps its own copy in this browser.
+let notesStore, notesSync, notesLoad, notesSyncedAt = 0;
+function notes() {
+  if (notesStore) return notesStore;
+  let storage;
+  try { storage = window.localStorage; } catch {}
+  let channel = null;
+  try { channel = new BroadcastChannel('norsk-notes'); } catch {}
+  notesStore = notesModel.createNotesStore({backend:notesModel.indexedDBBackend(),storage,channel});
+  notesStore.subscribe(detail => { if (detail.type === 'change') notesSync ? notesSync.schedule() : syncNotes(); });
+  return notesStore;
+}
+function syncNotes() {
+  notes();
+  if (!notesSync) {
+    notesSync = notesModel.createNotesSync({store:notesStore,request:(path,options) => prepareCommunity().then(community => community.request(path,options)),
+      onStatus:(status,detail) => {
+        state.notesSync = {...state.notesSync,status,...detail};
+        if (status !== 'syncing') notesSyncedAt = Date.now();
+        window.NorskNotes?.refresh?.();
+      },
+      onPerson:({nickname}) => notify(`昵称已换成「${nickname}」，现在显示的是这个昵称自己的笔记。`)});
+    window.addEventListener('online',() => notesSync.run());
+    window.addEventListener('norskprofilechange',() => notesSync.run());
+    document.addEventListener('visibilitychange',() => {
+      if (document.hidden && notesStore.dirty().length) notesSync.run();
+      else if (!document.hidden && Date.now()-notesSyncedAt > 60000) notesSync.run();
+    });
+  }
+  return notesSync.run();
+}
+function prepareNotes() {
+  // The page's handwriting is drawn only once this browser's saved notes are read, so a stroke never
+  // starts from an empty page and replaces what was there.
+  if (!notesLoad) notesLoad = Promise.all([loadFeature('notes'),import(`./notes-ink.mjs?v=${VERSION}`),Promise.resolve().then(() => notes().ready)]).then(([,ink]) => {
+    window.NorskNotes.init({store:notes(),ink,model:notesModel,community:prepareCommunity,escapeHTML,icon,notify,openLayer,closeLayer,
+      syncState:() => state.notesSync || {},pageImage,bookLabel:noteBookLabel,placeLabel:notePlaceLabel,books:() => Object.keys(state.data.catalog?.books || {}).map(book => [book,noteBookLabel(book)]),
+      jump:jumpToNote,addToWordbook,closeReaderCard:() => window.NorskReader?.closeCard?.(),
+      openOverview:() => { setMoreTab('notes'); setView('more'); }});
+    syncNotes();
+    return window.NorskNotes;
+  }).catch(error => { notesLoad = null; throw error; });
+  return notesLoad;
+}
+function noteBookLabel(book) {
+  const data = bookData(book);
+  if (!data) return '教材';
+  const series = state.library?.series.find(item => item.id === state.library.seriesFor(book));
+  return `${series?.title || data.title || ''} · ${data.label || (data.kind === 'workbook' ? '练习册' : '教材')}`;
+}
+function notePlaceLabel(book,kind,place) {
+  if (kind === 'mark') { const found = findEntry(place,book); return found ? `${place} ${found.entry.title}` : place; }
+  return `第 ${place} 页`;
+}
+function jumpToNote({book,kind,place}) {
+  if (!bookData(book)) { notify('这本书暂时不可用。'); return; }
+  if (kind === 'mark') { openReaderSection(place); return; }
+  state.readMode = 'pdf';
+  try { localStorage.setItem('norsk-read-mode-v1','pdf'); } catch {}
+  if (state.book !== book) switchBook(book);
+  renderStudyPicker();
+  if (state.view !== 'reading') { state.page = Math.max(1,Number(place) || 1); state.readingId = str(closestEntry()?.id || ''); saveReading(); setView('reading'); }
+  else goPage(Number(place));
+}
+// A small picture of a page for note cards; the PDF parts are the ones the reader already uses.
+const pageImages = new Map();
+function pageImage(book,page,width) {
+  const key = `${book}:${page}:${Math.round(width)}`;
+  if (pageImages.has(key)) return pageImages.get(key);
+  const promise = (async () => {
+    const part = documentPart(Number(page),book);
+    if (!part) return null;
+    const pdf = await getPDF(part.file);
+    const pdfPage = await pdf.getPage(Number(page)-Number(part.startPage)+1);
+    const viewport = pdfPage.getViewport({scale:width/pdfPage.getViewport({scale:1}).width});
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width); canvas.height = Math.round(viewport.height);
+    await pdfPage.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+    return canvas;
+  })().catch(() => { pageImages.delete(key); return null; });
+  pageImages.set(key,promise);
+  if (pageImages.size > 60) pageImages.delete(pageImages.keys().next().value);
+  return promise;
+}
+// 加入词本 from 听读: words land in a 听读摘录 directory, made the first time.
+function addToWordbook({word,meaning,example,exampleZh}) {
+  const store = wordbook(), value = str(word).trim();
+  const problem = wordProblem(value);
+  if (problem) { notify(problem); return; }
+  if (store.data.entries.some(entry => wordKey(entry.word) === wordKey(value))) { notify(`「${value}」已经在词本里了。`); return; }
+  try {
+    const title = '听读摘录';
+    const chapterId = store.data.chapters.find(item => item.title === title)?.id || store.addChapter(title);
+    store.addEntries(chapterId,[{word:value,meaning:str(meaning || exampleZh || '（听读摘录）').slice(0,200),example:str(example).slice(0,300),pos:/\s/.test(value) ? '短语' : ''}]);
+    notify(`已加入词本「${title}」。`);
+  } catch (error) { notify(error?.message || '没有加进词本，请重试。'); }
 }
 // The site's own recording for exactly this spelling; null while the recordings list is not loaded.
 function textbookClip(word) {
@@ -231,7 +329,8 @@ function submitPracticeResult(result) {
 let readerLoad;
 function prepareReader() {
   if (!readerLoad) readerLoad = loadFeature('reader').then(() => {
-    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:id => findEntry(id,'textbook'),entryAudio,chapterAudio,allChapters:() => allChapters('textbook'),loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION,streamOffset});
+    window.NorskReader.init({audio,playEntry,resumeLessonAudio,pauseLessonAudio,seekLesson,findEntry:id => findEntry(id,'textbook'),entryAudio,chapterAudio,allChapters:() => allChapters('textbook'),loadData,safeURL,notify,pronounce,prefetch:prefetchPronunciation,stopWordAudio:pauseOtherAudio,escapeHTML,icon,currentEntry:() => state.currentEntryId,playbackVersion:() => state.audioToken,openSection:openReaderSection,openLayer,closeLayer,version:VERSION,streamOffset,
+      noteBar:context => window.NorskNotes?.cardBar(context) || '',onLesson:view => { if (view) prepareNotes().then(notes => notes.lessonShown(view)).catch(() => {}); else window.NorskNotes?.lessonShown(null); }});
     return window.NorskReader;
   }).catch(error => { readerLoad = null; throw error; });
   return readerLoad;
@@ -247,6 +346,8 @@ function applyReadMode() {
   textButton.title = state.book === 'textbook' ? '逐词显示课文，跟着录音听读' : '听读目前只适用于有原录音的 God i norsk 教材';
   $('#pdf-stage').hidden = text;
   $('.page-controls').hidden = text;
+  if (text) { window.NorskNotes?.stopAnnotating(); window.NorskNotes?.pageHidden(); state.notesPage = ''; }
+  window.NorskNotes?.placeDock();
   $('#reader-text').hidden = !text;
 }
 function setReadMode(mode) {
@@ -366,14 +467,15 @@ async function prepareView(view,viewRun = state.viewRun) {
   if (view === 'more') {
     await loadFeature('more');
     if (!state.moreInitialized) {
-      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION});
+      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),notes:prepareNotes,stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION});
       state.moreInitialized = true;
     }
   }
   if (view === 'compare') {
     await loadFeature('compare');
     if (!state.compareInitialized) {
-      window.NorskCompare.init({data:state.data,getPDF,documentPart,bookDownload,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,onClose:positions => {
+      window.NorskCompare.init({data:state.data,getPDF,documentPart,bookDownload,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,
+        paintNotes:(canvas,book,page) => prepareNotes().then(notes => notes.paintStatic(canvas,book,page)).catch(() => {}),onClose:positions => {
         rememberComparePositions(positions);
         setView('reading');
       }});
@@ -603,6 +705,8 @@ async function setView(view, updateHash = true) {
   }
   if (state.view === 'reading' && view !== 'reading') {
     window.NorskReader?.hide();
+    window.NorskNotes?.leaveReading();
+    state.notesPage = '';
     ++state.pdfRun;
     state.pdfLayoutKey = '';
     try { state.renderTask?.cancel(); } catch {}
@@ -785,7 +889,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-audio-pdf').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-notes').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -806,6 +910,8 @@ async function renderPDF() {
   }
   const stage = $('#pdf-stage');
   const layoutKey = [state.book,state.page,$('#zoom-select').value,stage.clientWidth,stage.clientHeight,window.devicePixelRatio || 1].join(':');
+  // Handwriting belongs to one page: it leaves with it and returns once the next page is drawn.
+  if (state.notesPage !== `${state.book}:${state.page}`) { window.NorskNotes?.pageHidden(); state.notesPage = ''; }
   if (state.pdfLayoutKey === layoutKey) return;
   state.pdfLayoutKey = layoutKey;
   // The same page laid out again (a rotation, the phone's top bar leaving) keeps the reader's place inside the page.
@@ -853,6 +959,8 @@ async function renderPDF() {
     quietHeaderScroll();
     stage.scrollTop = keepPlace ? previousTop : 0;
     stage.scrollLeft = keepPlace ? previousLeft : 0;
+    const shown = {stage,canvas,book:state.book,page:state.page};
+    prepareNotes().then(notes => { if (run === state.pdfRun && state.view === 'reading' && !readingTextMode()) { state.notesPage = `${shown.book}:${shown.page}`; notes.pageShown(shown); } }).catch(() => {});
   } catch(error) {
     if (run !== state.pdfRun || error?.name === 'RenderingCancelledException') return;
     state.pdfLayoutKey = '';

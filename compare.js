@@ -243,6 +243,7 @@
       if (run !== pane.run || !paneVisible(pane)) return;
       canvas.hidden=false; node(pane,'.cp-message').hidden=true;
       stage.scrollLeft=pane.scroll.left; stage.scrollTop=pane.scroll.top;
+      state.deps.paintNotes?.(canvas,pane.book,pane.page);
       pane.error=false; pane.dirty=false; pane.renderedKey=renderKey;
     } catch (error) {
       if (run !== pane.run || error?.name === 'RenderingCancelledException' || !paneVisible(pane)) return;

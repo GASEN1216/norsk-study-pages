@@ -152,11 +152,13 @@
     state.current = {sentence:-1,word:-1};
     syncHighlight(true);
     startFollowing();
+    state.deps.onLesson?.(state.view);
   }
   function renderChapter(chapterId,note = '') {
     const sections = chapterSections(chapterId);
     const found = state.deps.findEntry(chapterId);
     state.view = null;
+    state.deps.onLesson?.(null);
     state.container.innerHTML = `<article class="rd-lesson is-overview">
       <header class="rd-head"><p class="rd-kicker">KAPITTEL ${e(chapterId)} · 听读</p><h2 class="rd-title" lang="nb">${e(found?.chapter?.title || `第 ${chapterId} 章`)}</h2>${note ? `<p class="rd-meta">${e(note)}</p>` : '<p class="rd-meta">选择一节，逐词阅读并跟着原录音听。</p>'}
       ${sections.length ? `<div class="rd-actions"><button type="button" class="rd-button is-primary" data-rd="play-chapter" data-id="${e(chapterId)}">${icon('play')}<span>整章依次播放</span></button><button type="button" class="rd-button" data-rd="queue-chapter" data-id="${e(chapterId)}">${icon('plus')}<span>整章加入播放列表</span></button></div>` : ''}</header>
@@ -185,7 +187,7 @@
       renderChapter(chapter,id && id !== chapter ? '这一节没有原录音，选择本章其他小节听读。' : '');
       return;
     }
-    if (state.sectionId === id && state.view && container.contains(state.view.root)) { syncHighlight(true); startFollowing(); return; }
+    if (state.sectionId === id && state.view && container.contains(state.view.root)) { syncHighlight(true); startFollowing(); state.deps.onLesson?.(state.view); return; }
     state.sectionId = id;
     closePopover();
     const meta = sectionMeta(id);
@@ -346,7 +348,12 @@
     return `<div class="rd-pop-head"><button type="button" class="rd-pop-say" data-rd="say" aria-label="朗读 ${e(surface)}">${icon('volume')}</button><strong lang="nb">${e(surface)}</strong>${lemma ? `<span class="rd-pop-lemma" lang="nb">原形 ${e(lemma)}</span>` : ''}<button type="button" class="rd-pop-close" data-rd="close" aria-label="关闭">${icon('close')}</button></div>
       <p class="rd-pop-zh">${zh ? e(zh) : '<span class="rd-pop-none">暂无释义，可结合整句译文理解</span>'}</p>${meta ? `<p class="rd-pop-meta">${e(meta)}</p>` : ''}
       <div class="rd-pop-sentence"><p lang="nb">${e(sentence.text)}</p>${sentence.zh ? `<p>${e(sentence.zh)}</p>` : ''}</div>
-      <div class="rd-pop-actions"><button type="button" data-rd="slice-word">${icon('volume')}听原声</button><button type="button" data-rd="slice-sentence">${icon('play')}听本句</button></div>`;
+      <div class="rd-pop-actions"><button type="button" data-rd="slice-word">${icon('volume')}听原声</button><button type="button" data-rd="slice-sentence">${icon('play')}听本句</button></div>
+      ${noteBar({range:{from:{s:sentenceIndex,w:wordIndex},to:{s:sentenceIndex,w:wordIndex}},text:surface,meaning:zh,sentence:sentence.text,sentenceZh:sentence.zh || ''})}`;
+  }
+  // Highlighting, thoughts and 加入词本 come from the notes feature, once it has loaded.
+  function noteBar(context) {
+    try { return state.deps.noteBar?.(context) || ''; } catch { return ''; }
   }
   function phraseCard(view,range) {
     const {from,to} = range;
@@ -373,7 +380,8 @@
       : meaning ? '<p class="rd-pop-note">这段不是已收录的固定表达，暂无独立释义。</p>' : '';
     return `<div class="rd-pop-head"><button type="button" class="rd-pop-say" data-rd="slice-range" aria-label="回放这段原录音">${icon('volume')}</button><strong lang="nb">${e(text)}</strong><button type="button" class="rd-pop-close" data-rd="close" aria-label="关闭">${icon('close')}</button></div>
       ${lead}<ul class="rd-pop-glosses">${glosses}</ul>
-      ${translations.length && !whole ? `<div class="rd-pop-sentence"><span class="rd-pop-label">整句参考译文</span>${translations.map(sentence => `<p lang="nb">${e(sentence.text)}</p><p>${e(sentence.zh)}</p>`).join('')}</div>` : ''}`;
+      ${translations.length && !whole ? `<div class="rd-pop-sentence"><span class="rd-pop-label">整句参考译文</span>${translations.map(sentence => `<p lang="nb">${e(sentence.text)}</p><p>${e(sentence.zh)}</p>`).join('')}</div>` : ''}
+      ${noteBar({range:{from:{...from},to:{...to}},text,meaning:meaning?.translation || '',sentence:sentences[from.s].text,sentenceZh:translations.map(sentence => sentence.zh).join(' ')})}`;
   }
   function phraseMeaning(view,range) {
     if (!state.meaning || !view.data?.sentences) return null;
@@ -1053,9 +1061,10 @@
     state.showRun++;
     stopSlice();
     closePopover();
+    state.deps.onLesson?.(null);
     if (!followingVisible()) { cancelAnimationFrame(state.frame); state.frame = 0; }
   }
 
-  window.NorskReader = {init,show,hide,stopSlice,cancelTrackNavigation,playlistPlan,useOrder,openTranscript,closeTranscript,openPlaylist,closePlaylist,renderPlaylistPage,addToPlaylist};
+  window.NorskReader = {init,show,hide,closeCard:() => closePopover(),stopSlice,cancelTrackNavigation,playlistPlan,useOrder,openTranscript,closeTranscript,openPlaylist,closePlaylist,renderPlaylistPage,addToPlaylist};
   window.dispatchEvent(new Event('norskreaderready'));
 })();

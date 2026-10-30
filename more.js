@@ -7,7 +7,8 @@
   const TOOLS = {
     interview:{title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
     playlist:{title:'播放列表',note:'把课文录音排成清单，锁屏也能听',meta:'随身听',icon:'<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="12" width="5" height="9" rx="2"/><rect x="17" y="12" width="5" height="9" rx="2"/>'},
-    honors:{title:'荣誉',note:'赛季徽章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'}
+    honors:{title:'荣誉',note:'赛季徽章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'},
+    notes:{title:'笔记',note:'我的手写与划线，和大家分享的笔记广场',meta:'笔记广场',icon:'<path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M15 3.5V7.5h4M9 11h7M9 14.5h7M9 18h4"/>'}
   };
   const DAYS = ['一','二','三','四','五','六','日'];
   const RANKS = {1:'金杯',2:'银杯',3:'铜杯'};
@@ -75,7 +76,7 @@
     if (slot) slot.innerHTML = weekMarkup();
   }
   function hubMarkup() {
-    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">面试练习、随身听和这一季的荣誉，都在这里。</p></header>
+    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">面试练习、随身听、读书笔记和这一季的荣誉，都在这里。</p></header>
       <div class="mh-tools">${Object.entries(TOOLS).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
       <div id="mh-hub-week">${weekMarkup()}</div></div>`;
   }
@@ -235,6 +236,14 @@
       });
       return;
     }
+    if (state.tab === 'notes') {
+      state.root.innerHTML = `<div class="mh-app">${backBar()}<div class="mh-notes"></div></div>`;
+      state.deps.notes().then(notes => { const slot = $('.mh-notes',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'notes') notes.renderOverview(slot); }).catch(() => {
+        const slot = $('.mh-notes',state.root);
+        if (run === state.renderRun && slot && state.visible && state.tab === 'notes') slot.innerHTML = '<div class="mh-offline"><p>笔记暂时无法载入，请检查网络后重试。</p></div>';
+      });
+      return;
+    }
     if (state.tab === 'playlist') {
       state.root.innerHTML = `<div class="mh-app">${backBar()}<div class="mh-playlist"></div></div>`;
       state.deps.reader().then(reader => { const slot = $('.mh-playlist',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'playlist') reader.renderPlaylistPage(slot); }).catch(() => {
@@ -368,7 +377,7 @@
     if (next === 'honors' || next === 'home') load();
     if (focus) state.root?.querySelector(focus)?.focus({preventScroll:true});
   }
-  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.dialog?.close?.(); }
+  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.dialog?.close?.(); window.NorskNotes?.hideOverview?.(); }
   function stopAudio() { state.interview?.stopAudio(); }
 
   window.NorskMore = {init,show,hide,reveal,stopAudio};
