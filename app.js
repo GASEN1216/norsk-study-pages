@@ -1,10 +1,10 @@
-import {createDataLoader} from './loader.mjs?v=20261030-duel-goal';
-import {createReadingLibrary} from './reading-library.mjs?v=20261030-duel-goal';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-duel-goal';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-duel-goal';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-duel-goal';
+import {createDataLoader} from './loader.mjs?v=20261030-duel-records';
+import {createReadingLibrary} from './reading-library.mjs?v=20261030-duel-records';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-duel-records';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-duel-records';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-duel-records';
 
-const VERSION = '20261030-duel-goal';
+const VERSION = '20261030-duel-records';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -777,7 +777,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-duel-goal').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-duel-records').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });

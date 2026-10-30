@@ -11,8 +11,8 @@
   const POLL_MS = {lobby:1500, finished:1500, countdown:500, playing:650, hidden:4000};
   const TEAMS = {pine:{name:'松绿队',color:'#2f6b55'}, amber:{name:'琥珀队',color:'#a87a2a'}};
   const TEAM_IDS = ['pine','amber'];
-  // Muted, distinguishable tones that sit with the site's forest green and gold.
-  const COLORS = ['#2f6b55','#a87a2a','#46698c','#8b4d6a','#2d7473','#a65d3c','#677634','#6c5e8c'];
+  // Muted, distinguishable tones; the first players get the warm ones (terracotta, amber, rose) to sit with the site's paper and gold.
+  const COLORS = ['#b0703f','#a87a2a','#8b4d6a','#46698c','#6c5e8c','#2d7473','#677634','#2f6b55'];
   const MODES = {ffa:{name:'个人混战',hint:'各自为战'}, team:{name:'组队',hint:'松绿队对琥珀队'}};
   const CARD_MODES = {memory:{name:'翻面记忆',hint:'翻开卡片，记住位置'}, open:{name:'全部明牌',hint:'不用翻面，直接抢配对'}};
   const GOALS = {all:{name:'全部翻完',hint:'每个词抢完即结束'}, time:{name:'限时',hint:'到点结束，词会复习'}};
@@ -252,14 +252,28 @@
     check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     down:'<path d="m6 9.5 6 6 6-6"/>',
     speaker:'<path d="M11 5 6.5 9H3.5v6h3l4.5 4z"/><path d="M15.5 8.8a4.6 4.6 0 0 1 0 6.4"/>',
+    back:'<path d="M14.5 6 8.5 12l6 6"/>',
+    next:'<path d="m9.5 6 6 6-6 6"/>',
+    plus:'<path d="M12 5.5v13M5.5 12h13"/>',
+    book:'<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v14H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H18v-3"/>',
+    stack:'<rect x="7.5" y="4.5" width="11" height="14" rx="2"/><path d="M5.5 8v10.5a2 2 0 0 0 2 2H15"/><path d="m10.5 11.5 2 2 3.5-4"/>',
+    clock:'<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
+    cardback:'<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M12 8.5 13 11l2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"/>',
+    faceup:'<rect x="3.5" y="5" width="8" height="12" rx="1.6"/><rect x="12.5" y="7" width="8" height="12" rx="1.6"/><path d="M6 9.5h3M6 12h2M15 11.5h3M15 14h2"/>',
+    person:'<circle cx="12" cy="8.5" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/>',
+    team:'<circle cx="8.5" cy="9" r="3"/><circle cx="16" cy="9.5" r="2.5"/><path d="M3.5 19a5 5 0 0 1 10 0M13.5 15.2a4.5 4.5 0 0 1 7 3.8"/>',
+    trophy:'<path d="M8 4.5h8v4a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2.5 2.5 0 0 0 2.6 3M16 6h2.5a2.5 2.5 0 0 1-2.6 3M12 12.5V16M9 19.5h6M10 16h4v3.5h-4z"/>',
   };
   const icon = name => `<svg class="nd-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
   const button = (action,text,kind='',extra='') => `<button type="button" class="nd-button ${kind}" data-nd-action="${action}" ${extra}>${text}</button>`;
+  // A round initial in the player's colour stands in for an avatar.
+  const avatar = (name,color,extra='') => `<span class="nd-avatar${extra}" style="--nd-color:${color}" aria-hidden="true">${e([...String(name || '?').trim()][0] || '?')}</span>`;
   const serverNow = () => Date.now()+(ui.clock?.offset || 0);
   const meOf = room => room?.players?.find(player => player.id === room.me) || null;
   const isHost = room => Boolean(room && room.me && room.me === room.hostId);
   const between = room => room && (room.status === 'lobby' || room.status === 'finished');
-  const screenOf = room => !room ? 'lobby' : room.status === 'lobby' ? 'room' : room.status === 'finished' ? 'results' : 'game';
+  // Outside a room the overlay has three views: home, a new room's setup, and my records.
+  const screenOf = room => !room ? ui.view || 'home' : room.status === 'lobby' ? 'room' : room.status === 'finished' ? 'results' : 'game';
   const reducedMotion = () => { try { return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true; } catch { return false; } };
   const nameOf = (room, id) => id === room?.me ? '我' : room?.players?.find(player => player.id === id)?.nickname || '';
 
@@ -309,7 +323,7 @@
       tickTimer:null,missTimer:null,toastTimer:null,tickerTimer:null,dealTimer:null,settingsTimer:null,resizeTimer:null,timers:new Set(),
       gone:new Set(),glowing:new Set(),built:'',gameKey:'',boardCards:[],boardWave:0,interlude:'',lastSeq:-1,shown:new Map(),words:null,
       confirm:false,honorsFor:'',pushed:'',editing:'',picker:null,lastPhase:'',settingsSync:null,readyRun:0,available:null,
-      seen:readSeen(),recorded:'',redraw:'',finale:null,
+      seen:readSeen(),recorded:'',redraw:'',finale:null,view:'home',records:{status:'idle',data:null,at:0},recordOpen:'',recordWords:new Map(),
       lastFocus:document.activeElement,historyToken:'nd-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)});
     ui.sources = loadSources();
     const prefs = readPrefs(), tokens = new Set(ui.sources.map(source => source.token));
@@ -324,7 +338,7 @@
     root.setAttribute('role','dialog');
     root.setAttribute('aria-modal','true');
     root.setAttribute('aria-labelledby','nd-title');
-    root.innerHTML = `<div class="nd-shell"><header class="nd-top"><div class="nd-brand"><span class="nd-kicker">Vendespill</span><h2 id="nd-title" tabindex="-1">联机翻翻乐</h2></div><span class="nd-room-chip" id="nd-room-chip" hidden></span><button type="button" class="nd-icon-button" data-nd-action="close" aria-label="离开联机翻翻乐" title="离开">${icon('close')}</button></header><main class="nd-body" id="nd-body"></main></div><p class="nd-offline" id="nd-offline" role="status" hidden>网络不稳，正在重新连接…</p><p class="nd-toast" id="nd-toast" role="status" aria-live="polite" hidden></p><div class="nd-sheet-layer" id="nd-sheet" hidden></div><div class="nd-confirm-layer" id="nd-confirm" hidden><div class="nd-confirm" role="alertdialog" aria-modal="true" aria-labelledby="nd-confirm-text"><p id="nd-confirm-text">离开这一局吗？已抢到的词对仍会计分。</p><div class="nd-actions">${button('confirm-stay','继续游戏','nd-primary','id="nd-confirm-stay"')}${button('confirm-leave','离开','nd-quiet')}</div></div></div>`;
+    root.innerHTML = `<div class="nd-shell"><header class="nd-top"><div class="nd-brand"><span class="nd-kicker">Vendespill</span><h2 id="nd-title" tabindex="-1">联机翻翻乐</h2></div><span class="nd-room-chip" id="nd-room-chip" hidden></span><button type="button" class="nd-icon-button" data-nd-action="close" aria-label="离开联机翻翻乐" title="离开">${icon('close')}</button></header><main class="nd-body" id="nd-body"></main></div><div class="nd-fx" id="nd-fx" aria-hidden="true"></div><p class="nd-offline" id="nd-offline" role="status" hidden>网络不稳，正在重新连接…</p><p class="nd-toast" id="nd-toast" role="status" aria-live="polite" hidden></p><div class="nd-sheet-layer" id="nd-sheet" hidden></div><div class="nd-confirm-layer" id="nd-confirm" hidden><div class="nd-confirm" role="alertdialog" aria-modal="true" aria-labelledby="nd-confirm-text"><p id="nd-confirm-text">离开这一局吗？已抢到的词对仍会计分。</p><div class="nd-actions">${button('confirm-stay','继续游戏','nd-primary','id="nd-confirm-stay"')}${button('confirm-leave','离开','nd-quiet')}</div></div></div>`;
     ui.root = root;
     ui.handlers = {click:onClick,input:onInput,compositionend:onInput,submit:onSubmit};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
@@ -348,8 +362,46 @@
       if (session !== ui.session) return;
       render();
       if (ui.joinCode && validCode(options.join)) await joinRoom(ui.joinCode);
+      else void loadRecords();
     })();
     return Promise.resolve(true);
+  }
+  // My records follow the nickname like the scores; the overlay keeps them for 20 seconds.
+  async function loadRecords({force=false}={}) {
+    const records = ui.records, session = ui.session;
+    if (!ui.open || !records || records.status === 'loading' || (!force && records.status === 'ready' && Date.now()-records.at < 20000)) return;
+    records.status = 'loading';
+    if (!ui.room) render();
+    try {
+      const data = await ui.community.request('/duel/history',{timeout:8000});
+      if (session !== ui.session) return;
+      ui.records = {status:'ready',data:{totals:data.totals || {},games:Array.isArray(data.games) ? data.games : []},at:Date.now()};
+    } catch {
+      if (session !== ui.session) return;
+      ui.records = {status:records.data ? 'ready' : 'error',data:records.data,at:records.data ? Date.now() : 0};
+    }
+    if (!ui.room) render();
+  }
+  async function loadRecordWords(id) {
+    if (ui.recordWords.has(id)) return;
+    const session = ui.session;
+    ui.recordWords.set(id,'loading');
+    try {
+      const data = await ui.community.request(`/duel/history?game=${encodeURIComponent(id)}`,{timeout:8000});
+      if (session !== ui.session) return;
+      ui.recordWords.set(id,Array.isArray(data.game?.words) ? data.game.words : []);
+    } catch {
+      if (session !== ui.session) return;
+      ui.recordWords.set(id,'error');
+    }
+    if (!ui.room && ui.view === 'history') render();
+  }
+  function showView(view) {
+    ui.view = view; ui.message = '';
+    if (view !== 'setup') ui.root.scrollTop = 0;
+    render();
+    ui.root.scrollTop = 0;
+    if (view !== 'setup') void loadRecords();
   }
 
   function inMatch(room) {
@@ -360,6 +412,7 @@
     if (!ui.open) return;
     if (ui.confirm) { hideConfirm(); return; }
     if (ui.picker) { closePicker(); return; }
+    if (!ui.room && ui.view !== 'home') { showView('home'); return; }
     if (inMatch(ui.room)) showConfirm(); else exit();
   }
   function showConfirm() {
@@ -401,9 +454,9 @@
   function onPopState() {
     if (!ui.open || history.state?.norskDuel === ui.historyToken) return;
     // The back gesture asks to close; mid-match it asks first and keeps the overlay's history entry.
-    if (inMatch(ui.room) || ui.picker) {
+    if (inMatch(ui.room) || ui.picker || (!ui.room && ui.view !== 'home')) {
       try { history.pushState({...(history.state && typeof history.state === 'object' ? history.state : {}),norskDuel:ui.historyToken},'',location.href); } catch { /* Ignore. */ }
-      if (ui.picker) closePicker(); else showConfirm();
+      if (ui.picker) closePicker(); else if (!ui.room) showView('home'); else showConfirm();
     } else {
       ui.historyToken = '';
       exit();
@@ -484,9 +537,11 @@
     }
   }
   function lostRoom(message) {
-    ui.room = null; ui.local = null; ui.message = message; ui.words = null; ui.gameKey = ''; ui.built = '';
+    ui.room = null; ui.local = null; ui.message = message; ui.words = null; ui.gameKey = ''; ui.built = ''; ui.view = 'home';
     clearTimeout(ui.pollTimer); clearInterval(ui.tickTimer); ui.tickTimer = null;
     setOffline(false); setRoomInURL(null); render();
+    // A match may have ended since the records were read.
+    void loadRecords({force:true});
   }
   async function action(path, body, {quiet=false}={}) {
     if (ui.busy) return null;
@@ -716,22 +771,24 @@
     const selection = focused?.id === 'nd-join-code' ? [focused.selectionStart,focused.selectionEnd] : null;
     const scroll = ui.root.scrollTop;
     const entering = ui.screen !== screen;
-    body.innerHTML = `<div class="nd-screen${entering ? ' nd-enter' : ''}">${screen === 'lobby' ? lobbyMarkup() : screen === 'room' ? roomMarkup(room) : resultsMarkup(room)}</div>`;
+    const markup = {home:homeMarkup,setup:setupMarkup,history:historyMarkup,room:() => roomMarkup(room),results:() => resultsMarkup(room)}[screen];
+    body.innerHTML = `<div class="nd-screen nd-screen-${screen}${entering ? ' nd-enter' : ''}">${markup()}</div>`;
     ui.screen = screen;
     if (!entering) ui.root.scrollTop = scroll;
-    if (screen === 'results') rollNumbers(body,entering);
+    if (screen === 'results' || screen === 'home' || screen === 'history') rollNumbers(body,entering);
     if (focusKey) {
       const next = body.querySelector(`[data-nd-focus="${focusKey}"]`) || body.querySelector('#'+CSS.escape(focusKey));
       next?.focus?.({preventScroll:true});
       if (next && selection) next.setSelectionRange?.(...selection);
-    } else if (entering && screen !== 'lobby' && !ui.picker) focusFirst();
+    } else if (entering && screen !== 'home' && !ui.picker) focusFirst();
   }
   function focusFirst() {
     const target = ui.root?.querySelector('.nd-body .nd-primary:not(:disabled)') || ui.root?.querySelector('#nd-title');
     target?.focus?.({preventScroll:true});
   }
   const messageMarkup = () => ui.message ? `<p class="nd-message" role="alert">${e(ui.message)}</p>` : '';
-  const segment = (name,value,label,hint,selected,disabled=false) => `<button type="button" class="nd-option" role="radio" aria-checked="${selected}" data-nd-action="${name}" data-nd-value="${value}" data-nd-focus="${name}-${value}"${disabled ? ' disabled' : ''}><span>${label}</span>${hint ? `<small>${hint}</small>` : ''}</button>`;
+  const segment = (name,value,label,hint,selected,glyph='') => `<button type="button" class="nd-option${glyph ? ' has-icon' : ''}" role="radio" aria-checked="${selected}" data-nd-action="${name}" data-nd-value="${value}" data-nd-focus="${name}-${value}">${glyph ? icon(glyph) : ''}<span class="nd-option-text"><span>${label}</span>${hint ? `<small>${hint}</small>` : ''}</span></button>`;
+  const GLYPHS = {goal:{all:'stack',time:'clock'},'card-mode':{memory:'cardback',open:'faceup'},mode:{ffa:'person',team:'team'}};
 
   // What the next match plays, in one line under the editor.
   function estimateText(summary) {
@@ -743,28 +800,116 @@
   // Range, how the match ends, card visibility and mode: editable for the host, a summary for everyone else.
   function settingsEditor() {
     const summary = configSummary();
-    const group = (id,label,options,extra='') => `<div class="nd-field"><span class="nd-label" id="${id}">${label}</span><div class="nd-segment${extra}" role="radiogroup" aria-labelledby="${id}">${options}</div></div>`;
-    const minutes = ui.config.goal === 'time' ? group('nd-minutes-label','时长',MINUTES.map(value => segment('minutes',value,`${value} 分钟`,'',ui.config.minutes === value)).join(''),' nd-minutes') : '';
-    return `<div class="nd-field"><span class="nd-label">词语范围</span><button type="button" class="nd-range" data-nd-action="picker" data-nd-focus="picker"><span class="nd-range-label">${summary.label ? e(summary.label) : '还没有选择范围'}</span><small>${summary.available ? `${summary.available} 词` : ''}</small><span class="nd-range-change">更改</span></button></div>
-      ${group('nd-goal-label','结束方式',Object.entries(GOALS).map(([value,goal]) => segment('goal',value,goal.name,goal.hint,ui.config.goal === value)).join(''))}${minutes}
-      ${group('nd-card-mode-label','牌面',Object.entries(CARD_MODES).map(([value,mode]) => segment('card-mode',value,mode.name,mode.hint,ui.config.cardMode === value)).join(''))}
-      ${group('nd-mode-label','玩法',Object.entries(MODES).map(([value,mode]) => segment('mode',value,mode.name,mode.hint,ui.config.mode === value)).join(''))}
+    const choose = (name,entries,current) => Object.entries(entries).map(([value,item]) => segment(name,value,item.name,item.hint,current === value,GLYPHS[name][value])).join('');
+    const group = (id,label,options,after='') => `<div class="nd-field"><span class="nd-label" id="${id}">${label}</span><div class="nd-segment nd-tiles" role="radiogroup" aria-labelledby="${id}">${options}</div>${after}</div>`;
+    const minutes = ui.config.goal === 'time' ? `<div class="nd-segment nd-minutes" role="radiogroup" aria-label="时长">${MINUTES.map(value => segment('minutes',value,`${value} 分钟`,'',ui.config.minutes === value)).join('')}</div>` : '';
+    return `<div class="nd-field"><span class="nd-label">词语范围</span><button type="button" class="nd-range" data-nd-action="picker" data-nd-focus="picker"><span class="nd-range-icon">${icon('book')}</span><span class="nd-range-main"><span class="nd-range-label">${summary.label ? e(summary.label) : '还没有选择范围'}</span><small>${summary.available ? `${summary.available} 个词可用` : '选择章节、小节或分类'}</small></span><span class="nd-range-change">更改${icon('next')}</span></button></div>
+      ${group('nd-goal-label','结束方式',choose('goal',GOALS,ui.config.goal),minutes)}
+      ${group('nd-card-mode-label','牌面',choose('card-mode',CARD_MODES,ui.config.cardMode))}
+      ${group('nd-mode-label','玩法',choose('mode',MODES,ui.config.mode))}
       <p class="nd-estimate" aria-live="polite">${estimateText(summary)}</p>`;
   }
+  const settingsChips = settings => `<p class="nd-chips"><span>${settings.count} 词</span><span>${goalLabel(settings)}</span><span>${CARD_MODES[settings.cardMode || 'memory'].name}</span><span>${MODES[settings.mode].name}</span></p>`;
   function settingsSummary(room) {
     const settings = room.settings;
-    return `<div class="nd-summary"><p class="nd-summary-label">${settings.label ? e(settings.label) : '词语范围'}</p><p class="nd-summary-meta">${e(settingsLine(settings))}</p></div>`;
+    return `<div class="nd-summary"><p class="nd-summary-label">${icon('book')}<span>${settings.label ? e(settings.label) : '词语范围'}</span></p>${settingsChips(settings)}</div>`;
   }
-  function lobbyMarkup() {
-    const summary = configSummary();
-    return `${messageMarkup()}<section class="nd-panel" aria-labelledby="nd-create-title"><h3 id="nd-create-title">开一个房间</h3>${settingsEditor()}
-      <div class="nd-create-foot">${button('create',ui.busy ? '正在创建…' : '创建房间','nd-primary nd-wide',summary.count >= MIN_POOL && !ui.busy ? '' : 'disabled')}</div></section>
-      <section class="nd-panel nd-join" aria-labelledby="nd-join-title"><h3 id="nd-join-title">加入房间</h3><form class="nd-join-form" data-nd-form="join"><label class="nd-sr" for="nd-join-code">房间号</label><input id="nd-join-code" name="code" type="text" inputmode="numeric" enterkeyhint="go" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="4 位房间号" value="${e(ui.joinCode)}"><button type="submit" class="nd-button"${ui.busy ? ' disabled' : ''}>加入</button></form></section>
-      <p class="nd-hint">${ui.profile ? `你将以「${e(ui.profile.nickname)}」参加，昵称可在排行榜里修改。` : '正在连接…'}每抢到一对 10 分；8 秒内连抢、金色词对和冲刺（最后一波，限时则是最后 30 秒）都会加倍。两人以上、玩满两分钟或抢满 16 对的对局计入每日任务和成就。</p>`;
+
+  /* Home, setup and records */
+
+  // The hero's small deck: two words, a meaning and two backs, drifting slowly (transform only).
+  const HERO_CARDS = [['back',''],['no','hus'],['zh','房子'],['back','gold'],['no','sol']];
+  const heroDeck = () => HERO_CARDS.map(([kind,text],index) => `<span class="nd-hero-card is-${kind}${text === 'gold' ? ' is-gold' : ''}" style="--i:${index}">${kind === 'back' ? icon('star') : `<span${kind === 'no' ? ' lang="nb"' : ''}>${text}</span>`}</span>`).join('');
+  function homeMarkup() {
+    return `${messageMarkup()}<section class="nd-hero" aria-labelledby="nd-hero-title">
+      <div class="nd-hero-deck" aria-hidden="true">${heroDeck()}</div>
+      <div class="nd-hero-copy"><p class="nd-eyebrow">多人实时 · 挪威语配对</p><h3 class="nd-hero-title" id="nd-hero-title">翻开、配对，<br>抢在别人前面。</h3><p class="nd-hero-sub">挪威语和它的中文意思，谁先配上归谁。最多 8 人，也可以分队对抗。</p></div>
+      <div class="nd-hero-actions">
+        <button type="button" class="nd-cta" data-nd-action="setup" data-nd-focus="setup"><span class="nd-cta-icon">${icon('plus')}</span><span class="nd-cta-text"><b>开一个房间</b><small>选词、定规则，再邀请同学</small></span>${icon('next')}</button>
+        <form class="nd-join-card" data-nd-form="join"><label for="nd-join-code">有房间号？直接加入</label><div class="nd-join-row"><input id="nd-join-code" class="nd-code-input" name="code" type="text" inputmode="numeric" enterkeyhint="go" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="····" value="${e(ui.joinCode)}"><button type="submit" class="nd-join-go"${ui.busy ? ' disabled' : ''}>${ui.busy ? '加入中…' : '加入'}</button></div></form>
+      </div></section>
+      ${recordsPanel()}${rulesMarkup()}
+      <p class="nd-hint nd-center">${ui.profile ? `你将以「${e(ui.profile.nickname)}」参加，昵称可在排行榜里修改。` : '正在连接…'}</p>`;
+  }
+  function rulesMarkup() {
+    return `<details class="nd-panel nd-rules"><summary><span>怎么玩 · 怎么计分</span>${icon('down')}</summary><ul class="nd-rule-list">
+      <li><b>配对</b><span>翻开（明牌时直接点选）一个挪威语词和它的中文意思，配上就归你。</span></li>
+      <li><b>每对 10 分</b><span>8 秒内连抢 3 对 ×1.5、5 对起 ×2；每波有一对金色词对 ×2。</span></li>
+      <li><b>冲刺</b><span>全部翻完的最后一波、限时的最后 30 秒，分数再 ×2，倍率可以叠加。</span></li>
+      <li><b>经验</b><span>每抢到一对 +10 XP。两人以上、玩满两分钟或抢满 16 对的对局计入每日任务和成就。</span></li></ul></details>`;
+  }
+  // Four totals that count up once, e.g. 34 对局 · 21 胜场 (胜率 62%).
+  function statTiles(totals, prefix) {
+    const games = totals.games || 0, rate = games ? Math.round(100*(totals.wins || 0)/games) : 0;
+    const tile = (id,value,label,note='') => `<div class="nd-stat"><b data-nd-roll="${prefix}:${id}" data-nd-target="${value}">${ui.shown.get(`${prefix}:${id}`) ?? 0}</b><span>${label}</span>${note ? `<small>${note}</small>` : ''}</div>`;
+    return `<div class="nd-stats">${tile('games',games,'对局')}${tile('wins',totals.wins || 0,'胜场',games ? `胜率 ${rate}%` : '')}${tile('pairs',totals.pairs || 0,'抢到词对')}${tile('best',totals.bestStreak || 0,'最高连抢')}</div>`;
+  }
+  const retryMarkup = () => `<p class="nd-empty">战绩暂时读不到。${button('records-retry','重试','nd-quiet nd-small','data-nd-focus="records-retry"')}</p>`;
+  function recordsPanel() {
+    const records = ui.records, data = records.data;
+    let body;
+    if (!data && records.status !== 'error') body = `<div class="nd-stats is-loading">${'<div class="nd-stat"><b>&nbsp;</b><span>&nbsp;</span></div>'.repeat(4)}</div>`;
+    else if (!data) body = retryMarkup();
+    else if (!data.games.length) body = `${statTiles(data.totals,'h')}<p class="nd-empty">还没有对局记录。开一个房间，邀请同学来一局吧。</p>`;
+    else body = `${statTiles(data.totals,'h')}<ul class="nd-record-list">${data.games.slice(0,3).map(game => `<li>${recordRow(game,'record-open')}</li>`).join('')}</ul>`;
+    const more = data?.games?.length ? button('history',`全部战绩${icon('next')}`,'nd-link','data-nd-focus="history"') : '';
+    return `<section class="nd-panel nd-records" aria-labelledby="nd-records-title"><header class="nd-section-head"><h3 id="nd-records-title">${icon('trophy')}我的战绩</h3>${more}</header>${body}</section>`;
+  }
+  const pad2 = number => String(number).padStart(2,'0');
+  function dayLabel(ms) {
+    const date = new Date(ms), today = new Date();
+    const days = Math.round((new Date(today.getFullYear(),today.getMonth(),today.getDate())-new Date(date.getFullYear(),date.getMonth(),date.getDate()))/86400000);
+    return days === 0 ? '今天' : days === 1 ? '昨天' : `${date.getMonth()+1} 月 ${date.getDate()} 日`;
+  }
+  const timeLabel = ms => { const date = new Date(ms); return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`; };
+  // One match in a list: my place, the range, when and how it was played, my points.
+  function recordRow(game, action) {
+    const place = game.won ? `<span class="nd-place is-won" aria-label="获胜">${icon('trophy')}</span>` : `<span class="nd-place" aria-label="第 ${game.rank} 名">${game.rank}</span>`;
+    const how = [game.people > 1 ? `${game.people} 人` : '单人',game.mode === 'team' ? '组队' : '',game.goal === 'all' ? '全部翻完' : game.goal === 'time' ? '限时' : '',
+      game.cardMode === 'open' ? '明牌' : game.cardMode === 'memory' ? '翻面' : ''].filter(Boolean).join(' · ');
+    return `<button type="button" class="nd-record${game.won ? ' is-won' : ''}" data-nd-action="${action}" data-nd-value="${e(game.id)}" data-nd-focus="${action}-${e(game.id)}"${action === 'record' ? ` aria-expanded="${ui.recordOpen === game.id}"` : ''}>${place}<span class="nd-record-main"><span class="nd-record-title">${e(game.label || '联机翻翻乐')}</span><small>${dayLabel(game.endedAt)} ${timeLabel(game.endedAt)} · ${how}</small></span><span class="nd-record-score"><b>${game.points}</b><small>${game.pairs} 对${game.xp ? ` · +${game.xp} XP` : ''}</small></span></button>`;
+  }
+  const backButton = () => button('home',`${icon('back')}<span>返回</span>`,'nd-quiet nd-small nd-back-button','data-nd-focus="back"');
+  function setupMarkup() {
+    const summary = configSummary(), ready = summary.count >= MIN_POOL;
+    const chips = ready ? settingsChips({count:summary.count,goal:ui.config.goal,durationSec:ui.config.minutes*60,cardMode:ui.config.cardMode,mode:ui.config.mode}) : '<p class="nd-chips"><span>先选择词语范围</span></p>';
+    return `<div class="nd-screen-head">${backButton()}<h3>开一个房间</h3></div>${messageMarkup()}
+      <section class="nd-panel nd-setup" aria-label="房间设置">${settingsEditor()}</section>
+      <div class="nd-setup-bar">${chips}${button('create',ui.busy ? '正在创建…' : '创建房间','nd-primary',ready && !ui.busy ? 'data-nd-focus="create"' : 'disabled')}</div>`;
+  }
+  function historyMarkup() {
+    const data = ui.records.data;
+    let list = '';
+    if (!data) list = ui.records.status === 'error' ? retryMarkup() : '<p class="nd-empty">正在读取…</p>';
+    else if (!data.games.length) list = '<p class="nd-empty">还没有对局记录。</p>';
+    else {
+      let day = '';
+      for (const game of data.games) {
+        const label = dayLabel(game.endedAt), open = ui.recordOpen === game.id;
+        if (label !== day) { list += `${day ? '</ul>' : ''}<p class="nd-day">${label}</p><ul class="nd-record-list">`; day = label; }
+        list += `<li class="${open ? 'is-open' : ''}">${recordRow(game,'record')}${open ? recordDetail(game) : ''}</li>`;
+      }
+      list += '</ul>';
+    }
+    return `<div class="nd-screen-head">${backButton()}<h3>我的战绩</h3></div>
+      ${data ? `<section class="nd-panel nd-records">${statTiles(data.totals,'a')}<p class="nd-hint nd-hint-tight">同一昵称在各台设备上的对局合在一起，下面列出最近 ${data.games.length} 局。</p></section>` : ''}
+      <section class="nd-history">${list}</section>`;
+  }
+  // An opened match: everyone's place and score, then its words and who took them (tap to hear one).
+  function recordDetail(game) {
+    if (!game.detail) return `<div class="nd-record-detail"><p class="nd-empty">这一局在战绩功能上线前结束，只记下了你的成绩。</p></div>`;
+    const teams = game.mode === 'team' && game.teams?.length === 2 ? `<p class="nd-chips">${game.teams.map(team => `<span class="${team.won ? 'is-won' : ''}" style="--nd-color:${TEAMS[team.id]?.color}">${TEAMS[team.id]?.name || ''} ${team.points}</span>`).join('')}</p>` : '';
+    const players = (game.players || []).map(player => `<li class="${player.me ? 'is-me' : ''}"><span class="nd-rank">${player.rank}</span>${avatar(player.nickname,colorFor(game.mode,player))}<span class="nd-player-name">${e(player.nickname)}${player.me ? '<span class="nd-badge is-me">我</span>' : ''}</span><small>${player.pairs} 对 · 连抢 ${player.best}</small><b>${player.points}</b></li>`).join('');
+    const words = ui.recordWords.get(game.id);
+    const wordList = Array.isArray(words) ? `<ul class="nd-word-list">${words.map((word,index) => {
+      const who = [...new Set(word.takes)].map(taker => e(game.players?.[taker]?.me ? '我' : game.players?.[taker]?.nickname || '')).join('、');
+      return `<li><button type="button" class="nd-word" data-nd-action="record-say" data-nd-value="${e(game.id)}:${index}"><span class="nd-word-no" lang="nb">${e(word.no)}</span><span class="nd-word-zh">${e(word.zh)}</span><span class="nd-word-who">${who || '无人抢到'}</span>${icon('speaker')}</button></li>`;
+    }).join('')}</ul>` : `<p class="nd-empty">${words === 'error' ? '词语暂时读不到。' : '正在读取词语…'}</p>`;
+    return `<div class="nd-record-detail"><p class="nd-record-meta">${game.complete ? '全部翻完 · ' : ''}用时 ${formatClock(game.durationMs)} · ${game.pool} 词${game.counted ? '' : ' · 未计入每日任务'}</p>${teams}<ol class="nd-mini-rank">${players}</ol><p class="nd-day">本局词语</p>${wordList}</div>`;
   }
   function playerItem(room, player) {
     const me = player.id === room.me;
-    return `<li class="nd-player${me ? ' is-me' : ''}${player.connected ? '' : ' is-away'}${player.ready ? ' is-ready' : ''}" style="--nd-color:${colorFor(room.mode,player)}"><i class="nd-dot" aria-hidden="true"></i><span class="nd-player-name">${e(player.nickname)}${me ? '<span class="nd-sr">（我）</span>' : ''}</span>${player.host ? '<span class="nd-badge">房主</span>' : ''}${player.connected ? '' : '<span class="nd-away">离线</span>'}<span class="nd-ready-mark" aria-label="${player.ready ? '已准备' : '未准备'}">${player.ready ? icon('check') : ''}</span></li>`;
+    return `<li class="nd-player${me ? ' is-me' : ''}${player.connected ? '' : ' is-away'}${player.ready ? ' is-ready' : ''}" style="--nd-color:${colorFor(room.mode,player)}">${avatar(player.nickname,colorFor(room.mode,player))}<span class="nd-player-name">${e(player.nickname)}${me ? '<span class="nd-sr">（我）</span>' : ''}</span>${player.host ? '<span class="nd-badge">房主</span>' : ''}${player.connected ? '' : '<span class="nd-away">离线</span>'}<span class="nd-ready-mark" aria-label="${player.ready ? '已准备' : '未准备'}">${player.ready ? icon('check') : ''}</span></li>`;
   }
   function roster(room) {
     const host = isHost(room), me = meOf(room), active = room.players.filter(player => !player.left);
@@ -790,10 +935,11 @@
   }
   function roomMarkup(room) {
     const link = shareLink(location,room.code), active = room.players.filter(player => !player.left);
-    return `${messageMarkup()}<section class="nd-panel nd-room" aria-labelledby="nd-room-title"><p class="nd-kicker" id="nd-room-title">房间号</p>
-      <div class="nd-code-row"><span class="nd-code" aria-label="房间号 ${room.code.split('').join(' ')}">${room.code}</span>${button('copy-code',`${icon('copy')}<span>复制</span>`,'nd-quiet nd-small','data-nd-focus="copy-code"')}</div>
-      <div class="nd-share"><p class="nd-link" title="${e(link)}">${e(link.replace(/^https?:\/\//,''))}</p>${button('share',`${icon('share')}<span>邀请同学</span>`,'nd-small','data-nd-focus="share"')}</div>
-      <p class="nd-muted nd-center">${active.length}/${room.maxPlayers || 8} 人</p>${roster(room)}</section>
+    return `${messageMarkup()}<section class="nd-room-hero" aria-labelledby="nd-room-title"><p class="nd-eyebrow" id="nd-room-title">房间号 · 同学输入它就能加入</p>
+      <p class="nd-code-tiles" aria-label="房间号 ${room.code.split('').join(' ')}">${room.code.split('').map((digit,index) => `<span style="--i:${index}">${digit}</span>`).join('')}</p>
+      <div class="nd-room-actions">${button('copy-code',`${icon('copy')}<span>复制房间号</span>`,'nd-ghost','data-nd-focus="copy-code"')}${button('share',`${icon('share')}<span>邀请同学</span>`,'nd-ghost','data-nd-focus="share"')}</div>
+      <p class="nd-link" title="${e(link)}">${e(link.replace(/^https?:\/\//,''))}</p></section>
+      <section class="nd-panel nd-room" aria-labelledby="nd-roster-title"><header class="nd-section-head"><h3 id="nd-roster-title">${icon('team')}玩家</h3><span class="nd-muted">${active.length}/${room.maxPlayers || 8} 人</span></header>${roster(room)}</section>
       ${nextPanel(room,'第一局')}<div class="nd-foot">${button('leave','离开房间','nd-quiet')}</div>`;
   }
   // Played to the last word, the ring fills with claimed pairs and shows how many are left; timed, it runs down.
@@ -878,11 +1024,14 @@
   function finishOldBoard(room) {
     const last = (room.match?.recent || []).filter(claim => claim.wave === ui.boardWave);
     for (const claim of last) {
+      const nodes = [];
       for (const node of ui.root.querySelectorAll('[data-nd-card]')) {
         const card = ui.boardCards[Number(node.dataset.ndCard)];
         if (card?.pair !== claim.pair || node.classList.contains('is-claimed')) continue;
         markClaimed(node,room,claim.playerId,card);
+        nodes.push(node);
       }
+      claimFx(nodes,claim,room,claim.golden);
     }
   }
   function markClaimed(node, room, playerId, card) {
@@ -915,7 +1064,16 @@
     if (room.match?.mode === 'team') {
       return `<div class="nd-team-bar">${teams.map(team => `<div class="nd-team-score is-${team.id}" style="--nd-color:${team.color}"><span class="nd-team-name">${team.name}</span><b data-nd-roll="t:${team.id}" data-nd-target="${team.points}">${ui.shown.get('t:'+team.id) ?? team.points}</b><small>${team.members.map(player => `<span class="${player.id === room.me ? 'is-me' : ''}">${e(player.id === room.me ? '我' : player.nickname)}</span>`).join('')}</small></div>`).join('')}</div>`;
     }
-    return `<ol class="nd-scores" aria-label="比分">${players.map(player => `<li class="nd-score${player.id === room.me ? ' is-me' : ''}${player.connected ? '' : ' is-away'}${player.streak >= 3 ? ' is-hot' : ''}" style="--nd-color:${player.color}"><i class="nd-dot" aria-hidden="true"></i><span class="nd-score-name">${e(player.id === room.me ? '我' : player.nickname)}</span><b data-nd-roll="p:${player.id}" data-nd-target="${player.points}">${ui.shown.get('p:'+player.id) ?? player.points}</b>${player.streak >= 3 ? `<small class="nd-streak">连${player.streak}</small>` : ''}</li>`).join('')}</ol>`;
+    return `<ol class="nd-scores" aria-label="比分">${players.map((player,index) => `<li class="nd-score${player.id === room.me ? ' is-me' : ''}${player.connected ? '' : ' is-away'}${player.streak >= 3 ? ' is-hot' : ''}${index === 0 && player.points > 0 ? ' is-lead' : ''}" data-nd-player="${e(player.id)}" style="--nd-color:${player.color}">${avatar(player.nickname,player.color)}<span class="nd-score-name">${e(player.id === room.me ? '我' : player.nickname)}</span><b data-nd-roll="p:${player.id}" data-nd-target="${player.points}">${ui.shown.get('p:'+player.id) ?? player.points}</b>${player.streak >= 3 ? `<small class="nd-streak">连抢 ${player.streak}</small>` : ''}</li>`).join('')}</ol>`;
+  }
+  // When the order changes, chips glide from where they were (FLIP: one read before, one after, transforms only).
+  function glideScores(bar, before) {
+    if (!before.size || reducedMotion()) return;
+    for (const chip of bar.querySelectorAll('[data-nd-player]')) {
+      const old = before.get(chip.dataset.ndPlayer), now = chip.getBoundingClientRect();
+      if (!old || Math.abs(old.left-now.left) < 1) continue;
+      chip.animate([{transform:`translateX(${old.left-now.left}px)`},{transform:'none'}],{duration:420,easing:'cubic-bezier(.22,1,.36,1)'});
+    }
   }
   // Scores count up over ~600 ms instead of jumping.
   function rollNumbers(scope, fromZero=false) {
@@ -941,7 +1099,11 @@
     if (bar) {
       // Rebuilt only when something changed; the numbers then count up from what is on screen.
       const signature = JSON.stringify([room.match?.mode,room.players.map(player => [player.id,player.points,player.pairs,player.streak,player.connected,player.playing,player.team])]);
-      if (bar.dataset.signature !== signature) { bar.innerHTML = scoreMarkup(room); bar.dataset.signature = signature; rollNumbers(bar); }
+      if (bar.dataset.signature !== signature) {
+        const before = new Map([...bar.querySelectorAll('[data-nd-player]')].map(chip => [chip.dataset.ndPlayer,chip.getBoundingClientRect()]));
+        bar.innerHTML = scoreMarkup(room); bar.dataset.signature = signature; rollNumbers(bar);
+        glideScores(bar,before);
+      }
     }
     const watch = $('#nd-watch');
     if (watch) { const me = meOf(room); watch.hidden = Boolean(me?.playing && !me.left) || room.status === 'countdown'; }
@@ -958,13 +1120,14 @@
     const flipped = new Set(local.flipped), taking = new Set(local.pending.map(item => item.pair));
     const faceUp = cardModeOf(room) === 'open' && open;
     const missed = local.flipped.length === 2 && now < local.lockedUntil;
-    const myColor = colorFor(room.match?.mode,me);
+    const myColor = colorFor(room.match?.mode,me), effects = new Map();
     for (const node of ui.root.querySelectorAll('[data-nd-card]')) {
       const index = Number(node.dataset.ndCard), card = wave.cards[index], claim = claims.get(card.pair);
       if (claim && !node.classList.contains('is-claimed')) {
         markClaimed(node,room,claim.playerId,card);
         const fresh = !ui.gone.has(card.pair) || ui.glowing.has(card.pair);
         ui.gone.add(card.pair);
+        if (fresh) { const effect = effects.get(card.pair) || {claim,nodes:[]}; effect.nodes.push(node); effects.set(card.pair,effect); }
         if (fresh && !reducedMotion()) {
           // Glow softly in the claimer's colour, then fold away.
           ui.glowing.add(card.pair);
@@ -988,7 +1151,60 @@
       if (node.getAttribute('aria-label') !== label) node.setAttribute('aria-label',label);
     }
     if (!ui.root.contains(document.activeElement)) keepFocus($('.nd-card:not(:disabled)'));
+    for (const [pair,effect] of effects) claimFx(effect.nodes,effect.claim,room,pair === wave.golden);
     patchHud();
+  }
+  /* Effects: one fixed layer above the board, transform and opacity only, removed when they finish. */
+
+  const fxReady = () => Boolean($('#nd-fx')) && !reducedMotion() && document.visibilityState !== 'hidden' && typeof Element.prototype.animate === 'function';
+  function fxNode(className, style) {
+    const node = document.createElement('i');
+    node.className = className;
+    Object.assign(node.style,style);
+    $('#nd-fx').append(node);
+    return node;
+  }
+  const settle = (animation, node) => { animation.onfinish = animation.oncancel = () => node.remove(); };
+  // A claimed pair: a thread of light in the claimer's colour joins the two cards, a ring opens between them
+  // and the points rise from it. My own pair also sends a mote of light to my score, which answers with a pulse.
+  function claimFx(nodes, claim, room, golden) {
+    if (nodes.length < 2 || !fxReady()) return;
+    const [a,b] = nodes.map(node => node.getBoundingClientRect());
+    if (!a.width || !b.width) return;
+    const ax = a.left+a.width/2, ay = a.top+a.height/2, bx = b.left+b.width/2, by = b.top+b.height/2;
+    const mx = (ax+bx)/2, my = (ay+by)/2, length = Math.hypot(bx-ax,by-ay), angle = Math.atan2(by-ay,bx-ax);
+    const owner = room.players.find(player => player.id === claim.playerId), mine = claim.playerId === room.me;
+    const color = golden ? '#d9b25f' : colorFor(room.match?.mode,owner);
+    const ease = 'cubic-bezier(.22,1,.36,1)';
+    const thread = fxNode('nd-fx-thread',{left:`${ax}px`,top:`${ay}px`,width:`${length}px`});
+    thread.style.setProperty('--c',color);
+    // Easing sits on each keyframe so the draw is quick and the fade is unhurried.
+    settle(thread.animate([{transform:`rotate(${angle}rad) scaleX(0)`,opacity:1,easing:ease},{transform:`rotate(${angle}rad) scaleX(1)`,opacity:1,offset:.4,easing:'ease-in'},{transform:`rotate(${angle}rad) scaleX(1)`,opacity:0}],{duration:820}),thread);
+    const ring = fxNode('nd-fx-ring',{left:`${mx}px`,top:`${my}px`});
+    ring.style.setProperty('--c',color);
+    settle(ring.animate([{transform:'translate(-50%,-50%) scale(.35)',opacity:.9},{transform:'translate(-50%,-50%) scale(1.7)',opacity:0}],{duration:mine ? 820 : 640,delay:160,easing:ease,fill:'backwards'}),ring);
+    const points = fxNode(`nd-fx-points${mine ? ' is-mine' : ''}${golden ? ' is-golden' : ''}`,{left:`${mx}px`,top:`${my}px`});
+    points.style.setProperty('--c',color);
+    points.textContent = `+${claim.points}`;
+    settle(points.animate([{transform:'translate(-50%,-30%) scale(.9)',opacity:0,easing:ease},{transform:'translate(-50%,-75%) scale(1)',opacity:1,offset:.22,easing:'linear'},{transform:'translate(-50%,-105%) scale(1)',opacity:1,offset:.7,easing:'ease-in'},{transform:'translate(-50%,-140%) scale(1)',opacity:0}],{duration:1150,delay:120,fill:'backwards'}),points);
+    if (!mine) return;
+    // After the scoreboard has redrawn, a mote travels from the pair to my chip.
+    requestAnimationFrame(() => {
+      const chip = $(`.nd-score.is-me`) || $('.nd-team-score');
+      if (!chip || !ui.root) return;
+      const target = chip.getBoundingClientRect(), dx = target.left+target.width/2-mx, dy = target.top+target.height/2-my;
+      const mote = fxNode('nd-fx-mote',{left:`${mx}px`,top:`${my}px`});
+      const flight = mote.animate([{transform:'translate(-50%,-50%) scale(1)',opacity:0},{transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.15},{transform:`translate(calc(${dx}px - 50%),calc(${dy}px - 50%)) scale(.5)`,opacity:.9}],{duration:560,delay:180,easing:'cubic-bezier(.55,0,.3,1)',fill:'backwards'});
+      flight.onfinish = () => { mote.remove(); if (chip.isConnected) chip.animate([{transform:'scale(1)'},{transform:'scale(1.08)',offset:.35},{transform:'scale(1)'}],{duration:480,easing:'ease-out'}); };
+      flight.oncancel = () => mote.remove();
+    });
+  }
+  // A wrong pair: both cards give a small, quick shake.
+  function missFx(indices) {
+    if (!fxReady()) return;
+    for (const index of indices) {
+      $(`[data-nd-card="${index}"]`)?.animate([{translate:'0 0'},{translate:'-4px 0'},{translate:'4px 0'},{translate:'-2px 0'},{translate:'0 0'}],{duration:300,easing:'ease-out'});
+    }
   }
   function startTicker() {
     clearInterval(ui.tickTimer);
@@ -1009,6 +1225,7 @@
     }
     const sprint = phase === 'playing' && (all ? Boolean(wave.final) : remaining <= (room.sprintSec || 30)*1000 && remaining > 0);
     $('#nd-timer')?.classList.toggle('is-sprint',sprint);
+    $('#nd-timer')?.classList.toggle('is-urgent',!all && phase === 'playing' && remaining > 0 && remaining <= 10000);
     $('#nd-board')?.classList.toggle('is-sprint',sprint);
     const label = $('#nd-wave');
     if (label) {
@@ -1024,7 +1241,7 @@
         const me = meOf(room), host = isHost(room);
         countdown.dataset.value = String(seconds);
         const how = match.cardMode === 'open' ? '全部明牌：点一个单词、再点它的释义' : '翻面记忆：翻开一个单词和它的释义';
-        countdown.innerHTML = `<div class="nd-countdown-inner"><p class="nd-kicker">即将开始 · ${match.poolSize} 词 · ${all ? '全部翻完' : minutesLabel(match.durationSec)}</p><span class="nd-count-number" aria-live="assertive">${seconds}</span><p class="nd-countdown-note">${how}</p><p class="nd-countdown-note">${match.mode === 'team' ? '组队' : '个人混战'} · 每波 ${wave.size} 对</p><div class="nd-actions">${host ? button('cancel','取消','nd-quiet nd-on-veil') : me?.playing ? button('ready','还没准备好','nd-quiet nd-on-veil','data-nd-value="false"') : button('ready','加入这一局','nd-quiet nd-on-veil','data-nd-value="true"')}</div></div>`;
+        countdown.innerHTML = `<div class="nd-countdown-inner"><p class="nd-kicker">即将开始 · ${match.poolSize} 词 · ${all ? '全部翻完' : minutesLabel(match.durationSec)}</p><span class="nd-count-dial"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="nd-count-track" cx="32" cy="32" r="29"/><circle class="nd-count-ring" cx="32" cy="32" r="29" pathLength="100"/></svg><span class="nd-count-number" aria-live="assertive">${seconds}</span></span><p class="nd-countdown-note">${how}</p><p class="nd-countdown-note">${match.mode === 'team' ? '组队' : '个人混战'} · 每波 ${wave.size} 对</p><div class="nd-actions">${host ? button('cancel','取消','nd-quiet nd-on-veil') : me?.playing ? button('ready','还没准备好','nd-quiet nd-on-veil','data-nd-value="false"') : button('ready','加入这一局','nd-quiet nd-on-veil','data-nd-value="true"')}</div></div>`;
       }
     }
     const timeup = $('#nd-timeup');
@@ -1042,11 +1259,12 @@
     const title = !winner ? (results.ranking.some(row => row.points) ? '平局' : '没有人抢到词对') : winner.type === 'team' ? `${TEAMS[winner.id]?.name || ''}获胜` : winner.id === room.me ? '你赢了' : `${e(results.ranking.find(row => row.id === winner.id)?.nickname || '')} 获胜`;
     const teams = results.mode === 'team' && results.teams.length === 2 ? `<div class="nd-final-teams">${results.teams.slice().sort((a,b) => TEAM_IDS.indexOf(a.id)-TEAM_IDS.indexOf(b.id)).map(team => `<div class="nd-final-team${team.won ? ' is-won' : ''}" style="--nd-color:${TEAMS[team.id].color}"><span>${TEAMS[team.id].name}</span><b data-nd-roll="r:${results.number}:${team.id}" data-nd-target="${team.points}">${ui.shown.get(`r:${results.number}:${team.id}`) ?? 0}</b><small>${team.pairs} 对</small></div>`).join('<span class="nd-versus">:</span>')}</div>` : '';
     const xp = row => row.xp == null ? (results.xpPending ? '…' : results.xpError ? '未记录' : '') : `+${row.xp} XP`;
-    const rows = results.ranking.map((row,index) => `<li class="nd-rank-row${row.id === room.me ? ' is-me' : ''}${row.rank === 1 && row.points > 0 ? ' is-first' : ''}" style="--nd-color:${colorFor(results.mode,row)};--i:${index}"><span class="nd-rank">${row.rank}</span><span class="nd-rank-main"><span class="nd-player-name"><i class="nd-dot" aria-hidden="true"></i>${e(row.nickname)}${row.id === room.me ? '<span class="nd-badge is-me">我</span>' : ''}</span><small>${row.pairs} 对 · 最高连抢 ${row.bestStreak} · ${xp(row)}</small></span><b class="nd-rank-points" data-nd-roll="r:${results.number}:${row.id}" data-nd-target="${row.points}">${ui.shown.get(`r:${results.number}:${row.id}`) ?? 0}</b></li>`).join('');
+    const rows = results.ranking.map((row,index) => `<li class="nd-rank-row${row.id === room.me ? ' is-me' : ''}${row.rank === 1 && row.points > 0 ? ' is-first' : ''}" style="--nd-color:${colorFor(results.mode,row)};--i:${index}"><span class="nd-rank">${row.rank}</span>${avatar(row.nickname,colorFor(results.mode,row))}<span class="nd-rank-main"><span class="nd-player-name">${e(row.nickname)}${row.id === room.me ? '<span class="nd-badge is-me">我</span>' : ''}</span><small>${row.pairs} 对 · 最高连抢 ${row.bestStreak} · ${xp(row)}</small></span><b class="nd-rank-points" data-nd-roll="r:${results.number}:${row.id}" data-nd-target="${row.points}">${ui.shown.get(`r:${results.number}:${row.id}`) ?? 0}</b></li>`).join('');
     const note = results.counts ? '' : `<p class="nd-ceremony-note">${results.present < 2 ? '结束时不足两人' : '对局不足两分钟、也没抢满 16 对'}，本局照常获得经验，但不计入每日任务和成就。</p>`;
     const how = results.complete ? `全部翻完 · 用时 ${formatClock(results.durationMs)}` : formatClock(results.durationMs);
     return `${messageMarkup()}<section class="nd-ceremony-card" aria-labelledby="nd-results-title"><p class="nd-kicker">第 ${results.number} 局 · ${how}${results.label ? ` · ${e(results.label)}` : ''}</p><h3 id="nd-results-title" class="nd-winner">${title}</h3>${teams}<ol class="nd-ranking">${rows}</ol>${note}</section>
-      ${nextPanel(room,'下一局')}${wordsMarkup(room)}<div class="nd-foot">${button('leave','离开房间','nd-quiet')}</div>`;
+      ${nextPanel(room,'下一局')}${wordsMarkup(room)}<div class="nd-foot">${button('leave','离开房间','nd-quiet')}</div>
+      ${results.ranking.some(row => row.id === room.me && row.pairs) ? '<p class="nd-hint nd-center">这一局已记入「我的战绩」，离开房间后在联机翻翻乐首页查看。</p>' : ''}`;
   }
   // Every word of the match, who took it (and how often across review passes); tap to hear it.
   function wordsMarkup(room) {
@@ -1129,6 +1347,7 @@
     patchBoard();
     if (effect.type === 'claim') void sendClaim(effect);
     if (effect.type === 'miss') {
+      missFx([effect.a,effect.b]);
       clearTimeout(ui.missTimer);
       ui.missTimer = setTimeout(() => { ui.local = settleMiss(ui.local,Date.now()); patchBoard(); },Math.max(0,effect.until-now)+20);
     }
@@ -1165,6 +1384,22 @@
       }
       case 'pick-none': ui.config.tokens = []; renderPicker(); break;
       case 'create': void createRoom(); break;
+      case 'setup': if (!room) showView('setup'); break;
+      case 'home': if (!room) showView('home'); break;
+      case 'history': if (!room) { ui.recordOpen = ''; showView('history'); } break;
+      case 'records-retry': void loadRecords({force:true}); break;
+      case 'record-open': if (!room) { ui.recordOpen = value; void loadRecordWords(value); showView('history'); requestAnimationFrame(() => $(`[data-nd-focus="record-${CSS.escape(value)}"]`)?.scrollIntoView?.({block:'center'})); } break;
+      case 'record': {
+        // One match open at a time; its words load the first time it opens.
+        ui.recordOpen = ui.recordOpen === value ? '' : value;
+        if (ui.recordOpen) void loadRecordWords(value);
+        render(); break;
+      }
+      case 'record-say': {
+        const split = value.lastIndexOf(':'), words = ui.recordWords.get(value.slice(0,split));
+        if (Array.isArray(words)) speak(words[Number(value.slice(split+1))]?.no);
+        break;
+      }
       case 'edit-settings': if (room && isHost(room)) {
         // The editor starts from what the room plays now.
         const settings = room.settings, minutes = Math.round((settings.durationSec || 300)/60);
