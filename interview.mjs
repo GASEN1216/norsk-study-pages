@@ -117,7 +117,7 @@ const icon = name => `<svg viewBox="0 0 26 26" aria-hidden="true">${ICONS[name] 
 const MODES = [
   {id:'bilingual',title:'双语翻卡',note:'先读挪威语，翻面看中文',icon:'flip'},
   {id:'norwegian',title:'只看挪语',note:'只给问题，直接开口回答',icon:'chat'},
-  {id:'audio',title:'听题回答',note:'先听问题，再试着回答',icon:'sound'}
+  {id:'audio',title:'听题回答',note:'随机听问题，再试着回答',icon:'sound'}
 ];
 const modeRow = id => MODES.find(item => item.id === id) || MODES[0];
 
@@ -230,13 +230,13 @@ export function createInterview(deps = {}) {
       <h2 id="ai-title" class="sr-only">A-team 面试</h2>
       <div class="ai-session-bar">
         <button type="button" class="ai-exit" data-interview="exit" aria-label="结束练习，回到更多">${icon('close')}<span>结束</span></button>
-        <div class="ai-session-meta"><strong>面试题目</strong><span>${modeRow(mode).title} · 第 ${card.round} 轮</span></div>
+        <div class="ai-session-meta"><strong>面试题目</strong><span>${modeRow(mode).title}${mode === 'audio' ? ' · 随机出题' : ''} · 第 ${card.round} 轮</span></div>
         <span class="ai-session-count"><b>${card.position}</b> / ${card.total}</span>
       </div>
       <div class="ai-progress-track" role="progressbar" aria-label="本轮题目" aria-valuemin="0" aria-valuemax="${card.total}" aria-valuenow="${card.position}"><i style="width:${card.position/card.total*100}%"></i></div>
       <div class="ai-practice${audioState === 'playing' ? ' is-playing' : ''}${audioState === 'loading' ? ' is-loading' : ''}">
         ${cardMarkup(q,motion)}
-        <div class="ai-controls"><div class="ai-audio-controls">${mode !== 'audio' ? playButton() : ''}<button type="button" class="ai-stop" data-interview="stop" aria-label="停止播放"${active() ? '' : ' hidden'}>${icon('stop')}<span>停止</span></button></div><button type="button" class="ai-next" data-interview="next" title="按右方向键进入下一题">${end ? (single ? '再练一遍' : '再练一轮') : '下一题'}${icon('next')}</button></div>
+        <div class="ai-controls"><div class="ai-audio-controls">${mode !== 'audio' ? playButton() : ''}<button type="button" class="ai-stop" data-interview="stop" aria-label="停止播放"${active() ? '' : ' hidden'}>${icon('stop')}<span>停止</span></button></div><button type="button" class="ai-next" data-interview="next" title="按右方向键${mode === 'audio' ? '随机播放' : '进入'}下一题">${end ? (single ? '再练一遍' : '再练一轮') : mode === 'audio' ? '随机下一题' : '下一题'}${icon('next')}</button></div>
         <p class="ai-audio-status" data-state="${audioState}" role="status" aria-live="polite">${escape(audioMessage)}</p>
         ${end ? `<p class="ai-round-note">${single ? '这一题练完了，可以再练一遍，或结束回到更多。' : '这轮最后一题，回答后可以再练一轮。'}</p>` : ''}
       </div>
@@ -246,6 +246,7 @@ export function createInterview(deps = {}) {
     const items = selectedItems();
     if (!items.length) return;
     stopAudio();
+    flipped = revealed = listened = false;
     deck = createDeck(items);
     card = deck.next();
     screen = 'session';

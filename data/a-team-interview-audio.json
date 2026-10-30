@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "合成示范；待用户提供录音替换。第 3、8 题朗读卡片上的主要问法。",
+  "note": "第 2–15 题为用户于 2026-10-30 提供的真人录音，按原文件编号对应题目；questionText 为题卡对应问句，真人可能使用同义问法。第 1 题未提供真人录音，保留原合成音频。",
   "recordings": {
     "ateam-01": {
       "file": "audio/a-team/ateam-01.mp3",
@@ -13,129 +13,129 @@
     },
     "ateam-02": {
       "file": "audio/a-team/ateam-02.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Når pleier dere å ha ungdomsmøter?",
-      "duration": 2.928,
-      "textSha256": "1a82560f6a665f47297975c1b1f20b2ac23145f23115b605a53fefd57515065a"
+      "kind": "recording",
+      "questionText": "Når pleier dere å ha ungdomsmøter?",
+      "duration": 3.2,
+      "sourceFile": "2..m4a",
+      "sourceSha256": "b80c4c29dcece1560d78940434b386cd9c34df93891b07e21f2d12993ae5ca69",
+      "audioSha256": "46669c1b8735b47a1a196ce2e0ab6aefa1fdcce7580b5b11935ed62736ac46e7"
     },
     "ateam-03": {
       "file": "audio/a-team/ateam-03.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hvor mange personer er det i menigheten din?",
-      "duration": 3.288,
-      "textSha256": "6849cf502c2be00d38033f6b80ec0707daa3e3022f84c775351545b5533702c3"
+      "kind": "recording",
+      "questionText": "Hvor mange personer er det i menigheten din?",
+      "duration": 4.288,
+      "sourceFile": "3.(1).m4a",
+      "sourceSha256": "8699c6d7d1214415dd1e7094736fccc7f7d1ae87209cb96b3522481c2817ad19",
+      "audioSha256": "e201316e84d334115cd99ae37160e09f7e334ebc940d852e5e2f61b0568defa3"
     },
     "ateam-04": {
       "file": "audio/a-team/ateam-04.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva gjør du vanligvis på fritiden din?",
-      "duration": 3.072,
-      "textSha256": "c6c30aa38dce894d3e432817010e37997ce3ac0f6db1bf1cf2b34eed0f1b1f09"
+      "kind": "recording",
+      "questionText": "Hva gjør du vanligvis på fritiden din?",
+      "duration": 3.413,
+      "sourceFile": "4.(1).m4a",
+      "sourceSha256": "2eec60b0cf5810ecf8e3019f9c9b73a6d346236d817409f8f7d59b543faf07b7",
+      "audioSha256": "45134876045420a0f6a882df161326f09c6d26d76af8315c87ad1a178b5391d0"
     },
     "ateam-05": {
       "file": "audio/a-team/ateam-05.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva jobber foreldrene dine med?",
-      "duration": 2.904,
-      "textSha256": "47fb5eb9f8b63e42d8f12d14a826dfbc7890bc8809e76f363c3545a299df661f"
+      "kind": "recording",
+      "questionText": "Hva jobber foreldrene dine med?",
+      "duration": 2.645,
+      "sourceFile": "5.(1).m4a",
+      "sourceSha256": "f8e7c0130d1e9ced693df03d68beae3c0b012335130d684106d6f267af2e7415",
+      "audioSha256": "94bb66e44ff22c00821f05f351d42baab655f85c2f585f02df1df7d2fa92a64c"
     },
     "ateam-06": {
       "file": "audio/a-team/ateam-06.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hvor mange personer er det i familien din?",
-      "duration": 3.24,
-      "textSha256": "237744adc948f7c20554de93d6e51804e3d5609598b075e8d4cea7abf8e64ec4"
+      "kind": "recording",
+      "questionText": "Hvor mange personer er det i familien din?",
+      "duration": 3.051,
+      "sourceFile": "6..m4a",
+      "sourceSha256": "d73bcc0ce4d18bdc846b939faee1c7a51065d07b093dfdf88ab8d366541eb7b1",
+      "audioSha256": "814f456b9271f8b9fc8693e51304ea0b45bfd4a2d24eb935dda753347006b92f"
     },
     "ateam-07": {
       "file": "audio/a-team/ateam-07.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva slags frivillig arbeid gjør du vanligvis?",
-      "duration": 3.408,
-      "textSha256": "173f55b2bfc6ed6b997b6605e0393263eec08b6881d4a902c3ac07e80d9eba3b"
+      "kind": "recording",
+      "questionText": "Hva slags frivillig arbeid gjør du vanligvis?",
+      "duration": 2.923,
+      "sourceFile": "7.(1).m4a",
+      "sourceSha256": "2037ca9fba08ef9f56c095ac680b9a672844b976fbd2712936da3d4ecbbe82f9",
+      "audioSha256": "10c5ab1f222a3c1bc8609f7680ed528e435f631c4a180c5d828e21c5dc8bda4f"
     },
     "ateam-08": {
       "file": "audio/a-team/ateam-08.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva er jobben din?",
-      "duration": 2.208,
-      "textSha256": "b07840dcf13b9936e22c3484a40821f8fc0bb7f2f71066aed28f4437ffad6232"
+      "kind": "recording",
+      "questionText": "Hva er jobben din?",
+      "duration": 2.155,
+      "sourceFile": "8.(1).m4a",
+      "sourceSha256": "95b457581e7e81cd60faa7ed968895295b6c0a2d8f7ea4f952b17f9fb4ae6e76",
+      "audioSha256": "f8e399fdbd6c127059dc7aa42f217f71f1072c8b00fcd65796f38e855c22fd88"
     },
     "ateam-09": {
       "file": "audio/a-team/ateam-09.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hvordan ser en typisk dag ut for deg?",
-      "duration": 3.024,
-      "textSha256": "21d73a86f30dcf1c837e0d6a8806de73e28174642843b468b78f97cb9c720dc7"
+      "kind": "recording",
+      "questionText": "Hvordan ser en typisk dag ut for deg?",
+      "duration": 3.115,
+      "sourceFile": "9.(1).m4a",
+      "sourceSha256": "67c34ae0161dee38d64ac5c3158fa2c4aae91ac96483f40d6fc1d9623a493b1b",
+      "audioSha256": "b239fdffda1add38efca1580f42df6a6a5347d695209564a872816664730ae1e"
     },
     "ateam-10": {
       "file": "audio/a-team/ateam-10.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hvorfor vil du komme til A-laget?",
-      "duration": 2.976,
-      "textSha256": "f875ae80fc5aa72258832f54239db37bc4cbbf6e10a82a3d2db33774a78f3088"
+      "kind": "recording",
+      "questionText": "Hvorfor vil du komme til A-laget?",
+      "duration": 3.285,
+      "sourceFile": "10.(1).m4a",
+      "sourceSha256": "3a430a526b3725492b5860aabb154cfe5b34f1a5663b7d8a59ad4375199caa53",
+      "audioSha256": "bb6da7114c3fce6cc7cce465e49d2d0a2d597c1ae60499b94eba86404143e475"
     },
     "ateam-11": {
       "file": "audio/a-team/ateam-11.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hvordan lærer du norsk?",
-      "duration": 2.376,
-      "textSha256": "3f24ff8bc4cb43299182fdfb627598286e09e9871cd8bc5c873cfabfe501e04e"
+      "kind": "recording",
+      "questionText": "Hvordan lærer du norsk?",
+      "duration": 2.411,
+      "sourceFile": "11..m4a",
+      "sourceSha256": "386730cacf1f3da2e6960519ce80f31bcefe3967683c4dabfae9b9716cd2fb38",
+      "audioSha256": "78089b1c0a434435457187de89bf0735f435c88285e9f750b69925fd2f8a8047"
     },
     "ateam-12": {
       "file": "audio/a-team/ateam-12.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Når startet du å lære norsk?",
-      "duration": 2.616,
-      "textSha256": "b598a1a6e1aa6171c3b378f5eaf2e01e9c9cf73769850e70b97a742ee1348882"
+      "kind": "recording",
+      "questionText": "Når startet du å lære norsk?",
+      "duration": 2.539,
+      "sourceFile": "12.(1).m4a",
+      "sourceSha256": "98f1a03078c5b5894dd841ccc67fd5da7f5f9ab1826d1d475f44857dae46324f",
+      "audioSha256": "90d179aef51c0ebc18e4f79cb893716c43a46f4bd71365864b8a56d47ac8ec34"
     },
     "ateam-13": {
       "file": "audio/a-team/ateam-13.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva vil du jobbe med?",
-      "duration": 2.328,
-      "textSha256": "efc88c8665ef9465b33afe6157890fdc1274408eef557b42a58d8ab51e206d1a"
+      "kind": "recording",
+      "questionText": "Hva vil du jobbe med?",
+      "duration": 2.859,
+      "sourceFile": "13.(1).m4a",
+      "sourceSha256": "16ccce9d01822bc997da0b6e66496a1cc73e3c61b985609191ebd5146ee744c0",
+      "audioSha256": "c8e86ca6b4513f6d8d7dbb83020f0103ff0781dff795c6bf60dd8e32df3396e7"
     },
     "ateam-14": {
       "file": "audio/a-team/ateam-14.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva er dine styrker og svakheter?",
-      "duration": 3.096,
-      "textSha256": "2cda2a04cc23faf75caa85aada4585fafc9e4ce6003820c841ff16c89973071f"
+      "kind": "recording",
+      "questionText": "Hva er dine styrker og svakheter?",
+      "duration": 4.16,
+      "sourceFile": "14.(1).m4a",
+      "sourceSha256": "4986460437ed7a7dc31fc0fc9c251861c386f9e28e6567a32d882be2ee9a575f",
+      "audioSha256": "39483b82085651f5b6fe4800763a7e5bfa23eb16677bf967eaa0c4ad8443bc5b"
     },
     "ateam-15": {
       "file": "audio/a-team/ateam-15.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hva vil du lære på A-laget? Hva ønsker du å gjøre på A-laget?",
-      "duration": 5.664,
-      "textSha256": "b77658e67b9d0f0934273d6681c63937cc8c0b61d9d47ed8ce12d9c095c268ef"
+      "kind": "recording",
+      "questionText": "Hva vil du lære på A-laget? Hva ønsker du å gjøre på A-laget?",
+      "duration": 5.973,
+      "sourceFile": "15..m4a",
+      "sourceSha256": "8461a917387a18a9f303d94c01453aec2d0fa5e92db598e0edaeb9ceb1cc00bf",
+      "audioSha256": "9c3bc59c377a16b6a31e8d93cd2b6c1b221f3b9fbc451fbcf3c959320cdb2c0f"
     }
   }
 }
