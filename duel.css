@@ -13,6 +13,11 @@ body.nd-open{overflow:hidden}
 .nd-icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .nd-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 .nd-shell{width:100%;max-width:760px;min-height:100%;margin:0 auto;padding:max(6px,env(safe-area-inset-top)) 16px max(28px,env(safe-area-inset-bottom))}
+/* In play the board takes the width it can use and the header steps back. */
+.nd-root.is-game .nd-shell{max-width:1000px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.nd-root.is-game .nd-top{min-height:46px;padding:2px 0 4px}
+.nd-root.is-game .nd-brand .nd-kicker{display:none}
+.nd-root.is-game .nd-top h2{font-size:18px}
 /* Header */
 .nd-top{display:flex;align-items:center;gap:12px;min-height:58px;padding:4px 0 8px}
 .nd-brand{flex:1;min-width:0}
@@ -112,6 +117,7 @@ body.nd-open{overflow:hidden}
 .nd-timer-track{stroke:#e2e7dd}
 .nd-timer-ring{stroke:var(--nd-green);stroke-dasharray:100;stroke-dashoffset:0;stroke-linecap:round;transition:stroke-dashoffset .25s linear,stroke 1.2s ease-out}
 .nd-timer span{position:relative;font:600 12px/1 var(--sans,"Segoe UI",sans-serif);color:var(--nd-ink);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.nd-timer.is-progress span{font-size:14px}
 .nd-timer.is-sprint .nd-timer-ring{stroke:var(--nd-gold)}
 .nd-timer.is-sprint span{color:#8a6420}
 .nd-scorebar{flex:1;min-width:0}
@@ -140,14 +146,16 @@ body.nd-open{overflow:hidden}
 .nd-ticker-points{flex:none;margin-left:auto;font-weight:600;color:#8a6420;font-variant-numeric:tabular-nums}
 .nd-ticker small{flex:none;font-size:11px;color:#8a6420}
 .nd-watch{padding:6px 10px;border-radius:10px;background:var(--nd-gold-soft);color:#7a6229;font-size:13px;text-align:center}
-.nd-play-hint{font-size:12px;color:var(--nd-muted)}
-.nd-board{position:relative;--nd-chrome:250px}
-.nd-grid{display:grid;grid-template-columns:repeat(var(--nd-cols-wide,4),minmax(0,1fr));grid-auto-rows:clamp(64px,calc((100vh - var(--nd-chrome)) / var(--nd-rows-wide,4) - 10px),108px);grid-auto-rows:clamp(64px,calc((100dvh - var(--nd-chrome)) / var(--nd-rows-wide,4) - 10px),108px);gap:10px}
+.nd-board{position:relative}
+/* Columns, row height and face size come from layoutBoard() for the screen at hand. */
+.nd-grid{display:grid;grid-template-columns:repeat(var(--nd-cols,4),minmax(0,1fr));grid-auto-rows:minmax(var(--nd-row-h,96px),auto);gap:var(--nd-gap,10px)}
 .nd-grid.is-dealt .nd-card{animation:nd-deal .5s calc(var(--d,0) * 18ms) var(--nd-ease) both}
-.nd-card{position:relative;display:block;min-width:0;padding:0;border:0;background:transparent;perspective:900px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.nd-card{position:relative;display:block;min-width:0;padding:0;border:0;background:transparent;perspective:900px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none}
 .nd-card:nth-child(4n+2){--d:1}.nd-card:nth-child(4n+3){--d:2}.nd-card:nth-child(4n+4){--d:3}
 .nd-card:disabled{cursor:default}
-.nd-card-inner{position:relative;display:grid;height:100%;transform-style:preserve-3d;transition:transform .28s var(--nd-ease),opacity .45s ease-in}
+.nd-card-inner{position:relative;display:grid;height:100%;transform-style:preserve-3d;transition:transform .28s var(--nd-ease),opacity .45s ease-in,scale .12s ease-out}
+/* A press answers at once, before anything else happens. */
+.nd-card:not(:disabled):active .nd-card-inner{scale:.965;transition-duration:.28s,.45s,.05s}
 .nd-card.is-up .nd-card-inner{transform:rotateY(180deg)}
 .nd-face{position:relative;grid-area:1/1;display:flex;align-items:center;justify-content:center;height:100%;overflow:hidden;border-radius:14px;-webkit-backface-visibility:hidden;backface-visibility:hidden}
 .nd-back{background:radial-gradient(120% 90% at 50% 28%,#2b5a4c 0%,#20453a 58%,#1a3a31 100%);box-shadow:inset 0 0 0 1px #c9a04a3d,inset 0 0 0 5px #21483e,inset 0 0 0 6px #c9a04a24,0 1px 0 #10291f30;color:#c9a04a;transition:box-shadow .3s ease-out}
@@ -157,25 +165,42 @@ body.nd-open{overflow:hidden}
 .nd-card.is-golden .nd-back{box-shadow:inset 0 0 0 1px #d9bd7a99,inset 0 0 0 5px #21483e,inset 0 0 0 6px #d9bd7a40,0 1px 0 #10291f30}
 .nd-card.is-golden .nd-back::after{content:"";position:absolute;inset:0;padding:1.5px;border-radius:inherit;background:linear-gradient(115deg,transparent 35%,#e9d49a 46%,#fff4d2 50%,#e9d49a 54%,transparent 65%) 0 0/260% 100%;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:nd-edge 4s linear infinite;pointer-events:none}
 .nd-card.is-golden .nd-back .nd-icon{color:#e2c785;opacity:.85}
-.nd-front{flex-direction:column;padding:6px 5px;border:1px solid var(--nd-line);background:var(--nd-card);box-shadow:0 1px 0 #dfe5da;text-align:center;transform:rotateY(180deg);transition:background .45s ease-out,border-color .45s ease-out,box-shadow .45s ease-out}
+/* The travelling light only runs while the golden card is face down. */
+.nd-card.is-up .nd-back::after{animation:none}
+.nd-front{flex-direction:column;padding:6px 8px;border:1px solid var(--nd-line);background:var(--nd-card);box-shadow:0 1px 0 #dfe5da;text-align:center;transform:rotateY(180deg);transition:background .15s ease-out,border-color .15s ease-out,box-shadow .15s ease-out}
 /* A faint sheen passes over a card as it turns face up. */
-.nd-front::after{content:"";position:absolute;inset:-20% auto -20% -60%;width:45%;background:linear-gradient(100deg,transparent,#ffffff8c 50%,transparent);transform:skewX(-12deg);opacity:0;pointer-events:none}
+.nd-front::after{content:"";position:absolute;top:-20%;bottom:-20%;left:0;width:45%;background:linear-gradient(100deg,transparent,#ffffff8c 50%,transparent);transform:translateX(-140%) skewX(-12deg);opacity:0;pointer-events:none}
 .nd-card.is-up .nd-front::after{animation:nd-sheen .65s .08s ease-out both}
 .nd-text{display:block;max-width:100%;line-height:1.22}
-.nd-front.is-no .nd-text{font:500 18px/1.2 var(--serif,Georgia,serif);color:var(--nd-green);word-break:keep-all;overflow-wrap:normal;hyphens:manual}
-.nd-front.is-zh .nd-text{font-size:17px;color:var(--nd-ink)}
+.nd-front.is-no .nd-text{font:500 var(--nd-face,18px)/1.22 var(--serif,Georgia,serif);color:var(--nd-green);word-break:keep-all;overflow-wrap:normal;hyphens:manual}
+.nd-front.is-zh .nd-text{font-size:calc(var(--nd-face,18px) * .94);line-height:1.35;color:var(--nd-ink)}
+/* Only a word that still cannot fit at 13 px may break. */
+.nd-front .nd-text.is-tight{overflow-wrap:anywhere;hyphens:auto}
 .nd-card.is-golden .nd-front{border-color:var(--nd-gold);background:var(--nd-gold-soft)}
-.nd-card.is-selected .nd-front{border-color:var(--nd-green);box-shadow:inset 0 0 0 2px var(--nd-green);background:var(--nd-soft)}
+.nd-card.is-selected .nd-front{border-color:var(--nd-green);box-shadow:inset 0 0 0 2px var(--nd-green);background:var(--nd-soft);transition-duration:.06s}
 .nd-card.is-miss .nd-front{border-color:#dcbcae;background:#fbf4f0}
-.nd-card.is-pending .nd-front{border-color:#d2b97f;box-shadow:0 0 0 2px #ecdcb1}
+/* My claim on its way to the server: the pair already reads as mine. */
+.nd-card.is-taking .nd-front{border-color:var(--nd-claim);box-shadow:inset 0 0 0 2px var(--nd-claim);background:color-mix(in srgb,var(--nd-claim) 10%,var(--nd-card))}
+.nd-card.is-taking .nd-card-inner{opacity:.72}
 /* Claimed: a soft glow in the claimer's colour, then the pair folds away and leaves a quiet slot. */
-.nd-card.is-claimed .nd-front{border-color:#c9d3c6;background:#f2f5ef;border-color:color-mix(in srgb,var(--nd-claim) 60%,transparent);background:color-mix(in srgb,var(--nd-claim) 12%,var(--nd-card))}
+.nd-card.is-claimed .nd-front{border-color:#c9d3c6;background:#f2f5ef;border-color:color-mix(in srgb,var(--nd-claim) 60%,transparent);background:color-mix(in srgb,var(--nd-claim) 12%,var(--nd-card));transition-duration:.45s}
 .nd-card.is-glow .nd-front{box-shadow:0 0 0 1px var(--nd-claim),0 0 22px -4px var(--nd-claim)}
 .nd-tag{position:absolute;left:50%;bottom:4px;max-width:calc(100% - 10px);padding:0 7px;border-radius:99px;background:var(--nd-claim,#2f6b55);color:#fff;font:500 10.5px/16px var(--sans,"Segoe UI",sans-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transform:translateX(-50%);transition:opacity .4s ease-out}
 .nd-tag:empty{display:none}
 .nd-card.is-claimed .nd-tag{opacity:1}
 .nd-card.is-gone .nd-card-inner{opacity:0;transform:rotateY(180deg) scaleY(.06);transition:transform .45s cubic-bezier(.55,0,.75,.35),opacity .45s ease-in}
 .nd-card.is-gone::after{content:"";position:absolute;inset:0;border:1px dashed #d6ddd1;border-color:color-mix(in srgb,var(--nd-claim) 38%,transparent);border-radius:14px;background:color-mix(in srgb,var(--nd-claim) 6%,transparent);pointer-events:none;animation:nd-fade .9s .3s ease-out both}
+/* Face-up play needs no 3D: flat cards cross-fade once per wave and a tap repaints only its own card. */
+.nd-board.is-open .nd-card{perspective:none}
+.nd-board.is-open .nd-card-inner{transform-style:flat}
+.nd-board.is-open .nd-card.is-up .nd-card-inner{transform:none}
+.nd-board.is-open .nd-face{-webkit-backface-visibility:visible;backface-visibility:visible}
+.nd-board.is-open .nd-front{transform:none;opacity:0}
+.nd-board.is-open .nd-back{transition:opacity .3s ease-out}
+.nd-board.is-open .nd-card.is-up .nd-front{opacity:1;transition:opacity .3s ease-out,background .06s ease-out,border-color .06s ease-out,box-shadow .06s ease-out}
+.nd-board.is-open .nd-card.is-up .nd-back{opacity:0;visibility:hidden}
+.nd-board.is-open .nd-card.is-up .nd-front::after{animation:none}
+.nd-board.is-open .nd-card.is-gone .nd-card-inner{transform:scale(.9);opacity:0;transition:transform .4s var(--nd-ease),opacity .4s ease-in}
 /* Countdown, wave interlude and time-up layers over the board */
 .nd-countdown,.nd-timeup{position:absolute;inset:-6px;z-index:2;display:grid;place-items:center;border-radius:18px;background:#f6f5efe0;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:nd-fade .3s ease-out both}
 .nd-countdown-inner{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px;text-align:center}
@@ -269,7 +294,7 @@ body.nd-open{overflow:hidden}
 @keyframes nd-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes nd-count{from{opacity:0;transform:scale(.95)}40%{opacity:1;transform:none}to{opacity:.8;transform:none}}
 @keyframes nd-deal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@keyframes nd-sheen{0%{left:-60%;opacity:0}20%{opacity:1}100%{left:120%;opacity:0}}
+@keyframes nd-sheen{0%{transform:translateX(-140%) skewX(-12deg);opacity:0}20%{opacity:1}100%{transform:translateX(260%) skewX(-12deg);opacity:0}}
 @keyframes nd-edge{from{background-position:130% 0}to{background-position:-130% 0}}
 @keyframes nd-hairline{0%{opacity:0;transform:scaleX(0)}25%{opacity:1}70%{opacity:1;transform:scaleX(1)}100%{opacity:0;transform:scaleX(1)}}
 @keyframes nd-wave-title{0%{opacity:0;transform:translateY(4px)}25%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0}}
@@ -278,11 +303,10 @@ body.nd-open{overflow:hidden}
 .nd-panel{padding:18px 14px;border-radius:20px}
 .nd-code{font-size:50px}
 .nd-counts .nd-option span{font-size:15px}
-.nd-board{--nd-chrome:205px}
-.nd-grid{grid-template-columns:repeat(var(--nd-cols-narrow,3),minmax(0,1fr));grid-auto-rows:minmax(108px,auto);gap:9px}
 .nd-face{border-radius:12px}.nd-card.is-gone::after{border-radius:12px}
-.nd-front{padding:12px 8px 22px}
-.nd-front.is-no .nd-text{font-size:20px;line-height:1.3;overflow-wrap:anywhere;hyphens:auto}.nd-front.is-zh .nd-text{font-size:19px;line-height:1.4;overflow-wrap:anywhere}
+.nd-front{padding:5px 6px}
+.nd-root.is-game .nd-top{min-height:42px}
+.nd-hud{min-height:44px}
 .nd-count-number{font-size:80px}
 .nd-timer{width:44px;height:44px}
 .nd-team-score{padding:5px 10px}.nd-team-score b{font-size:22px}

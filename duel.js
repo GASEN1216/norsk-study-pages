@@ -4,10 +4,10 @@
   'use strict';
   if (window.NorskDuel) return;
 
-  const PREFS_KEY = 'norsk-duel-v2';
-  const COUNTS = [16,24,36,48,72];
-  const MIN_POOL = 6, MAX_POOL = 120, MAX_TEXT = 40, MAX_BODY_BYTES = 15800;
-  const MISS_LOCK_MS = 700, GLOW_MS = 750, TICKER_MS = 2200, ROLL_MS = 600;
+  const PREFS_KEY = 'norsk-duel-v2', SEEN_KEY = 'norsk-duel-seen';
+  const MINUTES = [3,5,8];
+  const MIN_POOL = 6, MAX_POOL = 120, MAX_TEXT = 40, MAX_BODY_BYTES = 15800, MAX_SEEN = 4000;
+  const MISS_LOCK_MS = 700, OPEN_MISS_MS = 420, GLOW_MS = 750, TICKER_MS = 2200, ROLL_MS = 600, FINALE_MS = 1500;
   const POLL_MS = {lobby:1500, finished:1500, countdown:500, playing:650, hidden:4000};
   const TEAMS = {pine:{name:'松绿队',color:'#2f6b55'}, amber:{name:'琥珀队',color:'#a87a2a'}};
   const TEAM_IDS = ['pine','amber'];
@@ -15,7 +15,9 @@
   const COLORS = ['#2f6b55','#a87a2a','#46698c','#8b4d6a','#2d7473','#a65d3c','#677634','#6c5e8c'];
   const MODES = {ffa:{name:'个人混战',hint:'各自为战'}, team:{name:'组队',hint:'松绿队对琥珀队'}};
   const CARD_MODES = {memory:{name:'翻面记忆',hint:'翻开卡片，记住位置'}, open:{name:'全部明牌',hint:'不用翻面，直接抢配对'}};
+  const GOALS = {all:{name:'全部翻完',hint:'每个词抢完即结束'}, time:{name:'限时',hint:'到点结束，词会复习'}};
   const cardModeOf = room => room?.match?.cardMode || room?.settings?.cardMode || 'memory';
+  const goalOf = room => room?.match?.goal || room?.settings?.goal || 'time';
   const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/u;
   const ERRORS = {
     room_not_found:'房间不存在或已过期。', room_full:'房间已满（最多 8 人）。', not_host:'只有房主可以这样做。',
@@ -57,8 +59,9 @@
     }
     return words;
   }
-  // Draw pairs whose Norwegian words and Chinese meanings are all distinct, preferring faces that fit a card.
-  function drawPairs(words, count, random=Math.random) {
+  // Draw pairs whose Norwegian words and Chinese meanings are all distinct. Words not played yet come first
+  // (`seen` maps a folded word to the match it was last played in), then faces that fit a card.
+  function drawPairs(words, count, random=Math.random, seen=null) {
     const pool = [];
     for (const item of words || []) {
       const no = clean(item?.word), zh = shortMeaning(item?.meaning);
@@ -66,7 +69,8 @@
     }
     for (let i = pool.length-1; i > 0; i--) { const j = Math.floor(random()*(i+1)); [pool[i],pool[j]] = [pool[j],pool[i]]; }
     const compact = item => length(item.no) <= 18 && length(item.zh) <= 12;
-    pool.sort((a,b) => compact(b)-compact(a));
+    const played = item => seen?.get(foldKey(item.no)) || 0;
+    pool.sort((a,b) => played(a)-played(b) || compact(b)-compact(a));
     const picked = [], words_ = new Set(), meanings = new Set();
     for (const item of pool) {
       const word = foldKey(item.no), meaning = foldKey(item.zh);
@@ -76,15 +80,18 @@
     }
     return picked;
   }
-  const drawable = words => drawPairs(words,MAX_POOL,() => 0).length;
-  // How many words a word-count choice (16 … 72, or 'all') gives from what the range offers.
-  function resolveCount(choice, available) {
-    const wanted = choice === 'all' ? MAX_POOL : Number(choice) || COUNTS[0];
-    return Math.max(0,Math.min(wanted,available,MAX_POOL));
+  // Every usable pair the range offers; a match takes up to 120 of them.
+  const drawable = words => drawPairs(words,Infinity,() => 0).length;
+  const matchCount = available => Math.max(0,Math.min(available,MAX_POOL));
+  // Remember the words of a finished match as played in a new generation; the oldest fall out past MAX_SEEN.
+  function rememberWords(history, list) {
+    const gen = (history?.gen || 0)+1, words = new Map(history?.words || []);
+    for (const word of list || []) { const key = foldKey(word?.no); if (!key) continue; words.delete(key); words.set(key,gen); }
+    for (const key of words.keys()) { if (words.size <= MAX_SEEN) break; words.delete(key); }
+    return {gen,words};
   }
-  // Mirrors the server: 180 s + 4 s per word, from 3½ to 8 minutes.
-  const matchSeconds = count => Math.max(210,Math.min(480,180+4*count));
   const minutesLabel = seconds => `约 ${Math.max(1,Math.round(seconds/60))} 分钟`;
+  const goalLabel = settings => settings?.goal === 'all' ? GOALS.all.name : `限时 ${Math.max(1,Math.round((settings?.durationSec || 300)/60))} 分钟`;
   const utf8Bytes = text => { let bytes = 0; for (const char of text) { const code = char.codePointAt(0); bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4; } return bytes; };
   // A pool of long phrases can exceed the request limit; the longest pairs give way first.
   function fitPayload(body, limit=MAX_BODY_BYTES) {
@@ -138,28 +145,36 @@
     const wave = waveOf(room);
     return Boolean(wave) && phaseOf(room,serverNow) === 'playing' && serverNow >= wave.opensAt && serverNow < room.match.endsAt;
   }
-  const newLocal = key => ({key, flipped:[], lockedUntil:0, pending:null});
+  // `pending` holds my claims on their way to the server: those pairs already look taken on my board.
+  const newLocal = key => ({key, flipped:[], lockedUntil:0, pending:[]});
+  const isPending = (local, pair) => local.pending.some(item => item.pair === pair);
   // A tap on card `index`. Returns the next private state and what should happen.
   function flipCard(local, room, index, now, serverNow) {
     const none = {local, effect:null};
     const wave = waveOf(room), card = wave?.cards?.[index];
     if (!card || !waveOpen(room,serverNow) || local.key !== waveKey(room)) return none;
-    if (wave.claims.some(claim => claim.pair === card.pair) || local.pending || now < local.lockedUntil) return none;
-    if (local.flipped.includes(index)) return cardModeOf(room) === 'open' && local.flipped.length === 1
+    if (wave.claims.some(claim => claim.pair === card.pair) || isPending(local,card.pair) || now < local.lockedUntil) return none;
+    const open = cardModeOf(room) === 'open';
+    if (local.flipped.includes(index)) return open && local.flipped.length === 1
       ? {local:{...local,flipped:[]},effect:{type:'deselect',index}} : none;
     const flipped = local.flipped.length >= 2 ? [] : local.flipped;
     if (!flipped.length) return {local:{...local,flipped:[index],lockedUntil:0}, effect:{type:'flip',index}};
     const first = flipped[0], other = wave.cards[first];
+    // Face up, a second word (or a second meaning) just moves the selection.
+    if (open && other.kind === card.kind) return {local:{...local,flipped:[index],lockedUntil:0}, effect:{type:'flip',index}};
     if (other.pair === card.pair && other.kind !== card.kind) {
-      return {local:{...local,flipped:[first,index],pending:{a:first,b:index,pair:card.pair}}, effect:{type:'claim',wave:wave.n,a:first,b:index}};
+      // The next pick never waits for the server's answer to this one.
+      return {local:{...local,flipped:[],lockedUntil:0,pending:[...local.pending,{a:first,b:index,pair:card.pair}]},
+        effect:{type:'claim',wave:wave.n,a:first,b:index,pair:card.pair}};
     }
-    return {local:{...local,flipped:[first,index],lockedUntil:now+MISS_LOCK_MS}, effect:{type:'miss',a:first,b:index,until:now+MISS_LOCK_MS}};
+    const until = now+(open ? OPEN_MISS_MS : MISS_LOCK_MS);
+    return {local:{...local,flipped:[first,index],lockedUntil:until}, effect:{type:'miss',a:first,b:index,until}};
   }
   // After a miss the two cards turn back once the lock has passed.
   function settleMiss(local, now) {
-    return !local.pending && local.flipped.length === 2 && now >= local.lockedUntil ? {...local,flipped:[],lockedUntil:0} : local;
+    return local.flipped.length === 2 && now >= local.lockedUntil ? {...local,flipped:[],lockedUntil:0} : local;
   }
-  const claimDone = local => ({...local,pending:null,flipped:[],lockedUntil:0});
+  const claimDone = (local, pair) => ({...local,pending:local.pending.filter(item => item.pair !== pair)});
   // Fold a server state into the private view of the wave; report pairs someone else took from under my fingers.
   function mergeWave(local, room, me) {
     const key = waveKey(room), same = Boolean(local) && local.key === key;
@@ -168,7 +183,7 @@
     const owners = new Map((wave?.claims || []).map(claim => [claim.pair,claim.playerId]));
     const pairOf = index => wave?.cards?.[index]?.pair;
     const stolen = [...new Set(base.flipped.map(pairOf).filter(pair => owners.has(pair) && owners.get(pair) !== me))];
-    const pending = base.pending && owners.has(base.pending.pair) ? null : base.pending;
+    const pending = base.pending.filter(item => !owners.has(item.pair));
     const flipped = base.flipped.filter(index => !owners.has(pairOf(index)));
     return {local:{...base,flipped,pending,lockedUntil:flipped.length === 2 ? base.lockedUntil : 0}, stolen, changed:!same};
   }
@@ -195,10 +210,24 @@
   const formatClock = ms => { const seconds = Math.max(0,Math.ceil(ms/1000)); return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`; };
   const shareLink = (location, code) => `${location.origin}${location.pathname}?room=${encodeURIComponent(code)}#practice`;
   const validCode = value => /^\d{4}$/.test(String(value ?? ''));
-  // Phones use wider cards and scroll when necessary; the words stay readable in a full wave.
-  function columnsFor(cards, narrow) {
-    if (narrow) return 3;
-    return cards <= 16 ? 4 : cards <= 20 ? 5 : 6;
+  // Cards sized to the space below the scores: the most readable layout that fits, scrolling only when a full
+  // wave cannot fit at a readable size. Returns columns, row height and the face font size in px.
+  function boardLayout(count, width, height, phone) {
+    const gap = phone ? 8 : 10, minWidth = phone ? 92 : 112, minHeight = phone ? 62 : 70, maxHeight = phone ? 124 : 132;
+    const comfortable = phone ? 19 : 21;
+    let best = null;
+    for (let cols = 2; cols <= 8; cols++) {
+      const rows = Math.ceil(count/cols), cardWidth = (width-gap*(cols-1))/cols;
+      if (cols > 2 && cardWidth < minWidth) break;
+      const fit = (height-gap*(rows-1))/rows;
+      const cardHeight = Math.max(minHeight,Math.min(maxHeight,fit,cardWidth*1.1));
+      const font = Math.min(cardWidth/6.2,cardHeight/2.7);
+      const overflow = Math.max(0,rows*cardHeight+gap*(rows-1)-height)/Math.max(height,1);
+      // Readable text first; then no scrolling, few empty slots and cards of a pleasant shape.
+      const score = Math.min(font,comfortable)-overflow*25-(rows*cols-count)*0.2-Math.abs(Math.log(cardWidth/cardHeight/1.6));
+      if (!best || score > best.score) best = {score,cols,rowHeight:Math.floor(cardHeight),font:Math.max(phone ? 16 : 15,Math.min(phone ? 22 : 23,Math.round(font*2)/2))};
+    }
+    return {cols:best.cols,rowHeight:best.rowHeight,font:best.font,gap};
   }
   function multiplierText(claim) {
     const parts = [];
@@ -238,18 +267,35 @@
     try { const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null'); return saved && typeof saved === 'object' ? saved : {}; } catch { return {}; }
   }
   function savePrefs() {
-    try { localStorage.setItem(PREFS_KEY,JSON.stringify({version:2,mode:ui.config.mode,cardMode:ui.config.cardMode,choice:ui.config.choice,tokens:ui.config.tokens})); } catch { /* Preferences are a convenience. */ }
+    try { localStorage.setItem(PREFS_KEY,JSON.stringify({version:3,mode:ui.config.mode,cardMode:ui.config.cardMode,goal:ui.config.goal,minutes:ui.config.minutes,tokens:ui.config.tokens})); } catch { /* Preferences are a convenience. */ }
+  }
+  function readSeen() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SEEN_KEY) || 'null');
+      if (saved && Number.isInteger(saved.gen) && saved.words && typeof saved.words === 'object') {
+        return {gen:saved.gen,words:new Map(Object.entries(saved.words).filter(([,gen]) => Number.isInteger(gen)))};
+      }
+    } catch { /* Start afresh. */ }
+    return {gen:0,words:new Map()};
+  }
+  function saveSeen() {
+    try { localStorage.setItem(SEEN_KEY,JSON.stringify({gen:ui.seen.gen,words:Object.fromEntries(ui.seen.words)})); } catch { /* A convenience too. */ }
   }
   function loadSources() {
     let list = [];
     try { list = ui.opts.sources?.() || []; } catch { list = []; }
     return (Array.isArray(list) ? list : []).filter(source => source && typeof source.token === 'string' && Array.isArray(source.words) && source.words.length);
   }
-  const configSignature = () => JSON.stringify([ui.config.mode,ui.config.cardMode,ui.config.choice,[...ui.config.tokens].sort()]);
+  const configSignature = () => JSON.stringify([ui.config.mode,ui.config.cardMode,ui.config.goal,ui.config.minutes,[...ui.config.tokens].sort()]);
   function configSummary() {
-    const words = poolFor(ui.sources,ui.config.tokens), available = drawable(words), count = resolveCount(ui.config.choice,available);
-    return {available,count,seconds:matchSeconds(count),label:selectionLabel(ui.sources,ui.config.tokens)};
+    // Counting a large range is not free, and the lobby re-renders on every poll.
+    const key = [...ui.config.tokens].sort().join('|');
+    if (ui.available?.key !== key) ui.available = {key,value:drawable(poolFor(ui.sources,ui.config.tokens))};
+    const available = ui.available.value;
+    return {available,count:matchCount(available),label:selectionLabel(ui.sources,ui.config.tokens)};
   }
+  // "36 词 · 全部翻完 · 全部明牌 · 个人混战"
+  const settingsLine = settings => `${settings.count} 词 · ${goalLabel(settings)} · ${CARD_MODES[settings.cardMode || 'memory'].name} · ${MODES[settings.mode].name}`;
 
   function open(options={}) {
     if (ui.open) { focusFirst(); return Promise.resolve(true); }
@@ -262,13 +308,16 @@
       screen:'',busy:false,message:'',joinCode:validCode(options.join) ? String(options.join) : '',pollTimer:null,polling:null,failures:0,offline:false,
       tickTimer:null,missTimer:null,toastTimer:null,tickerTimer:null,dealTimer:null,settingsTimer:null,resizeTimer:null,timers:new Set(),
       gone:new Set(),glowing:new Set(),built:'',gameKey:'',boardCards:[],boardWave:0,interlude:'',lastSeq:-1,shown:new Map(),words:null,
-      confirm:false,honorsFor:'',pushed:'',editing:'',picker:null,lastPhase:'',settingsSync:null,readyRun:0,
+      confirm:false,honorsFor:'',pushed:'',editing:'',picker:null,lastPhase:'',settingsSync:null,readyRun:0,available:null,
+      seen:readSeen(),recorded:'',redraw:'',finale:null,
       lastFocus:document.activeElement,historyToken:'nd-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)});
     ui.sources = loadSources();
     const prefs = readPrefs(), tokens = new Set(ui.sources.map(source => source.token));
     const saved = Array.isArray(prefs.tokens) ? prefs.tokens.filter(token => tokens.has(token)) : [];
     const fallback = ui.sources.find(source => source.group === 'chapter') || ui.sources.find(source => source.group !== 'mine') || ui.sources[0];
-    ui.config = {mode:MODES[prefs.mode] ? prefs.mode : 'ffa',cardMode:CARD_MODES[prefs.cardMode] ? prefs.cardMode : 'memory',choice:prefs.choice === 'all' || COUNTS.includes(prefs.choice) ? prefs.choice : 24,
+    // A new match plays every word of the range unless the host chose to play to the clock.
+    ui.config = {mode:MODES[prefs.mode] ? prefs.mode : 'ffa',cardMode:CARD_MODES[prefs.cardMode] ? prefs.cardMode : 'memory',
+      goal:GOALS[prefs.goal] ? prefs.goal : 'all',minutes:MINUTES.includes(prefs.minutes) ? prefs.minutes : 5,
       tokens:saved.length ? saved : fallback ? [fallback.token] : []};
     const root = document.createElement('div');
     root.className = 'nd-root';
@@ -282,7 +331,7 @@
     // Keys are heard on the document so Esc and the Tab loop still work when a rebuilt board drops focus.
     document.addEventListener('keydown',onKey);
     ui.onVisibility = () => { if (ui.room) schedulePoll(document.visibilityState === 'hidden' ? POLL_MS.hidden : 0); };
-    ui.onResize = () => { clearTimeout(ui.resizeTimer); ui.resizeTimer = setTimeout(fitCards,150); };
+    ui.onResize = () => { clearTimeout(ui.resizeTimer); ui.resizeTimer = setTimeout(layoutBoard,150); };
     ui.onPopState = onPopState;
     document.addEventListener('visibilitychange',ui.onVisibility);
     window.addEventListener('resize',ui.onResize);
@@ -392,6 +441,7 @@
     if (node) node.hidden = !offline;
   }
   function speak(word) {
+    if (!word) return;
     try { void Promise.resolve(ui.opts.pronounce?.({word})).catch(() => {}); } catch { /* Audio is optional. */ }
   }
 
@@ -480,10 +530,12 @@
     schedulePoll(nextDelay());
   }
   function settingsBody() {
-    const words = poolFor(ui.sources,ui.config.tokens), count = resolveCount(ui.config.choice,drawable(words));
+    const words = poolFor(ui.sources,ui.config.tokens), count = configSummary().count;
     if (count < MIN_POOL) return null;
-    const pairs = drawPairs(words,count).map(({no,zh}) => ({no,zh}));
-    return fitPayload({mode:ui.config.mode,cardMode:ui.config.cardMode,label:selectionLabel(ui.sources,ui.config.tokens),pairs});
+    // A range larger than one match starts with the words played least recently.
+    const pairs = drawPairs(words,count,Math.random,ui.seen?.words).map(({no,zh}) => ({no,zh}));
+    const timed = ui.config.goal === 'time' ? {durationSec:ui.config.minutes*60} : {};
+    return fitPayload({mode:ui.config.mode,cardMode:ui.config.cardMode,goal:ui.config.goal,...timed,label:selectionLabel(ui.sources,ui.config.tokens),pairs});
   }
   async function createRoom() {
     const body = settingsBody();
@@ -522,7 +574,9 @@
         const ownsDraft = isHost(room) && (ui.pushed.startsWith(room.code+'|') || ui.editing === room.code);
         if (!ownsDraft) return true;
         const signature = room.code+'|'+configSignature();
-        if (ui.pushed === signature) return true;
+        // After a match from a large range, the same settings go out again with freshly drawn words.
+        const redraw = ui.redraw === room.code && ui.pushed === signature;
+        if (ui.pushed === signature && !redraw) return true;
         // A previously ready host may have triggered a countdown while an edit was debounced.
         // Withdrawing readiness cancels that stale countdown before publishing the new pool.
         const me = meOf(room);
@@ -533,10 +587,12 @@
         if (!between(room)) return false;
         const body = settingsBody();
         if (!body) { toast(`所选范围至少需要 ${MIN_POOL} 个释义不同的词。`); return false; }
-        const data = await quietCall(`/duel/rooms/${room.code}/settings`,body);
+        // A redraw keeps everyone's 准备: only the words changed, not what they agreed to play.
+        const data = await quietCall(`/duel/rooms/${room.code}/settings`,redraw ? {...body,redraw:true} : body);
         if (!data || !ui.open || session !== ui.session || code !== ui.room?.code) return false;
         // Only acknowledge a successful request. A later edit is sent next, never concurrently.
         ui.pushed = signature;
+        if (ui.redraw === room.code) ui.redraw = '';
       }
       return false;
     })();
@@ -557,22 +613,23 @@
     if (!ui.open || session !== ui.session || ui.room?.code !== room.code || run !== ui.readyRun || !between(ui.room)) return;
     return action(`/duel/rooms/${room.code}/start`,{},{quiet:true});
   }
+  // The pair already looks taken on my board; the server's answer confirms it or hands it back.
   async function sendClaim(effect) {
-    const room = ui.room, session = ui.session;
-    const word = waveOf(room)?.cards?.[effect.a]?.kind === 'no' ? waveOf(room).cards[effect.a].face : waveOf(room)?.cards?.[effect.b]?.face;
+    const room = ui.room, session = ui.session, cards = waveOf(room)?.cards || [];
+    // Only the claimer hears the word, so sounds never pile up on a shared table.
+    speak([cards[effect.a],cards[effect.b]].find(card => card?.kind === 'no')?.face);
     try {
       const data = await call(`/duel/rooms/${room.code}/claim`,{wave:effect.wave,a:effect.a,b:effect.b});
       if (session !== ui.session || ui.room?.code !== room.code) return;
-      ui.local = claimDone(ui.local);
-      // Only the claimer hears the word, so sounds never pile up on a shared table.
-      if (data.accepted) speak(word);
-      else if (data.reason === 'claimed') toast(`慢了一步，${nameOf(data,data.claimedBy) || '别人'} 先抢到了`);
+      if (ui.local) ui.local = claimDone(ui.local,effect.pair);
+      if (!data.accepted && data.reason === 'claimed') toast(`慢了一步，${nameOf(data,data.claimedBy) || '别人'} 先抢到了`);
       applyState(data);
+      patchBoard();
     } catch (error) {
       if (session !== ui.session) return;
-      ui.local = claimDone(ui.local);
+      if (ui.local) ui.local = claimDone(ui.local,effect.pair);
       if (error?.code === 'room_not_found' || error?.code === 'not_in_room') { lostRoom(friendly(error)); return; }
-      toast(error?.code === 'not_in_game' ? ERRORS.not_in_game : '网络没跟上，这一对没抢到，可以再翻一次。');
+      toast(error?.code === 'not_in_game' ? ERRORS.not_in_game : '网络没跟上，这一对没抢到，可以再选一次。');
       patchBoard();
       schedulePoll(0);
     }
@@ -601,6 +658,13 @@
       ui.lastSeq = fresh[fresh.length-1].seq;
     }
     const results = state.results;
+    if (state.status === 'finished' && results?.words && ui.recorded !== state.code+':'+results.number) {
+      ui.recorded = state.code+':'+results.number;
+      ui.seen = rememberWords(ui.seen,results.words);
+      saveSeen();
+      // The range holds more than one match: the host's page draws the next words, unplayed ones first.
+      if (hostEditing(state) && configSummary().available > state.settings.count) { ui.redraw = state.code; void pushSettings(); }
+    }
     if (state.status === 'finished' && results && !results.xpPending && ui.honorsFor !== state.code+':'+results.number) {
       ui.honorsFor = state.code+':'+results.number;
       try { void ui.community.honors?.({force:true}); } catch { /* Honors are optional. */ }
@@ -628,6 +692,18 @@
     const chip = $('#nd-room-chip');
     if (chip) { chip.hidden = !room; chip.textContent = room ? `房间 ${room.code}` : ''; }
     const body = $('#nd-body');
+    // The board stays a moment after the last pair or the bell, under a quiet "全部翻完" or "时间到".
+    if (screen === 'results' && ui.screen === 'game' && room.results) {
+      const key = `${room.code}:${room.results.number}`;
+      if (ui.finale?.key !== key) {
+        ui.finale = {key,until:Date.now()+(reducedMotion() ? 0 : FINALE_MS)};
+        showFinale(room.results);
+        later(render,reducedMotion() ? 0 : FINALE_MS);
+        return;
+      }
+      if (Date.now() < ui.finale.until) return;
+    }
+    ui.root.classList.toggle('is-game',screen === 'game');
     if (screen === 'game') {
       const key = `${room.code}:${room.round}`;
       if (ui.screen !== 'game' || ui.gameKey !== key) { body.innerHTML = gameMarkup(room); ui.gameKey = key; ui.built = ''; ui.lastPhase = ''; ui.openedWave = ''; startTicker(); keepFocus(); }
@@ -657,27 +733,34 @@
   const messageMarkup = () => ui.message ? `<p class="nd-message" role="alert">${e(ui.message)}</p>` : '';
   const segment = (name,value,label,hint,selected,disabled=false) => `<button type="button" class="nd-option" role="radio" aria-checked="${selected}" data-nd-action="${name}" data-nd-value="${value}" data-nd-focus="${name}-${value}"${disabled ? ' disabled' : ''}><span>${label}</span>${hint ? `<small>${hint}</small>` : ''}</button>`;
 
-  // Range, word count and mode for the next match: editable for the host, a summary for everyone else.
+  // What the next match plays, in one line under the editor.
+  function estimateText(summary) {
+    if (summary.count < MIN_POOL) return `所选范围至少需要 ${MIN_POOL} 个释义不同的词`;
+    const more = summary.available > summary.count ? `范围共 ${summary.available} 词，本局取 ${summary.count} 个，没玩过的优先` : `${summary.count} 词`;
+    if (ui.config.goal === 'time') return `${more} · ${ui.config.minutes} 分钟，词发完后复习，时间到结束`;
+    return `${more} · 全部抢完即结束${summary.count > 60 ? '，词多时一局会比较长' : ''}`;
+  }
+  // Range, how the match ends, card visibility and mode: editable for the host, a summary for everyone else.
   function settingsEditor() {
     const summary = configSummary();
-    const counts = COUNTS.map(count => segment('count',count,String(count),'',ui.config.choice === count,summary.available < count))
-      .concat(segment('count','all','全部',summary.available ? String(Math.min(summary.available,MAX_POOL)) : '',ui.config.choice === 'all',!summary.available));
-    return `<div class="nd-field"><span class="nd-label">词语范围</span><button type="button" class="nd-range" data-nd-action="picker" data-nd-focus="picker"><span class="nd-range-label">${summary.label ? e(summary.label) : '还没有选择范围'}</span><small>${summary.available ? `${summary.available >= MAX_POOL ? `${MAX_POOL}+` : summary.available} 词可用` : ''}</small><span class="nd-range-change">更改</span></button></div>
-      <div class="nd-field"><span class="nd-label" id="nd-count-label">词数</span><div class="nd-segment nd-counts" role="radiogroup" aria-labelledby="nd-count-label">${counts.join('')}</div></div>
-      <div class="nd-field"><span class="nd-label" id="nd-mode-label">玩法</span><div class="nd-segment" role="radiogroup" aria-labelledby="nd-mode-label">${Object.entries(MODES).map(([value,mode]) => segment('mode',value,mode.name,mode.hint,ui.config.mode === value)).join('')}</div></div>
-      <div class="nd-field"><span class="nd-label" id="nd-card-mode-label">卡片是否翻面</span><div class="nd-segment" role="radiogroup" aria-labelledby="nd-card-mode-label">${Object.entries(CARD_MODES).map(([value,mode]) => segment('card-mode',value,mode.name,mode.hint,ui.config.cardMode === value)).join('')}</div></div>
-      <p class="nd-estimate" aria-live="polite">${summary.count >= MIN_POOL ? `${summary.count} 词 · ${minutesLabel(summary.seconds)}，词对分波发出，抢完一波来下一波` : `所选范围至少需要 ${MIN_POOL} 个释义不同的词`}</p>`;
+    const group = (id,label,options,extra='') => `<div class="nd-field"><span class="nd-label" id="${id}">${label}</span><div class="nd-segment${extra}" role="radiogroup" aria-labelledby="${id}">${options}</div></div>`;
+    const minutes = ui.config.goal === 'time' ? group('nd-minutes-label','时长',MINUTES.map(value => segment('minutes',value,`${value} 分钟`,'',ui.config.minutes === value)).join(''),' nd-minutes') : '';
+    return `<div class="nd-field"><span class="nd-label">词语范围</span><button type="button" class="nd-range" data-nd-action="picker" data-nd-focus="picker"><span class="nd-range-label">${summary.label ? e(summary.label) : '还没有选择范围'}</span><small>${summary.available ? `${summary.available} 词` : ''}</small><span class="nd-range-change">更改</span></button></div>
+      ${group('nd-goal-label','结束方式',Object.entries(GOALS).map(([value,goal]) => segment('goal',value,goal.name,goal.hint,ui.config.goal === value)).join(''))}${minutes}
+      ${group('nd-card-mode-label','牌面',Object.entries(CARD_MODES).map(([value,mode]) => segment('card-mode',value,mode.name,mode.hint,ui.config.cardMode === value)).join(''))}
+      ${group('nd-mode-label','玩法',Object.entries(MODES).map(([value,mode]) => segment('mode',value,mode.name,mode.hint,ui.config.mode === value)).join(''))}
+      <p class="nd-estimate" aria-live="polite">${estimateText(summary)}</p>`;
   }
   function settingsSummary(room) {
     const settings = room.settings;
-    return `<div class="nd-summary"><p class="nd-summary-label">${settings.label ? e(settings.label) : '词语范围'}</p><p class="nd-summary-meta"><b>${settings.count}</b> 词 · ${MODES[settings.mode].name} · ${CARD_MODES[settings.cardMode || 'memory'].name} · ${minutesLabel(settings.durationSec)}</p></div>`;
+    return `<div class="nd-summary"><p class="nd-summary-label">${settings.label ? e(settings.label) : '词语范围'}</p><p class="nd-summary-meta">${e(settingsLine(settings))}</p></div>`;
   }
   function lobbyMarkup() {
     const summary = configSummary();
     return `${messageMarkup()}<section class="nd-panel" aria-labelledby="nd-create-title"><h3 id="nd-create-title">开一个房间</h3>${settingsEditor()}
       <div class="nd-create-foot">${button('create',ui.busy ? '正在创建…' : '创建房间','nd-primary nd-wide',summary.count >= MIN_POOL && !ui.busy ? '' : 'disabled')}</div></section>
       <section class="nd-panel nd-join" aria-labelledby="nd-join-title"><h3 id="nd-join-title">加入房间</h3><form class="nd-join-form" data-nd-form="join"><label class="nd-sr" for="nd-join-code">房间号</label><input id="nd-join-code" name="code" type="text" inputmode="numeric" enterkeyhint="go" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="4 位房间号" value="${e(ui.joinCode)}"><button type="submit" class="nd-button"${ui.busy ? ' disabled' : ''}>加入</button></form></section>
-      <p class="nd-hint">${ui.profile ? `你将以「${e(ui.profile.nickname)}」参加，昵称可在排行榜里修改。` : '正在连接…'}每抢到一对 10 分；8 秒内连抢、金色词对和最后 30 秒冲刺都会加倍。两人以上玩满两分钟的对局计入每日任务和成就。</p>`;
+      <p class="nd-hint">${ui.profile ? `你将以「${e(ui.profile.nickname)}」参加，昵称可在排行榜里修改。` : '正在连接…'}每抢到一对 10 分；8 秒内连抢、金色词对和冲刺（最后一波，限时则是最后 30 秒）都会加倍。两人以上、玩满两分钟或抢满 16 对的对局计入每日任务和成就。</p>`;
   }
   function playerItem(room, player) {
     const me = player.id === room.me;
@@ -701,8 +784,8 @@
   function nextPanel(room, title) {
     const host = isHost(room), editing = hostEditing(room);
     // Until the host changes something, the room keeps what it had; say so under the editor.
-    const pending = editing && !ui.pushed.startsWith(room.code+'|') ? `<p class="nd-hint nd-hint-tight">房间当前：${e(room.settings.label || '词语范围')} · ${room.settings.count} 词 · ${MODES[room.settings.mode].name} · ${CARD_MODES[room.settings.cardMode || 'memory'].name}。改动后对所有人生效。</p>` : '';
-    const settings = editing ? settingsEditor()+pending : `${settingsSummary(room)}${host ? button('edit-settings','更改设置','nd-quiet nd-small','data-nd-focus="edit-settings"') : '<p class="nd-hint nd-hint-tight">房主可以调整范围、词数和翻面方式，改动会实时显示。</p>'}`;
+    const pending = editing && !ui.pushed.startsWith(room.code+'|') ? `<p class="nd-hint nd-hint-tight">房间当前：${e(room.settings.label || '词语范围')} · ${e(settingsLine(room.settings))}。改动后对所有人生效。</p>` : '';
+    const settings = editing ? settingsEditor()+pending : `${settingsSummary(room)}${host ? button('edit-settings','更改设置','nd-quiet nd-small','data-nd-focus="edit-settings"') : '<p class="nd-hint nd-hint-tight">房主可以调整范围、结束方式和牌面，改动会实时显示。</p>'}`;
     return `<section class="nd-panel nd-next" aria-labelledby="nd-next-title"><h3 id="nd-next-title">${title}</h3>${settings}${readyBar(room)}</section>`;
   }
   function roomMarkup(room) {
@@ -713,12 +796,19 @@
       <p class="nd-muted nd-center">${active.length}/${room.maxPlayers || 8} 人</p>${roster(room)}</section>
       ${nextPanel(room,'第一局')}<div class="nd-foot">${button('leave','离开房间','nd-quiet')}</div>`;
   }
+  // Played to the last word, the ring fills with claimed pairs and shows how many are left; timed, it runs down.
   function gameMarkup(room) {
-    return `<div class="nd-game nd-enter"><div class="nd-hud"><div class="nd-timer" id="nd-timer" role="timer" aria-label="剩余时间"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="nd-timer-track" cx="18" cy="18" r="15.9"/><circle class="nd-timer-ring" id="nd-timer-ring" cx="18" cy="18" r="15.9" pathLength="100"/></svg><span id="nd-time">0:00</span></div><div class="nd-scorebar" id="nd-scorebar"></div></div>
+    const all = goalOf(room) === 'all', open = cardModeOf(room) === 'open';
+    return `<div class="nd-game nd-enter"><div class="nd-hud"><div class="nd-timer${all ? ' is-progress' : ''}" id="nd-timer" role="${all ? 'status' : 'timer'}" aria-label="${all ? '剩余词数' : '剩余时间'}"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="nd-timer-track" cx="18" cy="18" r="15.9"/><circle class="nd-timer-ring" id="nd-timer-ring" cx="18" cy="18" r="15.9" pathLength="100"/></svg><span id="nd-time">${all ? '' : '0:00'}</span></div><div class="nd-scorebar" id="nd-scorebar"></div></div>
       <div class="nd-subline"><span class="nd-wave-label" id="nd-wave"></span><p class="nd-ticker" id="nd-ticker" aria-live="polite"></p></div>
-      <p class="nd-play-hint">${cardModeOf(room) === 'open' ? '全部明牌 · 点选单词和释义抢配对，再点已选卡可取消' : '翻面记忆 · 翻开单词和对应释义抢配对'}</p>
       <p class="nd-watch" id="nd-watch" hidden>本局观战中，下一局一起玩。</p>
-      <div class="nd-board" id="nd-board"><div class="nd-grid" id="nd-grid"></div><div class="nd-interlude" id="nd-interlude" hidden></div><div class="nd-countdown" id="nd-countdown" hidden></div><div class="nd-timeup" id="nd-timeup" hidden><span>时间到</span></div></div></div>`;
+      <div class="nd-board${open ? ' is-open' : ''}" id="nd-board"><div class="nd-grid" id="nd-grid"></div><div class="nd-interlude" id="nd-interlude" hidden></div><div class="nd-countdown" id="nd-countdown" hidden></div><div class="nd-timeup" id="nd-timeup" hidden><span>时间到</span></div></div></div>`;
+  }
+  function showFinale(results) {
+    const node = $('#nd-timeup');
+    if (!node) return;
+    node.querySelector('span').textContent = results.complete ? '全部翻完' : results.goal === 'all' ? '本局结束' : '时间到';
+    node.hidden = false;
   }
   function cardMarkup(card, index) {
     return `<button type="button" class="nd-card" data-nd-card="${index}" aria-label="第 ${index+1} 张牌"><span class="nd-card-inner"><span class="nd-face nd-front ${card.kind === 'no' ? 'is-no' : 'is-zh'}"${card.kind === 'no' ? ' lang="nb"' : ' lang="zh"'}><span class="nd-text">${e(card.face)}</span><span class="nd-tag" aria-hidden="true"></span></span><span class="nd-face nd-back" aria-hidden="true">${icon('star')}</span></span></button>`;
@@ -745,34 +835,44 @@
   function buildBoard() {
     const room = ui.room, wave = waveOf(room), grid = $('#nd-grid');
     if (!wave || !grid) return;
-    const count = wave.cards.length;
-    grid.style.setProperty('--nd-cols-wide',columnsFor(count,false));
-    grid.style.setProperty('--nd-cols-narrow',columnsFor(count,true));
-    grid.style.setProperty('--nd-rows-wide',Math.ceil(count/columnsFor(count,false)));
-    grid.style.setProperty('--nd-rows-narrow',Math.ceil(count/columnsFor(count,true)));
     const hadCard = !!grid.contains(document.activeElement);
     grid.innerHTML = wave.cards.map(cardMarkup).join('');
     if (hadCard) keepFocus(grid.querySelector('.nd-card'));
-    grid.classList.remove('is-dealt'); void grid.offsetWidth; grid.classList.add('is-dealt');
     ui.built = waveKey(room); ui.boardWave = wave.n; ui.boardCards = wave.cards;
     ui.gone = new Set(wave.claims.map(claim => claim.pair)); ui.glowing = new Set();
     ui.local = mergeWave(ui.local,room,room.me).local;
-    requestAnimationFrame(fitCards);
+    layoutBoard();
+    grid.classList.remove('is-dealt'); void grid.offsetWidth; grid.classList.add('is-dealt');
     patchBoard();
   }
-  // Mobile cards wrap and grow with their text; never shrink phone text to fit the screen height.
-  function fitCards() {
-    const readable = window.matchMedia?.('(max-width:560px), (max-height:500px) and (max-width:1000px)').matches;
-    for (const text of ui.root?.querySelectorAll('.nd-text') || []) {
-      const box = text.parentElement;
-      text.style.fontSize = '';
-      if (readable) continue;
-      let size = parseFloat(getComputedStyle(text).fontSize) || 16;
-      const limitW = box.clientWidth-10, limitH = box.clientHeight-8;
-      for (let guard = 0; guard < 20 && size > 10 && (text.scrollWidth > limitW || text.scrollHeight > limitH); guard++) {
-        size -= 1; text.style.fontSize = `${size}px`;
-      }
-    }
+  const isPhone = () => window.matchMedia?.('(max-width:560px), (max-height:500px) and (max-width:1000px)').matches === true;
+  // Size the cards to the screen below the scores, then let a long word step down a little (never below 13 px)
+  // rather than break mid-word. Reads and writes are batched so a full wave costs two layouts.
+  function layoutBoard() {
+    const grid = $('#nd-grid'), board = $('#nd-board');
+    if (!grid || !board || !ui.root) return;
+    const texts = [...grid.querySelectorAll('.nd-text')];
+    if (!texts.length) return;
+    const phone = isPhone(), top = board.getBoundingClientRect().top-ui.root.getBoundingClientRect().top+ui.root.scrollTop;
+    const bottom = parseFloat(getComputedStyle($('.nd-shell')).paddingBottom) || 16;
+    const height = Math.max(180,ui.root.clientHeight-top-Math.min(bottom,28));
+    const layout = boardLayout(texts.length,grid.clientWidth,height,phone);
+    grid.style.setProperty('--nd-cols',layout.cols);
+    grid.style.setProperty('--nd-row-h',`${layout.rowHeight}px`);
+    grid.style.setProperty('--nd-face',`${layout.font}px`);
+    grid.style.setProperty('--nd-gap',`${layout.gap}px`);
+    for (const text of texts) { text.style.fontSize = ''; text.classList.remove('is-tight'); }
+    const front = texts[0].parentElement, style = getComputedStyle(front);
+    const roomY = layout.rowHeight-(parseFloat(style.paddingTop) || 0)-(parseFloat(style.paddingBottom) || 0);
+    const sizes = texts.map(text => ({size:parseFloat(getComputedStyle(text).fontSize) || layout.font,width:text.scrollWidth,room:text.clientWidth,height:text.scrollHeight}));
+    texts.forEach((text,index) => {
+      const {size,width,room,height:tall} = sizes[index];
+      const scale = Math.min(1,room/Math.max(width,1),Math.sqrt(roomY/Math.max(tall,1)));
+      if (scale >= 0.995) return;
+      const next = Math.max(13,Math.floor(size*scale*2)/2);
+      text.style.fontSize = `${next}px`;
+      if (next === 13) text.classList.add('is-tight');
+    });
   }
   // The final pair of a cleared wave arrives with the next wave: give it its glow on the old board.
   function finishOldBoard(room) {
@@ -787,6 +887,7 @@
   }
   function markClaimed(node, room, playerId, card) {
     const owner = room.players.find(player => player.id === playerId);
+    node.classList.remove('is-taking','is-selected','is-miss');
     node.classList.add('is-up','is-claimed','is-glow');
     node.classList.toggle('is-mine',playerId === room.me);
     node.style.setProperty('--nd-claim',colorFor(room.match?.mode,owner));
@@ -854,9 +955,10 @@
     const open = waveOpen(room,serverNow());
     const claims = new Map(wave.claims.map(claim => [claim.pair,claim]));
     const me = meOf(room), playing = Boolean(me?.playing && !me.left);
-    const flipped = new Set(local.flipped);
+    const flipped = new Set(local.flipped), taking = new Set(local.pending.map(item => item.pair));
     const faceUp = cardModeOf(room) === 'open' && open;
-    const missed = !local.pending && local.flipped.length === 2 && now < local.lockedUntil;
+    const missed = local.flipped.length === 2 && now < local.lockedUntil;
+    const myColor = colorFor(room.match?.mode,me);
     for (const node of ui.root.querySelectorAll('[data-nd-card]')) {
       const index = Number(node.dataset.ndCard), card = wave.cards[index], claim = claims.get(card.pair);
       if (claim && !node.classList.contains('is-claimed')) {
@@ -871,16 +973,21 @@
         continue;
       }
       if (claim) continue;
-      const visible = faceUp || flipped.has(index);
+      // Only what changed is written, so a tap on a full face-up board touches two or three cards.
+      const mine = taking.has(card.pair), selected = flipped.has(index), visible = faceUp || selected || mine;
+      if (mine && !node.classList.contains('is-taking')) node.style.setProperty('--nd-claim',myColor);
       node.classList.toggle('is-up',visible);
-      node.classList.toggle('is-selected',flipped.has(index));
+      node.classList.toggle('is-selected',selected);
       node.classList.toggle('is-golden',card.pair === wave.golden);
-      node.classList.toggle('is-miss',missed && flipped.has(index));
-      node.classList.toggle('is-pending',Boolean(local.pending) && (local.pending.a === index || local.pending.b === index));
-      node.disabled = !open || !playing;
-      node.setAttribute('aria-pressed',String(flipped.has(index)));
-      node.setAttribute('aria-label',visible ? `${card.face}${card.pair === wave.golden ? '，金色词对' : ''}` : `第 ${index+1} 张牌${card.pair === wave.golden ? '，金色词对' : ''}`);
+      node.classList.toggle('is-miss',missed && selected);
+      node.classList.toggle('is-taking',mine);
+      const disabled = !open || !playing || mine;
+      if (node.disabled !== disabled) node.disabled = disabled;
+      const pressed = String(selected), label = visible ? `${card.face}${card.pair === wave.golden ? '，金色词对' : ''}` : `第 ${index+1} 张牌${card.pair === wave.golden ? '，金色词对' : ''}`;
+      if (node.getAttribute('aria-pressed') !== pressed) node.setAttribute('aria-pressed',pressed);
+      if (node.getAttribute('aria-label') !== label) node.setAttribute('aria-label',label);
     }
+    if (!ui.root.contains(document.activeElement)) keepFocus($('.nd-card:not(:disabled)'));
     patchHud();
   }
   function startTicker() {
@@ -890,25 +997,34 @@
   function tick() {
     const room = ui.room;
     if (!ui.open || !room?.match || ui.screen !== 'game' || document.visibilityState === 'hidden') return;
-    const match = room.match, now = serverNow(), phase = phaseOf(room,now), wave = match.wave;
+    const match = room.match, now = serverNow(), phase = phaseOf(room,now), wave = match.wave, all = match.goal === 'all';
     const remaining = Math.max(0,match.endsAt-Math.max(now,match.startsAt));
+    const left = Math.max(0,match.poolSize-(match.cleared || 0));
     const time = $('#nd-time');
-    if (time) { const text = formatClock(remaining); if (time.textContent !== text) time.textContent = text; }
+    if (time) { const text = all ? String(left) : formatClock(remaining); if (time.textContent !== text) time.textContent = text; }
     const ring = $('#nd-timer-ring');
-    if (ring) ring.style.strokeDashoffset = String(100-100*remaining/(match.durationSec*1000));
-    const sprint = phase === 'playing' && remaining <= (room.sprintSec || 30)*1000 && remaining > 0;
+    if (ring) {
+      const offset = String(all ? 100*left/Math.max(1,match.poolSize) : 100-100*remaining/(match.durationSec*1000));
+      if (ring.style.strokeDashoffset !== offset) ring.style.strokeDashoffset = offset;
+    }
+    const sprint = phase === 'playing' && (all ? Boolean(wave.final) : remaining <= (room.sprintSec || 30)*1000 && remaining > 0);
     $('#nd-timer')?.classList.toggle('is-sprint',sprint);
     $('#nd-board')?.classList.toggle('is-sprint',sprint);
     const label = $('#nd-wave');
-    if (label) { const text = `第 ${wave.n} 波${wave.pass > 1 ? ' · 复习' : ''}${sprint ? ' · 冲刺 ×2' : ''}`; if (label.textContent !== text) label.textContent = text; }
+    if (label) {
+      const text = all ? `${wave.final ? '最后一波 · 冲刺 ×2' : `第 ${wave.n} 波`} · 已抢 ${match.cleared || 0}/${match.poolSize}`
+        : `第 ${wave.n} 波${wave.pass > 1 ? ' · 复习' : ''}${sprint ? ' · 冲刺 ×2' : ''}`;
+      if (label.textContent !== text) label.textContent = text;
+    }
     const countdown = $('#nd-countdown');
     if (countdown) {
-      const left = Math.ceil((room.startsAt-now)/1000), show = room.status === 'countdown' && left > 0;
+      const seconds = Math.ceil((room.startsAt-now)/1000), show = room.status === 'countdown' && seconds > 0;
       if (countdown.hidden === show) countdown.hidden = !show;
-      if (show && countdown.dataset.value !== String(left)) {
+      if (show && countdown.dataset.value !== String(seconds)) {
         const me = meOf(room), host = isHost(room);
-        countdown.dataset.value = String(left);
-        countdown.innerHTML = `<div class="nd-countdown-inner"><p class="nd-kicker">即将开始 · ${match.poolSize} 词 · ${minutesLabel(match.durationSec)}</p><span class="nd-count-number" aria-live="assertive">${left}</span><p class="nd-countdown-note">${match.mode === 'team' ? '组队' : '个人混战'} · 第 1 波 ${wave.size} 对</p><div class="nd-actions">${host ? button('cancel','取消','nd-quiet nd-on-veil') : me?.playing ? button('ready','还没准备好','nd-quiet nd-on-veil','data-nd-value="false"') : button('ready','加入这一局','nd-quiet nd-on-veil','data-nd-value="true"')}</div></div>`;
+        countdown.dataset.value = String(seconds);
+        const how = match.cardMode === 'open' ? '全部明牌：点一个单词、再点它的释义' : '翻面记忆：翻开一个单词和它的释义';
+        countdown.innerHTML = `<div class="nd-countdown-inner"><p class="nd-kicker">即将开始 · ${match.poolSize} 词 · ${all ? '全部翻完' : minutesLabel(match.durationSec)}</p><span class="nd-count-number" aria-live="assertive">${seconds}</span><p class="nd-countdown-note">${how}</p><p class="nd-countdown-note">${match.mode === 'team' ? '组队' : '个人混战'} · 每波 ${wave.size} 对</p><div class="nd-actions">${host ? button('cancel','取消','nd-quiet nd-on-veil') : me?.playing ? button('ready','还没准备好','nd-quiet nd-on-veil','data-nd-value="false"') : button('ready','加入这一局','nd-quiet nd-on-veil','data-nd-value="true"')}</div></div>`;
       }
     }
     const timeup = $('#nd-timeup');
@@ -923,12 +1039,13 @@
     const results = room.results, host = isHost(room);
     if (!results) return `<section class="nd-panel"><p class="nd-muted">正在结算…</p></section>`;
     const winner = results.winner;
-    const title = !winner ? (results.ranking.some(row => row.points) ? '平局' : '时间到，没有人抢到词对') : winner.type === 'team' ? `${TEAMS[winner.id]?.name || ''}获胜` : winner.id === room.me ? '你赢了' : `${e(results.ranking.find(row => row.id === winner.id)?.nickname || '')} 获胜`;
+    const title = !winner ? (results.ranking.some(row => row.points) ? '平局' : '没有人抢到词对') : winner.type === 'team' ? `${TEAMS[winner.id]?.name || ''}获胜` : winner.id === room.me ? '你赢了' : `${e(results.ranking.find(row => row.id === winner.id)?.nickname || '')} 获胜`;
     const teams = results.mode === 'team' && results.teams.length === 2 ? `<div class="nd-final-teams">${results.teams.slice().sort((a,b) => TEAM_IDS.indexOf(a.id)-TEAM_IDS.indexOf(b.id)).map(team => `<div class="nd-final-team${team.won ? ' is-won' : ''}" style="--nd-color:${TEAMS[team.id].color}"><span>${TEAMS[team.id].name}</span><b data-nd-roll="r:${results.number}:${team.id}" data-nd-target="${team.points}">${ui.shown.get(`r:${results.number}:${team.id}`) ?? 0}</b><small>${team.pairs} 对</small></div>`).join('<span class="nd-versus">:</span>')}</div>` : '';
     const xp = row => row.xp == null ? (results.xpPending ? '…' : results.xpError ? '未记录' : '') : `+${row.xp} XP`;
     const rows = results.ranking.map((row,index) => `<li class="nd-rank-row${row.id === room.me ? ' is-me' : ''}${row.rank === 1 && row.points > 0 ? ' is-first' : ''}" style="--nd-color:${colorFor(results.mode,row)};--i:${index}"><span class="nd-rank">${row.rank}</span><span class="nd-rank-main"><span class="nd-player-name"><i class="nd-dot" aria-hidden="true"></i>${e(row.nickname)}${row.id === room.me ? '<span class="nd-badge is-me">我</span>' : ''}</span><small>${row.pairs} 对 · 最高连抢 ${row.bestStreak} · ${xp(row)}</small></span><b class="nd-rank-points" data-nd-roll="r:${results.number}:${row.id}" data-nd-target="${row.points}">${ui.shown.get(`r:${results.number}:${row.id}`) ?? 0}</b></li>`).join('');
-    const note = results.counts ? '' : `<p class="nd-ceremony-note">${results.present < 2 ? '结束时不足两人' : '对局不足两分钟'}，本局照常获得经验，但不计入每日任务和成就。</p>`;
-    return `${messageMarkup()}<section class="nd-ceremony-card" aria-labelledby="nd-results-title"><p class="nd-kicker">第 ${results.number} 局 · ${formatClock(results.durationMs)}${results.label ? ` · ${e(results.label)}` : ''}</p><h3 id="nd-results-title" class="nd-winner">${title}</h3>${teams}<ol class="nd-ranking">${rows}</ol>${note}</section>
+    const note = results.counts ? '' : `<p class="nd-ceremony-note">${results.present < 2 ? '结束时不足两人' : '对局不足两分钟、也没抢满 16 对'}，本局照常获得经验，但不计入每日任务和成就。</p>`;
+    const how = results.complete ? `全部翻完 · 用时 ${formatClock(results.durationMs)}` : formatClock(results.durationMs);
+    return `${messageMarkup()}<section class="nd-ceremony-card" aria-labelledby="nd-results-title"><p class="nd-kicker">第 ${results.number} 局 · ${how}${results.label ? ` · ${e(results.label)}` : ''}</p><h3 id="nd-results-title" class="nd-winner">${title}</h3>${teams}<ol class="nd-ranking">${rows}</ol>${note}</section>
       ${nextPanel(room,'下一局')}${wordsMarkup(room)}<div class="nd-foot">${button('leave','离开房间','nd-quiet')}</div>`;
   }
   // Every word of the match, who took it (and how often across review passes); tap to hear it.
@@ -987,7 +1104,7 @@
     layer.innerHTML = `<div class="nd-sheet" role="dialog" aria-modal="true" aria-labelledby="nd-sheet-title"><header class="nd-sheet-head"><h3 id="nd-sheet-title">词语范围</h3><button type="button" class="nd-icon-button" data-nd-action="picker-done" aria-label="完成">${icon('close')}</button></header>
       <input type="search" class="nd-search" id="nd-sheet-search" placeholder="搜索章节、小节或分类" aria-label="搜索词语范围" value="${e(picker.query)}" autocomplete="off">
       <div class="nd-sheet-body">${mine.length ? `<p class="nd-group-title">我的</p><div class="nd-pick-list">${mine.map(source => row(source)).join('')}</div>` : ''}${wordbook.length ? `<p class="nd-group-title">我的词本</p><div class="nd-pick-list">${wordbook.map(source => row(source)).join('')}</div>` : ''}${chapters ? `<p class="nd-group-title">教材章节</p><div class="nd-pick-list">${chapters}</div>` : ''}${basics.length ? `<p class="nd-group-title">基础常识</p><div class="nd-pick-list">${basics.map(source => row(source)).join('')}</div>` : ''}${!mine.length && !wordbook.length && !chapters && !basics.length ? '<p class="nd-muted nd-center">没有匹配的范围</p>' : ''}</div>
-      <footer class="nd-sheet-foot"><span class="nd-muted">已选 <b>${summary.available >= MAX_POOL ? `${MAX_POOL}+` : summary.available}</b> 词</span>${button('pick-all','全选','nd-quiet nd-small','data-nd-focus="pick-all"')}${button('pick-none','清空','nd-quiet nd-small','data-nd-focus="pick-none"')}${button('picker-done','完成','nd-primary nd-small','data-nd-focus="picker-done"')}</footer></div>`;
+      <footer class="nd-sheet-foot"><span class="nd-muted">已选 <b>${summary.available}</b> 词</span>${button('pick-all','全选','nd-quiet nd-small','data-nd-focus="pick-all"')}${button('pick-none','清空','nd-quiet nd-small','data-nd-focus="pick-none"')}${button('picker-done','完成','nd-primary nd-small','data-nd-focus="picker-done"')}</footer></div>`;
     layer.hidden = false;
     const body = layer.querySelector('.nd-sheet-body');
     if (body) body.scrollTop = scroll;
@@ -1008,12 +1125,13 @@
     const {local,effect} = flipCard(ui.local,room,index,now,serverNow());
     if (!effect) return;
     ui.local = local;
+    // Paint the tap first; the request goes out right after.
+    patchBoard();
     if (effect.type === 'claim') void sendClaim(effect);
     if (effect.type === 'miss') {
       clearTimeout(ui.missTimer);
-      ui.missTimer = setTimeout(() => { ui.local = settleMiss(ui.local,Date.now()); patchBoard(); },MISS_LOCK_MS+20);
+      ui.missTimer = setTimeout(() => { ui.local = settleMiss(ui.local,Date.now()); patchBoard(); },Math.max(0,effect.until-now)+20);
     }
-    patchBoard();
   }
   async function copyText(text, done) {
     try { await navigator.clipboard.writeText(text); toast(done); }
@@ -1031,7 +1149,8 @@
       case 'confirm-leave': ui.confirm = false; exit(); break;
       case 'mode': if (MODES[value]) { ui.config.mode = value; savePrefs(); render(); scheduleSettings(); } break;
       case 'card-mode': if (CARD_MODES[value]) { ui.config.cardMode = value; savePrefs(); render(); scheduleSettings(); } break;
-      case 'count': { const choice = value === 'all' ? 'all' : Number(value); if (choice === 'all' || COUNTS.includes(choice)) { ui.config.choice = choice; savePrefs(); render(); scheduleSettings(); } break; }
+      case 'goal': if (GOALS[value]) { ui.config.goal = value; savePrefs(); render(); scheduleSettings(); } break;
+      case 'minutes': if (MINUTES.includes(Number(value))) { ui.config.minutes = Number(value); savePrefs(); render(); scheduleSettings(); } break;
       case 'picker': openPicker(); break;
       case 'picker-done': closePicker(); break;
       case 'pick': ui.config.tokens = toggleSource(ui.sources,ui.config.tokens,value); ui.message = ''; renderPicker(); break;
@@ -1046,7 +1165,13 @@
       }
       case 'pick-none': ui.config.tokens = []; renderPicker(); break;
       case 'create': void createRoom(); break;
-      case 'edit-settings': if (room && isHost(room)) { ui.config.cardMode = room.settings.cardMode || 'memory'; ui.editing = room.code; render(); } break;
+      case 'edit-settings': if (room && isHost(room)) {
+        // The editor starts from what the room plays now.
+        const settings = room.settings, minutes = Math.round((settings.durationSec || 300)/60);
+        ui.config.cardMode = settings.cardMode || 'memory'; ui.config.goal = GOALS[settings.goal] ? settings.goal : 'time';
+        if (MINUTES.includes(minutes)) ui.config.minutes = minutes;
+        ui.editing = room.code; render();
+      } break;
       case 'copy-code': if (room) void copyText(room.code,'房间号已复制'); break;
       case 'share': {
         if (!room) break;
