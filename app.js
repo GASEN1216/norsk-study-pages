@@ -1,10 +1,10 @@
-import {createDataLoader} from './loader.mjs?v=20261030-duel-records';
-import {createReadingLibrary} from './reading-library.mjs?v=20261030-duel-records';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-duel-records';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-duel-records';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-duel-records';
+import {createDataLoader} from './loader.mjs?v=20261030-audio-pdf';
+import {createReadingLibrary} from './reading-library.mjs?v=20261030-audio-pdf';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-audio-pdf';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-audio-pdf';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-audio-pdf';
 
-const VERSION = '20261030-duel-records';
+const VERSION = '20261030-audio-pdf';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -373,7 +373,7 @@ async function prepareView(view,viewRun = state.viewRun) {
   if (view === 'compare') {
     await loadFeature('compare');
     if (!state.compareInitialized) {
-      window.NorskCompare.init({data:state.data,getPDF,documentPart,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,onClose:positions => {
+      window.NorskCompare.init({data:state.data,getPDF,documentPart,bookDownload,safeURL,escapeHTML,icon,notify,playEntry,entryAudio,onClose:positions => {
         rememberComparePositions(positions);
         setView('reading');
       }});
@@ -770,6 +770,14 @@ function documentPart(page,book) {
   const source = bookData(book);
   return source?.file ? {file:source.file,startPage:1,endPage:source.pages} : null;
 }
+// The reader loads 20-page parts; downloads get the whole book (scripts/build_book_pdfs.py joins the parts).
+function bookDownload(book) {
+  const manifest = state.data.documents?.[book];
+  const parts = Array.isArray(manifest) ? manifest : manifest?.parts;
+  const file = parts?.length > 1 ? `assets/${book}.pdf` : parts?.[0]?.file || bookData(book)?.file;
+  const title = str(bookData(book)?.title || book).replace(/\s*·\s*/g,' ').replace(/[\\/:*?"<>|]+/g,' ').trim();
+  return file ? {href:safeURL(file),name:`${title}.pdf`} : null;
+}
 async function getPDF(file) {
   const source = safeURL(file);
   if (!source) throw new Error('PDF 文件路径无效');
@@ -777,7 +785,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-duel-records').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-audio-pdf').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -808,7 +816,9 @@ async function renderPDF() {
   if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask = null; }
   const part = documentPart(state.page,state.book);
   if (!part) { state.pdfLayoutKey = ''; showPDFMessage('这一页的 PDF 尚未准备好','请稍后刷新页面，或选择其他章节。',true); return; }
-  $('#pdf-download').href = safeURL(part.file);
+  const download = bookDownload(state.book);
+  $('#pdf-download').href = download?.href || safeURL(part.file);
+  $('#pdf-download').download = download?.name || '';
   showPDFMessage('正在载入这一页…');
   try {
     const pdf = await getPDF(part.file);
@@ -849,7 +859,7 @@ async function renderPDF() {
     console.error('PDF 加载失败',error);
     // A short technical note lets a reader report what failed on their device.
     const reason = error?.message ? `（${String(error.name || 'Error')}: ${String(error.message).slice(0,80)}）` : '';
-    showPDFMessage('页面暂时无法显示',`请检查网络后重试；也可点击右上角下载当前 PDF 分册阅读。${reason}`,true);
+    showPDFMessage('页面暂时无法显示',`请检查网络后重试；也可点击右上角下载整本 PDF 阅读。${reason}`,true);
   }
 }
 function changeZoom(direction) {
@@ -1035,10 +1045,22 @@ function wordWebAudioAllowed() {
 function wordAudioContext() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext || !wordWebAudioAllowed()) return null;
+  if (wordClips.context?.state === 'interrupted') releaseWordAudio();
   if (!wordClips.context || wordClips.context.state === 'closed') {
+    if (navigator.audioSession) { try { navigator.audioSession.type = 'playback'; } catch {} }
     try { wordClips.context = new AudioContext(); } catch { wordClips.context = null; }
   }
   return wordClips.context;
+}
+// iOS can leave a context interrupted, or "running" but silent, after the page has been in the
+// background, until the page is reloaded. So it is closed while the page is hidden and the next
+// tap makes a fresh one; decoded clips are dropped with it and decoded again from memory.
+function releaseWordAudio() {
+  stopWordSource();
+  const context = wordClips.context;
+  wordClips.context = null;
+  wordClips.buffers.clear();
+  if (context && context.state !== 'closed') { try { Promise.resolve(context.close()).catch(() => {}); } catch {} }
 }
 function pronunciationSource(item) {
   const table = state.data.pronunciation || {};
@@ -1128,6 +1150,8 @@ function unlockWordAudio(event) {
 }
 document.addEventListener('pointerdown',unlockWordAudio,{capture:true,passive:true});
 document.addEventListener('keydown',unlockWordAudio,{capture:true});
+document.addEventListener('visibilitychange',() => { if (document.hidden) releaseWordAudio(); });
+window.addEventListener('pagehide',releaseWordAudio);
 function pronounceItem(button) {
   return button.dataset.kind === 'basics' ? state.basicItems[Number(button.dataset.index)] : state.words[Number(button.dataset.index)];
 }

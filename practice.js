@@ -62,9 +62,17 @@
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return;
+      if (effects.context?.state === 'interrupted') releaseFeedbackAudio();
       if (!effects.context || effects.context.state === 'closed') effects.context = new AudioContext();
       if (effects.context.state === 'suspended') Promise.resolve(effects.context.resume()).catch(() => {});
     } catch { /* Older browsers and blocked audio still keep text feedback. */ }
+  }
+  // Like word readings, chimes get a fresh context after the page was hidden: iOS can leave the old one silent.
+  function releaseFeedbackAudio() {
+    stopFeedbackAudio();
+    const context=effects.context;
+    effects.context=null;
+    if (context && context.state !== 'closed') { try { Promise.resolve(context.close()).catch(() => {}); } catch {} }
   }
   function stopFeedbackAudio() {
     effects.audioToken++;
@@ -1471,7 +1479,7 @@
       window.addEventListener('pageshow',() => { if (editor?.status === 'readonly') acquireEditor(); });
       document.addEventListener('visibilitychange',() => {
         if (!document.hidden) return;
-        stopFeedback();
+        stopFeedback(); releaseFeedbackAudio();
         const session=currentSession();
         if (!session || !state.visible) return;
         // Only the timed game needs a visible pause; other modes simply stop speaking.
