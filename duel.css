@@ -140,6 +140,7 @@ body.nd-open{overflow:hidden}
 .nd-ticker-points{flex:none;margin-left:auto;font-weight:600;color:#8a6420;font-variant-numeric:tabular-nums}
 .nd-ticker small{flex:none;font-size:11px;color:#8a6420}
 .nd-watch{padding:6px 10px;border-radius:10px;background:var(--nd-gold-soft);color:#7a6229;font-size:13px;text-align:center}
+.nd-play-hint{font-size:12px;color:var(--nd-muted)}
 .nd-board{position:relative;--nd-chrome:250px}
 .nd-grid{display:grid;grid-template-columns:repeat(var(--nd-cols-wide,4),minmax(0,1fr));grid-auto-rows:clamp(64px,calc((100vh - var(--nd-chrome)) / var(--nd-rows-wide,4) - 10px),108px);grid-auto-rows:clamp(64px,calc((100dvh - var(--nd-chrome)) / var(--nd-rows-wide,4) - 10px),108px);gap:10px}
 .nd-grid.is-dealt .nd-card{animation:nd-deal .5s calc(var(--d,0) * 18ms) var(--nd-ease) both}
@@ -163,6 +164,8 @@ body.nd-open{overflow:hidden}
 .nd-text{display:block;max-width:100%;line-height:1.22}
 .nd-front.is-no .nd-text{font:500 18px/1.2 var(--serif,Georgia,serif);color:var(--nd-green);word-break:keep-all;overflow-wrap:normal;hyphens:manual}
 .nd-front.is-zh .nd-text{font-size:17px;color:var(--nd-ink)}
+.nd-card.is-golden .nd-front{border-color:var(--nd-gold);background:var(--nd-gold-soft)}
+.nd-card.is-selected .nd-front{border-color:var(--nd-green);box-shadow:inset 0 0 0 2px var(--nd-green);background:var(--nd-soft)}
 .nd-card.is-miss .nd-front{border-color:#dcbcae;background:#fbf4f0}
 .nd-card.is-pending .nd-front{border-color:#d2b97f;box-shadow:0 0 0 2px #ecdcb1}
 /* Claimed: a soft glow in the claimer's colour, then the pair folds away and leaves a quiet slot. */
@@ -270,16 +273,16 @@ body.nd-open{overflow:hidden}
 @keyframes nd-edge{from{background-position:130% 0}to{background-position:-130% 0}}
 @keyframes nd-hairline{0%{opacity:0;transform:scaleX(0)}25%{opacity:1}70%{opacity:1;transform:scaleX(1)}100%{opacity:0;transform:scaleX(1)}}
 @keyframes nd-wave-title{0%{opacity:0;transform:translateY(4px)}25%{opacity:1;transform:none}75%{opacity:1}100%{opacity:0}}
-@media(max-width:560px){
+@media(max-width:560px),(max-height:500px) and (max-width:1000px){
 .nd-top{min-height:52px}.nd-top h2{font-size:20px}.nd-kicker{letter-spacing:.26em}
 .nd-panel{padding:18px 14px;border-radius:20px}
 .nd-code{font-size:50px}
 .nd-counts .nd-option span{font-size:15px}
 .nd-board{--nd-chrome:205px}
-.nd-grid{grid-template-columns:repeat(var(--nd-cols-narrow,4),minmax(0,1fr));grid-auto-rows:clamp(50px,calc((100vh - var(--nd-chrome)) / var(--nd-rows-narrow,6) - 8px),96px);grid-auto-rows:clamp(50px,calc((100dvh - var(--nd-chrome)) / var(--nd-rows-narrow,6) - 8px),96px);gap:8px}
+.nd-grid{grid-template-columns:repeat(var(--nd-cols-narrow,3),minmax(0,1fr));grid-auto-rows:minmax(108px,auto);gap:9px}
 .nd-face{border-radius:12px}.nd-card.is-gone::after{border-radius:12px}
-.nd-front{padding:5px 3px}
-.nd-front.is-no .nd-text{font-size:16px}.nd-front.is-zh .nd-text{font-size:15px}
+.nd-front{padding:12px 8px 22px}
+.nd-front.is-no .nd-text{font-size:20px;line-height:1.3;overflow-wrap:anywhere;hyphens:auto}.nd-front.is-zh .nd-text{font-size:19px;line-height:1.4;overflow-wrap:anywhere}
 .nd-count-number{font-size:80px}
 .nd-timer{width:44px;height:44px}
 .nd-team-score{padding:5px 10px}.nd-team-score b{font-size:22px}

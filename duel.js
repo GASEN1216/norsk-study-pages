@@ -1,5 +1,5 @@
 /* 联机翻翻乐 (Vendespill): a timed memory race in waves. Loaded on demand; nothing touches the page until open().
-   Everyone plays the same face-down wave; the server referees each claim, keeps the score and deals the next wave. */
+   Everyone plays the same wave, face down or face up; the server referees claims and deals the next wave. */
 (() => {
   'use strict';
   if (window.NorskDuel) return;
@@ -14,6 +14,8 @@
   // Muted, distinguishable tones that sit with the site's forest green and gold.
   const COLORS = ['#2f6b55','#a87a2a','#46698c','#8b4d6a','#2d7473','#a65d3c','#677634','#6c5e8c'];
   const MODES = {ffa:{name:'个人混战',hint:'各自为战'}, team:{name:'组队',hint:'松绿队对琥珀队'}};
+  const CARD_MODES = {memory:{name:'翻面记忆',hint:'翻开卡片，记住位置'}, open:{name:'全部明牌',hint:'不用翻面，直接抢配对'}};
+  const cardModeOf = room => room?.match?.cardMode || room?.settings?.cardMode || 'memory';
   const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/u;
   const ERRORS = {
     room_not_found:'房间不存在或已过期。', room_full:'房间已满（最多 8 人）。', not_host:'只有房主可以这样做。',
@@ -142,7 +144,9 @@
     const none = {local, effect:null};
     const wave = waveOf(room), card = wave?.cards?.[index];
     if (!card || !waveOpen(room,serverNow) || local.key !== waveKey(room)) return none;
-    if (wave.claims.some(claim => claim.pair === card.pair) || local.pending || now < local.lockedUntil || local.flipped.includes(index)) return none;
+    if (wave.claims.some(claim => claim.pair === card.pair) || local.pending || now < local.lockedUntil) return none;
+    if (local.flipped.includes(index)) return cardModeOf(room) === 'open' && local.flipped.length === 1
+      ? {local:{...local,flipped:[]},effect:{type:'deselect',index}} : none;
     const flipped = local.flipped.length >= 2 ? [] : local.flipped;
     if (!flipped.length) return {local:{...local,flipped:[index],lockedUntil:0}, effect:{type:'flip',index}};
     const first = flipped[0], other = wave.cards[first];
@@ -191,9 +195,9 @@
   const formatClock = ms => { const seconds = Math.max(0,Math.ceil(ms/1000)); return `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`; };
   const shareLink = (location, code) => `${location.origin}${location.pathname}?room=${encodeURIComponent(code)}#practice`;
   const validCode = value => /^\d{4}$/.test(String(value ?? ''));
-  // Phones keep four columns (24 cards fit at 360 px); wider screens spread a wave over fewer rows.
+  // Phones use wider cards and scroll when necessary; the words stay readable in a full wave.
   function columnsFor(cards, narrow) {
-    if (narrow) return cards <= 9 ? 3 : 4;
+    if (narrow) return 3;
     return cards <= 16 ? 4 : cards <= 20 ? 5 : 6;
   }
   function multiplierText(claim) {
@@ -234,14 +238,14 @@
     try { const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null'); return saved && typeof saved === 'object' ? saved : {}; } catch { return {}; }
   }
   function savePrefs() {
-    try { localStorage.setItem(PREFS_KEY,JSON.stringify({version:2,mode:ui.config.mode,choice:ui.config.choice,tokens:ui.config.tokens})); } catch { /* Preferences are a convenience. */ }
+    try { localStorage.setItem(PREFS_KEY,JSON.stringify({version:2,mode:ui.config.mode,cardMode:ui.config.cardMode,choice:ui.config.choice,tokens:ui.config.tokens})); } catch { /* Preferences are a convenience. */ }
   }
   function loadSources() {
     let list = [];
     try { list = ui.opts.sources?.() || []; } catch { list = []; }
     return (Array.isArray(list) ? list : []).filter(source => source && typeof source.token === 'string' && Array.isArray(source.words) && source.words.length);
   }
-  const configSignature = () => JSON.stringify([ui.config.mode,ui.config.choice,[...ui.config.tokens].sort()]);
+  const configSignature = () => JSON.stringify([ui.config.mode,ui.config.cardMode,ui.config.choice,[...ui.config.tokens].sort()]);
   function configSummary() {
     const words = poolFor(ui.sources,ui.config.tokens), available = drawable(words), count = resolveCount(ui.config.choice,available);
     return {available,count,seconds:matchSeconds(count),label:selectionLabel(ui.sources,ui.config.tokens)};
@@ -264,7 +268,7 @@
     const prefs = readPrefs(), tokens = new Set(ui.sources.map(source => source.token));
     const saved = Array.isArray(prefs.tokens) ? prefs.tokens.filter(token => tokens.has(token)) : [];
     const fallback = ui.sources.find(source => source.group === 'chapter') || ui.sources.find(source => source.group !== 'mine') || ui.sources[0];
-    ui.config = {mode:MODES[prefs.mode] ? prefs.mode : 'ffa',choice:prefs.choice === 'all' || COUNTS.includes(prefs.choice) ? prefs.choice : 24,
+    ui.config = {mode:MODES[prefs.mode] ? prefs.mode : 'ffa',cardMode:CARD_MODES[prefs.cardMode] ? prefs.cardMode : 'memory',choice:prefs.choice === 'all' || COUNTS.includes(prefs.choice) ? prefs.choice : 24,
       tokens:saved.length ? saved : fallback ? [fallback.token] : []};
     const root = document.createElement('div');
     root.className = 'nd-root';
@@ -479,7 +483,7 @@
     const words = poolFor(ui.sources,ui.config.tokens), count = resolveCount(ui.config.choice,drawable(words));
     if (count < MIN_POOL) return null;
     const pairs = drawPairs(words,count).map(({no,zh}) => ({no,zh}));
-    return fitPayload({mode:ui.config.mode,label:selectionLabel(ui.sources,ui.config.tokens),pairs});
+    return fitPayload({mode:ui.config.mode,cardMode:ui.config.cardMode,label:selectionLabel(ui.sources,ui.config.tokens),pairs});
   }
   async function createRoom() {
     const body = settingsBody();
@@ -661,11 +665,12 @@
     return `<div class="nd-field"><span class="nd-label">词语范围</span><button type="button" class="nd-range" data-nd-action="picker" data-nd-focus="picker"><span class="nd-range-label">${summary.label ? e(summary.label) : '还没有选择范围'}</span><small>${summary.available ? `${summary.available >= MAX_POOL ? `${MAX_POOL}+` : summary.available} 词可用` : ''}</small><span class="nd-range-change">更改</span></button></div>
       <div class="nd-field"><span class="nd-label" id="nd-count-label">词数</span><div class="nd-segment nd-counts" role="radiogroup" aria-labelledby="nd-count-label">${counts.join('')}</div></div>
       <div class="nd-field"><span class="nd-label" id="nd-mode-label">玩法</span><div class="nd-segment" role="radiogroup" aria-labelledby="nd-mode-label">${Object.entries(MODES).map(([value,mode]) => segment('mode',value,mode.name,mode.hint,ui.config.mode === value)).join('')}</div></div>
+      <div class="nd-field"><span class="nd-label" id="nd-card-mode-label">卡片是否翻面</span><div class="nd-segment" role="radiogroup" aria-labelledby="nd-card-mode-label">${Object.entries(CARD_MODES).map(([value,mode]) => segment('card-mode',value,mode.name,mode.hint,ui.config.cardMode === value)).join('')}</div></div>
       <p class="nd-estimate" aria-live="polite">${summary.count >= MIN_POOL ? `${summary.count} 词 · ${minutesLabel(summary.seconds)}，词对分波发出，抢完一波来下一波` : `所选范围至少需要 ${MIN_POOL} 个释义不同的词`}</p>`;
   }
   function settingsSummary(room) {
     const settings = room.settings;
-    return `<div class="nd-summary"><p class="nd-summary-label">${settings.label ? e(settings.label) : '词语范围'}</p><p class="nd-summary-meta"><b>${settings.count}</b> 词 · ${MODES[settings.mode].name} · ${minutesLabel(settings.durationSec)}</p></div>`;
+    return `<div class="nd-summary"><p class="nd-summary-label">${settings.label ? e(settings.label) : '词语范围'}</p><p class="nd-summary-meta"><b>${settings.count}</b> 词 · ${MODES[settings.mode].name} · ${CARD_MODES[settings.cardMode || 'memory'].name} · ${minutesLabel(settings.durationSec)}</p></div>`;
   }
   function lobbyMarkup() {
     const summary = configSummary();
@@ -696,8 +701,8 @@
   function nextPanel(room, title) {
     const host = isHost(room), editing = hostEditing(room);
     // Until the host changes something, the room keeps what it had; say so under the editor.
-    const pending = editing && !ui.pushed.startsWith(room.code+'|') ? `<p class="nd-hint nd-hint-tight">房间当前：${e(room.settings.label || '词语范围')} · ${room.settings.count} 词 · ${MODES[room.settings.mode].name}。改动后对所有人生效。</p>` : '';
-    const settings = editing ? settingsEditor()+pending : `${settingsSummary(room)}${host ? button('edit-settings','更改设置','nd-quiet nd-small','data-nd-focus="edit-settings"') : '<p class="nd-hint nd-hint-tight">房主可以调整范围和词数，改动会实时显示。</p>'}`;
+    const pending = editing && !ui.pushed.startsWith(room.code+'|') ? `<p class="nd-hint nd-hint-tight">房间当前：${e(room.settings.label || '词语范围')} · ${room.settings.count} 词 · ${MODES[room.settings.mode].name} · ${CARD_MODES[room.settings.cardMode || 'memory'].name}。改动后对所有人生效。</p>` : '';
+    const settings = editing ? settingsEditor()+pending : `${settingsSummary(room)}${host ? button('edit-settings','更改设置','nd-quiet nd-small','data-nd-focus="edit-settings"') : '<p class="nd-hint nd-hint-tight">房主可以调整范围、词数和翻面方式，改动会实时显示。</p>'}`;
     return `<section class="nd-panel nd-next" aria-labelledby="nd-next-title"><h3 id="nd-next-title">${title}</h3>${settings}${readyBar(room)}</section>`;
   }
   function roomMarkup(room) {
@@ -711,6 +716,7 @@
   function gameMarkup(room) {
     return `<div class="nd-game nd-enter"><div class="nd-hud"><div class="nd-timer" id="nd-timer" role="timer" aria-label="剩余时间"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="nd-timer-track" cx="18" cy="18" r="15.9"/><circle class="nd-timer-ring" id="nd-timer-ring" cx="18" cy="18" r="15.9" pathLength="100"/></svg><span id="nd-time">0:00</span></div><div class="nd-scorebar" id="nd-scorebar"></div></div>
       <div class="nd-subline"><span class="nd-wave-label" id="nd-wave"></span><p class="nd-ticker" id="nd-ticker" aria-live="polite"></p></div>
+      <p class="nd-play-hint">${cardModeOf(room) === 'open' ? '全部明牌 · 点选单词和释义抢配对，再点已选卡可取消' : '翻面记忆 · 翻开单词和对应释义抢配对'}</p>
       <p class="nd-watch" id="nd-watch" hidden>本局观战中，下一局一起玩。</p>
       <div class="nd-board" id="nd-board"><div class="nd-grid" id="nd-grid"></div><div class="nd-interlude" id="nd-interlude" hidden></div><div class="nd-countdown" id="nd-countdown" hidden></div><div class="nd-timeup" id="nd-timeup" hidden><span>时间到</span></div></div></div>`;
   }
@@ -754,11 +760,13 @@
     requestAnimationFrame(fitCards);
     patchBoard();
   }
-  // Long words shrink until they fit their card; Norwegian words never break mid-word.
+  // Mobile cards wrap and grow with their text; never shrink phone text to fit the screen height.
   function fitCards() {
+    const readable = window.matchMedia?.('(max-width:560px), (max-height:500px) and (max-width:1000px)').matches;
     for (const text of ui.root?.querySelectorAll('.nd-text') || []) {
       const box = text.parentElement;
       text.style.fontSize = '';
+      if (readable) continue;
       let size = parseFloat(getComputedStyle(text).fontSize) || 16;
       const limitW = box.clientWidth-10, limitH = box.clientHeight-8;
       for (let guard = 0; guard < 20 && size > 10 && (text.scrollWidth > limitW || text.scrollHeight > limitH); guard++) {
@@ -847,6 +855,7 @@
     const claims = new Map(wave.claims.map(claim => [claim.pair,claim]));
     const me = meOf(room), playing = Boolean(me?.playing && !me.left);
     const flipped = new Set(local.flipped);
+    const faceUp = cardModeOf(room) === 'open' && open;
     const missed = !local.pending && local.flipped.length === 2 && now < local.lockedUntil;
     for (const node of ui.root.querySelectorAll('[data-nd-card]')) {
       const index = Number(node.dataset.ndCard), card = wave.cards[index], claim = claims.get(card.pair);
@@ -862,12 +871,15 @@
         continue;
       }
       if (claim) continue;
-      node.classList.toggle('is-up',flipped.has(index));
+      const visible = faceUp || flipped.has(index);
+      node.classList.toggle('is-up',visible);
+      node.classList.toggle('is-selected',flipped.has(index));
       node.classList.toggle('is-golden',card.pair === wave.golden);
       node.classList.toggle('is-miss',missed && flipped.has(index));
       node.classList.toggle('is-pending',Boolean(local.pending) && (local.pending.a === index || local.pending.b === index));
       node.disabled = !open || !playing;
-      node.setAttribute('aria-label',flipped.has(index) ? card.face : `第 ${index+1} 张牌${card.pair === wave.golden ? '，金色词对' : ''}`);
+      node.setAttribute('aria-pressed',String(flipped.has(index)));
+      node.setAttribute('aria-label',visible ? `${card.face}${card.pair === wave.golden ? '，金色词对' : ''}` : `第 ${index+1} 张牌${card.pair === wave.golden ? '，金色词对' : ''}`);
     }
     patchHud();
   }
@@ -1018,6 +1030,7 @@
       case 'confirm-stay': hideConfirm(); break;
       case 'confirm-leave': ui.confirm = false; exit(); break;
       case 'mode': if (MODES[value]) { ui.config.mode = value; savePrefs(); render(); scheduleSettings(); } break;
+      case 'card-mode': if (CARD_MODES[value]) { ui.config.cardMode = value; savePrefs(); render(); scheduleSettings(); } break;
       case 'count': { const choice = value === 'all' ? 'all' : Number(value); if (choice === 'all' || COUNTS.includes(choice)) { ui.config.choice = choice; savePrefs(); render(); scheduleSettings(); } break; }
       case 'picker': openPicker(); break;
       case 'picker-done': closePicker(); break;
@@ -1033,7 +1046,7 @@
       }
       case 'pick-none': ui.config.tokens = []; renderPicker(); break;
       case 'create': void createRoom(); break;
-      case 'edit-settings': if (room && isHost(room)) { ui.editing = room.code; render(); } break;
+      case 'edit-settings': if (room && isHost(room)) { ui.config.cardMode = room.settings.cardMode || 'memory'; ui.editing = room.code; render(); } break;
       case 'copy-code': if (room) void copyText(room.code,'房间号已复制'); break;
       case 'share': {
         if (!room) break;
