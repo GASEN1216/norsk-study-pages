@@ -11,10 +11,13 @@
   const LOOP_MODES = ['all','one','off'];
   const LOOP_LABELS = {all:'列表循环',one:'单节循环',off:'播完停止'};
   const RATES = ['0.5','0.75','0.9','1','1.25','1.5'];
+  const SLICE_CACHE_BYTES = 64*1024*1024;
+  const SLICE_CACHE_FILES = 2;
   const state = {
     deps:{}, initialized:false, index:null, indexLoad:null, container:null, sectionId:'', bookId:'textbook', data:null, view:null, visible:false, showRun:0,
     current:{sentence:-1,word:-1}, frame:0, followPausedUntil:0, press:null, selection:null, popover:null,
     showZh:true, stage:null, stageSection:'', sheet:null, slice:null, sliceTimer:0, sliceRun:0, sliceCancel:null,
+    sliceContext:null, sliceSource:null, sliceFetch:null, sliceURL:'', sliceBuffers:new Map(), sliceBytes:0, sliceDecode:Promise.resolve(),
     playlist:{items:[],loop:'all',shuffle:false}, shuffleOrder:null, page:null, playingSection:'', lastScroll:0, trackRun:0,
     meaning:null, meaningLoad:null,
   };
@@ -276,9 +279,166 @@
     clearTimeout(state.sliceTimer);
     state.sliceTimer = 0;
     state.sliceCancel?.();
+    state.sliceFetch?.abort();
+    state.sliceFetch = null;
+    const source = state.sliceSource;
+    state.sliceSource = null;
+    if (source) {
+      source.onended = null;
+      try { source.stop(); } catch {}
+      try { source.disconnect(); } catch {}
+    }
     if (state.slice) state.slice.pause();
+    if (state.sliceURL) { URL.revokeObjectURL(state.sliceURL); state.sliceURL = ''; }
   }
-  // Replays part of the section recording without moving the lesson player.
+  function sliceBounds(meta,start,end,duration = Infinity) {
+    const data = state.view && state.view.meta.id === meta.id ? state.view.data
+      : state.stage?.stageData && state.stage.stageData.meta.id === meta.id ? state.stage.stageData.data
+      : state.data?.id === meta.id ? state.data : null;
+    // Padding may use silence, but must never include the neighbouring word, even across sentences.
+    let previous = 0, next = duration;
+    for (const sentence of data?.sentences || []) for (const word of sentence.words || []) {
+      if (word[3] <= start) previous = Math.max(previous,word[3]);
+      if (word[2] >= end) next = Math.min(next,word[2]);
+    }
+    return {from:Math.max(0,data ? start-0.06 : start,previous),to:Math.min(duration,data ? end+0.12 : end,next)};
+  }
+  function sliceContext() {
+    if (!state.sliceContext || state.sliceContext.state === 'closed') {
+      const Context = window.AudioContext || window.webkitAudioContext;
+      if (!Context) return null;
+      try { state.sliceContext = new Context(); } catch { return null; }
+    }
+    return state.sliceContext;
+  }
+  async function sliceBuffer(url,context,run) {
+    const cached = state.sliceBuffers.get(url);
+    if (cached) {
+      state.sliceBuffers.delete(url); state.sliceBuffers.set(url,cached);
+      return cached;
+    }
+    const controller = new AbortController();
+    state.sliceFetch = controller;
+    const timer = setTimeout(() => controller.abort(),20000);
+    let bytes;
+    try {
+      const response = await fetch(url,{signal:controller.signal});
+      if (!response.ok) throw new Error('slice download');
+      bytes = await response.arrayBuffer();
+    } finally {
+      clearTimeout(timer);
+      if (state.sliceFetch === controller) state.sliceFetch = null;
+    }
+    if (run !== state.sliceRun) return null;
+    // Decode one file at a time. A canceled tap waiting in the queue must not allocate another PCM buffer.
+    const pending = state.sliceDecode.then(() => {
+      if (run !== state.sliceRun) return null;
+      return new Promise((resolve,reject) => {
+        const decoded = context.decodeAudioData(bytes,resolve,reject);
+        decoded?.then(resolve,reject);
+      });
+    });
+    state.sliceDecode = pending.then(() => {},() => {});
+    const buffer = await pending;
+    if (!buffer || run !== state.sliceRun) return null;
+    const size = buffer.length*buffer.numberOfChannels*4;
+    if (size <= SLICE_CACHE_BYTES) {
+      state.sliceBuffers.set(url,buffer);
+      state.sliceBytes += size;
+      while (state.sliceBuffers.size > SLICE_CACHE_FILES || state.sliceBytes > SLICE_CACHE_BYTES) {
+        const oldest = state.sliceBuffers.keys().next().value, old = state.sliceBuffers.get(oldest);
+        state.sliceBytes -= old.length*old.numberOfChannels*4;
+        state.sliceBuffers.delete(oldest);
+      }
+    }
+    return buffer;
+  }
+  function waitSlice(player,event,run,start,ready = () => true) {
+    return new Promise((resolve,reject) => {
+      let timer;
+      const cleanup = () => {
+        clearTimeout(timer);
+        player.removeEventListener(event,done);
+        player.removeEventListener('error',fail);
+        if (state.sliceCancel === cancel) state.sliceCancel = null;
+      };
+      const done = () => { if (ready()) { cleanup(); resolve(run === state.sliceRun); } };
+      const fail = () => { cleanup(); reject(new Error('slice')); };
+      const cancel = () => { cleanup(); resolve(false); };
+      state.sliceCancel = cancel;
+      timer = setTimeout(fail,25000);
+      player.addEventListener(event,done); player.addEventListener('error',fail);
+      try { start(); } catch(error) { cleanup(); reject(error); }
+    });
+  }
+  function sliceWav(buffer,from,to) {
+    const first = Math.max(0,Math.ceil(from*buffer.sampleRate));
+    const last = Math.min(buffer.length,Math.floor(to*buffer.sampleRate));
+    const channels = buffer.numberOfChannels, frames = last-first;
+    if (!(frames > 0)) throw new Error('empty slice');
+    const bytes = new ArrayBuffer(44+frames*channels*2), view = new DataView(bytes);
+    const tag = (at,text) => { for (let i = 0; i < text.length; i++) view.setUint8(at+i,text.charCodeAt(i)); };
+    tag(0,'RIFF'); view.setUint32(4,bytes.byteLength-8,true); tag(8,'WAVE'); tag(12,'fmt ');
+    view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,channels,true);
+    view.setUint32(24,buffer.sampleRate,true); view.setUint32(28,buffer.sampleRate*channels*2,true);
+    view.setUint16(32,channels*2,true); view.setUint16(34,16,true); tag(36,'data'); view.setUint32(40,frames*channels*2,true);
+    const samples = Array.from({length:channels},(_,channel) => buffer.getChannelData(channel));
+    let at = 44;
+    for (let frame = first; frame < last; frame++) for (const channel of samples) {
+      const sample = Math.max(-1,Math.min(1,channel[frame]));
+      view.setInt16(at,sample < 0 ? sample*32768 : sample*32767,true); at += 2;
+    }
+    return new Blob([bytes],{type:'audio/wav'});
+  }
+  // A short PCM file can change speed with the browser's pitch preservation. Its natural end is the exact crop.
+  async function playSliceWav(buffer,from,to,rate,run) {
+    const url = URL.createObjectURL(sliceWav(buffer,from,to)), player = sliceAudio();
+    state.sliceURL = url;
+    player.src = url;
+    const ready = await waitSlice(player,'loadedmetadata',run,() => player.load());
+    if (!ready || run !== state.sliceRun) return;
+    player.preservesPitch = true;
+    player.playbackRate = rate;
+    const cleanup = () => {
+      player.removeEventListener('ended',cleanup); player.removeEventListener('error',failed);
+      if (state.sliceCancel === cleanup) state.sliceCancel = null;
+      if (state.sliceURL === url) state.sliceURL = '';
+      URL.revokeObjectURL(url);
+    };
+    const failed = () => { cleanup(); if (run === state.sliceRun) state.deps.notify?.('这段原录音暂时无法播放，请检查网络后重试。'); };
+    state.sliceCancel = cleanup;
+    player.addEventListener('ended',cleanup); player.addEventListener('error',failed);
+    try { await player.play(); }
+    catch(error) { cleanup(); throw error; }
+  }
+  async function playSliceFallback(meta,start,end,url,run) {
+    const player = sliceAudio();
+    if (player.src !== url || player.readyState < 1) {
+      if (player.src !== url) player.src = url;
+      const ready = await waitSlice(player,'loadedmetadata',run,() => player.load());
+      if (!ready) return;
+    }
+    if (run !== state.sliceRun) return;
+    const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : Infinity;
+    const {from,to} = sliceBounds(meta,start,end,duration);
+    if (!(to > from)) return;
+    if (player.seeking || Math.abs(player.currentTime-from) > 0.001) {
+      const sought = await waitSlice(player,'seeked',run,() => { player.currentTime = from; },() => !player.seeking && Math.abs(player.currentTime-from) < 0.02);
+      if (!sought) return;
+    }
+    if (run !== state.sliceRun) return;
+    player.preservesPitch = true;
+    player.playbackRate = Number($('#audio-speed')?.value) || 1;
+    await player.play();
+    if (run !== state.sliceRun) return;
+    const stop = () => {
+      if (run !== state.sliceRun) return;
+      if (player.currentTime >= to || player.paused) { player.pause(); return; }
+      state.sliceTimer = setTimeout(stop,Math.max(15,(to-player.currentTime)*1000/(player.playbackRate || 1)-10));
+    };
+    stop();
+  }
+  // Decode the original recording once, then let the audio clock stop exactly at the selected boundary.
   async function playSlice(meta,start,end) {
     const url = state.deps.safeURL(meta.audio);
     if (!url) return;
@@ -286,40 +446,43 @@
     stopSlice();
     const run = state.sliceRun;
     if (!state.deps.audio.paused) state.deps.audio.pause();
-    const player = sliceAudio();
-    try {
-      if (player.src !== url || player.readyState < 1) {
-        if (player.src !== url) player.src = url;
-        const ready = await new Promise((resolve,reject) => {
-          let timer;
-          const cleanup = () => {
-            clearTimeout(timer);
-            player.removeEventListener('loadedmetadata',done);
-            player.removeEventListener('error',fail);
-            if (state.sliceCancel === cancel) state.sliceCancel = null;
-          };
-          const done = () => { cleanup(); resolve(true); };
-          const fail = () => { cleanup(); reject(new Error('slice')); };
-          const cancel = () => { cleanup(); resolve(false); };
-          state.sliceCancel = cancel;
-          timer = setTimeout(fail,25000);
-          player.addEventListener('loadedmetadata',done); player.addEventListener('error',fail); player.load();
-        });
-        if (!ready) return;
-      }
-      if (run !== state.sliceRun) return;
-      const from = Math.max(0,start-0.06), to = end+0.12;
-      player.currentTime = from;
-      player.playbackRate = Number($('#audio-speed')?.value) || 1;
-      await player.play();
-      if (run !== state.sliceRun) return;
-      const stop = () => {
+    const context = sliceContext();
+    // This call must happen synchronously inside the user's tap, before fetching or decoding.
+    let awake;
+    try { awake = context && context.state !== 'running' ? Promise.resolve(context.resume()) : Promise.resolve(); }
+    catch { awake = Promise.reject(new Error('slice audio context')); }
+    awake.catch(() => {});
+    if (context) {
+      try {
+        const buffer = await sliceBuffer(url,context,run);
+        await awake;
         if (run !== state.sliceRun) return;
-        if (player.currentTime >= to || player.paused) { player.pause(); return; }
-        state.sliceTimer = setTimeout(stop,Math.max(15,(to-player.currentTime)*1000/(player.playbackRate || 1)-10));
-      };
-      stop();
-    } catch { if (run === state.sliceRun) state.deps.notify?.('这段原录音暂时无法播放，请检查网络后重试。'); }
+        if (!buffer || context.state !== 'running') throw new Error('slice audio context');
+        const {from,to} = sliceBounds(meta,start,end,buffer.duration);
+        if (!(to > from)) return;
+        const rate = Number($('#audio-speed')?.value) || 1;
+        if (rate !== 1) { await playSliceWav(buffer,from,to,rate,run); return; }
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = 1;
+        source.connect(context.destination);
+        state.sliceSource = source;
+        source.onended = () => {
+          if (state.sliceSource === source) state.sliceSource = null;
+          try { source.disconnect(); } catch {}
+        };
+        source.start(0,from,to-from);
+        return;
+      } catch {
+        if (run !== state.sliceRun) return;
+        const source = state.sliceSource;
+        state.sliceSource = null;
+        if (source) { try { source.stop(); } catch {} try { source.disconnect(); } catch {} }
+        if (state.sliceURL) { URL.revokeObjectURL(state.sliceURL); state.sliceURL = ''; }
+      }
+    }
+    try { await playSliceFallback(meta,start,end,url,run); }
+    catch { if (run === state.sliceRun) state.deps.notify?.('这段原录音暂时无法播放，请检查网络后重试。'); }
   }
   function sayWord(entry,key,word,meta) {
     if (entry?.clip) { stopSlice(); state.deps.pronounce({word:entry.surface || key,audio:entry.clip}); return; }
@@ -1062,9 +1225,10 @@
     // Animation frames pause in background or throttled tabs; the media clock still ticks a few times a second.
     audio.addEventListener('timeupdate',() => { if (followingVisible() && Date.now()-(state.lastTick || 0) > 300) { syncHighlight(); syncStage(); } });
     document.addEventListener('visibilitychange',() => {
-      if (document.hidden) { cancelAnimationFrame(state.frame); state.frame = 0; }
+      if (document.hidden) { stopSlice(); cancelAnimationFrame(state.frame); state.frame = 0; }
       else startFollowing();
     });
+    window.addEventListener('pagehide',stopSlice);
     syncMediaSession();
   }
   function hide() {
