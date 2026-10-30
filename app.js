@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261030-interview-recordings2';
-import {createReadingLibrary} from './reading-library.mjs?v=20261030-interview-recordings2';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-interview-recordings2';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-interview-recordings2';
-import * as notesModel from './notes-store.mjs?v=20261030-interview-recordings2';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-interview-recordings2';
+import {createDataLoader} from './loader.mjs?v=20261030-pa-vei-reader1';
+import {createReadingLibrary} from './reading-library.mjs?v=20261030-pa-vei-reader1';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261030-pa-vei-reader1';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261030-pa-vei-reader1';
+import * as notesModel from './notes-store.mjs?v=20261030-pa-vei-reader1';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261030-pa-vei-reader1';
 
-const VERSION = '20261030-interview-recordings2';
+const VERSION = '20261030-pa-vei-reader1';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -590,7 +590,9 @@ function entryAudio(entry,chapter,book = 'textbook') {
   return {...section, file:section.file || data.file, clip:!section.file};
 }
 function audioTrackId(entry,chapter,book = 'textbook') {
-  return book === 'textbook' ? str(entry.id) : str(entryAudio(entry,chapter,book)?.readerId || '');
+  if (book === 'textbook') return str(entry.id);
+  const source = entryAudio(entry,chapter,book);
+  return str(source?.readerId || source?.trackId || '');
 }
 function findAudioEntry(id,book) {
   if (book) {
@@ -919,7 +921,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-interview-recordings2').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261030-pa-vei-reader1').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1426,6 +1428,8 @@ function updateAudioUI() {
 function showLesson(found,source) {
   $('#audio-title').textContent = `${found.entry.title}${source?.kind === 'synthetic' ? ' · 合成补读' : ''}`;
   $('#audio-label').textContent = `KAPITTEL ${found.chapter.id} · ${source?.kind === 'synthetic' ? '合成补读 · 原录音缺失' : '课文音频'}`;
+  $('#audio-transcript').disabled = !!source?.audioOnly;
+  $('#audio-transcript').title = source?.audioOnly ? '本节提供整段录音，暂未提供逐词课文' : '逐句听读';
 }
 function announceLesson(found,source) {
   window.dispatchEvent(new CustomEvent('norsklessonplay',{detail:{id:str(state.currentEntryId),bookId:found.bookId || 'textbook',readingId:str(found.entry.id),title:found.entry.title,chapter:str(found.chapter.id),synthetic:source?.kind === 'synthetic',start:state.audioRange.start}}));

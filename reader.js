@@ -140,7 +140,7 @@
       <header class="rd-head">
         <p class="rd-kicker">KAPITTEL ${e(meta.chapter)} · ${e(readingId(meta))}${meta.synthetic ? ' · 合成补读' : ''}</p>
         <h2 class="rd-title" lang="nb">${e(meta.title)}</h2>
-        <p class="rd-meta">${clock(meta.duration)} · ${data.sentences.length} 句 · ${meta.synthetic ? '原录音缺失，按教材原文合成朗读' : '教材原录音'}</p>
+        <p class="rd-meta">${clock(meta.duration)} · ${data.sentences.length} 句 · ${meta.synthetic ? '原录音缺失，按教材原文合成朗读' : e(meta.audioLabel || '教材原录音')}</p>
         <div class="rd-actions">
           <button type="button" class="rd-button is-primary" data-rd="play">${icon('play')}<span>播放本节</span></button>
           <button type="button" class="rd-icon" data-rd="queue" aria-pressed="${queued}" aria-label="${queued ? '已在播放列表，点按移出' : '加入播放列表'}" title="${queued ? '已在播放列表' : '加入播放列表'}">${icon(queued ? 'check' : 'plus')}</button>
@@ -192,10 +192,14 @@
     if (matching) id = String(matching.id);
     if (!matching) {
       const chapter = chapterOf(id,book) || String(index.sections.find(item => bookOf(item) === book)?.chapter || '1');
-      if (state.sectionId === `chapter:${book}:${chapter}` && container.querySelector('.rd-lesson')) return;
-      state.sectionId = `chapter:${book}:${chapter}`;
+      const overviewId = `chapter:${book}:${chapter}:${id}`;
+      if (state.sectionId === overviewId && container.querySelector('.rd-lesson')) return;
+      state.sectionId = overviewId;
       closePopover();
-      renderChapter(chapter,id && id !== chapter ? '这一节没有原录音，选择本章其他小节听读。' : '');
+      const found = state.deps.findEntry?.(id,book);
+      const recording = found && state.deps.entryAudio?.(found.entry,found.chapter,book);
+      const note = recording?.file ? '本节可播放整段录音，暂未提供逐词课文。请点击目录中的播放按钮。' : '这一节没有原录音，选择本章其他小节听读。';
+      renderChapter(chapter,id && id !== chapter ? note : '');
       return;
     }
     if (state.sectionId === id && state.view && container.contains(state.view.root)) { syncHighlight(true); startFollowing(); state.deps.onLesson?.(state.view); return; }
