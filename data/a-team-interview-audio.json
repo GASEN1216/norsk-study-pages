@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
-  "note": "第 2–15 题为用户于 2026-10-30 提供的真人录音，按原文件编号对应题目；questionText 为题卡对应问句，真人可能使用同义问法。第 1 题未提供真人录音，保留原合成音频。",
+  "note": "第 1–15 题均为用户于 2026-10-30 提供的真人录音，按原文件编号对应题目；questionText 为题卡对应问句，真人可能使用同义问法。",
   "recordings": {
     "ateam-01": {
       "file": "audio/a-team/ateam-01.mp3",
-      "kind": "synthetic",
-      "voice": "nb-NO-PernilleNeural",
-      "rate": "-8%",
-      "spokenText": "Hvordan er været i dag?",
-      "duration": 2.376,
-      "textSha256": "453d72cd51705efa50e5261c2ab68e0f31583aed922ff0a46e60dca6d22ce22e"
+      "kind": "recording",
+      "questionText": "Hvordan er været i dag?",
+      "duration": 3.755,
+      "sourceFile": "1..m4a",
+      "sourceSha256": "df283a5eb360c436bc7d1c0775a978a06d944c6d10b65e4c8948451d0b8f0afa",
+      "audioSha256": "cac3cc95aceb71089663d68c33496f70050d45fc1b0f82f2497b2a5c63a43bb1"
     },
     "ateam-02": {
       "file": "audio/a-team/ateam-02.mp3",
