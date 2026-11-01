@@ -12,7 +12,7 @@
   };
   const DAYS = ['一','二','三','四','五','六','日'];
   const RANKS = {1:'金杯',2:'银杯',3:'铜杯'};
-  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,renderRun:0};
+  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,makeupBusy:false,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,renderRun:0};
   const $ = (selector,root = document) => root.querySelector(selector);
   const e = value => state.deps.escapeHTML ? state.deps.escapeHTML(value) : String(value ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const art = name => `assets/honors/${name}.webp`;
@@ -92,12 +92,34 @@
   function bar(progress,target,done) {
     return `<div class="mh-bar${done ? ' is-done' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${Number(target) || 0}" aria-valuenow="${Math.min(Number(progress) || 0,Number(target) || 0)}"><i style="width:${done ? 100 : pct(progress,target)}%"></i></div>`;
   }
+  function makeupMarkup(h) {
+    const makeup = h.makeup;
+    if (makeup?.used) return `<p class="mh-makeup is-used" tabindex="-1">本周的补打卡用在了 ${e(dayLabel(makeup.used))}，下周一会有新的机会。</p>`;
+    if (!makeup?.days?.length) return '';
+    return `<div class="mh-makeup" tabindex="-1"><p>有漏掉的打卡？每周可以补一天，连续天数和全勤都算。</p><div class="mh-makeup-days">${makeup.days.map(day => `<button type="button" class="mh-button" data-more="makeup" data-day="${e(day)}"${state.makeupBusy ? ' disabled' : ''}>补 ${e(dayLabel(day))}</button>`).join('')}</div></div>`;
+  }
+  async function claimMakeup(day) {
+    if (state.makeupBusy) return;
+    state.makeupBusy = true;
+    render();
+    try {
+      const community = await state.deps.community();
+      await community.claimMakeup(day);
+      state.deps.notify?.(`已补上 ${dayLabel(day)} 的打卡。`);
+    } catch (error) {
+      state.deps.notify?.(error?.code === 'makeup_used' ? '本周的补打卡机会已经用过了。' : error?.code === 'makeup_unavailable' ? '这一天已经不能补了。' : '补打卡没有成功，请检查网络后重试。');
+      load(true);
+    }
+    state.makeupBusy = false;
+    if (state.visible && state.tab === 'honors') { render(); $('.mh-makeup',state.root)?.focus({preventScroll:true}); }
+  }
   function challengeCard(h) {
     const week = h.week, c = week.challenge || {};
     const today = h.today?.date;
     const days = (week.days || []).map((done,index) => {
       const iso = week.weekStart ? (() => { const [y,m,d] = week.weekStart.split('-').map(Number); const t = new Date(Date.UTC(y,m-1,d+index)); return t.toISOString().slice(0,10); })() : '';
-      return `<li class="${done ? 'is-done' : ''}${iso === today ? ' is-today' : ''}${today && iso > today ? ' is-future' : ''}"><span>${DAYS[index]}</span><i aria-label="${done ? '已练习' : '未练习'}"></i></li>`;
+      const madeUp = week.makeups?.[index];
+      return `<li class="${done ? 'is-done' : ''}${madeUp ? ' is-makeup' : ''}${iso === today ? ' is-today' : ''}${today && iso > today ? ' is-future' : ''}"><span>${DAYS[index]}</span><i aria-label="${madeUp ? '已补打卡' : done ? '已练习' : '未练习'}"></i></li>`;
     }).join('');
     if (!week.challenge) {
       const pending = Number(h.season?.current ?? week.n) < 1;
@@ -110,6 +132,7 @@
           <div class="mh-week-row"><ol class="mh-days" aria-label="本周练习天数">${days}</ol>
             <div class="mh-perfect"><span>本周已练 ${(week.days || []).filter(Boolean).length} 天<small>${e(weekRange(week.weekStart))}</small></span></div>
           </div>
+          ${makeupMarkup(h)}
         </div>
       </section>`;
     }
@@ -124,6 +147,7 @@
         <div class="mh-week-row"><ol class="mh-days" aria-label="本周练习天数">${days}</ol>
           <div class="mh-perfect${week.perfect ? ' is-earned' : ''}">${img(weekArt(week.n,true),'七天全勤奖章','mh-perfect-img')}<span>${week.perfect ? '本周全勤' : '七天全勤奖章'}<small>${week.perfect ? '已收入荣誉' : `本周已练 ${(week.days || []).filter(Boolean).length} 天`}</small></span></div>
         </div>
+        ${makeupMarkup(h)}
       </div>
     </section>`;
   }
@@ -360,6 +384,7 @@
     if (action === 'retry') { state.status = 'loading'; render(); load(true); }
     if (action === 'badge') openBadge(target.dataset.week);
     if (action === 'duel') state.deps.openDuel?.();
+    if (action === 'makeup') claimMakeup(target.dataset.day);
   }
   function init(deps) {
     state.deps = {...state.deps,...deps};

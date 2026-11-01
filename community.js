@@ -349,10 +349,10 @@
     if (state.status === 'error') return `<div class="nc-empty" role="status"><p>${escapeHTML(state.error)}</p>${button('retry','重新连接','nc-primary')}</div>`;
     if (!state.board || state.board.period !== state.period) return `<ol class="nc-list nc-loading" aria-label="正在读取排行榜">${Array.from({length:5},() => '<li class="nc-skeleton"><i></i><span></span><b></b></li>').join('')}</ol>`;
     const {entries,me}=state.board;
-    if (!entries.length) return `<div class="nc-empty"><p>${state.period === 'week' ? '本周还没有人上榜。开着网站或练一组，就能看到自己的名字。' : '还没有人上榜。开着网站或练一组，就能看到自己的名字。'}</p></div>`;
+    if (!entries.length) return `<div class="nc-empty"><p>${state.period === 'week' ? '本周还没有人上榜。开着网站或练一组，就能看到自己的名字。' : '本月还没有人上榜。开着网站或练一组，就能看到自己的名字。'}</p></div>`;
     const shown=state.expanded ? entries : entries.slice(0,10);
     const pinned=me && !shown.some(entry => entry.id === me.id);
-    return `<ol class="nc-list" aria-label="${state.period === 'week' ? '本周' : '总'}排行榜">${shown.map(entry => row(entry)).join('')}${pinned ? row(me,true) : ''}</ol>${entries.length > 10 ? button('more',state.expanded ? '收起' : `查看前 ${formatNumber(entries.length)} 名`,'nc-quiet nc-more') : ''}`;
+    return `<ol class="nc-list" aria-label="${state.period === 'week' ? '本周' : '本月'}排行榜">${shown.map(entry => row(entry)).join('')}${pinned ? row(me,true) : ''}</ol>${entries.length > 10 ? button('more',state.expanded ? '收起' : `查看前 ${formatNumber(entries.length)} 名`,'nc-quiet nc-more') : ''}`;
   }
   function meMarkup() {
     const name=state.profile?.nickname || state.identity?.nickname;
@@ -360,7 +360,7 @@
     const percent=Math.round(Math.min(1,Math.max(0,info.progress))*100);
     const confirm=state.confirmName ? `<div class="nc-confirm" role="alertdialog" aria-labelledby="nc-confirm-text"><p id="nc-confirm-text">已有学习者叫「${escapeHTML(state.confirmName)}」。同名会视为同一个人，经验和排名合并计算。这是你吗？</p><div>${button('confirm-name','是我，使用这个名字','nc-primary')}${button('cancel-confirm','换个名字','nc-quiet')}</div></div>` : '';
     const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" enterkeyhint="done" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
-    return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div><div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '总榜'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
+    return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div><div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '本月'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
   }
   function render() {
     const container=state.container;
@@ -368,7 +368,7 @@
     const focused=document.activeElement;
     const focusId=container.contains?.(focused) ? focused?.id : null;
     const selection=focusId === 'nc-nickname' ? [focused.selectionStart,focused.selectionEnd] : null;
-    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','all'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '本周' : '总榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。联机翻翻乐每抢到一对 +10 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
+    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','month'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '周榜' : '月榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。联机翻翻乐每抢到一对 +10 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
     if (focusId) {
       const next=container.querySelector?.('#'+focusId);
       next?.focus?.({preventScroll:true});
@@ -386,7 +386,7 @@
       else if (action === 'more') { state.expanded=!state.expanded; render(); }
       else if (action === 'rules') { event.preventDefault(); state.rulesOpen=!state.rulesOpen; render(); }
       else if (action === 'period' && state.period !== target.dataset.ncPeriod) {
-        state.period=target.dataset.ncPeriod === 'all' ? 'all' : 'week'; state.expanded=false; void loadBoard();
+        state.period=target.dataset.ncPeriod === 'month' ? 'month' : 'week'; state.expanded=false; void loadBoard();
         container.querySelector?.('#nc-tab-'+state.period)?.focus?.({preventScroll:true});
       } else if (action === 'edit') {
         state.editing=true; state.draft=state.profile?.nickname || state.identity?.nickname || ''; state.nameError=''; state.nameMessage=''; render();
@@ -412,7 +412,7 @@
       }
       if (event.target.getAttribute?.('role') !== 'tab' || !['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
       event.preventDefault();
-      const next=event.key === 'Home' ? 'week' : event.key === 'End' ? 'all' : state.period === 'week' ? 'all' : 'week';
+      const next=event.key === 'Home' ? 'week' : event.key === 'End' ? 'month' : state.period === 'week' ? 'month' : 'week';
       container.querySelector?.('#nc-tab-'+next)?.click?.(); container.querySelector?.('#nc-tab-'+next)?.focus?.({preventScroll:true});
     });
   }
@@ -502,6 +502,12 @@
     const profile=await ensureRegistered();
     return {id:profile.id,nickname:profile.nickname};
   }
+  function applyHonors(data) {
+    if (!data.today || !Array.isArray(data.today.quests) || !Array.isArray(data.achievements) || !Array.isArray(data.weeks)) throw issue('service_unavailable');
+    state.honors=data; state.honorsAt=Date.now();
+    try { window.dispatchEvent(new CustomEvent('norskhonorschange',{detail:data})); } catch { /* Listeners are optional. */ }
+    return data;
+  }
   // Quests, the weekly challenge, trophies and achievements. Cached briefly; resolves to the latest known data or null.
   function loadHonors(force=false) {
     if (state.honorsLoad) {
@@ -514,10 +520,7 @@
       await ensureRegistered();
       do {
         state.honorsDirty=false;
-        const data=await request('/honors',{auth:true});
-        if (!data.today || !Array.isArray(data.today.quests) || !Array.isArray(data.achievements) || !Array.isArray(data.weeks)) throw issue('service_unavailable');
-        state.honors=data; state.honorsAt=Date.now();
-        try { window.dispatchEvent(new CustomEvent('norskhonorschange',{detail:data})); } catch { /* Listeners are optional. */ }
+        applyHonors(await request('/honors',{auth:true}));
       } while (state.honorsDirty);
       return state.honors;
     })().catch(() => state.honors).finally(() => { state.honorsLoad=null; });
@@ -525,7 +528,12 @@
     return load;
   }
   function honors(options) { return loadHonors(options?.force === true); }
+  // Spends this week's make-up on a missed day; rejects with error.code set, like publicRequest.
+  async function claimMakeup(day) {
+    await ensureRegistered();
+    return applyHonors(await request('/honors/makeup',{method:'POST',body:{day},auth:true}));
+  }
 
-  window.NorskCommunity = {init:safe(initialize),mount:safe(mount),startPresence:safe(startPresence),submitResult:safe(submitResult),flush:safe(recover),levelInfo,request:publicRequest,profile:currentProfile,honors};
+  window.NorskCommunity = {init:safe(initialize),mount:safe(mount),startPresence:safe(startPresence),submitResult:safe(submitResult),flush:safe(recover),levelInfo,request:publicRequest,profile:currentProfile,honors,claimMakeup};
   window.dispatchEvent(new Event('norskcommunityready'));
 })();

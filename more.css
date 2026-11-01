@@ -72,6 +72,14 @@ body[data-view=more] .audio-dock{left:24px;right:24px;max-width:1100px;margin-le
 .mh-days li.is-today span{color:var(--green);font-weight:600}
 .mh-days li.is-today i{box-shadow:0 0 0 3px #c9a04a24}
 .mh-days li.is-future i{opacity:.55}
+.mh-days li.is-makeup i{background:#f6ecd2;border:1px dashed #b48d3c}
+.mh-makeup{margin-top:14px;padding-top:12px;border-top:1px solid #eadfc6;font-size:13px;color:#7a6a45;outline:none}
+.mh-makeup p,p.mh-makeup{margin-bottom:0}
+.mh-makeup p{margin-top:0}
+.mh-makeup-days{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}
+.mh-makeup-days .mh-button{border-color:#dcc898;background:#fffaec;color:#7a5b1f}
+.mh-makeup-days .mh-button:hover{border-color:#c9a04a;background:#fbf1d6;color:#5f4615}
+.mh-makeup-days .mh-button:disabled{opacity:.55;cursor:default}
 .mh-perfect{display:flex;align-items:center;gap:10px;font-size:13px;color:#6b7b61}
 .mh-perfect-img{width:52px;height:52px;object-fit:contain;filter:grayscale(1) opacity(.45);transition:filter .8s ease}
 .mh-perfect.is-earned .mh-perfect-img{filter:none}
@@ -167,6 +175,7 @@ body[data-view=more] .audio-dock{left:24px;right:24px;max-width:1100px;margin-le
 @media(max-width:720px){
   .mh-hero{grid-template-columns:1fr;justify-items:center;text-align:center;padding:24px 18px}
   .mh-hero-body{width:100%}
+  .mh-makeup-days{justify-content:center}
   .mh-hero-body h2{font-size:26px}
   .mh-note{margin-left:auto;margin-right:auto}
   .mh-goal{text-align:left}
