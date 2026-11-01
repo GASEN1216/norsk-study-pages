@@ -7,7 +7,7 @@
   const TOOLS = {
     interview:{title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
     playlist:{title:'播放列表',note:'把课文录音排成清单，锁屏也能听',meta:'随身听',icon:'<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="12" width="5" height="9" rx="2"/><rect x="17" y="12" width="5" height="9" rx="2"/>'},
-    honors:{title:'荣誉',note:'赛季徽章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'},
+    honors:{title:'荣誉',note:'赛季徽章、全勤奖章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'},
     notes:{title:'笔记',note:'我的手写与划线，和大家分享的笔记广场',meta:'笔记广场',icon:'<path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M15 3.5V7.5h4M9 11h7M9 14.5h7M9 18h4"/>'}
   };
   const DAYS = ['一','二','三','四','五','六','日'];
@@ -26,7 +26,7 @@
     return `${date.getUTCMonth()+1}月${date.getUTCDate()}日`;
   }
   const weekRange = start => start ? `${dayLabel(start)} – ${dayLabel(start,6)}` : '';
-  const img = (src,alt,cls = '') => `<img class="${cls}" src="${e(src)}" alt="${e(alt)}" loading="lazy" decoding="async" draggable="false">`;
+  const img = (src,alt,cls = '',eager = false) => `<img class="${cls}" src="${e(src)}" alt="${e(alt)}"${eager ? '' : ' loading="lazy"'} decoding="async" draggable="false">`;
 
   /* ---------- Data ---------- */
   async function load(force = false) {
@@ -119,7 +119,7 @@
     const days = (week.days || []).map((done,index) => {
       const iso = week.weekStart ? (() => { const [y,m,d] = week.weekStart.split('-').map(Number); const t = new Date(Date.UTC(y,m-1,d+index)); return t.toISOString().slice(0,10); })() : '';
       const madeUp = week.makeups?.[index];
-      return `<li class="${done ? 'is-done' : ''}${madeUp ? ' is-makeup' : ''}${iso === today ? ' is-today' : ''}${today && iso > today ? ' is-future' : ''}"><span>${DAYS[index]}</span><i aria-label="${madeUp ? '已补打卡' : done ? '已练习' : '未练习'}"></i></li>`;
+      return `<li class="${done ? 'is-done' : ''}${madeUp ? ' is-makeup' : ''}${iso === today ? ' is-today' : ''}${today && iso > today ? ' is-future' : ''}"><span>${DAYS[index]}</span><i role="img" aria-label="${madeUp ? '已补打卡' : done ? '已练习' : '未练习'}"></i></li>`;
     }).join('');
     if (!week.challenge) {
       const pending = Number(h.season?.current ?? week.n) < 1;
@@ -145,7 +145,9 @@
         <div class="mh-goal"><span>${e(c.title || '本周挑战')}</span><strong>${c.done ? '已完成' : `${number(Math.min(c.progress,c.target))} / ${number(c.target)}`}</strong></div>
         ${bar(c.progress,c.target,c.done)}
         <div class="mh-week-row"><ol class="mh-days" aria-label="本周练习天数">${days}</ol>
-          <div class="mh-perfect${week.perfect ? ' is-earned' : ''}">${img(weekArt(week.n,true),'七天全勤奖章','mh-perfect-img')}<span>${week.perfect ? '本周全勤' : '七天全勤奖章'}<small>${week.perfect ? '已收入荣誉' : `本周已练 ${(week.days || []).filter(Boolean).length} 天`}</small></span></div>
+          ${week.perfect
+            ? `<button type="button" class="mh-perfect is-earned" data-more="jump" data-target="mh-medals-title">${img(weekArt(week.n,true),'七天全勤奖章','mh-perfect-img')}<span>本周全勤<small>查看全勤奖章</small></span></button>`
+            : `<div class="mh-perfect">${img(weekArt(week.n,true),'七天全勤奖章','mh-perfect-img')}<span>七天全勤奖章<small>本周已练 ${(week.days || []).filter(Boolean).length} 天</small></span></div>`}
         </div>
         ${makeupMarkup(h)}
       </div>
@@ -159,11 +161,16 @@
       const c = w.challenge || {};
       const status = w.future ? 'is-future' : c.done ? 'is-earned' : w.n === h.week.n ? 'is-current' : 'is-missed';
       const label = w.future ? '尚未开始' : c.done ? '已获得' : w.n === h.week.n ? '进行中' : '未完成';
-      return `<li><button type="button" class="mh-badge ${status}" data-more="badge" data-week="${e(w.n)}" aria-label="第 ${e(w.n)} 周 ${e(c.theme || '')} ${label}">
-        <span class="mh-badge-art">${img(weekArt(w.n),'')}${w.perfect ? `<span class="mh-badge-perfect" title="全勤">${img(weekArt(w.n,true),'全勤奖章')}</span>` : ''}</span>
+      return `<li><button type="button" class="mh-badge ${status}" data-more="badge" data-week="${e(w.n)}" aria-label="第 ${e(w.n)} 周 ${e(c.theme || '')} ${label}${w.perfect ? '，已获全勤奖章' : ''}">
+        <span class="mh-badge-art">${img(weekArt(w.n),'')}${w.perfect ? `<span class="mh-badge-perfect" title="全勤">${img(weekArt(w.n,true),'')}</span>` : ''}</span>
         <span class="mh-badge-no">第 ${e(w.n)} 周</span><span class="mh-badge-name" lang="nb">${e(c.theme || '')}</span>
       </button></li>`;
     }).join('');
+  }
+  function medalShelf(h) {
+    const weeks = (h.weeks || []).filter(w => w.perfect).reverse();
+    if (!weeks.length) return '<p class="mh-empty">周一到周日七天都打卡，这里就会多一枚奖章。漏掉的一天可以用补打卡补上。</p>';
+    return `<ol class="mh-medals">${weeks.map(w => `<li><button type="button" class="mh-medal" data-more="badge" data-week="${e(w.n)}" aria-label="第 ${e(w.n)} 周全勤奖章 ${e(w.challenge?.theme || '')}">${img(weekArt(w.n,true),'')}<small>第 ${e(w.n)} 周</small><strong lang="nb">${e(w.challenge?.theme || '')}</strong></button></li>`).join('')}</ol>`;
   }
   function trophyShelf(h) {
     const trophies = [...(h.trophies || [])].sort((a,b) => String(b.weekStart).localeCompare(String(a.weekStart)));
@@ -171,9 +178,9 @@
     return `<ol class="mh-trophies">${trophies.map(t => `<li class="mh-trophy rank-${e(t.rank)}">${img(art(`trophy-${t.rank}`),RANKS[t.rank] || '奖杯')}<strong>第 ${e(t.rank)} 名 · ${RANKS[t.rank] || ''}</strong><span>${e(weekRange(t.weekStart))}</span><small>${number(t.xp)} XP</small></li>`).join('')}</ol>`;
   }
   function achievementGrid(h) {
-    return (h.achievements || []).map(a => `<li class="mh-achievement${a.earned ? ' is-earned' : ''}">
+    return [...(h.achievements || [])].sort((a,b) => Number(Boolean(b.earned))-Number(Boolean(a.earned))).map(a => `<li class="mh-achievement${a.earned ? ' is-earned' : ''}">
       <span class="mh-achievement-art">${img(art(`achievement-${a.id}`),'')}</span>
-      <div><strong>${e(a.title)}</strong><p>${e(a.description || '')}</p>${a.earned ? `<small>${a.earnedAt ? `${e(String(a.earnedAt).slice(0,10))} 获得` : '已获得'}</small>` : `${bar(a.progress,a.target,false)}<small>${number(Math.min(a.progress,a.target))} / ${number(a.target)}</small>`}</div>
+      <div><strong>${e(a.title)}</strong><p>${e(a.description || '')}</p>${a.earned ? `<small>${a.earnedAt ? `${e(dayLabel(a.earnedAt))} 获得` : '已获得'}</small>` : `${bar(a.progress,a.target,false)}<small>${number(Math.min(a.progress,a.target))} / ${number(a.target)}</small>`}</div>
     </li>`).join('');
   }
   function honorsMarkup() {
@@ -183,20 +190,22 @@
     const earned = (h.weeks || []).filter(w => w.challenge?.done).length;
     const perfect = (h.weeks || []).filter(w => w.perfect).length;
     const achievements = (h.achievements || []).filter(a => a.earned).length;
+    const stat = (target,value,label) => `<button type="button" data-more="jump" data-target="${target}"><strong>${value}</strong><span>${label}</span></button>`;
     return `${challengeCard(h)}
       <div class="mh-split">
         <section class="mh-panel" aria-labelledby="mh-quests-title"><div class="mh-panel-head"><h3 id="mh-quests-title">今日任务</h3><span>${e(dayLabel(h.today?.date))} · 每天北京时间零点更新</span></div><ol class="mh-quests">${questRows(h.today?.quests)}</ol></section>
         <section class="mh-panel mh-stats" aria-label="荣誉统计">
-          <div><strong>${earned}<small>/${e(h.season?.weeks || 20)}</small></strong><span>赛季徽章</span></div>
-          <div><strong>${perfect}</strong><span>全勤奖章</span></div>
-          <div><strong>${(h.trophies || []).length}</strong><span>周榜奖杯</span></div>
-          <div><strong>${achievements}<small>/${(h.achievements || []).length}</small></strong><span>成就</span></div>
+          ${stat('mh-season-title',`${earned}<small>/${e(h.season?.weeks || 20)}</small>`,'赛季徽章')}
+          ${stat('mh-medals-title',`${perfect}<small>/${e(h.season?.weeks || 20)}</small>`,'全勤奖章')}
+          ${stat('mh-trophy-title',(h.trophies || []).length,'周榜奖杯')}
+          ${stat('mh-ach-title',`${achievements}<small>/${(h.achievements || []).length}</small>`,'成就')}
           <div class="mh-streak"><strong>${number(h.streak?.current)}<small> 天</small></strong><span>连续学习 · 最长 ${number(h.streak?.best)} 天</span></div>
         </section>
       </div>
-      <section class="mh-section" aria-labelledby="mh-season-title"><div class="mh-panel-head"><h3 id="mh-season-title">赛季徽章</h3><span>20 周，每周一个挪威文化主题；完成当周挑战即获得徽章，七天都练习再得全勤奖章</span></div><ol class="mh-season">${seasonGrid(h)}</ol></section>
-      <section class="mh-section" aria-labelledby="mh-trophy-title"><div class="mh-panel-head"><h3 id="mh-trophy-title">奖杯柜</h3><span>每周排行榜前三名</span></div>${trophyShelf(h)}</section>
-      <section class="mh-section" aria-labelledby="mh-ach-title"><div class="mh-panel-head"><h3 id="mh-ach-title">成就</h3><span>长期积累的里程碑</span></div><ol class="mh-achievements">${achievementGrid(h)}</ol></section>`;
+      <section class="mh-section" aria-labelledby="mh-season-title"><div class="mh-panel-head"><h3 id="mh-season-title" tabindex="-1">赛季徽章</h3><span>20 周，每周一个挪威文化主题；完成当周挑战即获得徽章</span></div><ol class="mh-season">${seasonGrid(h)}</ol></section>
+      <section class="mh-section" aria-labelledby="mh-medals-title"><div class="mh-panel-head"><h3 id="mh-medals-title" tabindex="-1">全勤奖章</h3><span>周一到周日七天都打卡，每周一枚</span></div>${medalShelf(h)}</section>
+      <section class="mh-section" aria-labelledby="mh-trophy-title"><div class="mh-panel-head"><h3 id="mh-trophy-title" tabindex="-1">奖杯柜</h3><span>每周排行榜前三名</span></div>${trophyShelf(h)}</section>
+      <section class="mh-section" aria-labelledby="mh-ach-title"><div class="mh-panel-head"><h3 id="mh-ach-title" tabindex="-1">成就</h3><span>长期积累的里程碑</span></div><ol class="mh-achievements">${achievementGrid(h)}</ol></section>`;
   }
 
   /* ---------- Render ---------- */
@@ -289,12 +298,13 @@
     const current = w.n === h.week.n ? h.week.challenge : null;
     const dialog = ensureDialog();
     dialog.innerHTML = `<div class="mh-dialog-card"><button type="button" class="rd-pop-close mh-dialog-close" data-more="dialog-close" aria-label="关闭"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-      <div class="mh-dialog-art${c.done ? ' is-earned' : w.future ? ' is-future' : ''}">${img(weekArt(w.n),c.theme || '')}</div>
+      <div class="mh-dialog-arts${w.perfect ? ' has-medal' : ''}"><div class="mh-dialog-art${c.done ? ' is-earned' : w.future ? ' is-future' : ''}">${img(weekArt(w.n),c.theme || '','',true)}</div>${w.perfect ? `<div class="mh-dialog-medal">${img(weekArt(w.n,true),`第 ${w.n} 周全勤奖章`,'',true)}</div>` : ''}</div>
       <p class="mh-kicker">第 ${e(w.n)} 周 · ${e(weekRange(w.weekStart))}</p>
       <h3><span lang="nb">${e(c.theme || '')}</span> ${e(c.themeZh || '')}</h3>
       ${(current?.note || c.note) ? `<p class="mh-note">${e(current?.note || c.note)}</p>` : ''}
       <p class="mh-dialog-goal">${w.future ? '这一周还没开始，届时挑战是：' : '挑战：'}${e(c.title || '')}</p>
-      ${current && !current.done ? `${bar(current.progress,current.target,false)}<p class="mh-dialog-progress">${number(current.progress)} / ${number(current.target)}</p>` : `<p class="mh-dialog-status">${c.done ? '已获得这枚徽章' : w.future ? '尚未开始' : '这一周的挑战没有完成'}${w.perfect ? ' · 本周全勤' : ''}</p>`}
+      ${current && !current.done ? `${bar(current.progress,current.target,false)}<p class="mh-dialog-progress">${number(current.progress)} / ${number(current.target)}</p>` : `<p class="mh-dialog-status">${c.done ? '已获得这枚徽章' : w.future ? '尚未开始' : '这一周的挑战没有完成'}</p>`}
+      ${w.perfect ? '<p class="mh-dialog-perfect">七天全勤，已获得这一周的全勤奖章</p>' : ''}
     </div>`;
     dialog.setAttribute('aria-label',`第 ${w.n} 周徽章 ${c.theme || ''}`.trim());
     dialog.showModal?.() ?? dialog.setAttribute('open','');
@@ -314,7 +324,7 @@
     const keys = [];
     for (const w of h?.weeks || []) {
       if (w.challenge?.done) keys.push({key:`week-${w.n}`,image:weekArt(w.n),kicker:`第 ${w.n} 周挑战完成`,title:`${w.challenge.theme || ''} ${w.challenge.themeZh || ''}`.trim(),text:'赛季徽章已收入荣誉。'});
-      if (w.perfect) keys.push({key:`perfect-${w.n}`,image:weekArt(w.n,true),kicker:'七天全勤',title:`第 ${w.n} 周全勤奖章`,text:'这一周每天都练习了。'});
+      if (w.perfect) keys.push({key:`perfect-${w.n}`,image:weekArt(w.n,true),kicker:'七天全勤',title:`第 ${w.n} 周全勤奖章`,text:'这一周七天都有打卡，奖章已收入荣誉。'});
     }
     for (const t of h?.trophies || []) keys.push({key:`trophy-${t.weekStart}`,image:art(`trophy-${t.rank}`),kicker:'周榜奖杯',title:`第 ${t.rank} 名 · ${RANKS[t.rank] || ''}`,text:weekRange(t.weekStart)});
     for (const a of h?.achievements || []) if (a.earned) keys.push({key:`achievement-${a.id}`,image:art(`achievement-${a.id}`),kicker:'成就',title:a.title,text:a.description || ''});
@@ -337,14 +347,20 @@
     // Keep new honors queued while the multiplayer dialog owns the screen and focus.
     if (window.NorskDuel?.isOpen?.()) { state.revealing = false; return; }
     const item = state.queue.shift();
-    if (!item || !document.body) { state.revealing = false; return; }
+    if (!item || !document.body) {
+      state.revealing = false;
+      if (state.revealReturn?.isConnected) state.revealReturn.focus?.({preventScroll:true});
+      state.revealReturn = null;
+      return;
+    }
+    if (!state.revealing) state.revealReturn = document.activeElement;
     state.revealing = true;
     const layer = document.createElement('div');
     layer.className = 'mh-reveal';
     layer.setAttribute('role','dialog');
     layer.setAttribute('aria-modal','true');
     layer.setAttribute('aria-label',item.kicker);
-    layer.innerHTML = `<div class="mh-reveal-card"><div class="mh-reveal-art">${img(item.image,item.title)}</div><p class="mh-kicker">${e(item.kicker)}</p><h3>${e(item.title)}</h3>${item.text ? `<p>${e(item.text)}</p>` : ''}<button type="button" class="mh-reveal-ok">收下</button></div>`;
+    layer.innerHTML = `<div class="mh-reveal-card"><div class="mh-reveal-art">${img(item.image,item.title,'',true)}</div><p class="mh-kicker">${e(item.kicker)}</p><h3>${e(item.title)}</h3>${item.text ? `<p>${e(item.text)}</p>` : ''}<button type="button" class="mh-reveal-ok">收下</button></div>`;
     let closing = false;
     const close = () => {
       if (closing) return;
@@ -353,7 +369,8 @@
       setTimeout(() => { layer.remove(); nextReveal(); },window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 420);
     };
     layer.addEventListener('click',event => { if (event.target === layer || event.target.closest('.mh-reveal-ok')) close(); });
-    layer.addEventListener('keydown',event => { if (event.key === 'Escape') close(); });
+    // 收下 is the only control, so Tab stays on it instead of walking the page behind.
+    layer.addEventListener('keydown',event => { if (event.key === 'Escape') close(); if (event.key === 'Tab') event.preventDefault(); });
     document.body.append(layer);
     const image = layer.querySelector('img');
     const open = () => requestAnimationFrame(() => { layer.classList.add('is-open'); layer.querySelector('.mh-reveal-ok')?.focus({preventScroll:true}); window.NorskCelebrate?.motes?.(layer.querySelector('.mh-reveal-art')); });
@@ -383,6 +400,11 @@
     if (action === 'interview-retry') render();
     if (action === 'retry') { state.status = 'loading'; render(); load(true); }
     if (action === 'badge') openBadge(target.dataset.week);
+    if (action === 'jump') {
+      const heading = document.getElementById?.(target.dataset.target);
+      heading?.closest('.mh-section')?.scrollIntoView({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',block:'start'});
+      heading?.focus({preventScroll:true});
+    }
     if (action === 'duel') state.deps.openDuel?.();
     if (action === 'makeup') claimMakeup(target.dataset.day);
   }
