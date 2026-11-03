@@ -1,0 +1,50 @@
+/* Classroom PPT: deck tabs, the column of slides and the slide controls (dist/slides.js). */
+#reading-view .slides-view:not([hidden]){display:flex;flex-direction:column;flex:1;min-height:0}
+.sl-stage{flex:1;min-height:0;display:flex;flex-direction:column;background:#e9ebe2;border:1px solid #e0e4d5}
+.sl-decks{display:flex;gap:4px;padding:10px 14px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.sl-decks::-webkit-scrollbar{display:none}
+.sl-deck{flex-shrink:0;font-size:12px;letter-spacing:.2px;color:#7f8a74;padding:6px 13px;border-radius:8px;white-space:nowrap;transition:background .2s ease,color .2s ease,box-shadow .2s ease}
+.sl-deck:hover{color:var(--green);background:#f4f5ee99}
+.sl-deck[aria-selected=true]{background:#fffef8;color:var(--green);font-weight:600;box-shadow:0 1px 3px #303d2a14}
+.sl-deck:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+.sl-scroller{position:relative;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scroll-snap-type:y proximity;scrollbar-width:thin;scrollbar-color:#c9d0bd transparent;outline:none}
+.sl-scroller.is-paged{scroll-snap-type:y mandatory}
+.sl-track{position:relative;min-height:100%}
+.sl-slide{position:absolute;margin:0;background:var(--white);border-radius:3px;box-shadow:0 6px 24px #31472c1f;overflow:hidden;scroll-snap-align:start}
+.is-paged .sl-slide{scroll-snap-align:center}
+.sl-slide canvas{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .28s ease-out}
+.sl-slide canvas.is-drawn{opacity:1}
+.sl-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:8%;text-align:center;font:500 clamp(12px,2.2vw,22px)/1.5 var(--sans);color:#d3d7c8;overflow:hidden}
+.sl-message{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;color:#85917a;font-size:13px;padding:30px;line-height:1.8}
+.sl-message>svg{width:26px;height:26px;color:#a7b296;margin-bottom:6px}
+.sl-message p{margin:0;color:#5f7154;font-size:14px}
+.sl-message small{font-size:12px;color:#9aa18e}
+.sl-message button[data-sl=retry]{border:1px solid #b3bfa7;border-radius:8px;padding:7px 18px;margin-top:10px;color:var(--green)}
+.sl-chapters{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:16px}
+.sl-chapters button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:104px;padding:12px 18px;border-radius:12px;border:1px solid #eadfc6;background:linear-gradient(180deg,#fffef9,#faf4e4);color:var(--green);transition:border-color .2s ease,box-shadow .2s ease}
+.sl-chapters button:hover{border-color:#d9c79c;box-shadow:0 4px 14px #a0874f1a}
+.sl-chapters strong{font:500 15px/1.4 var(--serif)}
+.sl-chapters span{font-size:11px;color:#a08a55}
+#reading-view .sl-controls{position:relative}
+.sl-stage:has(+.sl-controls[hidden]){border-radius:0 0 12px 12px}
+.sl-progress{position:absolute;left:0;right:0;top:0;height:2px;background:#eef0e6;overflow:hidden}
+.sl-progress>span{display:block;height:100%;background:#c9ab6b;transform-origin:left;transform:scaleX(0);transition:transform .3s ease-out}
+.sl-jump label{white-space:nowrap}
+/* PPT mode keeps only the mode switch, full screen and the download of the original deck. */
+body.read-ppt #reading-view .reader-tools>:not(.read-mode):not(#reader-fullscreen):not(#pdf-download){display:none}
+body.read-ppt #reading-view .reader-tip{display:none}
+@media(max-width:720px){
+ .sl-decks{padding:8px 8px 0;gap:2px}
+ .sl-deck{font-size:12px;padding:5px 11px}
+ .sl-jump label{display:none}
+ .sl-message{font-size:12px;padding:22px}
+ .sl-chapters{gap:8px}.sl-chapters button{min-width:88px;padding:10px 14px}
+}
+/* Phones held sideways keep as much height as possible for the slide. */
+@media(max-height:520px){
+ .sl-decks{padding:5px 10px 0}
+ .sl-deck{font-size:11px;padding:3px 10px}
+ #reading-view .sl-controls{min-height:38px;padding:2px 8px}
+ #reading-view .sl-controls .page-button{padding:4px 10px}
+ #reading-view .sl-controls .page-jump input{height:28px}
+}

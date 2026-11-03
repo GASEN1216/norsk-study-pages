@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261103-gloss-review';
-import {createReadingLibrary} from './reading-library.mjs?v=20261103-gloss-review';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261103-gloss-review';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261103-gloss-review';
-import * as notesModel from './notes-store.mjs?v=20261103-gloss-review';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261103-gloss-review';
+import {createDataLoader} from './loader.mjs?v=20261103-ppt-slides';
+import {createReadingLibrary} from './reading-library.mjs?v=20261103-ppt-slides';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261103-ppt-slides';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261103-ppt-slides';
+import * as notesModel from './notes-store.mjs?v=20261103-ppt-slides';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261103-ppt-slides';
 
-const VERSION = '20261103-gloss-review';
+const VERSION = '20261103-ppt-slides';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -339,22 +339,57 @@ function hasReader(book = state.book) {
   return book === 'textbook' || Object.values(audioBook(book)?.chapters || {}).some(chapter => Object.values(chapter.sections || {}).some(section => section.file && section.readerId));
 }
 function readingTextMode() { return state.readMode === 'text' && hasReader(); }
+// The teacher's classroom PPTs go with the God i norsk textbook.
+function hasSlides(book = state.book) { return book === 'textbook'; }
+function readingSlidesMode() { return state.readMode === 'ppt' && hasSlides(); }
+let slidesLoad;
+function prepareSlides() {
+  if (!slidesLoad) slidesLoad = loadFeature('slides').then(() => {
+    window.NorskSlides.init({loadData,getPDF,escapeHTML,icon,notify,openSection:id => selectEntry(id,'textbook'),chapterTitle:id => findEntry(id,'textbook')?.chapter.title || '',
+      watchScroll:pane => watchHeaderScroll(pane,() => pane.scrollTop,() => 24,paneRoom(pane)),onDeck:showDeckDownload});
+    return window.NorskSlides;
+  }).catch(error => { slidesLoad = null; throw error; });
+  return slidesLoad;
+}
+function showSlides() {
+  const container = $('#slides-view');
+  if (!window.NorskSlides) container.innerHTML = loading('正在准备课堂 PPT…');
+  const chapter = findEntry(state.readingId)?.chapter || activeChapter();
+  prepareSlides().then(slides => { if (state.view === 'reading' && readingSlidesMode()) slides.show(container,{chapterId:str(chapter?.id),sectionId:state.readingId}); }).catch(() => {
+    if (state.view === 'reading' && readingSlidesMode()) container.innerHTML = `${empty('课堂 PPT 暂时无法载入','请检查网络后重试。')}<button class="text-button" data-action="retry-pdf">重新载入</button>`;
+  });
+}
+// In PPT mode the download button hands over the deck on screen as the teacher's original file.
+function showDeckDownload(deck) {
+  const link = $('#pdf-download');
+  link.hidden = !deck;
+  if (!deck) return;
+  link.href = safeURL(deck.file);
+  link.download = `${deck.title}.pptx`;
+  link.title = '下载原 PPT';
+  link.setAttribute('aria-label','下载原 PPT');
+}
 function applyReadMode() {
-  const text = readingTextMode();
+  const text = readingTextMode(), slides = readingSlidesMode();
   if (!text && !$('#reader-text').hidden) window.NorskReader?.hide();
+  if (!slides && !$('#slides-view').hidden) window.NorskSlides?.hide();
   document.body.classList.toggle('read-text',text);
-  $$('[data-action="read-mode"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.mode === (text ? 'text' : 'pdf'))));
+  document.body.classList.toggle('read-ppt',slides);
+  const mode = text ? 'text' : slides ? 'ppt' : 'pdf';
+  $$('[data-action="read-mode"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.mode === mode)));
   const textButton = $('[data-action="read-mode"][data-mode="text"]');
   textButton.disabled = !hasReader();
   textButton.title = hasReader() ? '逐词显示课文，跟着录音听读' : '这本书暂未提供听读课文';
-  $('#pdf-stage').hidden = text;
-  $('.page-controls').hidden = text;
-  if (text) { window.NorskNotes?.stopAnnotating(); window.NorskNotes?.pageHidden(); state.notesPage = ''; }
+  $('[data-action="read-mode"][data-mode="ppt"]').hidden = !hasSlides();
+  $('#pdf-stage').hidden = text || slides;
+  $('.page-controls').hidden = text || slides;
+  if (text || slides) { window.NorskNotes?.stopAnnotating(); window.NorskNotes?.pageHidden(); state.notesPage = ''; }
   window.NorskNotes?.placeDock();
   $('#reader-text').hidden = !text;
+  $('#slides-view').hidden = !slides;
 }
 function setReadMode(mode) {
-  state.readMode = mode === 'text' ? 'text' : 'pdf';
+  state.readMode = ['text','ppt'].includes(mode) ? mode : 'pdf';
   try { localStorage.setItem('norsk-read-mode-v1',state.readMode); } catch {}
   renderPDF();
 }
@@ -503,7 +538,8 @@ try {
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
   const savedSort = localStorage.getItem('norsk-vocab-sort-v1');
   if (['easy','hard','alpha'].includes(savedSort)) state.vocabSort = savedSort;
-  if (localStorage.getItem('norsk-read-mode-v1') === 'text') state.readMode = 'text';
+  const savedReadMode = localStorage.getItem('norsk-read-mode-v1');
+  if (['text','ppt'].includes(savedReadMode)) state.readMode = savedReadMode;
   const savedLessonRate = localStorage.getItem('norsk-lesson-rate-v1');
   if ([...$('#audio-speed').options].some(option => option.value === savedLessonRate)) $('#audio-speed').value = savedLessonRate;
 } catch {}
@@ -554,7 +590,7 @@ function switchBook(book,{keepAudio = false} = {}) {
   state.readingId = position.id;
   const current = findEntry(state.readingId);
   if (current) state.expanded.add(`${book}:${current.chapter.id}`);
-  if (state.view === 'reading') { updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); }
+  if (state.view === 'reading') { updateReadingTitle(); renderTOC(); renderPDF(); }
   saveReading();
 }
 function allChapters(book = state.book) {
@@ -786,7 +822,7 @@ async function setView(view, updateHash = true) {
     catch(error) { if (run === state.viewRun) viewError(view,error); return; }
     if (run !== state.viewRun) return;
     renderTOC();
-    if (view === 'reading') { updateReadingTitle(); renderPDF(); renderLessons(); }
+    if (view === 'reading') { updateReadingTitle(); renderPDF(); }
     if (view === 'vocabulary') renderVocabulary();
     if (view === 'basics') renderBasics();
     if (view === 'practice') {
@@ -859,7 +895,7 @@ function selectEntry(id,book = state.book) {
     if (state.book !== book) switchBook(book);
     state.readingId = str(id);
     state.page = Math.max(1,Number(found.entry.page) || 1);
-    updateReadingTitle(); renderPDF(); renderLessons(); saveReading();
+    updateReadingTitle(); renderPDF(); saveReading();
   }
   renderTOC();
   closeSidebar();
@@ -921,7 +957,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261103-gloss-review').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261103-ppt-slides').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -933,11 +969,11 @@ async function getPDF(file) {
 async function renderPDF() {
   if (state.view !== 'reading') return;
   applyReadMode();
-  if (readingTextMode()) {
+  if (readingTextMode() || readingSlidesMode()) {
     ++state.pdfRun;
     state.pdfLayoutKey = '';
     if (state.renderTask) { try { state.renderTask.cancel(); } catch {} state.renderTask = null; }
-    showReaderText();
+    if (readingTextMode()) showReaderText(); else showSlides();
     return;
   }
   const stage = $('#pdf-stage');
@@ -955,8 +991,11 @@ async function renderPDF() {
   const part = documentPart(state.page,state.book);
   if (!part) { state.pdfLayoutKey = ''; showPDFMessage('这一页的 PDF 尚未准备好','请稍后刷新页面，或选择其他章节。',true); return; }
   const download = bookDownload(state.book);
+  $('#pdf-download').hidden = false;
   $('#pdf-download').href = download?.href || safeURL(part.file);
   $('#pdf-download').download = download?.name || '';
+  $('#pdf-download').title = '下载整本 PDF';
+  $('#pdf-download').setAttribute('aria-label','下载整本 PDF');
   showPDFMessage('正在载入这一页…');
   try {
     const pdf = await getPDF(part.file);
@@ -1029,39 +1068,9 @@ function goPage(value) {
     const found = findEntry(closest.id);
     if (found) state.expanded.add(`${state.book}:${found.chapter.id}`);
   }
-  updateReadingTitle(); renderTOC(); renderPDF(); renderLessons(); saveReading();
+  updateReadingTitle(); renderTOC(); renderPDF(); saveReading();
 }
 
-// Class materials are rarely needed, so they stay out of the page until the toolbar button asks for them.
-function showLessons(shown) {
-  state.lessonsShown = shown;
-  $('#lesson-toggle').setAttribute('aria-expanded',str(shown));
-  $('#lesson-materials').hidden = !shown || state.book !== 'textbook';
-  $('#lesson-materials').open = shown;
-}
-async function renderLessons() {
-  $('#lesson-toggle').hidden = state.book !== 'textbook';
-  $('#lesson-materials').hidden = state.book !== 'textbook' || !state.lessonsShown;
-  if (state.book !== 'textbook') return;
-  if (!state.data.lessons) {
-    if (!$('#lesson-materials').open) return;
-    $('#lesson-list').innerHTML = loading('正在载入课堂资料…');
-    try { await loadData('lessons'); }
-    catch(error) {
-      console.warn('课堂资料未载入',error);
-      $('#lesson-list').innerHTML = `${empty('课堂资料暂时无法载入')}<button class="text-button" data-action="retry-lessons">重新载入</button>`;
-      return;
-    }
-  }
-  const lessons = state.data.lessons?.lessons || [];
-  const chapter = findEntry(state.readingId)?.chapter || activeChapter();
-  const matches = state.book === 'textbook' ? lessons.filter(lesson => str(lesson.chapter) === str(chapter?.id)) : [];
-  $('#lesson-count').textContent = matches.length ? `${matches.length} 份资料` : '';
-  $('#lesson-list').innerHTML = matches.length ? matches.map(lesson => {
-    const slides = lesson.slides || [];
-    return `<article class="lesson-item"><div class="lesson-item-heading"><span>${escapeHTML(lesson.title)}</span>${lesson.file ? `<a class="lesson-download" href="${escapeHTML(safeURL(lesson.file))}" download>${icon('download')}下载原 PPT</a>` : ''}</div>${slides.length ? `<details class="lesson-slide-details"><summary>查看课堂内容 · ${slides.length} 页</summary><div class="lesson-slides">${slides.map((slide,index) => `<div class="lesson-slide"><strong>${escapeHTML(slide.title || `第 ${index+1} 页`)}</strong>${escapeHTML(slide.text || '')}</div>`).join('')}</div></details>` : ''}</article>`;
-  }).join('') : '<p class="muted" style="font-size:11px;margin:0">本章没有附加课堂资料。选择其他章节可查看对应 PPT。</p>';
-}
 function vocabularySelection() {
   const chapters = state.data.vocabulary?.chapters || [];
   for (const chapter of chapters) {
@@ -1671,7 +1680,6 @@ document.addEventListener('click',event => {
       switchBook(book || vocabularyBook()); setView('reading'); goPage(Number(action.dataset.page)); break;
     case 'retry-pdf': state.ready ? renderPDF() : initialize(); break;
     case 'retry-view': setView(state.view,false); break;
-    case 'retry-lessons': renderLessons(); break;
     case 'retry-audio': loadAudioMetadata(); break;
     case 'read-mode': setReadMode(action.dataset.mode); break;
   }
@@ -1717,14 +1725,6 @@ for (const selector of ['#vocab-search','#basics-search']) {
   $(selector).addEventListener('input',scheduleSearch);
   $(selector).addEventListener('compositionend',scheduleSearch);
 }
-$('#lesson-materials').addEventListener('toggle',() => {
-  if (!$('#lesson-materials').open) { if (state.lessonsShown) showLessons(false); return; }
-  if (state.ready) renderLessons();
-});
-$('#lesson-toggle').addEventListener('click',() => {
-  showLessons(!state.lessonsShown);
-  if (state.lessonsShown) $('#lesson-materials').scrollIntoView({block:'nearest',behavior:'smooth'});
-});
 $('#audio-play').addEventListener('click',toggleAudio);
 $('#audio-speed').addEventListener('change',() => {
   audio.playbackRate = Number($('#audio-speed').value);
@@ -1764,8 +1764,13 @@ document.addEventListener('keydown',event => {
   // Esc closes only the topmost layer; the reader's own card handler sees the key as handled.
   if (event.key === 'Escape' && layers.stack.length) { event.preventDefault(); layers.stack.at(-1).close(); }
   else if (event.key === 'Escape' && document.body.classList.contains('reader-focus')) { document.body.classList.remove('reader-focus'); renderPDF(); }
-  // Arrow keys turn PDF pages, except inside the listen-and-read text where they move between words.
+  // Arrow keys turn PDF pages or slides, except inside the listen-and-read text where they move between words.
   if (state.view !== 'reading' || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName) || event.target.closest?.('#reader-text') || event.ctrlKey || event.altKey || event.metaKey) return;
+  if (readingSlidesMode()) {
+    const delta = {ArrowLeft:-1,ArrowUp:-1,ArrowRight:1,ArrowDown:1}[event.key];
+    if (delta) { event.preventDefault(); window.NorskSlides?.step(delta); }
+    return;
+  }
   if (event.key === 'ArrowLeft' && state.page > 1) { event.preventDefault(); goPage(state.page-1); }
   if (event.key === 'ArrowRight' && state.page < Number(bookData()?.pages || 1)) { event.preventDefault(); goPage(state.page+1); }
 });
