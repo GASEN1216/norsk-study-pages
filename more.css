@@ -416,3 +416,16 @@ button.ai-card:hover{border-color:#acbd97;box-shadow:0 6px 22px #2c4b2b0d}
 .mh-tool.is-notes{--tone:#9a6b2f;--tone-bg:#f6ecd8}
 @media(min-width:1201px){.mh-tools{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(min-width:721px) and (max-width:1200px){.mh-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* 动词本 sits above the shelf as one wide card with today's numbers (styles of the page itself: verbs.css). */
+.mh-feature{--tone:#9a6b1d;--tone-bg:#f7eedb;display:flex;align-items:center;gap:18px;width:100%;max-width:1000px;margin:0 0 16px;padding:18px 22px;text-align:left;border:1px solid #eadfc6;border-radius:20px;background:linear-gradient(115deg,#fbf6e8,#fffef9 62%);box-shadow:0 2px 0 #ece4cf;transition:border-color .16s,box-shadow .16s,transform .16s}
+.mh-feature:hover{border-color:#d6c08a;transform:translateY(-2px);box-shadow:0 8px 20px #6b4f1712}
+.mh-feature:focus-visible{outline:3px solid #9fb386;outline-offset:4px}
+.mh-feature .mh-tool-icon{margin:0;flex:none}
+.mh-feature .mh-tool-text{flex:1}
+.mh-feature-status{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:13px;color:#7a6a45;white-space:nowrap}
+.mh-feature-status b{font:400 22px/1 var(--serif);color:#21483e;margin:0 2px}
+.mh-feature-status small{font-size:11.5px;color:#a0937a}
+.mh-feature .mh-tool-arrow{position:static;flex:none}
+.mh-feature:hover .mh-tool-arrow{transform:translateX(3px);stroke:var(--tone)}
+@media(max-width:720px){.mh-feature{gap:13px;padding:14px 16px;border-radius:18px;margin-bottom:10px}.mh-feature .mh-tool-icon{width:46px;height:46px;border-radius:14px}.mh-feature .mh-tool-icon svg{width:24px;height:24px}.mh-feature-status{display:none}.mh-feature:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.mh-feature{transition:none}}

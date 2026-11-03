@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261103-ppt-slides';
-import {createReadingLibrary} from './reading-library.mjs?v=20261103-ppt-slides';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261103-ppt-slides';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261103-ppt-slides';
-import * as notesModel from './notes-store.mjs?v=20261103-ppt-slides';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261103-ppt-slides';
+import {createDataLoader} from './loader.mjs?v=20261103-verb-book';
+import {createReadingLibrary} from './reading-library.mjs?v=20261103-verb-book';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261103-verb-book';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261103-verb-book';
+import * as notesModel from './notes-store.mjs?v=20261103-verb-book';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261103-verb-book';
 
-const VERSION = '20261103-ppt-slides';
+const VERSION = '20261103-verb-book';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -508,7 +508,7 @@ async function prepareView(view,viewRun = state.viewRun) {
   if (view === 'more') {
     await loadFeature('more');
     if (!state.moreInitialized) {
-      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),notes:prepareNotes,stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION});
+      window.NorskMore.init({root:$('#more-view'),community:prepareCommunity,reader:prepareReader,notify,escapeHTML,icon,setTab:setMoreTab,openDuel:requestDuel,openPractice:() => setView('practice'),notes:prepareNotes,pronounce,prefetch:prefetchPronunciation,stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION});
       state.moreInitialized = true;
     }
   }
@@ -957,7 +957,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261103-ppt-slides').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261103-verb-book').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });

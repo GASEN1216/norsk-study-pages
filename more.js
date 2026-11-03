@@ -8,11 +8,12 @@
     interview:{title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
     playlist:{title:'播放列表',note:'把课文录音排成清单，锁屏也能听',meta:'随身听',icon:'<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="12" width="5" height="9" rx="2"/><rect x="17" y="12" width="5" height="9" rx="2"/>'},
     honors:{title:'荣誉',note:'赛季徽章、全勤奖章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'},
-    notes:{title:'笔记',note:'我的手写与划线，和大家分享的笔记广场',meta:'笔记广场',icon:'<path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M15 3.5V7.5h4M9 11h7M9 14.5h7M9 18h4"/>'}
+    notes:{title:'笔记',note:'我的手写与划线，和大家分享的笔记广场',meta:'笔记广场',icon:'<path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M15 3.5V7.5h4M9 11h7M9 14.5h7M9 18h4"/>'},
+    verbs:{title:'动词本',note:'课本和课件里的全部动词，四种形态练到会',feature:true,icon:'<path d="M4 6.5h16M4 12h11M4 17.5h7"/><path d="m16.5 15 3 2.5-3 2.5"/>'}
   };
   const DAYS = ['一','二','三','四','五','六','日'];
   const RANKS = {1:'金杯',2:'银杯',3:'铜杯'};
-  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,makeupBusy:false,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,renderRun:0};
+  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,makeupBusy:false,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,verbs:null,verbsLoading:null,renderRun:0};
   const $ = (selector,root = document) => root.querySelector(selector);
   const e = value => state.deps.escapeHTML ? state.deps.escapeHTML(value) : String(value ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const art = name => `assets/honors/${name}.webp`;
@@ -76,9 +77,31 @@
     if (slot) slot.innerHTML = weekMarkup();
   }
   function hubMarkup() {
-    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">面试练习、随身听、读书笔记和这一季的荣誉，都在这里。</p></header>
-      <div class="mh-tools">${Object.entries(TOOLS).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
+    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">动词本、面试练习、随身听、读书笔记和这一季的荣誉，都在这里。</p></header>
+      ${featureMarkup()}<div class="mh-tools">${Object.entries(TOOLS).filter(([,tool]) => !tool.feature).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
       <div id="mh-hub-week">${weekMarkup()}</div></div>`;
+  }
+  // The verb book is a daily habit, so it sits above the shelf with today's numbers instead of in it.
+  function featureMarkup() {
+    const tool = TOOLS.verbs;
+    return `<button type="button" class="mh-feature is-verbs" data-more="tab" data-tab="verbs"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-feature-status" id="mh-verbs-status">${verbsStatus()}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`;
+  }
+  function verbsStatus() {
+    const summary = state.verbsModule?.shelfSummary?.();
+    if (!summary) return '';
+    if (!summary.started) return '从第 1 章开始';
+    return `<span>${summary.due ? `今天复习 <b>${summary.due}</b> 个` : '今天的复习已完成'}</span><small>已掌握 ${summary.mastered}</small>`;
+  }
+  function ensureVerbs() {
+    if (state.verbs) return Promise.resolve(state.verbs);
+    if (!state.verbsLoading) {
+      state.verbsLoading = import(`./verbs.mjs${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`).then(module => {
+        state.verbsModule = module;
+        state.verbs = module.createVerbs({version:state.deps.version,escapeHTML:state.deps.escapeHTML,icon:state.deps.icon,notify:state.deps.notify,pronounce:state.deps.pronounce,prefetch:state.deps.prefetch,stopAudio:() => state.deps.stopAudio?.()});
+        return state.verbs;
+      }).catch(error => { state.verbsLoading = null; throw error; });
+    }
+    return state.verbsLoading;
   }
   function backBar() {
     return `<div class="mh-tool-bar"><button type="button" class="mh-back" data-more="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>更多</span></button></div>`;
@@ -254,8 +277,19 @@
     if (!state.root || !state.visible) return;
     const run = ++state.renderRun;
     if (state.tab !== 'interview') state.interview?.unmount();
+    if (state.tab !== 'verbs') state.verbs?.unmount();
     if (state.tab === 'home') {
       state.root.innerHTML = hubMarkup();
+      ensureVerbs().then(() => { const slot = document.getElementById?.('mh-verbs-status'); if (slot && run === state.renderRun) slot.innerHTML = verbsStatus(); }).catch(() => {});
+      return;
+    }
+    if (state.tab === 'verbs') {
+      // The verb book draws its own way back: 更多 on its pages, 结束 inside a practice round.
+      state.root.innerHTML = `<div class="mh-app"><div class="mh-verbs"></div></div>`;
+      ensureVerbs().then(verbs => { const slot = $('.mh-verbs',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'verbs') return verbs.mount(slot); }).catch(() => {
+        const slot = $('.mh-verbs',state.root);
+        if (run === state.renderRun && slot && state.visible && state.tab === 'verbs') slot.innerHTML = '<div class="mh-offline"><p>动词本暂时无法载入，请检查网络后重试。</p></div>';
+      });
       return;
     }
     if (state.tab === 'interview') {
@@ -424,8 +458,8 @@
     if (next === 'honors' || next === 'home') load();
     if (focus) state.root?.querySelector(focus)?.focus({preventScroll:true});
   }
-  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.dialog?.close?.(); window.NorskNotes?.hideOverview?.(); }
-  function stopAudio() { state.interview?.stopAudio(); }
+  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.verbs?.unmount(); state.dialog?.close?.(); window.NorskNotes?.hideOverview?.(); }
+  function stopAudio() { state.interview?.stopAudio(); state.verbs?.stopAudio(); }
 
   window.NorskMore = {init,show,hide,reveal,stopAudio};
   window.dispatchEvent(new Event('norskmoreready'));
