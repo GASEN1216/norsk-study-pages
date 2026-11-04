@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261104-verb-audio';
-import {createReadingLibrary} from './reading-library.mjs?v=20261104-verb-audio';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261104-verb-audio';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261104-verb-audio';
-import * as notesModel from './notes-store.mjs?v=20261104-verb-audio';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261104-verb-audio';
+import {createDataLoader} from './loader.mjs?v=20261104-reader-timing';
+import {createReadingLibrary} from './reading-library.mjs?v=20261104-reader-timing';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261104-reader-timing';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261104-reader-timing';
+import * as notesModel from './notes-store.mjs?v=20261104-reader-timing';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261104-reader-timing';
 
-const VERSION = '20261104-verb-audio';
+const VERSION = '20261104-reader-timing';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -957,7 +957,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261104-verb-audio').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261104-reader-timing').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
