@@ -416,7 +416,7 @@
   }
   function shell(content) {
     clearFeedbackVisual();
-    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog>`;
+    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog>`;
     $('#pr-confirm').addEventListener('cancel',event => { event.preventDefault(); state.pending = null; $('#pr-confirm').close(); if (state.screen === 'session') resume(); });
     syncBackLayer();
   }
@@ -447,10 +447,10 @@
     // Continuing an unfinished session reads its current word, so load it already.
     if (active && active.phase !== 'review-intro') prefetchAhead(active);
   }
-  // One quiet bar between the modes and the records: this week's challenge, today's quests, and the multiplayer game.
+  // One quiet bar between the modes and the records: this week's challenge, today's quests, and the door to the games played together.
   function goalsMarkup() {
     const h = state.honors;
-    const duel = `<button type="button" class="pr-goal is-duel" data-practice-action="duel"><span class="pr-goal-label">联机翻翻乐</span><span class="pr-goal-sub">和同学抢翻词对</span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`;
+    const duel = `<button type="button" class="pr-goal is-duel" data-practice-action="online" aria-haspopup="dialog" aria-controls="pr-online"><span class="pr-goal-label">联机游戏</span><span class="pr-goal-sub">${ONLINE_GAMES.map(game => game.short).join(' · ')}</span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`;
     if (!h?.week?.challenge) return duel;
     const c = h.week.challenge, number = String(h.week.n).padStart(2,'0');
     const quests = h.today?.quests || [];
@@ -458,6 +458,19 @@
     const value = c.done ? 100 : c.target ? Math.max(0,Math.min(100,Math.round(c.progress/c.target*100))) : 0;
     return `<button type="button" class="pr-goal is-week${c.done ? ' is-done' : ''}" data-practice-action="honors" aria-label="本周挑战：${e(c.title || '')}，${c.done ? '已完成' : `${Math.min(c.progress,c.target)} / ${c.target}`}"><img class="pr-goal-badge" src="assets/honors/week-${number}.webp" alt="" loading="lazy" decoding="async"><span class="pr-goal-label">本周挑战 <span lang="nb">${e(c.theme || '')}</span></span><span class="pr-goal-sub">${e(c.title || '')}</span><span class="pr-goal-meter"><i style="width:${value}%"></i></span><b class="pr-goal-count">${c.done ? '完成' : `${Math.min(c.progress,c.target)}/${c.target}`}</b></button>
       <button type="button" class="pr-goal is-quests" data-practice-action="honors" title="${e(quests.map(quest => `${quest.done ? '✓' : '·'} ${quest.title}`).join('；'))}" aria-label="今日任务，完成 ${done} / ${quests.length}"><span class="pr-goal-label">今日任务</span><span class="pr-goal-dots" aria-hidden="true">${quests.map(quest => `<i class="${quest.done ? 'is-done' : ''}"></i>`).join('')}</span><b class="pr-goal-count">${done}/${quests.length}</b></button>${duel}`;
+  }
+  // 联机游戏: one door for every game played with classmates. Each card opens its own game; new games join this list.
+  const ONLINE_GAMES = [
+    {action:'duel',title:'联机翻翻乐',short:'翻翻乐',note:'和同学抢翻词对，挪威语配中文',meta:'开房间 · 加入房间'},
+    {action:'chase',title:'警察抓小偷',short:'警察抓小偷',note:'打课文比速度，警察追、小偷逃',meta:'人机对战 · 开房间 · 加入房间'},
+  ];
+  function openOnline() {
+    const dialog = $('#pr-online');
+    if (!dialog) return;
+    const art = name => `assets/online/${name}.webp${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><h2 id="pr-online-title" tabindex="-1">联机游戏</h2>${iconButton('online-close','close','关闭')}</div><div class="pr-online-games">${ONLINE_GAMES.map(game => `<button type="button" class="pr-online-game is-${game.action}" data-practice-action="${game.action}"><img class="pr-online-art" src="${e(art(game.action))}" alt="" decoding="async" draggable="false"><span class="pr-online-text"><strong>${game.title}</strong><span>${game.note}</span><small>${game.meta}</small></span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div><p class="pr-online-note">更多联机游戏会陆续加到这里。</p>`;
+    if (!dialog.open) dialog.showModal?.();
+    $('#pr-online-title')?.focus?.();
   }
   function updateGoals() {
     const slot = state.visible && state.screen === 'setup' ? $('#pr-goals') : null;
@@ -1201,7 +1214,7 @@
   function onClick(event) {
     const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
     if (requested === 'takeover') { acquireEditor(true); return; }
-    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','series','wordbook-open','scope-tab'].includes(requested)) { requireEditor(); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','series','wordbook-open','scope-tab'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
     if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { state.activity=modeTarget.dataset.prActivity; state.scopeQuery=''; if (state.selected.size) state.scopeTab=scopeTabFor(state.selected); draft(); renderScope(); return; }
@@ -1212,7 +1225,10 @@
     const id = target.dataset.prId;
     switch (action) {
       case 'setup': navigate('setup'); break;
-      case 'duel': state.deps.openDuel?.(); break;
+      case 'online': openOnline(); break;
+      case 'online-close': $('#pr-online')?.close(); break;
+      case 'duel': $('#pr-online')?.close(); state.deps.openDuel?.(); break;
+      case 'chase': $('#pr-online')?.close(); state.deps.openChase?.(); break;
       case 'honors': state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
@@ -1509,6 +1525,8 @@
   function hide() {
     state.visible=false;
     syncBackLayer();
+    // The 联机游戏 sheet does not stay open over another view.
+    if ($('#pr-online')?.open) $('#pr-online').close();
     if (state.prepareTimer != null) clearTimeout(state.prepareTimer);
     state.prepareTimer=null;
     if (currentSession()) pause(); else stopAudio();
