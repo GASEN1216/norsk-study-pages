@@ -532,7 +532,8 @@ export function createVerbs(deps = {}) {
       }).join('')}${reveal ? '' : `<div class="vb-answer-actions">${letterKeys()}<button type="button" class="vb-quiet" data-verbs="unknown">不会</button><button type="submit" class="vb-primary">检查</button></div>`}</form>`;
     } else {
       const parts = formParts(verb[card.slot],card.slot);
-      const sentence = card.example && card.type !== 'recall' ? `<p class="vb-sentence" lang="nb">${reveal ? highlight(card.example) : highlight(card.example,{blank:true})}</p>${card.example.zh ? `<p class="vb-sentence-zh">${e(card.example.zh)}</p>` : ''}` : '';
+      // The sentence can be heard only once it is answered; before that its audio would give the form away.
+      const sentence = card.example && card.type !== 'recall' ? `<p class="vb-sentence" lang="nb">${reveal ? `${highlight(card.example)}${speak(card.example.audio,card.example.text)}` : highlight(card.example,{blank:true})}</p>${card.example.zh ? `<p class="vb-sentence-zh">${e(card.example.zh)}</p>` : ''}` : '';
       if (card.type === 'choose') {
         body = `${cue(verb)}${sentence}<div class="vb-choices" role="group" aria-label="选择正确的形态">${card.options.map(option => {
           const chosen = reveal && normalize(reveal.given) === normalize(option), right = reveal && normalize(option) === normalize(parts.core);
@@ -541,7 +542,7 @@ export function createVerbs(deps = {}) {
       } else {
         const label = `写出${LABEL[card.slot]}`;
         const field = input('vb-answer',label,card.type === 'recall' ? parts : {prefix:'',suffix:''},reveal ? reveal.given : '',reveal ? (reveal.ok ? 'right' : 'wrong') : '');
-        body = `${cue(verb)}${card.type === 'recall' ? `<p class="vb-ask">${LABEL[card.slot]}是？</p>` : sentence}<form class="vb-answer-form" data-verbs="answer-form">${field}${reveal ? '' : `<div class="vb-answer-actions">${letterKeys()}<button type="button" class="vb-quiet" data-verbs="unknown">不会</button><button type="submit" class="vb-primary">检查</button></div>`}</form>${reveal && card.type === 'recall' && card.example ? `<p class="vb-sentence is-after" lang="nb">${highlight(card.example)}</p>${card.example.zh ? `<p class="vb-sentence-zh">${e(card.example.zh)}</p>` : ''}` : ''}`;
+        body = `${cue(verb)}${card.type === 'recall' ? `<p class="vb-ask">${LABEL[card.slot]}是？</p>` : sentence}<form class="vb-answer-form" data-verbs="answer-form">${field}${reveal ? '' : `<div class="vb-answer-actions">${letterKeys()}<button type="button" class="vb-quiet" data-verbs="unknown">不会</button><button type="submit" class="vb-primary">检查</button></div>`}</form>${reveal && card.type === 'recall' && card.example ? `<p class="vb-sentence is-after" lang="nb">${highlight(card.example)}${speak(card.example.audio,card.example.text)}</p>${card.example.zh ? `<p class="vb-sentence-zh">${e(card.example.zh)}</p>` : ''}` : ''}`;
       }
     }
     let feedback = '';
@@ -568,6 +569,8 @@ export function createVerbs(deps = {}) {
     const upcoming = [session.current,...session.queue.slice(0,3)].filter(Boolean).map(card => byId.get(card.verb));
     const items = [];
     for (const verb of upcoming) for (const slot of SLOTS) if (verb.audio?.[slot]) items.push({word:verb[slot],audio:verb.audio[slot]});
+    const example = session.current?.example;
+    if (example?.audio) items.push({word:example.text,audio:example.audio});
     deps.prefetch?.(items);
   }
   function renderResult() {
