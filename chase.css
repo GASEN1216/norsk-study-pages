@@ -174,6 +174,12 @@ body.pc-open{overflow:hidden}
 @keyframes pc-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .pc-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 4px 20px}
 .pc-sheet-head h3{font:500 19px/1.3 var(--serif,Georgia,serif)}
+.pc-kinds{display:flex;gap:22px}
+.pc-kinds button{position:relative;padding:6px 0;border:0;background:transparent;color:var(--pc-grey);font:500 19px/1.3 var(--serif,Georgia,serif);transition:color .25s ease-out}
+.pc-kinds button::after{content:"";position:absolute;left:0;right:0;bottom:1px;height:2px;border-radius:2px;background:var(--pc-gold);transform:scaleX(0);transition:transform .3s var(--pc-ease)}
+.pc-kinds button[aria-selected="true"]{color:var(--pc-ink)}
+.pc-kinds button[aria-selected="true"]::after{transform:scaleX(1)}
+.pc-picker-empty{margin:28px auto;max-width:22em;color:var(--pc-muted);font-size:14px;line-height:1.7;text-align:center}
 .pc-books{display:flex;gap:4px;margin:4px 16px 8px;padding:4px;border-radius:14px;background:var(--pc-soft)}
 .pc-books button{flex:1 1 auto;min-width:0;min-height:40px;padding:4px 6px;border:0;border-radius:10px;background:transparent;color:var(--pc-muted);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pc-books button[aria-selected="true"]{background:var(--pc-card);color:var(--pc-green);box-shadow:0 1px 4px #20382d1a}
@@ -322,6 +328,16 @@ body.pc-open{overflow:hidden}
 .pc-stage.is-short .pc-minimap{display:none}
 .pc-stage.is-short .pc-count{font-size:52px}
 .pc-stage .pc-minimap{position:absolute;inset:auto auto 12px 12px;width:132px;height:96px;border:1px solid #eadfc6cc;border-radius:16px;background:#fffaf0b8;box-shadow:0 10px 24px -18px #4a3612;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);pointer-events:none}
+/* The song now playing, named for a moment in the picture's top corner when it starts. */
+.pc-song{position:absolute;right:12px;top:12px;display:flex;align-items:center;gap:9px;max-width:min(62%,300px);margin:0;padding:6px 14px 6px 10px;border:1px solid #eadfc6cc;border-radius:99px;background:#fffaf0d9;box-shadow:0 10px 24px -18px #4a3612;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:var(--pc-ink);pointer-events:none;animation:pc-song-in .7s var(--pc-ease) both}
+.pc-song .pc-icon{flex:none;width:18px;height:18px;color:var(--pc-gold)}
+.pc-song span{display:grid;min-width:0;line-height:1.25}
+.pc-song b,.pc-song small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-song b{font:italic 600 14px/1.3 var(--serif,Georgia,serif)}
+.pc-song small{color:var(--pc-muted);font-size:11px}
+.pc-song.is-gone{animation:pc-song-out .9s ease-out both}
+@keyframes pc-song-in{from{opacity:0;translate:0 -6px}to{opacity:1;translate:0 0}}
+@keyframes pc-song-out{from{opacity:1}to{opacity:0}}
 .pc-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--pc-muted);font-size:14px}
 /* In a room the map is drawn while the others still load it: a small note over it says how many are there. */
 .pc-loading.is-wait{inset:auto;left:50%;top:50%;margin:0;padding:7px 16px;border:1px solid var(--pc-warm-line);border-radius:99px;background:#fffdf6eb;box-shadow:0 12px 26px -18px #4a3612;color:var(--pc-green);font-size:14px;letter-spacing:.02em;white-space:nowrap;transform:translate(-50%,-50%);pointer-events:none}
@@ -419,6 +435,9 @@ body.pc-open{overflow:hidden}
   .pc-plan-label{font-size:10.5px;padding:1px 6px 2px;border-radius:8px}
   .pc-plan-label span{font-size:8.5px}
   .pc-credit{right:6px;bottom:4px;max-width:58%;font-size:9.5px}
+  .pc-song{right:8px;top:8px;gap:7px;padding:4px 11px 4px 8px}
+  .pc-song b{font-size:12.5px}
+  .pc-song small{font-size:10px}
   .pc-bubble{font-size:13.5px;padding:2px 10px 3px}
   .pc-bubble.is-me{font-size:15px}
 }

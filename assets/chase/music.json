@@ -1,0 +1,46 @@
+{
+ "tracks": [
+  {
+   "file": "assets/chase/music/all-for-one.mp3",
+   "title": "All for One",
+   "artist": "Silje Schøll",
+   "duration": 216.259,
+   "sourceSha256": "18f12deb869e13629874c2e8116a293ddff079bad5357ea2d05776a526944707"
+  },
+  {
+   "file": "assets/chase/music/vi-er-buk.mp3",
+   "title": "Vi er BUK",
+   "artist": "Simen Andresen",
+   "duration": 175.142,
+   "sourceSha256": "60fc8e2235ab11eb98ceb812645dd68f56312fdb86fe49e13214287048f11f75"
+  },
+  {
+   "file": "assets/chase/music/si-mu-nye.mp3",
+   "title": "Si-mu-nye – We Are One!",
+   "artist": "Lydie Bell, Oliver Touoyim, Gloria Zalimba",
+   "duration": 212.308,
+   "sourceSha256": "11166540e911ba4cddee232410dfc073fc5e4f005559998fc83d18485f83a650"
+  },
+  {
+   "file": "assets/chase/music/we-run.mp3",
+   "title": "We Run",
+   "artist": "Michelle Bertelsen",
+   "duration": 258.21,
+   "sourceSha256": "3113835b4efd83e679c8fba5bc761316702a9413533f36da5fc537ddcb5fb526"
+  },
+  {
+   "file": "assets/chase/music/we-sing-buk.mp3",
+   "title": "We Sing BUK",
+   "artist": "Sandra Renee Fuglset",
+   "duration": 211.928,
+   "sourceSha256": "f767efa1f0a15b6ae685ee5fde43ff875d9d32117d6c1173a31bfa2e77cb7936"
+  },
+  {
+   "file": "assets/chase/music/living-faith.mp3",
+   "title": "Living Faith",
+   "artist": "Holly van Stralen",
+   "duration": 195.078,
+   "sourceSha256": "0106b56f43714d2374e26929d8e7eabadc7114e8b3617cfd56e6e2192f29f325"
+  }
+ ]
+}

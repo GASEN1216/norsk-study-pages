@@ -118,6 +118,30 @@
     text.words.sort((a,b) => a.letterEnd-b.letterEnd);
     return text;
   }
+  // A word range as typing material: one entry per line with its meaning under it, in an order drawn from the seed
+  // (the same seed gives the same order on every device in a room). Each entry sounds as a whole once typed.
+  function buildWordList(list,seed,clipFor) {
+    const items = list.filter(item => TYPEABLE.test(item.no));
+    const sentences = seededOrder(seed,items.length).map(index => {
+      const item = items[index], text = String(item.no).normalize('NFC'), clip = item.clip || (clipFor ? clipFor(text,'') || '' : '');
+      return {text,zh:String(item.zh || ''),speaker:'',section:'words',audio:clip,from:0,to:clip ? 30 : 0,
+        words:[{start:0,end:text.length,text,key:'',clip}]};
+    });
+    return {id:'words',title:'',sentences};
+  }
+  function seededOrder(seed,count) {
+    let h = 2166136261;
+    for (const char of String(seed)) h = Math.imul(h ^ char.codePointAt(0),16777619);
+    const random = () => {
+      h = (h+0x6D2B79F5) | 0;
+      let t = Math.imul(h ^ (h >>> 15),1 | h);
+      t = (t+Math.imul(t ^ (t >>> 7),61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0)/4294967296;
+    };
+    const order = [...Array(count).keys()];
+    for (let i = count-1; i > 0; i--) { const j = Math.floor(random()*(i+1)); [order[i],order[j]] = [order[j],order[i]]; }
+    return order;
+  }
   // Letters per minute over the last few seconds; early in a game the window is the time played so far.
   function rateAt(times,now,started) {
     let count = 0;
@@ -360,6 +384,8 @@
     play:'<path d="M8 5.5v13l10.5-6.5z"/>',
     sound:'<path d="M11 5 6.5 9H3.5v6h3l4.5 4z"/><path d="M15.5 8.8a4.6 4.6 0 0 1 0 6.4M18.3 6a8.6 8.6 0 0 1 0 12"/>',
     mute:'<path d="M11 5 6.5 9H3.5v6h3l4.5 4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>',
+    music:'<path d="M9 17.5V6l10-2.2v11.7"/><circle cx="6.6" cy="17.6" r="2.4"/><circle cx="16.6" cy="15.6" r="2.4"/>',
+    'music-off':'<path d="M9 17.5V6l10-2.2v11.7"/><circle cx="6.6" cy="17.6" r="2.4"/><circle cx="16.6" cy="15.6" r="2.4"/><path d="M3.5 3.5l17 17"/>',
     follow:'<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3v2.5M12 18.5V21M3 12h-.5M21.5 12H21"/>',
     still:'<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M7 15.5c2-3 3.5-4.5 5-4.5s3 1.5 5 4.5"/>',
     book:'<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v14H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H18v-3"/>',
@@ -391,10 +417,14 @@
   function readPrefs() {
     const saved = readJSON(PREFS_KEY,{}) || {};
     return {side:saved.side === 'thief' ? 'thief' : 'police',section:typeof saved.section === 'string' ? saved.section : '1.1',
+      // Typing material: a 听读 section, or a word range from 练习 (its token and the name it had when picked).
+      text:saved.text === 'words' && typeof saved.words === 'string' && saved.words ? 'words' : 'section',
+      words:typeof saved.words === 'string' ? saved.words : '',wordsTitle:typeof saved.wordsTitle === 'string' ? saved.wordsTitle.slice(0,60) : '',
       opponents:[1,2,3].includes(saved.opponents) ? saved.opponents : 1,teammates:[0,1,2].includes(saved.teammates) ? saved.teammates : 0,
       level:LEVELS[saved.level] ? saved.level : 'match',end:ENDS[saved.end] ? saved.end : 'catch',minutes:MINUTES.includes(saved.minutes) ? saved.minutes : 3,
       // Someone who asked their device for less motion starts in the wide view (they can still switch).
-      sound:saved.sound !== false,camera:saved.camera === 'still' || (saved.camera == null && reduceMotion()) ? 'still' : 'follow',map:mapOf(saved.map).id};
+      // Background music starts out as the sound does (someone who silenced the game before keeps it silent).
+      sound:saved.sound !== false,music:saved.music == null ? saved.sound !== false : saved.music !== false,camera:saved.camera === 'still' || (saved.camera == null && reduceMotion()) ? 'still' : 'follow',map:mapOf(saved.map).id};
   }
   const savePrefs = () => writeJSON(PREFS_KEY,ui.prefs);
   const readRecords = () => { const list = readJSON(RECORDS_KEY,[]); return Array.isArray(list) ? list.filter(item => item && typeof item === 'object') : []; };
@@ -454,6 +484,37 @@
     if (at >= 0 && at < list.length-1) return list[at+1].id;
     return list.find(section => section.chapter === list[at]?.chapter)?.id || list[0]?.id || id;
   }
+
+  // Word ranges come from 练习 (its current textbook, the basics and my wordbook), as 联机翻翻乐 uses them.
+  const WORD_GROUPS = [{id:'textbook',name:'课本单词',groups:['chapter','section']},{id:'basics',name:'基础常识',groups:['basics']},{id:'mine',name:'我的词本',groups:['wordbook','mine']}];
+  const ROOM_WORDS = 120, ROOM_WORD_BYTES = 14000;
+  function wordSources() { try { const list = ui.opts.sources?.(); return Array.isArray(list) ? list : []; } catch { return []; } }
+  const wordGroupOf = source => WORD_GROUPS.find(group => group.groups.includes(source?.group)) || WORD_GROUPS[0];
+  const wordRangeName = source => `${wordGroupOf(source).name} · ${source.label}`.slice(0,60);
+  // The words of a range, once each, with the first sense of their meaning. A room gets at most ROOM_WORDS of them,
+  // drawn at random, so the list sent to everyone stays small.
+  function wordList(token,room=false) {
+    const source = wordSources().find(item => item.token === token);
+    if (!source) return null;
+    const seen = new Set(), list = [];
+    for (const word of source.words || []) {
+      const no = String(word?.word || '').normalize('NFC').trim(), key = no.toLocaleLowerCase('nb');
+      if (!no || no.length > 40 || !TYPEABLE.test(no) || seen.has(key)) continue;
+      seen.add(key);
+      list.push({no,zh:String(word.meaning || '').split(/[；;]/)[0].trim().slice(0,40)});
+    }
+    if (!room) return list.length ? {title:wordRangeName(source),list} : null;
+    const picked = [];
+    let bytes = 0;
+    for (const index of seededOrder(Math.random(),list.length)) {
+      const item = list[index], size = new TextEncoder().encode(JSON.stringify(item)).length+1;
+      if (picked.length >= ROOM_WORDS || bytes+size > ROOM_WORD_BYTES) break;
+      picked.push(item);
+      bytes += size;
+    }
+    return picked.length ? {title:wordRangeName(source),list:picked} : null;
+  }
+  const textName = (p = ui.prefs) => p.text === 'words' ? (p.wordsTitle ? `词语 · ${p.wordsTitle}` : '选择词语') : sectionName(p.section);
 
   /* ---------- Sound ---------- */
   // A few quiet synthesised cues; word readings go through the site's own player.
@@ -526,6 +587,136 @@
   function wakeSfx() {
     const context = ui.sfx.context;
     if (ui.prefs?.sound && (!context || context.state !== 'running')) sfxContext();
+    wakeMusic();
+  }
+
+  /* ---------- Music ---------- */
+  // The songs play quietly under the game in a shuffled order, with a short pause between two. The order comes from a
+  // seed and the place in it from the game clock, so in a room (seeded by the game's id, timed on the server's clock)
+  // everyone hears the same song at the same moment, and someone arriving late or coming back joins it where it is.
+  const MUSIC_LEVEL = .3, MUSIC_GAP = 2, MUSIC_FADE = 1.2;
+  function loadMusic() {
+    ui.musicLoad ||= fetchJSON('assets/chase/music.json')
+      .then(data => (ui.musicTracks = (Array.isArray(data?.tracks) ? data.tracks : []).filter(track => track?.file && track.duration > 0)))
+      .catch(() => { ui.musicLoad = null; return []; });
+    return ui.musicLoad;
+  }
+  // The song and the second in it at game time t (seconds); null in the pause between two songs.
+  function musicAt(tracks,order,t) {
+    const round = order.reduce((sum,index) => sum+tracks[index].duration+MUSIC_GAP,0);
+    let at = ((t % round)+round) % round;
+    for (const index of order) {
+      const track = tracks[index];
+      if (at < track.duration) return {track,offset:at};
+      at -= track.duration+MUSIC_GAP;
+      if (at < 0) return null;
+    }
+    return null;
+  }
+  // One audio element per visit. With Web Audio it plays through a gain node: iPhones and iPads ignore an element's
+  // volume, and the songs must stay well under the word readings.
+  function musicPlayer() {
+    if (ui.music) return ui.music;
+    const audio = new Audio();
+    audio.preload = 'auto';
+    const player = ui.music = {audio,context:null,gain:null,level:0,file:'',timer:0,blocked:false,pending:false,seek:false};
+    try {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      context.createMediaElementSource(audio).connect(gain).connect(context.destination);
+      Object.assign(player,{context,gain});
+    } catch { audio.volume = 0; }
+    audio.addEventListener('loadedmetadata',() => { player.seek = true; musicTick(); });
+    return player;
+  }
+  function setMusicLevel(player,level) {
+    player.level = level;
+    if (player.gain) player.gain.gain.value = level; else player.audio.volume = level;
+  }
+  // A game gets its order once the list is here; the player then follows the game clock until the game is gone.
+  function prepareMusic(game,seed) {
+    void loadMusic().then(tracks => {
+      if (ui.game !== game || !tracks.length) return;
+      game.music = seededOrder(seed,tracks.length);
+      const player = musicPlayer();
+      player.timer ||= setInterval(musicTick,120);
+      musicTick();
+    });
+  }
+  function musicTick() {
+    const player = ui.music;
+    if (!player) return;
+    const {audio} = player, game = ui.game, tracks = ui.musicTracks || [];
+    const live = Boolean(ui.prefs?.music && game?.music && game.status === 'playing' && !game.paused && !game.over && !document.hidden);
+    const spot = live ? musicAt(tracks,game.music,gameNow(game)/1000) : null;
+    const now = performance.now(), dt = Math.min(.25,(now-(player.stamp || now))/1000);
+    player.stamp = now;
+    if (spot) {
+      const url = new URL(versioned(spot.track.file),location.href).href;
+      if (player.file !== url) {
+        // A new song comes in from silence (heard from its first note when it is just beginning).
+        Object.assign(player,{file:url,track:spot.track,seek:false,shown:false});
+        setMusicLevel(player,0);
+        audio.src = url;
+      } else if (audio.readyState >= 1) {
+        const drift = audio.currentTime-spot.offset;
+        if (player.seek || Math.abs(drift) > 1.5) {
+          player.seek = false;
+          if (Math.abs(drift) > .05) { try { audio.currentTime = spot.offset; } catch {} }
+          audio.playbackRate = 1;
+        } else if (game.room) {
+          // In a room a small drift is taken back by playing a touch faster or slower, which nobody hears.
+          audio.playbackRate = Math.abs(drift) < .03 ? 1 : 1-Math.max(-.04,Math.min(.04,drift/5));
+        }
+        if (audio.paused && !audio.ended && !player.blocked && !player.pending) {
+          player.pending = true;
+          if (player.context?.state === 'suspended') Promise.resolve(player.context.resume()).catch(() => {});
+          // Safari starts sound only from a tap or a key; then the next one starts it (see wakeMusic).
+          audio.play().then(() => { if (!player.shown && ui.music === player) { player.shown = true; songCaption(player.track); } })
+            .catch(() => { player.blocked = true; }).finally(() => { player.pending = false; });
+        }
+      }
+    }
+    const playing = Boolean(spot && !audio.paused && !audio.seeking);
+    const target = playing && player.context?.state !== 'suspended' ? MUSIC_LEVEL : 0;
+    const step = MUSIC_LEVEL*dt/MUSIC_FADE;
+    const level = playing && spot.offset < .6 ? target : player.level+Math.max(-step,Math.min(step,target-player.level));
+    if (level !== player.level) setMusicLevel(player,level);
+    if (!spot && player.level <= 0) {
+      if (!audio.paused) audio.pause();
+      if (!ui.game) { clearInterval(player.timer); player.timer = 0; }
+    }
+  }
+  function wakeMusic() {
+    const player = ui.music;
+    if (!player || !ui.prefs?.music) return;
+    if (player.context?.state === 'suspended') Promise.resolve(player.context.resume()).catch(() => {});
+    if (player.blocked) { player.blocked = false; musicTick(); }
+  }
+  function pauseMusic() {
+    const player = ui.music;
+    if (!player) return;
+    try { player.audio.pause(); } catch {}
+    setMusicLevel(player,0);
+  }
+  function stopMusic() {
+    const player = ui.music;
+    if (!player) return;
+    ui.music = null;
+    clearInterval(player.timer);
+    try { player.audio.pause(); player.audio.removeAttribute('src'); player.audio.load(); } catch {}
+    if (player.context) { try { Promise.resolve(player.context.close()).catch(() => {}); } catch {} }
+  }
+  // The song's name comes up for a moment in the corner of the picture when it starts.
+  function songCaption(track) {
+    const stage = $('#pc-stage');
+    if (!stage || !track) return;
+    stage.querySelector('.pc-song')?.remove();
+    stage.insertAdjacentHTML('beforeend',`<p class="pc-song" aria-hidden="true">${icon('music')}<span><b>${e(track.title)}</b><small>${e(track.artist)}</small></span></p>`);
+    const caption = stage.querySelector('.pc-song');
+    later(() => caption.classList.add('is-gone'),5200);
+    later(() => caption.remove(),6200);
   }
 
   /* ---------- Open, close, navigation ---------- */
@@ -552,7 +743,7 @@
     window.visualViewport?.addEventListener('resize',ui.onResize);
     window.visualViewport?.addEventListener('scroll',fitViewport);
     window.addEventListener('popstate',ui.onPopState);
-    window.addEventListener('pagehide',releaseSfx);
+    window.addEventListener('pagehide',ui.onPageHide = () => { releaseSfx(); pauseMusic(); });
     try { history.pushState({...(history.state && typeof history.state === 'object' ? history.state : {}),norskChase:ui.historyToken},'',location.href); } catch {}
     document.body.append(root);
     document.body.classList.add('pc-open');
@@ -583,6 +774,7 @@
     stopGame();
     stopSlice();
     releaseSfx();
+    stopMusic();
     for (const id of ui.timers) clearTimeout(id);
     ui.timers.clear();
     for (const [type,handler] of Object.entries(ui.handlers || {})) ui.root?.removeEventListener(type,handler);
@@ -596,7 +788,7 @@
     window.visualViewport?.removeEventListener('resize',ui.onResize);
     window.visualViewport?.removeEventListener('scroll',fitViewport);
     window.removeEventListener('popstate',ui.onPopState);
-    window.removeEventListener('pagehide',releaseSfx);
+    window.removeEventListener('pagehide',ui.onPageHide);
     ui.root?.remove();
     document.body.classList.remove('pc-open');
     ui.open = false;
@@ -689,6 +881,7 @@
     if (ui.room && !document.hidden) schedulePoll(0);
     if (document.hidden) {
       releaseSfx();
+      pauseMusic();
       pauseGame();
     } else if (isHeld(ui.game) && !ui.confirming) {
       resumeGame();
@@ -762,7 +955,7 @@
       <section class="pc-panel pc-setup">
         <div class="pc-field"><span class="pc-label">地图 · 在 Brunstad 平面图上点选赛道</span>${planMarkup()}</div>
         <div class="pc-field"><span class="pc-label">你当</span><div class="pc-sides" role="radiogroup" aria-label="身份">${sideTile('police')}${sideTile('thief')}</div></div>
-        <div class="pc-field"><span class="pc-label">课文</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(sectionName(p.section))}</span>${icon('down')}</button></div>
+        <div class="pc-field"><span class="pc-label">打字内容</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName(p))}</span>${icon('down')}</button></div>
         <div class="pc-field"><span class="pc-label">电脑对手</span><div class="pc-segment" role="radiogroup" aria-label="电脑对手">${[1,2,3].map(n => option('opponents',n,`${n} 名`,p.opponents)).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">电脑队友</span><div class="pc-segment" role="radiogroup" aria-label="电脑队友">${[0,1,2].map(n => option('teammates',n,n ? `${n} 名` : '不要',p.teammates)).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">电脑水平</span><div class="pc-segment" role="radiogroup" aria-label="电脑水平">${Object.entries(LEVELS).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${level.rate}/min` : '跟着你')).join('')}</div></div>
@@ -805,17 +998,44 @@
       .catch(() => { ui.planLoad = null; });
     return ui.planLoad;
   }
+  // Two kinds of material in one sheet: 课文 (the 听读 sections, by book) and 词语 (the word ranges of 练习).
   function pickerSheet() {
-    const picker = ui.picker, sections = (ui.index?.sections || []).filter(section => bookOf(section.id).id === picker.book);
-    const chapters = [...new Set(sections.map(section => section.chapter))];
-    return `<div class="pc-sheet-layer" data-pc="picker-close"><div class="pc-sheet" role="dialog" aria-modal="true" aria-label="选择课文">
-      <div class="pc-sheet-head"><h3>选择课文</h3><button type="button" class="pc-icon-button" data-pc="picker-close" aria-label="关闭">${icon('close')}</button></div>
-      <div class="pc-books" role="tablist">${BOOKS.map(book => `<button type="button" role="tab" aria-selected="${book.id === picker.book}" data-pc="book" data-value="${book.id}">${book.name}</button>`).join('')}</div>
-      <div class="pc-chapters">${chapters.map(chapter => `<section class="pc-chapter"><h4>第 ${chapter} 章</h4><div class="pc-section-list">${sections.filter(section => section.chapter === chapter).map(section => `<button type="button" class="pc-section${section.id === ui.prefs.section ? ' is-current' : ''}" data-pc="section" data-value="${e(section.id)}"><b>${e(sectionLabel(section.id))}</b><span>${e(section.title)}</span><small>${section.words} 词</small></button>`).join('')}</div></section>`).join('')}</div>
+    const picker = ui.picker, words = picker.kind === 'words';
+    const kinds = `<div class="pc-kinds" role="tablist" aria-label="打字内容">${[['section','课文'],['words','词语']].map(([kind,name]) => `<button type="button" role="tab" aria-selected="${picker.kind === kind}" data-pc="pick-kind" data-value="${kind}">${name}</button>`).join('')}</div>`;
+    const tabs = words ? WORD_GROUPS.map(group => [group.id,group.name,group.id === picker.group]) : BOOKS.map(book => [book.id,book.name,book.id === picker.book]);
+    return `<div class="pc-sheet-layer" data-pc="picker-close"><div class="pc-sheet" role="dialog" aria-modal="true" aria-label="选择打字内容">
+      <div class="pc-sheet-head">${kinds}<button type="button" class="pc-icon-button" data-pc="picker-close" aria-label="关闭">${icon('close')}</button></div>
+      <div class="pc-books" role="tablist">${tabs.map(([id,name,on]) => `<button type="button" role="tab" aria-selected="${on}" data-pc="${words ? 'word-group' : 'book'}" data-value="${id}">${e(name)}</button>`).join('')}</div>
+      <div class="pc-chapters">${words ? wordRanges(picker.group) : sectionRanges(picker.book)}</div>
     </div></div>`;
   }
+  function sectionRanges(book) {
+    const sections = (ui.index?.sections || []).filter(section => bookOf(section.id).id === book), chapters = [...new Set(sections.map(section => section.chapter))];
+    const current = ui.prefs.text === 'section' ? ui.prefs.section : '';
+    return chapters.map(chapter => `<section class="pc-chapter"><h4>第 ${chapter} 章</h4><div class="pc-section-list">${sections.filter(section => section.chapter === chapter).map(section => `<button type="button" class="pc-section${section.id === current ? ' is-current' : ''}" data-pc="section" data-value="${e(section.id)}"><b>${e(sectionLabel(section.id))}</b><span>${e(section.title)}</span><small>${section.words} 词</small></button>`).join('')}</div></section>`).join('');
+  }
+  // A textbook chapter heads its sections (the whole chapter is its first row); the basics and my wordbook are one list.
+  function wordRanges(groupId) {
+    const group = WORD_GROUPS.find(item => item.id === groupId) || WORD_GROUPS[0], all = wordSources();
+    const sources = all.filter(source => group.groups.includes(source.group));
+    const current = ui.prefs.text === 'words' ? ui.prefs.words : '';
+    const row = (source,mark,name) => `<button type="button" class="pc-section${source.token === current ? ' is-current' : ''}" data-pc="words" data-value="${e(source.token)}"><b>${e(mark)}</b><span>${e(name)}</span><small>${source.words.length} 词</small></button>`;
+    if (!sources.length) {
+      const note = !all.length ? '词语来自「练习」，请先打开一次练习页再来选。' : group.id === 'mine' ? '我的词本里还没有词语，收藏词和薄弱词也是空的。' : '这里还没有词语。';
+      return `<p class="pc-picker-empty">${note}</p>`;
+    }
+    if (group.id !== 'textbook') return `<div class="pc-section-list">${sources.map((source,index) => row(source,source.group === 'mine' ? '★' : String(index+1),source.label)).join('')}</div>`;
+    return sources.filter(source => source.group === 'chapter').map(chapter => {
+      const parts = sources.filter(source => source.group === 'section' && source.parent === chapter.token);
+      return `<section class="pc-chapter"><h4>${e(chapter.label)}</h4><div class="pc-section-list">${row(chapter,'全','整章')}${parts.map(part => {
+        const [mark,...rest] = part.label.split(' ');
+        return /^[\d.]+$/.test(mark) && rest.length ? row(part,mark,rest.join(' ')) : row(part,'·',part.label);
+      }).join('')}</div></section>`;
+    }).join('');
+  }
   function openPicker() {
-    ui.picker = {book:bookOf(ui.prefs.section).id};
+    const source = ui.prefs.text === 'words' ? wordSources().find(item => item.token === ui.prefs.words) : null;
+    ui.picker = {kind:ui.prefs.text,book:bookOf(ui.prefs.section).id,group:source ? wordGroupOf(source).id : 'textbook'};
     render();
     later(() => $('.pc-section.is-current')?.scrollIntoView?.({block:'center'}),30);
   }
@@ -839,7 +1059,7 @@
   }
   function sentenceList(sentences,owner) {
     if (!sentences.length) return '';
-    return `<ol class="pc-sentences">${sentences.map((sentence,index) => `<li><button type="button" class="pc-play" data-pc="slice" data-owner="${e(owner)}" data-index="${index}" aria-label="播放原书录音"${sentence.audio && sentence.to > sentence.from ? '' : ' disabled'}>${icon('play')}</button><span><span lang="nb">${e(sentence.text)}</span><small>${e(sentence.zh)}</small></span></li>`).join('')}</ol>`;
+    return `<ol class="pc-sentences">${sentences.map((sentence,index) => `<li><button type="button" class="pc-play" data-pc="slice" data-owner="${e(owner)}" data-index="${index}" aria-label="${sentence.section === 'words' ? '播放读音' : '播放原书录音'}"${sentence.audio && sentence.to > sentence.from ? '' : ' disabled'}>${icon('play')}</button><span><span lang="nb">${e(sentence.text)}</span><small>${e(sentence.zh)}</small></span></li>`).join('')}</ol>`;
   }
   function historyPage() {
     const total = summarize(ui.records), rooms = ui.records.filter(record => record.kind === 'room').length;
@@ -880,7 +1100,20 @@
     if (action === 'picker') { openPicker(); return; }
     if (action === 'picker-close') { closePicker(); return; }
     if (action === 'book') { ui.picker.book = value; render(); return; }
-    if (action === 'section') { ui.prefs.section = value; savePrefs(); if (ui.view === 'room') pushRoomSettings(); closePicker(); return; }
+    if (action === 'pick-kind') { ui.picker.kind = value; render(); return; }
+    if (action === 'word-group') { ui.picker.group = value; render(); return; }
+    if (action === 'section') { Object.assign(ui.prefs,{section:value,text:'section'}); savePrefs(); if (ui.view === 'room') pushRoomSettings(); closePicker(); return; }
+    if (action === 'words') {
+      const source = wordSources().find(item => item.token === value);
+      if (!source) return;
+      Object.assign(ui.prefs,{text:'words',words:value,wordsTitle:wordRangeName(source)});
+      savePrefs();
+      // A newly picked range is drawn again for the room; otherwise the room keeps the words it has.
+      ui.wordsFresh = true;
+      if (ui.view === 'room') pushRoomSettings();
+      closePicker();
+      return;
+    }
     if (action === 'start') { startGame(); return; }
     if (action === 'room-create') { void createRoom(); return; }
     if (action === 'room-join-open') { ui.joining = true; render(); $('#pc-join-code')?.focus?.(); return; }
@@ -906,6 +1139,17 @@
       target.innerHTML = icon(ui.prefs.sound ? 'sound' : 'mute');
       target.setAttribute('aria-label',soundLabel(ui.prefs.sound));
       target.title = soundLabel(ui.prefs.sound);
+      focusInput();
+      return;
+    }
+    // The music has its own switch: a class may want the songs from one speaker only, or the words without music.
+    if (action === 'music') {
+      ui.prefs.music = !ui.prefs.music;
+      savePrefs();
+      if (ui.prefs.music) { if (ui.game?.music) musicPlayer().timer ||= setInterval(musicTick,120); wakeMusic(); musicTick(); }
+      target.innerHTML = icon(ui.prefs.music ? 'music' : 'music-off');
+      target.setAttribute('aria-label',musicLabel(ui.prefs.music));
+      target.title = musicLabel(ui.prefs.music);
       focusInput();
       return;
     }
@@ -1012,7 +1256,8 @@
     render();
     const p = ui.prefs, opened = ui.historyToken;
     try {
-      const state = await roomCall('/chase/rooms',{section:p.section,title:roomTitle(p.section),map:p.map,end:p.end,minutes:p.minutes,side:p.side});
+      ui.wordsFresh = true;
+      const state = await roomCall('/chase/rooms',{...roomSettings(),side:p.side});
       if (stillWaiting(opened)) { ui.busy = false; enterRoom(state); }
       else void roomCall(`/chase/rooms/${state.code}/leave`,{}).catch(() => {});
     } catch (error) { if (stillWaiting(opened)) notify(roomError(error)); }
@@ -1271,7 +1516,8 @@
     fitViewport();
     if (ui.toast?.classList.contains('is-on')) placeToast();
     try {
-      const [section] = await Promise.all([loadSection(settings.section),loadAssets()]);
+      const words = settings.words?.length ? settings.words : null;
+      const [section] = await Promise.all([words ? loadClips().catch(() => null).then(() => buildWordList(words,`${match.id}-0`,clipFor)) : loadSection(settings.section),loadAssets()]);
       if (!current()) return;
       // Everyone but me is drawn from the server's reports (`net`: see follow).
       const players = match.runners.map(runner => {
@@ -1284,10 +1530,12 @@
       const game = {mode:settings.end,duration:match.duration,players,pairs:new Map(),score:{catch:0,taunt:0},events:[],usual:0,over:'',
         room:true,watch,code:state.code,number:match.number,seq:0,byId:new Map(players.map(player => [player.id,player])),status:'loading',
         title:settings.title || sectionName(settings.section),map:settings.map,firstSection:settings.section,lastSection:settings.section,
+        words,wordsSeed:match.id,wordsPass:0,
         paused:false,bubbles:[],fresh:[]};
       game.text = appendSection(createText(),section);
       game.sectionsLoaded = [section];
       ui.game = game;
+      prepareMusic(game,match.id || `${state.code}-${match.number}`);
       await setupStage(current,settings.map);
       if (!current() || ui.game !== game) return;
       game.ready = game.loaded = true;
@@ -1402,7 +1650,16 @@
     if (ui.records.includes(record)) writeJSON(RECORDS_KEY,ui.records);
     if (ui.view === 'results') render();
   }
-  const roomSettings = () => { const p = ui.prefs; return {section:p.section,title:roomTitle(p.section),map:p.map,end:p.end,minutes:p.minutes}; };
+  // A room types words when the host picked a range: the words drawn for it go to everyone with the settings.
+  function roomSettings() {
+    const p = ui.prefs, base = {section:p.section,title:roomTitle(p.section),map:p.map,end:p.end,minutes:p.minutes};
+    if (p.text !== 'words') return base;
+    const held = ui.room?.state?.settings;
+    if (!ui.wordsFresh && held?.words?.length) return {...base,title:held.title,words:held.words};
+    const range = wordList(p.words,true);
+    ui.wordsFresh = false;
+    return range ? {...base,title:`词语 · ${range.title}`.slice(0,80),words:range.list} : base;
+  }
   function pushRoomSettings() {
     const room = ui.room;
     if (!room || room.state.hostId !== room.state.me) return;
@@ -1419,7 +1676,10 @@
     const settings = ui.room?.state?.settings;
     ui.roomEdit = !ui.roomEdit;
     // The editor starts from what the room plays now.
-    if (ui.roomEdit && settings) Object.assign(ui.prefs,{section:settings.section,map:settings.map,end:settings.end,minutes:settings.minutes});
+    if (ui.roomEdit && settings) {
+      Object.assign(ui.prefs,{section:settings.section,map:settings.map,end:settings.end,minutes:settings.minutes,text:settings.words?.length ? 'words' : 'section'});
+      if (settings.words?.length) ui.prefs.wordsTitle = String(settings.title || '').replace(/^词语 · /,'');
+    }
     renderRoom();
     if (ui.roomEdit) void loadPlan();
   }
@@ -1495,7 +1755,7 @@
     const many = state.players.filter(player => player.online).length+state.bots.length > 2;
     const editor = host && between && ui.roomEdit ? `<div class="pc-setup pc-room-editor">
         <div class="pc-field"><span class="pc-label">地图</span>${planMarkup()}</div>
-        <div class="pc-field"><span class="pc-label">课文</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(sectionName(ui.prefs.section))}</span>${icon('down')}</button></div>
+        <div class="pc-field"><span class="pc-label">打字内容</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName())}</span>${icon('down')}</button></div>
         <div class="pc-field"><span class="pc-label">结束方式</span><div class="pc-segment" role="radiogroup" aria-label="结束方式">${option('end','catch','抓到为止',ui.prefs.end,many ? '输了换阵营' : '一次定胜负')}${MINUTES.map(n => option('minutes',n,`${n} 分钟`,ui.prefs.end === 'timed' ? ui.prefs.minutes : 0,'比次数')).join('')}</div></div></div>` : '';
     const issue = {people:'至少要 2 位同学准备好',police:'还需要有人当警察',thief:'还需要有人当小偷'}[state.startIssue] || '';
     const counted = `${state.readyCount}/${state.here} 人已准备`;
@@ -1538,13 +1798,18 @@
     fitViewport();
     if (ui.toast?.classList.contains('is-on')) placeToast();
     try {
-      const [section] = await Promise.all([loadSection(prefs.section),loadAssets()]);
+      // A word range is read from 练习 now; when it is gone (another textbook there now), the player picks again.
+      const range = prefs.text === 'words' ? wordList(prefs.words) : null;
+      if (prefs.text === 'words' && !range) { ui.game = null; show('setup'); notify('这个词语范围现在不可用，请重新选择打字内容。'); return; }
+      const seed = Math.random();
+      const [section] = await Promise.all([range ? loadClips().catch(() => null).then(() => buildWordList(range.list,`${seed}-0`,clipFor)) : loadSection(prefs.section),loadAssets()]);
       if (!current()) return;
       const game = createGame({side:prefs.side,opponents:prefs.opponents,teammates:prefs.teammates,level:prefs.level,end:prefs.end,minutes:prefs.minutes,
         usual:usualRate(ui.records),me:ui.nickname || '我'});
       game.text = appendSection(createText(),section);
       game.sectionsLoaded = [section];
-      game.title = sectionName(prefs.section);
+      game.title = range ? `词语 · ${range.title}` : sectionName(prefs.section);
+      if (range) Object.assign(game,{words:range.list,wordsSeed:seed,wordsPass:0});
       game.firstSection = prefs.section;
       game.map = prefs.map;
       game.lastSection = prefs.section;
@@ -1552,6 +1817,7 @@
       game.bubbles = [];
       game.fresh = [];
       ui.game = game;
+      prepareMusic(game,Math.random());
       await setupStage(current,prefs.map);
       if (!current() || ui.game !== game) return;
       renderLine(true);
@@ -1576,6 +1842,7 @@
         <div class="pc-score" aria-label="比分"><span class="pc-score-side" title="抓到">${icon('cuffs')}<b id="pc-catch">0</b></span><i>:</i><span class="pc-score-side" title="嘲笑"><b id="pc-taunt">0</b>${icon('taunt')}</span></div>
         <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>/min</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
         ${p.watch ? '<span class="pc-watch-tag">观战</span>' : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
+        <button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
       <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
       <div class="pc-panel-type" id="pc-type"${p.watch ? ' hidden' : ''}>
@@ -1590,6 +1857,7 @@
     if (input && document.activeElement !== input) { try { input.focus({preventScroll:true}); } catch {} }
   }
   const soundLabel = on => on ? '声音：开（点按关闭音效和单词读音）' : '声音：关（点按打开音效和单词读音）';
+  const musicLabel = on => on ? '背景音乐：开（点按关闭）' : '背景音乐：关（点按打开）';
   const cameraLabel = mode => mode === 'still' ? '镜头：全景（点按改为缓慢跟随）' : '镜头：缓慢跟随（点按改为全景）';
   function startCountdown() {
     const game = ui.game;
@@ -1678,6 +1946,13 @@
     if (game.loadingText || performance.now() < (game.textRetryAt || 0)) return;
     const leader = Math.max(...game.players.map(player => player.letters));
     if (game.text.letters.length-leader > 260) return;
+    if (game.words) {
+      appendSection(game.text,buildWordList(game.words,`${game.wordsSeed}-${++game.wordsPass}`,clipFor));
+      const me = game.players.find(player => player.me);
+      if (me && game.room) passTyped(game,me);
+      renderLine(false);
+      return;
+    }
     game.loadingText = true;
     const id = nextSectionId(game.lastSection);
     loadSection(id).then(section => {
@@ -1793,7 +2068,7 @@
     line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}${sentence.text.split('').map((char,index) => `<span class="pc-char${TYPEABLE.test(char) ? '' : ' is-pass'}" data-i="${index}">${char === ' ' ? ' ' : e(char)}</span>`).join('')}`;
     ui.lineChars = [...line.querySelectorAll('.pc-char')];
     $('#pc-zh').textContent = sentence.zh;
-    $('#pc-progress').textContent = `${sectionLabel(sentence.section)} · 第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 句`;
+    $('#pc-progress').textContent = sentence.section === 'words' ? `第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 词` : `${sectionLabel(sentence.section)} · 第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 句`;
     updateLine(game,me);
     prefetchAhead();
   }
@@ -1918,7 +2193,7 @@
         <p class="pc-result-score">${icon('cuffs')}抓到 <b>${record.score.catch}</b><i>:</i><b>${record.score.taunt}</b> 嘲笑${icon('taunt')}</p>${record.xp ? `<p class="pc-result-xp">+${record.xp} XP</p>` : ''}</div></section>
       <section class="pc-panel"><div class="pc-tiles is-four">${stat('速度',`${me.rate}/min`)}${stat('正确率',`${me.accuracy}%`)}${stat('打了',`${me.words} 个词`)}${stat('最高',VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div></section>
       <section class="pc-panel"><div class="pc-section-head"><h3>本局选手</h3></div><ul class="pc-players">${record.players.map(player => `<li class="${player.me ? 'is-me' : ''}">${avatar(player.name,player.side,'',Boolean(player.level))}<span class="pc-player-name">${e(player.name)}${player.level ? `<small>电脑 · ${LEVELS[player.level]?.name || ''}</small>` : player.result === 'left' ? '<small>中途离开</small>' : ''}</span><span class="pc-player-side">${SIDES[player.side].name}${player.side !== player.startSide ? '<small>换过阵营</small>' : ''}</span><span class="pc-player-rate"><b>${player.rate}</b>/min</span><span class="pc-player-score">${[player.catches ? `抓到 ${player.catches}` : '',player.taunts ? `嘲笑 ${player.taunts}` : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul></section>
-      ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head"><h3>打过的句子</h3><small class="pc-hint">点播放键听原书录音</small></div>${sentenceList(record.sentences,record.id)}</section>` : ''}
+      ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head">${record.sentences[0].section === 'words' ? '<h3>打过的词语</h3><small class="pc-hint">点播放键听读音</small>' : '<h3>打过的句子</h3><small class="pc-hint">点播放键听原书录音</small>'}</div>${sentenceList(record.sentences,record.id)}</section>` : ''}
       ${room ? `<div class="pc-actions">${ui.room ? button('go','<span>回到房间</span>','pc-primary pc-wide','data-view="room"') : ''}<div class="pc-actions-row">${button('go',ui.room ? '离开房间' : '返回','pc-quiet','data-view="home"')}</div></div>`
         : `<div class="pc-actions">${button('again','<span>再来一局</span>','pc-primary pc-wide')}<div class="pc-actions-row">${button('go','换个设置','pc-ghost','data-view="setup"')}${button('go','返回','pc-quiet','data-view="home"')}</div></div>`}`;
   }

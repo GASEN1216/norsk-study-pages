@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261105-chase-names';
-import {createReadingLibrary} from './reading-library.mjs?v=20261105-chase-names';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261105-chase-names';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261105-chase-names';
-import * as notesModel from './notes-store.mjs?v=20261105-chase-names';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261105-chase-names';
+import {createDataLoader} from './loader.mjs?v=20261105-chase-music';
+import {createReadingLibrary} from './reading-library.mjs?v=20261105-chase-music';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261105-chase-music';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261105-chase-music';
+import * as notesModel from './notes-store.mjs?v=20261105-chase-music';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261105-chase-music';
 
-const VERSION = '20261105-chase-names';
+const VERSION = '20261105-chase-music';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -439,13 +439,13 @@ async function openDuel(join = '') {
     }});
   } catch { notify('联机翻翻乐暂时无法打开，请检查网络后重试。'); }
 }
-// 警察抓小偷 types the 听读 sentences, so it needs neither the practice view nor its word sources; `join` opens a room.
+// 警察抓小偷 types the 听读 sentences, or a word range from 练习 when that view has been prepared; `join` opens a room.
 async function openChase(join = '') {
   try {
     await loadFeature('chase');
     pauseOtherAudio();
     audio.pause();
-    window.NorskChase.open({community:prepareCommunity,pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION,
+    window.NorskChase.open({community:prepareCommunity,sources:() => window.NorskPractice?.duelSources?.() || [],pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:() => { pauseOtherAudio(); audio.pause(); },version:VERSION,
       join:typeof join === 'string' ? join : '',onExit:() => {
         if (/[?&]chase=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
         window.NorskPractice?.refreshHonors?.();
@@ -970,7 +970,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261105-chase-names').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261105-chase-music').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
