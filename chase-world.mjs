@@ -254,7 +254,11 @@ export async function createWorld({canvas,overlay,images,manifest,small=false,to
   const cast = kit ? kit.drawCast() : null;
   ({MAST,BEACON,LOOT,REST} = cast || DRAWN);
   const time = {value:0};
-  const renderer = new WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+  // A failure of the graphics card (no WebGL, or its context lost while the scene was built) is marked `graphics`, so
+  // the game can say so instead of blaming the network.
+  const graphics = error => Object.assign(error instanceof Error ? error : new Error(String(error)),{graphics:true});
+  let renderer;
+  try { renderer = new WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'}); } catch (error) { throw graphics(error); }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1,small || touch ? 1.6 : 2));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.shadowMap.enabled = true;
@@ -263,8 +267,8 @@ export async function createWorld({canvas,overlay,images,manifest,small=false,to
   // Nothing that casts a shadow moves, so the shadow map is redrawn only when its box follows the camera somewhere new.
   renderer.shadowMap.autoUpdate = false;
   // A lost context ends the game, but not the one dispose() causes on purpose.
-  let disposed = false;
-  const lost = event => { event.preventDefault(); if (!disposed) onLost?.(); };
+  let disposed = false, gone = false;
+  const lost = event => { event.preventDefault(); gone = true; if (!disposed) onLost?.(); };
   canvas.addEventListener('webglcontextlost',lost);
   const scene = new Scene();
   const haze = color('#f0dcc0');
@@ -876,12 +880,16 @@ export async function createWorld({canvas,overlay,images,manifest,small=false,to
     renderer.dispose();
     renderer.forceContextLoss?.();
   }
+  const isLost = () => gone || renderer.getContext()?.isContextLost?.() === true;
   try {
     if (map.kind === 'brunstad') await loadRegion(); else buildLakeside();
   } catch (error) {
+    const card = isLost();
     release();
-    throw error;
+    throw card ? graphics(error) : error;
   }
+  // (a context lost while building, before anyone listens for it, would otherwise leave a blank picture)
+  if (isLost()) { release(); throw graphics(new Error('WebGL context lost while building the scene')); }
   // The pixel look's finish: the region's own, or the kit's for the lakeside village (its bright evening light a little
   // lower, so it sits on the same palette; its ink shells give way to the finish's one-pixel outlines).
   let pixel = null;

@@ -1567,8 +1567,10 @@
       if (!current()) return;
       console.warn('警察抓小偷的房间局没有开始',error);
       ui.game = null;
+      const fallback = error?.graphics ? lighterLook() : '';
+      if (fallback && pictureAgain(true,watch)) { notify(`${fallback}。`,5000); return; }
       show('room');
-      notify('课文或地图没有载入，请检查网络。');
+      notify(error?.graphics ? PICTURE_FAILED : '课文或地图没有载入，请检查网络。');
     } finally {
       if (ui.starting === token) ui.starting = null;
     }
@@ -1841,8 +1843,10 @@
       if (!current()) return;
       console.warn('警察抓小偷没有开始',error);
       ui.game = null;
+      const fallback = error?.graphics ? lighterLook() : '';
+      if (fallback && pictureAgain(false)) { notify(`${fallback}。`,5000); return; }
       show('setup');
-      notify('课文或图片没有载入，请检查网络后重试。');
+      notify(error?.graphics ? PICTURE_FAILED : '课文或图片没有载入，请检查网络后重试。');
     } finally {
       if (ui.starting === token) ui.starting = null;
     }
@@ -2263,6 +2267,27 @@
 
   /* ---------- The world on screen ---------- */
   // The 3D world (chase-world.mjs, three.js) is loaded with the first game and kept while the overlay is open.
+  // The graphics card gave up on the picture (its WebGL context was lost). Q版 and 3D ask the most of it, so the
+  // player's look goes back to 像素, the lightest; they can pick another one again on the setup page. Only once:
+  // a card that cannot draw 像素 either gets the plain message.
+  function lighterLook() {
+    const look = LOOKS[ui.prefs.look];
+    if (!look || ui.prefs.look === 'pixel') return '';
+    ui.prefs.look = 'pixel';
+    savePrefs();
+    return `这台电脑的显卡画不动${look.name}画面，已换成像素画面`;
+  }
+  // Starts the picture over in the new look: a bot game begins again, a room game rejoins its round if it is still on.
+  function pictureAgain(room,watch) {
+    stopGame();
+    ui.starting = null;
+    if (!room) { void startGame(); return true; }
+    const state = ui.room?.state;
+    if (!state?.match || !['loading','countdown','playing'].includes(state.status) || !(watch || state.match.participants.includes(state.me))) return false;
+    void startRoomGame(state,watch);
+    return true;
+  }
+  const PICTURE_FAILED = '画面没能建好，请关掉其他占显卡的网页或程序，刷新后再试。';
   function loadWorld() {
     ui.worldLoad ||= import(versioned('./chase-world.mjs')).catch(error => { ui.worldLoad = null; throw error; });
     return ui.worldLoad;
@@ -2305,8 +2330,11 @@
       map:map.kind === 'brunstad' ? {...map,manifest:versioned(map.manifest),files:Object.fromEntries(Object.entries(map.files).map(([name,path]) => [name,versioned(path)]))} : map,
       onLost:() => {
         if (!world || ui.stage?.world !== world || !ui.game) return;
-        const room = ui.game.room;
+        const {room,watch} = ui.game;
         ui.game = null;
+        // Q版 or 3D was too much for the card: the game goes on at once in 像素 (a room game rejoins the round in play).
+        const fallback = lighterLook();
+        if (fallback && pictureAgain(room,watch)) { notify(`${fallback}${room ? '，回到这一局' : '，重新开局'}。`,5000); return; }
         show(room ? 'room' : 'setup');
         notify(room ? '画面中断了，请回到房间重新加入下一局。' : '画面中断了，这一局没有记入战绩，请重新开始。');
       }});
