@@ -28,14 +28,16 @@
   const BOT_NAMES = ['Ola','Kari','Nora','Jonas','Ingrid','Emil','Sofie','Henrik'];
   // Maps: every Brunstad region (its loop from the map pipeline, work/brunstad-map → scripts/import_chase_map.py; the
   // campus itself modelled in three.js from one data pack, scripts/export_brunstad_world.py), picked on a plan of
-  // Brunstad (scripts/build_chase_plan.py), and the lakeside village drawn in code, which loads fastest.
+  // Brunstad (scripts/build_chase_plan.py), and the lakeside village drawn in code, which loads fastest. Each region
+  // goes by the name people use at Brunstad, in Chinese and Norwegian (the user's list, 2026-11-05); the region ids
+  // stay as they are because records and rooms keep them.
   const REGIONS = [
-    {id:'festival',name:'节日广场与会议中心',short:'会议中心',color:'#c08f3a'},
-    {id:'garden',name:'花园城小屋区',short:'花园城',color:'#b0523c'},
-    {id:'village',name:'山坡村与酒店',short:'山坡村',color:'#4e7b68'},
-    {id:'arena',name:'奥斯陆峡湾体育馆',short:'体育馆',color:'#596e9e'},
-    {id:'beach',name:'海滩与码头',short:'海滩码头',color:'#3a8a9e'},
-    {id:'fields',name:'田野与林间道路',short:'田野',color:'#8a7a35'},
+    {id:'festival',name:'会议中心',no:'Konferansesenter',color:'#c08f3a'},
+    {id:'garden',name:'花园城',no:'Hageby',color:'#b0523c'},
+    {id:'village',name:'山坡村',no:'Rekketun',color:'#4e7b68'},
+    {id:'arena',name:'体育馆',no:'Arena',color:'#596e9e'},
+    {id:'beach',name:'海滩',no:'Stranda',color:'#3a8a9e'},
+    {id:'fields',name:'节日广场',no:'Festplass',color:'#8a7a35'},
   ];
   const MAPS = [
     ...REGIONS.map(region => ({...region,place:'Brunstad',kind:'brunstad',manifest:`assets/chase/maps/${region.id}/map.json`,
@@ -43,6 +45,7 @@
     {id:'lakeside',name:'湖畔小镇',place:'练习图 · 载入最快',kind:'lakeside',color:'#7a8f4a'},
   ];
   const mapOf = id => MAPS.find(item => item.id === id) || MAPS[0];
+  const mapTitle = id => { const item = mapOf(id); return item.no ? `${item.name} ${item.no}` : item.name; };
   const BOOKS = [{id:'god-i-norsk',name:'God i norsk',prefix:''},{id:'pa-vei',name:'På vei',prefix:'pa-vei-'},{id:'ty-conversation',name:'Norwegian Conversation',prefix:'ty-conversation-'}];
   const TYPEABLE = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/, RUNS = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]+/g;
   const ALTERNATES = {'å':'å[{','ø':'ø;:ö','æ':'æ\'"ä'};
@@ -771,7 +774,7 @@
   // its own colour. A loop, its label or its row in the list beside the plan picks that map.
   function planMarkup() {
     const p = ui.prefs, plan = ui.plan;
-    const row = item => `<button type="button" class="pc-region${p.map === item.id ? ' is-on' : ''}" role="radio" aria-checked="${p.map === item.id}" tabindex="${p.map === item.id ? 0 : -1}" data-pc="set" data-key="map" data-value="${item.id}" style="--pc-region:${item.color}"><i aria-hidden="true"></i><span class="pc-region-full">${e(item.name)}</span><span class="pc-region-short">${e(item.short || item.name)}</span><small>${item.kind === 'brunstad' ? (regionLength(item.id) ? `${(regionLength(item.id)/1000).toFixed(1)} 公里` : '') : '练习图'}</small></button>`;
+    const row = item => `<button type="button" class="pc-region${p.map === item.id ? ' is-on' : ''}" role="radio" aria-checked="${p.map === item.id}" tabindex="${p.map === item.id ? 0 : -1}" data-pc="set" data-key="map" data-value="${item.id}" style="--pc-region:${item.color}"><i aria-hidden="true"></i><span class="pc-region-name">${e(item.name)}${item.no ? `<span lang="nb">${e(item.no)}</span>` : ''}</span><small>${item.kind === 'brunstad' ? (regionLength(item.id) ? `${(regionLength(item.id)/1000).toFixed(1)} 公里` : '') : '练习图'}</small></button>`;
     const list = `<div class="pc-regions" role="radiogroup" aria-label="地图">${MAPS.map(row).join('')}</div>`;
     if (!plan) return `<div class="pc-plan-wrap"><div class="pc-plan is-loading">正在载入 Brunstad 平面图…</div>${list}</div>`;
     const [x0,z0,x1,z1] = plan.bounds, width = x1-x0, height = z1-z0;
@@ -784,7 +787,7 @@
     }).join('');
     const labels = plan.regions.map(region => {
       const item = mapOf(region.id), on = p.map === region.id;
-      return `<button type="button" class="pc-plan-label${on ? ' is-on' : ''}" tabindex="-1" data-pc="set" data-key="map" data-value="${region.id}" style="left:${((region.label[0]-x0)/width*100).toFixed(2)}%;top:${((region.label[1]-z0)/height*100).toFixed(2)}%;--pc-region:${item.color}">${e(item.short || item.name)}</button>`;
+      return `<button type="button" class="pc-plan-label${on ? ' is-on' : ''}" tabindex="-1" data-pc="set" data-key="map" data-value="${region.id}" style="left:${((region.label[0]-x0)/width*100).toFixed(2)}%;top:${((region.label[1]-z0)/height*100).toFixed(2)}%;--pc-region:${item.color}">${e(item.name)}${item.no ? `<span lang="nb">${e(item.no)}</span>` : ''}</button>`;
     }).join('');
     return `<div class="pc-plan-wrap"><div class="pc-plan" style="aspect-ratio:${width.toFixed(0)}/${height.toFixed(0)}"><svg viewBox="${x0} ${z0} ${width} ${height}" aria-hidden="true">
       <rect x="${x0}" y="${z0}" width="${width}" height="${height}" class="pc-plan-land"/>${shapes(plan.fields,'pc-plan-field')}${shapes(plan.woods,'pc-plan-wood')}${shapes(plan.water,'pc-plan-water')}
@@ -1259,7 +1262,7 @@
     ui.view = 'game';
     ui.root.classList.add('is-game');
     ui.root.innerHTML = gameMarkup({end:settings.end,minutes:settings.minutes,side:mine?.side || 'police',map:settings.map,watch});
-    $('#pc-loading').textContent = `正在载入${mapOf(settings.map).name}…`;
+    $('#pc-loading').textContent = `正在载入${mapTitle(settings.map)}…`;
     ui.hud = {};
     ui.typed = '';
     ui.composing = '';
@@ -1487,7 +1490,7 @@
     // The bot menu rises in once, when it opens, not again with every poll.
     ui.botMenuNew = false;
     const lesson = s.title || sectionName(s.section);
-    const facts = `<div class="pc-room-facts"><span>${icon('map')}<b>${e(mapOf(s.map).name)}</b></span><span title="${e(lesson)}">${icon('book')}<b>${e(lesson)}</b></span><span>${icon('clock')}<b>${s.end === 'timed' ? `限时 ${s.minutes} 分钟` : '抓到为止'}</b></span></div>`;
+    const facts = `<div class="pc-room-facts"><span>${icon('map')}<b>${e(mapTitle(s.map))}</b></span><span title="${e(lesson)}">${icon('book')}<b>${e(lesson)}</b></span><span>${icon('clock')}<b>${s.end === 'timed' ? `限时 ${s.minutes} 分钟` : '抓到为止'}</b></span></div>`;
     // One on one, the first catch or taunt decides; with more players the loser changes sides.
     const many = state.players.filter(player => player.online).length+state.bots.length > 2;
     const editor = host && between && ui.roomEdit ? `<div class="pc-setup pc-room-editor">
@@ -1574,7 +1577,7 @@
         <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>/min</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
         ${p.watch ? '<span class="pc-watch-tag">观战</span>' : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
-      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapOf(p.map).name)}…</p></div>
+      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
       <div class="pc-panel-type" id="pc-type"${p.watch ? ' hidden' : ''}>
         <div class="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
