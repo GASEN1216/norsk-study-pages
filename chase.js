@@ -112,7 +112,7 @@
       item.endLetter = text.letters.length;
       for (const word of sentence.words) {
         const letterEnd = item.firstLetter+prefix[word.end];
-        if (prefix[word.end] > prefix[word.start]) text.words.push({text:word.text,clip:word.clip,s,letterEnd});
+        if (prefix[word.end] > prefix[word.start]) text.words.push({text:word.text,clip:word.clip,s,letterEnd,letterStart:item.firstLetter+prefix[word.start],start:word.start,end:word.end});
       }
     }
     text.words.sort((a,b) => a.letterEnd-b.letterEnd);
@@ -1511,7 +1511,7 @@
     ui.hud = {};
     ui.typed = '';
     ui.composing = '';
-    ui.lineSentence = -1;
+    ui.lineFrom = ui.lineTo = -1;
     if (!watch) focusInput();
     fitViewport();
     if (ui.toast?.classList.contains('is-on')) placeToast();
@@ -1793,7 +1793,7 @@
     ui.hud = {};
     ui.typed = '';
     ui.composing = '';
-    ui.lineSentence = -1;
+    ui.lineFrom = ui.lineTo = -1;
     focusInput();
     fitViewport();
     if (ui.toast?.classList.contains('is-on')) placeToast();
@@ -2055,6 +2055,7 @@
     if (words.length) ui.opts.prefetch?.(words);
   }
   // The current sentence as one span per character: typed letters dark, the rest grey, a gold caret under the next.
+  // A word range is set like a sentence: from the current word, as many entries as fill the two lines.
   function renderLine(reset) {
     const game = ui.game, line = $('#pc-line');
     if (!game || !line) return;
@@ -2062,28 +2063,47 @@
     if (!me) return;
     const letter = game.text.letters[Math.min(me.letters,game.text.letters.length-1)];
     if (!letter) return;
-    if (!reset && ui.lineSentence === letter.s) return;
-    ui.lineSentence = letter.s;
-    const sentence = game.text.sentences[letter.s];
-    line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}${sentence.text.split('').map((char,index) => `<span class="pc-char${TYPEABLE.test(char) ? '' : ' is-pass'}" data-i="${index}">${char === ' ' ? ' ' : e(char)}</span>`).join('')}`;
+    if (!reset && letter.s >= ui.lineFrom && letter.s < ui.lineTo) return;
+    const sentences = game.text.sentences, sentence = sentences[letter.s];
+    const chars = text => text.split('').map((char,index) => `<span class="pc-char${TYPEABLE.test(char) ? '' : ' is-pass'}" data-i="${index}">${char === ' ' ? ' ' : e(char)}</span>`).join('');
+    ui.lineFrom = letter.s;
+    ui.lineTo = letter.s+1;
+    ui.lineOffsets = [0];
+    ui.lineSentence = -1;
+    line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}<span class="pc-entry">${chars(sentence.text)}</span>`;
+    if (sentence.section === 'words') {
+      const room = line.parentElement.clientHeight;
+      while (ui.lineTo-ui.lineFrom < 24 && sentences[ui.lineTo]?.section === 'words') {
+        const next = sentences[ui.lineTo];
+        // A later entry is never split over two lines (one too long for a line starts the next page, where it may wrap).
+        line.insertAdjacentHTML('beforeend',`<span class="pc-gap"> </span><span class="pc-entry is-whole">${chars(next.text)}</span>`);
+        if (line.offsetHeight > room+1 || line.lastElementChild.offsetWidth > line.clientWidth) { line.lastElementChild.remove(); line.lastElementChild.remove(); break; }
+        ui.lineOffsets.push(ui.lineOffsets.at(-1)+sentences[ui.lineTo-1].text.length);
+        ui.lineTo++;
+      }
+    }
     ui.lineChars = [...line.querySelectorAll('.pc-char')];
-    $('#pc-zh').textContent = sentence.zh;
-    $('#pc-progress').textContent = sentence.section === 'words' ? `第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 词` : `${sectionLabel(sentence.section)} · 第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 句`;
     updateLine(game,me);
-    prefetchAhead();
   }
   function updateLine(game,me) {
     const letter = game.text.letters[me.letters];
     if (!letter) return;
-    if (letter.s !== ui.lineSentence) { renderLine(true); return; }
-    const chars = ui.lineChars || [];
+    if (letter.s < ui.lineFrom || letter.s >= ui.lineTo) { renderLine(true); return; }
+    const chars = ui.lineChars || [], caret = ui.lineOffsets[letter.s-ui.lineFrom]+letter.c;
     for (let i = 0; i < chars.length; i++) {
-      const span = chars[i], done = i < letter.c;
+      const span = chars[i], done = i < caret;
       span.classList.toggle('is-done',done);
-      span.classList.toggle('is-caret',i === letter.c);
-      if (!done && i !== letter.c) span.classList.remove('is-miss');
+      span.classList.toggle('is-caret',i === caret);
+      if (!done && i !== caret) span.classList.remove('is-miss');
     }
-    chars[letter.c]?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+    chars[caret]?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+    if (letter.s === ui.lineSentence) return;
+    // The meaning and the count follow the sentence or word being typed.
+    ui.lineSentence = letter.s;
+    const sentence = game.text.sentences[letter.s];
+    $('#pc-zh').textContent = sentence.zh;
+    $('#pc-progress').textContent = sentence.section === 'words' ? `第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 词` : `${sectionLabel(sentence.section)} · 第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 句`;
+    prefetchAhead();
   }
 
   /* ---------- Events on the track ---------- */
@@ -2345,6 +2365,9 @@
   // where it stands as the next one appears.
   function placeBubbles(game,now) {
     const stage = ui.stage, alive = new Set(), stacks = new Map();
+    // My own word sits over my head the whole time (only on this screen), so finished words rise above it.
+    const live = placeLive(game);
+    if (live) stacks.set(live.id,1);
     for (let i = game.bubbles.length-1; i >= 0; i--) {
       const bubble = game.bubbles[i];
       if (now-bubble.at > 1500 || (bubble.leaving && now-bubble.leaving > 320)) continue;
@@ -2364,11 +2387,41 @@
       const head = stage.world.headOf(bubble.player.id);
       if (!head?.ok) { element.style.visibility = 'hidden'; continue; }
       element.style.visibility = '';
-      element.style.transform = `translate(${head.x.toFixed(1)}px,${(head.y-level*30).toFixed(1)}px) translate(-50%,-100%)`;
-      if (!bubble.leaving) element.classList.toggle('is-old',level > 0);
+      element.style.transform = `translate(${head.x.toFixed(1)}px,${(head.y-level*34).toFixed(1)}px) translate(-50%,-100%)`;
+      if (!bubble.leaving) element.classList.toggle('is-old',level > (bubble.player === live ? 1 : 0));
     }
     for (const [bubble,element] of stage.bubbles) if (!alive.has(bubble)) { element.remove(); stage.bubbles.delete(bubble); }
     game.bubbles = game.bubbles.filter(bubble => alive.has(bubble));
+  }
+  // The word I am typing, in grey letters that darken as they are typed; when it is done it rises off as a word bubble
+  // and the next word takes its place. Returns me while it is shown.
+  function placeLive(game) {
+    const stage = ui.stage, me = game.players.find(player => player.me && !player.gone);
+    const word = me && !game.watch && !game.over ? game.text?.words?.[me.wordIndex] : null;
+    const head = word ? stage.world.headOf(me.id) : null;
+    let element = stage.live;
+    if (!head?.ok) { if (element) element.style.visibility = 'hidden'; return null; }
+    if (!element) {
+      element = stage.live = document.createElement('span');
+      element.className = 'pc-bubble is-me is-live';
+      element.lang = 'nb';
+      stage.overlay.append(element);
+    }
+    if (element.word !== word) {
+      element.word = word;
+      const text = game.text.sentences[word.s].text.slice(word.start,word.end);
+      element.innerHTML = text.split('').map(char => `<span${TYPEABLE.test(char) ? ' class="pc-live-ch"' : ''}>${e(char)}</span>`).join('');
+      element.letters = [...element.querySelectorAll('.pc-live-ch')];
+      element.typed = -1;
+    }
+    const typed = Math.max(0,Math.min(me.letters-word.letterStart,element.letters.length));
+    if (element.typed !== typed) {
+      element.typed = typed;
+      element.letters.forEach((span,index) => span.classList.toggle('is-done',index < typed));
+    }
+    element.style.visibility = '';
+    element.style.transform = `translate(${head.x.toFixed(1)}px,${head.y.toFixed(1)}px) translate(-50%,-100%)`;
+    return me;
   }
   // Opponents out of the picture get a marker at its edge, in the direction they are (the camera never turns, so east is
   // right and north is up). Markers that would cover each other are moved apart along the edge.

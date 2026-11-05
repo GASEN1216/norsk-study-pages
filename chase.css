@@ -313,6 +313,10 @@ body.pc-open{overflow:hidden}
 .pc-bubble.is-leaving{animation:pc-bubble-out .32s ease-out both}
 @keyframes pc-bubble{0%{opacity:0;translate:0 8px}12%{opacity:1;translate:0 0}75%{opacity:1}100%{opacity:0;translate:0 -10px}}
 @keyframes pc-bubble-out{from{opacity:1;translate:0 0}to{opacity:0;translate:0 -12px}}
+/* My word while I type it: it stays put, grey letters darkening one by one. */
+.pc-bubble.is-live{color:#b1aa98;animation:pc-fade .4s ease-out both}
+.pc-live-ch{transition:color .12s ease-out}
+.pc-live-ch.is-done{color:var(--pc-ink)}
 .pc-tag{position:absolute;left:0;top:0;padding:0 8px;border-radius:99px;background:#fffaf0d9;font-size:11.5px;font-weight:500;line-height:18px;white-space:nowrap;will-change:transform;transition:opacity .2s ease-out}
 .pc-tag.is-police{color:var(--pc-police)}
 .pc-tag.is-thief{color:var(--pc-thief)}
@@ -359,6 +363,8 @@ body.pc-open{overflow:hidden}
    size from one sentence to the next. A short sentence sits at its foot, right above its translation. */
 .pc-line-wrap{display:flex;flex-direction:column-reverse;max-width:980px;height:calc(2*1.5em);margin:0 auto;overflow:hidden;font:clamp(19px,2.3vw,26px)/1.5 var(--serif,Georgia,serif)}
 .pc-line{color:var(--pc-grey);overflow-wrap:break-word}
+.pc-gap{padding:0 .3em}
+.pc-entry.is-whole{white-space:nowrap}
 /* A room game starts without a tap, so a phone's keyboard is not up yet: one tap on the sentence brings it. */
 .pc-panel-type.is-tap::after{content:'轻点这里开始打字';position:absolute;left:50%;top:12px;padding:5px 14px;border:1px solid #e3cf9f;border-radius:99px;background:#fffdf6f2;box-shadow:0 10px 22px -16px #4a3612;color:var(--pc-gold);font-size:13px;letter-spacing:.04em;white-space:nowrap;transform:translateX(-50%);pointer-events:none;animation:pc-fade .5s ease-out both}
 .pc-speaker{margin-right:10px;font:500 .55em/1 var(--sans,sans-serif);letter-spacing:.18em;text-transform:uppercase;color:var(--pc-gold);vertical-align:.2em}
