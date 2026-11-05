@@ -25,6 +25,10 @@
   const SPRITES = {police:['police-run','police-bike','police-moto','police-car','police-heli'],thief:['thief-run','thief-skate','thief-moto','thief-car','thief-heli']};
   const LEVELS = {easy:{name:'新手',rate:70},normal:{name:'熟练',rate:110},hard:{name:'高手',rate:160},match:{name:'旗鼓相当',rate:0}};
   const ENDS = {catch:{name:'抓到为止'},timed:{name:'限时'}};
+  // How the 3D scene is drawn: each player chooses for their own picture (it changes nothing in the game, so a room's
+  // players may each see their own). chase-brunstad.mjs builds all three; the cast follows the look.
+  const LOOKS = {pixel:{name:'像素',hint:'复古像素画'},town:{name:'Q版',hint:'手绘贴图'},anime:{name:'3D',hint:'动画风建模'}};
+  const DEFAULT_LOOK = 'pixel';
   const BOT_NAMES = ['Ola','Kari','Nora','Jonas','Ingrid','Emil','Sofie','Henrik'];
   // Maps: every Brunstad region (its loop from the map pipeline, work/brunstad-map → scripts/import_chase_map.py; the
   // campus itself modelled in three.js from one data pack, scripts/export_brunstad_world.py), picked on a plan of
@@ -424,7 +428,8 @@
       level:LEVELS[saved.level] ? saved.level : 'match',end:ENDS[saved.end] ? saved.end : 'catch',minutes:MINUTES.includes(saved.minutes) ? saved.minutes : 3,
       // Someone who asked their device for less motion starts in the wide view (they can still switch).
       // Background music starts out as the sound does (someone who silenced the game before keeps it silent).
-      sound:saved.sound !== false,music:saved.music == null ? saved.sound !== false : saved.music !== false,camera:saved.camera === 'still' || (saved.camera == null && reduceMotion()) ? 'still' : 'follow',map:mapOf(saved.map).id};
+      sound:saved.sound !== false,music:saved.music == null ? saved.sound !== false : saved.music !== false,camera:saved.camera === 'still' || (saved.camera == null && reduceMotion()) ? 'still' : 'follow',map:mapOf(saved.map).id,
+      look:LOOKS[saved.look] ? saved.look : DEFAULT_LOOK};
   }
   const savePrefs = () => writeJSON(PREFS_KEY,ui.prefs);
   const readRecords = () => { const list = readJSON(RECORDS_KEY,[]); return Array.isArray(list) ? list.filter(item => item && typeof item === 'object') : []; };
@@ -960,8 +965,13 @@
         <div class="pc-field"><span class="pc-label">电脑队友</span><div class="pc-segment" role="radiogroup" aria-label="电脑队友">${[0,1,2].map(n => option('teammates',n,n ? `${n} 名` : '不要',p.teammates)).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">电脑水平</span><div class="pc-segment" role="radiogroup" aria-label="电脑水平">${Object.entries(LEVELS).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${level.rate}/min` : '跟着你')).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">结束方式</span><div class="pc-segment" role="radiogroup" aria-label="结束方式">${option('end','catch','抓到为止',p.end,p.opponents+p.teammates > 1 ? '输了换阵营' : '一次定胜负')}${MINUTES.map(n => option('minutes',n,`${n} 分钟`,p.end === 'timed' ? p.minutes : 0,'比次数')).join('')}</div></div>
+        ${lookField()}
       </section>
       <div class="pc-actions pc-start-bar">${button('start','<span>开始</span>','pc-primary pc-wide',ui.index ? '' : 'disabled')}</div>`;
+  }
+  // The picture's look, a choice of my own (in a room too: it is not part of the room's settings).
+  function lookField(label = '画面') {
+    return `<div class="pc-field"><span class="pc-label">${label}</span><div class="pc-segment" role="radiogroup" aria-label="画面">${Object.entries(LOOKS).map(([key,look]) => option('look',key,look.name,ui.prefs.look,look.hint)).join('')}</div></div>`;
   }
   // Brunstad drawn from the real map data: water, woods, roads, paths and buildings, with every region's loop on top in
   // its own colour. A loop, its label or its row in the list beside the plan picks that map.
@@ -1090,7 +1100,8 @@
       else if (key === 'end') ui.prefs.end = value;
       else ui.prefs[key] = Number.isNaN(number) ? value : number;
       savePrefs();
-      if (ui.view === 'room') pushRoomSettings();
+      // (the picture's look is mine alone, never the room's)
+      if (ui.view === 'room' && key !== 'look') pushRoomSettings();
       render();
       const scroll = ui.root.scrollTop;
       ui.root.querySelector(`.pc-region[data-key="${key}"][aria-checked="true"],[data-key="${key}"][aria-checked="true"]`)?.focus?.({preventScroll:true});
@@ -1769,6 +1780,7 @@
       <section class="pc-room-head"><div class="pc-room-code"><span class="pc-kicker">房间号</span><b>${e(state.code)}</b></div><p>告诉同学这 4 位数字，或者把邀请链接发给他们。</p>${button('room-copy',`${icon('link')}<span>${canShare() ? '邀请同学' : '复制邀请链接'}</span>`,'pc-ghost')}</section>
       <section class="pc-panel pc-room-game"><div class="pc-section-head"><h3>这一局</h3>${host ? (between ? `<button type="button" class="pc-link" data-pc="room-edit" aria-expanded="${ui.roomEdit}">${ui.roomEdit ? '收起' : '更改'}</button>` : '') : '<small class="pc-hint">房主选择</small>'}</div>${facts}${editor}</section>
       <div class="pc-teams">${team('police')}${team('thief')}</div>
+      ${between ? `<section class="pc-panel pc-room-look">${lookField('我的画面 · 只改自己看到的')}</section>` : ''}
       ${bar}`;
   }
 
@@ -2289,7 +2301,7 @@
     } catch {}
     const map = mapOf(mapId);
     let world = null;
-    world = await module.createWorld({canvas,overlay:$('#pc-overlay'),images:ui.images,manifest:ui.assets,small,touch,
+    world = await module.createWorld({canvas,overlay:$('#pc-overlay'),images:ui.images,manifest:ui.assets,small,touch,style:ui.prefs.look,
       map:map.kind === 'brunstad' ? {...map,manifest:versioned(map.manifest),files:Object.fromEntries(Object.entries(map.files).map(([name,path]) => [name,versioned(path)]))} : map,
       onLost:() => {
         if (!world || ui.stage?.world !== world || !ui.game) return;
