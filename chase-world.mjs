@@ -9,7 +9,7 @@
 import {AdditiveBlending,BackSide,BoxGeometry,BufferAttribute,BufferGeometry,CanvasTexture,CatmullRomCurve3,CircleGeometry,Color,ConeGeometry,
   CylinderGeometry,DataTexture,DirectionalLight,DodecahedronGeometry,Euler,ExtrudeGeometry,Fog,Group,HemisphereLight,IcosahedronGeometry,
   InstancedMesh,Matrix4,Mesh,MeshBasicMaterial,MeshToonMaterial,NearestFilter,Object3D,PCFShadowMap,PerspectiveCamera,PlaneGeometry,Quaternion,
-  RepeatWrapping,RingGeometry,SRGBColorSpace,Scene,ShaderMaterial,Shape,Sprite,SpriteMaterial,Texture,Vector3,WebGLRenderer} from './vendor/three-chase.32d6fea2d0.mjs';
+  RepeatWrapping,RingGeometry,SRGBColorSpace,Scene,ShaderMaterial,Shape,Sprite,SpriteMaterial,Texture,Vector3,WebGLRenderer} from './vendor/three-chase.cd996b9983.mjs';
 
 const ROAD = 9, SAMPLES = 2048, WATER = -.8, SHORE = 51;
 // Where the verge starts, just past the gravel shoulder.
