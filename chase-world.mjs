@@ -9,7 +9,7 @@
 import {AdditiveBlending,BackSide,BoxGeometry,BufferAttribute,BufferGeometry,CanvasTexture,CatmullRomCurve3,CircleGeometry,Color,ConeGeometry,
   CylinderGeometry,DataTexture,DirectionalLight,DodecahedronGeometry,Euler,ExtrudeGeometry,Fog,Group,HemisphereLight,IcosahedronGeometry,
   InstancedMesh,Matrix4,Mesh,MeshBasicMaterial,MeshToonMaterial,NearestFilter,Object3D,PCFShadowMap,PerspectiveCamera,PlaneGeometry,Quaternion,
-  RepeatWrapping,RingGeometry,SRGBColorSpace,Scene,ShaderMaterial,Shape,Sprite,SpriteMaterial,Texture,Vector3,WebGLRenderer} from './vendor/three-chase.cd996b9983.mjs';
+  RepeatWrapping,RingGeometry,SRGBColorSpace,Scene,ShaderMaterial,Shape,Sprite,SpriteMaterial,Texture,Vector3,WebGLRenderer} from './vendor/three-chase.2fae1b0883.mjs';
 
 const ROAD = 9, SAMPLES = 2048, WATER = -.8, SHORE = 51;
 // Where the verge starts, just past the gravel shoulder.
@@ -20,12 +20,13 @@ const UP = new Vector3(0,1,0);
 const SIZE = {run:{h:4.6},pose:{h:4.6},bike:{h:5},skate:{h:4.9},moto:{w:6},car:{w:8.5},heli:{w:11.5}};
 const LANE = 2.4;
 // Where the rotor mast stands in each helicopter drawing, as a fraction of its width from the tail.
-const MAST = {'police-heli':.624,'thief-heli':.587};
+// (measured on the Q版 drawings of 2026-11-05, scripts/generate_chase_art.py --style town)
+const MAST = {'police-heli':.61,'thief-heli':.6};
 // Where the blue lamp sits in each police drawing, from the middle of the picture (fractions of width and height).
-const BEACON = {moto:[-.31,.73],car:[-.08,.95],heli:[.12,.25]};
+const BEACON = {moto:[-.3,.62],car:[-.13,.95],heli:[.1,.2]};
 // The thieves' own touch: their loot sack (behind the dirt bike's rider, on the sports car's back seat, under the
 // helicopter) catches the evening sun now and then. Where the sack is in each drawing, like BEACON.
-const LOOT = {moto:[-.32,.45],car:[-.17,.5],heli:[-.04,.11]};
+const LOOT = {moto:[-.33,.52],car:[-.17,.48],heli:[-.03,.15]};
 // The frame a cycle shows while standing still: both feet on the board for the skater.
 const REST = {'thief-skate-cycle':2};
 // In the wide view everyone is drawn at least this many pixels tall, so the runners stay readable.
