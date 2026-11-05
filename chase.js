@@ -1555,7 +1555,7 @@
         prefetchAhead();
         // A room game starts on the server's word, not on a tap, so a phone or tablet does not open its keyboard by
         // itself: a quiet note over the sentence asks for one tap (it goes at the first key or when the keyboard is up).
-        if (window.matchMedia?.('(pointer: coarse)').matches && keyboardHeight() < 80) $('#pc-type')?.classList.add('is-tap');
+        if (!ui.ownKeys && window.matchMedia?.('(pointer: coarse)').matches && keyboardHeight() < 80) $('#pc-type')?.classList.add('is-tap');
       }
       const loading = $('#pc-loading');
       if (loading) { loading.textContent = '等大家载入地图…'; loading.classList.add('is-wait'); }
@@ -1852,7 +1852,11 @@
     }
   }
   function gameMarkup(p) {
-    return `<div class="pc-game${p.watch ? ' is-watch' : ''}">
+    // Phones and tablets type on the game's own keyboard; a new game screen starts on its letter page.
+    ui.ownKeys = ownKeyboard();
+    ui.kbWant = '';
+    const own = ui.ownKeys;
+    return `<div class="pc-game${p.watch ? ' is-watch' : ''}${own ? ' has-kb' : ''}">
       <header class="pc-gbar"><button type="button" class="pc-icon-button" data-pc="close" aria-label="${p.watch ? '退出观战' : '离开这一局'}">${icon('close')}</button>
         <div class="pc-clock" id="pc-clock" aria-label="时间">${icon('clock')}<span>${p.end === 'timed' ? formatClock(p.minutes*60000) : '0:00'}</span></div>
         <div class="pc-score" aria-label="比分"><span class="pc-score-side" title="抓到">${icon('cuffs')}<b id="pc-catch">0</b></span><i>:</i><span class="pc-score-side" title="嘲笑"><b id="pc-taunt">0</b>${icon('taunt')}</span></div>
@@ -1861,14 +1865,49 @@
         <button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
       <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
-      <div class="pc-panel-type" id="pc-type"${p.watch ? ' hidden' : ''}>
+      <div class="pc-panel-type${own ? ' has-kb' : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
         <div class="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
-        <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>出现候选框时，请把输入法切到英文</span><span class="pc-keys" aria-label="挪威字母">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span></div>
-        <textarea class="pc-input" id="pc-input" aria-label="在这里打字" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"></textarea>
+        <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>出现候选框时，请把输入法切到英文</span>${own ? '' : `<span class="pc-keys" aria-label="挪威字母">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span>`}</div>
+        ${own ? `<div class="pc-kb" id="pc-kb" role="group" aria-label="挪威语键盘" data-page="letters">${keyRows('letters')}</div>` : ''}
+        <textarea class="pc-input" id="pc-input" aria-label="在这里打字" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
       </div></div>`;
   }
+  // On a touch screen the system keyboard would cover half the picture (and some phones shrink or shift the page for
+  // it), so the game brings its own keyboard, laid out like 练习's: Å right of P, Ø and Æ right of L. Only letters and
+  // digits are ever typed, so there is no space or backspace, and the page turns to digits by itself when a number
+  // comes. The hidden field never takes the focus there; a hardware keyboard still types through onRootKey.
+  const ownKeyboard = () => Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+  function keyRows(page) {
+    const key = char => `<button type="button" class="pc-kb-key" data-kb="${char}" tabindex="-1">${char}</button>`;
+    const turn = page === 'digits' ? ['letters','ABC','切换字母'] : ['digits','123','切换数字'];
+    const rows = page === 'digits' ? ['12345','67890'] : ['qwertyuiopå','asdfghjkløæ','zxcvbnm'];
+    const last = `<button type="button" class="pc-kb-key is-turn" data-kb-page="${turn[0]}" tabindex="-1" aria-label="${turn[2]}">${turn[1]}</button>`;
+    return rows.map((row,index) => `<div class="pc-kb-row${page === 'digits' ? ' is-digits' : ''}">${index === 2 ? last : ''}${[...row].map(key).join('')}</div>`).join('')
+      +(page === 'digits' ? `<div class="pc-kb-row">${last}</div>` : '');
+  }
+  function keyboardPage(page) {
+    const board = $('#pc-kb');
+    if (!board || board.dataset.page === page) return;
+    board.dataset.page = page;
+    board.innerHTML = keyRows(page);
+  }
+  // The page follows the next letter only when it changes kind, so a page turned by hand stays until then.
+  function followKeyboard(letter) {
+    if (!ui.ownKeys) return;
+    const want = /[0-9]/.test(letter.ch) ? 'digits' : 'letters';
+    if (want !== ui.kbWant) { ui.kbWant = want; keyboardPage(want); }
+  }
+  function pressKey(button) {
+    button.classList.remove('is-down');
+    void button.offsetWidth;
+    button.classList.add('is-down');
+    setTimeout(() => button.classList.remove('is-down'),120);
+    if (button.dataset.kbPage) keyboardPage(button.dataset.kbPage);
+    else feed(button.dataset.kb);
+  }
   function focusInput() {
+    if (ui.ownKeys) return;
     const input = $('#pc-input');
     if (input && document.activeElement !== input) { try { input.focus({preventScroll:true}); } catch {} }
   }
@@ -2104,6 +2143,7 @@
   function updateLine(game,me) {
     const letter = game.text.letters[me.letters];
     if (!letter) return;
+    followKeyboard(letter);
     if (letter.s < ui.lineFrom || letter.s >= ui.lineTo) { renderLine(true); return; }
     const chars = ui.lineChars || [], caret = ui.lineOffsets[letter.s-ui.lineFrom]+letter.c;
     for (let i = 0; i < chars.length; i++) {
@@ -2301,6 +2341,8 @@
     input?.addEventListener('keydown',event => { wakeSfx(); if (event.key === 'Enter') event.preventDefault(); });
     for (const type of ['paste','drop']) input?.addEventListener(type,event => event.preventDefault());
     $('#pc-type')?.addEventListener('pointerdown',event => {
+      const own = event.target.closest('.pc-kb-key');
+      if (own) { event.preventDefault(); wakeSfx(); pressKey(own); return; }
       const key = event.target.closest('.pc-key');
       if (key) { event.preventDefault(); wakeSfx(); feed(key.dataset.char); focusInput(); return; }
       if (event.target !== input) { event.preventDefault(); focusInput(); }
@@ -2308,7 +2350,7 @@
     // A tap on the typing panel or the picture brings the on-screen keyboard back after it was put away (the input
     // keeps its focus then, so it is blurred and focused again; this happens on the click, which iOS accepts).
     const summon = event => {
-      if (event.target.closest?.('.pc-key')) return;
+      if (ui.ownKeys || event.target.closest?.('.pc-key')) return;
       const viewport = window.visualViewport, put = viewport && window.innerHeight-viewport.height < 80;
       if (document.activeElement === input && put && window.matchMedia?.('(pointer: coarse)').matches) input.blur();
       focusInput();
