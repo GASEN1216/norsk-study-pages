@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261105-chase-music';
-import {createReadingLibrary} from './reading-library.mjs?v=20261105-chase-music';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261105-chase-music';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261105-chase-music';
-import * as notesModel from './notes-store.mjs?v=20261105-chase-music';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261105-chase-music';
+import {createDataLoader} from './loader.mjs?v=20261105-chase-readings';
+import {createReadingLibrary} from './reading-library.mjs?v=20261105-chase-readings';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261105-chase-readings';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261105-chase-readings';
+import * as notesModel from './notes-store.mjs?v=20261105-chase-readings';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261105-chase-readings';
 
-const VERSION = '20261105-chase-music';
+const VERSION = '20261105-chase-readings';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -970,7 +970,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261105-chase-music').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261105-chase-readings').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
