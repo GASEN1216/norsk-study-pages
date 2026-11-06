@@ -738,6 +738,8 @@
     ui.root = root;
     ui.handlers = {click:onClick,submit:onSubmit,input:onFieldInput};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
+    // Before the game's own handlers, so a finger never focuses the hidden field first.
+    root.addEventListener('pointerdown',onPointer,true);
     document.addEventListener('keydown',onRootKey);
     document.addEventListener('focusin',onFocusIn);
     ui.onVisibility = onVisibility;
@@ -783,6 +785,7 @@
     for (const id of ui.timers) clearTimeout(id);
     ui.timers.clear();
     for (const [type,handler] of Object.entries(ui.handlers || {})) ui.root?.removeEventListener(type,handler);
+    ui.root?.removeEventListener('pointerdown',onPointer,true);
     document.removeEventListener('visibilitychange',ui.onVisibility);
     document.removeEventListener('keydown',onRootKey);
     document.removeEventListener('focusin',onFocusIn);
@@ -899,6 +902,13 @@
     if (!viewport || ui.view !== 'game') { ui.root.style.removeProperty('--pc-vh'); ui.root.style.removeProperty('--pc-top'); ui.root.classList.remove('is-cramped'); return; }
     ui.root.style.setProperty('--pc-vh',`${Math.round(viewport.height)}px`);
     ui.root.style.setProperty('--pc-top',`${Math.round(viewport.offsetTop)}px`);
+    // The page lost a keyboard's worth of height at the same width while typing in the hidden field: a system keyboard
+    // came up after all (some browsers resize the whole page, so keyboardHeight() alone may read 0).
+    const tall = Math.round(viewport.height), wide = window.innerWidth;
+    if (navigator.maxTouchPoints > 0 && Math.abs((viewport.scale || 1)-1) <= .01) {
+      if (ui.tallAt !== wide) { ui.tallAt = wide; ui.tall = tall; } else ui.tall = Math.max(ui.tall,tall);
+      if (!ui.ownKeys && ui.game && (keyboardHeight() >= 120 || ui.tall-tall >= 120)) useOwnKeys();
+    }
     // Little room left above the keyboard: the typing panel gets more compact.
     ui.root.classList.toggle('is-cramped',viewport.height < 560);
     // The keyboard is up: the note asking for a tap has done its work.
@@ -1855,6 +1865,7 @@
     // Phones and tablets type on the game's own keyboard; a new game screen starts on its letter page.
     ui.ownKeys = ownKeyboard();
     ui.kbWant = '';
+    ui.tallAt = -1;
     const own = ui.ownKeys;
     return `<div class="pc-game${p.watch ? ' is-watch' : ''}${own ? ' has-kb' : ''}">
       <header class="pc-gbar"><button type="button" class="pc-icon-button" data-pc="close" aria-label="${p.watch ? '退出观战' : '离开这一局'}">${icon('close')}</button>
@@ -1869,7 +1880,7 @@
         <div class="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
         <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>出现候选框时，请把输入法切到英文</span>${own ? '' : `<span class="pc-keys" aria-label="挪威字母">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span>`}</div>
-        ${own ? `<div class="pc-kb" id="pc-kb" role="group" aria-label="挪威语键盘" data-page="letters">${keyRows('letters')}</div>` : ''}
+        ${own ? keyboardMarkup() : ''}
         <textarea class="pc-input" id="pc-input" aria-label="在这里打字" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
       </div></div>`;
   }
@@ -1877,7 +1888,43 @@
   // it), so the game brings its own keyboard, laid out like 练习's: Å right of P, Ø and Æ right of L. Only letters and
   // digits are ever typed, so there is no space or backspace, and the page turns to digits by itself when a number
   // comes. The hidden field never takes the focus there; a hardware keyboard still types through onRootKey.
-  const ownKeyboard = () => Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+  // A touch screen is known by a finger on the game (the tap on 开始 counts), by a coarse pointer, or by a phone or
+  // tablet browser: some Android browsers (Bing, in-app ones) report a fine pointer. If a system keyboard comes up all
+  // the same, the game switches over at once (useOwnKeys).
+  function ownKeyboard() {
+    if (ui.touched) return true;
+    try {
+      if (window.matchMedia('(pointer: coarse)').matches) return true;
+      if (window.matchMedia('(any-pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches) return true;
+    } catch {}
+    const agent = navigator.userAgent || '';
+    return /Android|iPhone|iPad|iPod|Mobile|HarmonyOS|OpenHarmony/i.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
+  }
+  function onPointer(event) {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    ui.touched = true;
+    if (ui.view === 'game' && !ui.ownKeys) useOwnKeys();
+  }
+  const keyboardMarkup = () => `<div class="pc-kb" id="pc-kb" role="group" aria-label="挪威语键盘" data-page="letters">${keyRows('letters')}</div>`;
+  // The game screen was drawn for a physical keyboard, yet this is a touch screen: put the system keyboard away and
+  // bring the game's own.
+  function useOwnKeys() {
+    const type = $('#pc-type');
+    if (ui.ownKeys || !type) return;
+    ui.ownKeys = true;
+    ui.kbWant = '';
+    const input = $('#pc-input');
+    input?.setAttribute('inputmode','none');
+    if (document.activeElement === input) input.blur();
+    ui.root.querySelector('.pc-game')?.classList.add('has-kb');
+    type.classList.add('has-kb');
+    type.classList.remove('is-tap');
+    type.querySelector('.pc-keys')?.remove();
+    type.querySelector('.pc-type-foot')?.insertAdjacentHTML('afterend',keyboardMarkup());
+    const game = ui.game, me = game?.players.find(player => player.me), letter = me && game.text.letters[me.letters];
+    if (letter) followKeyboard(letter);
+    if (ui.stage) requestAnimationFrame(layoutStage);
+  }
   function keyRows(page) {
     const key = char => `<button type="button" class="pc-kb-key" data-kb="${char}" tabindex="-1">${char}</button>`;
     const turn = page === 'digits' ? ['letters','ABC','切换字母'] : ['digits','123','切换数字'];
