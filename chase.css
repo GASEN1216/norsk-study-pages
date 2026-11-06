@@ -289,7 +289,7 @@ body.pc-open{overflow:hidden}
 
 /* The game screen */
 .pc-root.is-game{top:var(--pc-top,0);bottom:auto;height:var(--pc-vh,100%);overflow:hidden;background:#efe6d2}
-.pc-game{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%}
+.pc-game{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;height:100%}
 .pc-gbar{display:flex;align-items:center;gap:8px;padding:max(4px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) 4px max(8px,env(safe-area-inset-left));background:linear-gradient(180deg,#fbf6ea,#f6efdf);border-bottom:1px solid #e8dcc0}
 .pc-clock,.pc-speed{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:4px 12px;border:1px solid var(--pc-warm-line);border-radius:99px;background:#fffdf7;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pc-clock span{font:600 16px/1 var(--serif,Georgia,serif);color:var(--pc-ink)}
@@ -304,6 +304,26 @@ body.pc-open{overflow:hidden}
 .pc-speed span{padding-left:6px;border-left:1px solid var(--pc-line);font-size:12.5px;color:var(--pc-muted)}
 .pc-stage{position:relative;min-height:0;overflow:hidden;touch-action:manipulation}
 .pc-stage canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
+/* Picture off: plain paper and one thin line — me in the middle, the others by how far ahead or behind they are. */
+.pc-plain{display:none}
+.pc-game.is-plain .pc-stage{background:radial-gradient(120% 90% at 50% 50%,#fdfbf4,#f4f1e6)}
+.pc-game.is-plain .pc-stage>:not(.pc-plain,.pc-count,.pc-event,.pc-loading){display:none}
+.pc-game.is-plain .pc-plain{position:absolute;inset:0;display:grid;place-items:center;padding:0 clamp(16px,5vw,48px)}
+.pc-game.is-plain .pc-count{color:var(--pc-green);text-shadow:none}
+.pc-plain-track{position:relative;width:min(720px,100%);height:1px;background:linear-gradient(90deg,transparent,#d9cfb6 8%,#d9cfb6 92%,transparent)}
+.pc-plain-end{position:absolute;left:0;top:12px;font-size:11px;letter-spacing:.12em;color:#b9b2a0}
+.pc-plain-end.is-ahead{left:auto;right:0}
+.pc-plain-dot{position:absolute;top:0;width:0;height:0;transition:left .25s linear}
+.pc-plain-dot i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--pc-police);box-shadow:0 0 0 3px #fdfbf4}
+.pc-plain-dot.is-thief i{background:var(--pc-thief)}
+.pc-plain-dot.is-me i{left:-6px;top:-6px;width:12px;height:12px;background:var(--pc-gold);box-shadow:0 0 0 3px #fdfbf4,0 0 0 4px #e7d6ab}
+.pc-plain-dot b,.pc-plain-dot small{position:absolute;left:0;transform:translateX(-50%);white-space:nowrap;line-height:1.3}
+.pc-plain-dot b{bottom:12px;font-size:12.5px;font-weight:500;color:var(--pc-ink)}
+.pc-plain-dot small{bottom:28px;font-size:11px;color:var(--pc-muted)}
+.pc-plain-dot.is-me b{bottom:auto;top:12px;color:#8a6a2a}
+.pc-plain-dot.is-below b{bottom:auto;top:12px}
+.pc-plain-dot.is-below small{bottom:auto;top:28px}
+.pc-plain-dot.is-away{opacity:.35}
 .pc-fx,.pc-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .pc-overlay{overflow:hidden}
 /* Bubbles drift with `translate`, which adds to the transform that places them, so nothing is laid out again. */
@@ -365,6 +385,22 @@ body.pc-open{overflow:hidden}
 .pc-line{color:var(--pc-grey);overflow-wrap:break-word}
 .pc-gap{padding:0 .3em}
 .pc-entry.is-whole{white-space:nowrap}
+/* A word range: one row of entries, each word with its meaning centred under it, the row centred on the panel. The
+   entry being typed sits on a faint gold ground; typed ones keep their dark letters, their meanings step back. */
+.pc-line-wrap.is-words{display:block;height:auto}
+.pc-line.is-words{display:flex;align-items:flex-start;gap:clamp(6px,1.2vw,14px);overflow:hidden;overflow-wrap:normal;white-space:nowrap;padding:2px 0}
+.pc-line.is-words>:first-child{margin-left:auto}
+.pc-line.is-words>:last-child{margin-right:auto}
+.pc-line.is-words .pc-entry{display:inline-flex;flex-direction:column;align-items:center;flex:none;padding:.08em .5em .3em;border-radius:14px;transition:background .3s ease-out,box-shadow .3s ease-out}
+.pc-line.is-words .pc-entry.is-now{background:#f6eedc;box-shadow:inset 0 0 0 1px #ecdcb6}
+.pc-no{line-height:1.45}
+.pc-gloss{max-width:11em;overflow:hidden;text-overflow:ellipsis;font:400 13px/1.4 var(--sans,system-ui,sans-serif);letter-spacing:.02em;color:#aaa592;transition:color .3s ease-out}
+.pc-entry.is-now .pc-gloss{color:var(--pc-ink)}
+.pc-entry.is-past .pc-gloss{color:#8f9a90}
+.pc-line.is-words.is-turn{animation:pc-page .36s var(--pc-ease) both}
+@keyframes pc-page{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.pc-panel-type.is-words .pc-zh{display:none}
+.pc-panel-type.is-words .pc-type-foot{margin-top:4px}
 /* A room game starts without a tap, so a phone's keyboard is not up yet: one tap on the sentence brings it. */
 .pc-panel-type.is-tap::after{content:'轻点这里开始打字';position:absolute;left:50%;top:12px;padding:5px 14px;border:1px solid #e3cf9f;border-radius:99px;background:#fffdf6f2;box-shadow:0 10px 22px -16px #4a3612;color:var(--pc-gold);font-size:13px;letter-spacing:.04em;white-space:nowrap;transform:translateX(-50%);pointer-events:none;animation:pc-fade .5s ease-out both}
 .pc-speaker{margin-right:10px;font:500 .55em/1 var(--sans,sans-serif);letter-spacing:.18em;text-transform:uppercase;color:var(--pc-gold);vertical-align:.2em}
@@ -394,6 +430,16 @@ body.pc-open{overflow:hidden}
 .pc-kb-key.is-turn{grid-column:span 4;background:#f6efdf;color:var(--pc-muted);font:500 13px/1 var(--sans,system-ui,sans-serif);letter-spacing:.06em}
 .pc-kb-row.is-digits .pc-kb-key{grid-column:span 4}
 .pc-kb-row.is-digits .pc-kb-key:first-child{grid-column:2/span 4}
+.pc-kb-key.is-hide{grid-column:19/span 4}
+.pc-kb-key .pc-icon{width:22px;height:22px}
+/* Put away, the keyboard leaves one quiet button (and æ ø å for a real keyboard) at the foot of the panel. */
+.pc-panel-type.has-kb .pc-keys,.pc-kb-show{display:none}
+.pc-panel-type.kb-off .pc-kb{display:none}
+.pc-panel-type.kb-off .pc-keys{display:flex}
+.pc-panel-type.kb-off .pc-kb-show{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 10px;border:1px solid var(--pc-warm-line);border-radius:10px;background:#fffef9;box-shadow:0 1.5px 0 #e3d6b8;color:var(--pc-muted);font-size:13px;letter-spacing:.04em;transition:background .15s ease-out,color .15s ease-out}
+.pc-kb-show .pc-icon{width:20px;height:20px}
+.pc-kb-show:hover{color:var(--pc-green)}
+.pc-kb-show:active{background:var(--pc-gold-soft)}
 /* The real input sits out of sight; 16px keeps iOS from zooming in when it takes focus. */
 .pc-input{position:absolute;left:0;bottom:0;width:1px;height:1px;padding:0;border:0;opacity:0;font-size:16px;resize:none;caret-color:transparent;pointer-events:none}
 
@@ -413,7 +459,19 @@ body.pc-open{overflow:hidden}
   .pc-game.has-kb .pc-zh,.pc-game.has-kb .pc-type-foot{display:none}
   .pc-game.has-kb .pc-kb,.pc-root.is-cramped .pc-game.has-kb .pc-kb{max-width:720px;gap:5px;margin-top:6px}
   .pc-game.has-kb .pc-kb-key,.pc-root.is-cramped .pc-game.has-kb .pc-kb-key{height:34px;border-radius:8px;font-size:17px}
+  .pc-root .pc-game.has-kb .pc-line-wrap.is-words{height:auto}
+  .pc-game.has-kb .pc-gloss{font-size:11.5px}
+  .pc-game.has-kb .pc-panel-type.kb-off .pc-type-foot{display:flex}
 }
+.pc-root.is-cramped .pc-line-wrap.is-words{height:auto}
+/* Narrow phones: the bar holds four switches (camera, picture, music, sound) beside the clock, score and speed. */
+@media (max-width:400px){
+  .pc-root .pc-gbar{gap:2px}
+  .pc-root .pc-gbar .pc-icon-button{width:32px;height:34px}
+  .pc-root .pc-gbar .pc-icon-button .pc-icon{width:19px;height:19px}
+  .pc-root .pc-clock,.pc-root .pc-speed{padding:3px 7px}
+}
+@media (prefers-reduced-motion:reduce){.pc-line.is-words.is-turn{animation:none}}
 
 
 @media (max-width:640px){

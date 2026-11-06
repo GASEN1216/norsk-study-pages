@@ -28,7 +28,7 @@
   // How the 3D scene is drawn: each player chooses for their own picture (it changes nothing in the game, so a room's
   // players may each see their own). chase-brunstad.mjs builds all three; the cast follows the look.
   const LOOKS = {pixel:{name:'像素',hint:'复古像素画'},town:{name:'Q版',hint:'手绘贴图'},anime:{name:'3D',hint:'动画风建模'}};
-  const DEFAULT_LOOK = 'pixel';
+  const DEFAULT_LOOK = 'anime';
   const BOT_NAMES = ['Ola','Kari','Nora','Jonas','Ingrid','Emil','Sofie','Henrik'];
   // Maps: every Brunstad region (its loop from the map pipeline, work/brunstad-map → scripts/import_chase_map.py; the
   // campus itself modelled in three.js from one data pack, scripts/export_brunstad_world.py), picked on a plan of
@@ -402,7 +402,11 @@
     link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     map:'<path d="M9 4.5 3.5 6.5v13L9 17.5l6 2 5.5-2v-13L15 6.5z"/><path d="M9 4.5v13M15 6.5v13"/>',
     eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+    scene:'<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m3.8 16 4.7-4.5 3.5 3.2 2.5-2.2 6 5"/><circle cx="15.5" cy="9.3" r="1.4"/>',
+    track:'<path d="M3.5 12h17"/><circle cx="8" cy="12" r="2"/><circle cx="16.5" cy="12" r="2"/>',
     people:'<circle cx="8.5" cy="9" r="3"/><circle cx="16" cy="9.5" r="2.5"/><path d="M3.5 19a5 5 0 0 1 10 0M13.5 15.2a4.5 4.5 0 0 1 7 3.8"/>',
+    keyboard:'<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14.2h8"/>',
+    'keyboard-hide':'<rect x="2.5" y="3.5" width="19" height="11" rx="2.5"/><path d="M6.5 7.3h.01M10 7.3h.01M14 7.3h.01M17.5 7.3h.01M8 11h8"/><path d="m9 18 3 2.5 3-2.5"/>',
   };
   const icon = name => `<svg class="pc-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
   const button = (action,text,kind='',extra='') => `<button type="button" class="pc-button ${kind}" data-pc="${action}" ${extra}>${text}</button>`;
@@ -429,7 +433,13 @@
       // Someone who asked their device for less motion starts in the wide view (they can still switch).
       // Background music starts out as the sound does (someone who silenced the game before keeps it silent).
       sound:saved.sound !== false,music:saved.music == null ? saved.sound !== false : saved.music !== false,camera:saved.camera === 'still' || (saved.camera == null && reduceMotion()) ? 'still' : 'follow',map:mapOf(saved.map).id,
-      look:LOOKS[saved.look] ? saved.look : DEFAULT_LOOK};
+      // 3D is the look for everyone (2026-11-06); a look is kept only when the player picked it (`lookPicked`), since
+      // the whole prefs object is saved and every earlier player has the old default 像素 stored.
+      look:saved.lookPicked && LOOKS[saved.look] ? saved.look : DEFAULT_LOOK,lookPicked:Boolean(saved.lookPicked && LOOKS[saved.look]),
+      // The game's own keyboard can be put away (a touch-screen laptop types on its real keys).
+      keys:saved.keys !== false,
+      // The picture can be switched off for a plain track line (quiet, and light on the computer).
+      scene:saved.scene !== false};
   }
   const savePrefs = () => writeJSON(PREFS_KEY,ui.prefs);
   const readRecords = () => { const list = readJSON(RECORDS_KEY,[]); return Array.isArray(list) ? list.filter(item => item && typeof item === 'object') : []; };
@@ -1109,6 +1119,7 @@
       if (key === 'minutes') { ui.prefs.end = 'timed'; ui.prefs.minutes = number; }
       else if (key === 'end') ui.prefs.end = value;
       else ui.prefs[key] = Number.isNaN(number) ? value : number;
+      if (key === 'look') ui.prefs.lookPicked = true;
       savePrefs();
       // (the picture's look is mine alone, never the room's)
       if (ui.view === 'room' && key !== 'look') pushRoomSettings();
@@ -1171,6 +1182,19 @@
       target.innerHTML = icon(ui.prefs.music ? 'music' : 'music-off');
       target.setAttribute('aria-label',musicLabel(ui.prefs.music));
       target.title = musicLabel(ui.prefs.music);
+      focusInput();
+      return;
+    }
+    // The picture can be switched off: the stage turns to plain paper with one line showing who is how far ahead or
+    // behind, and the 3D world stops drawing. Switching it on draws the world again at once.
+    if (action === 'scene') {
+      ui.prefs.scene = !ui.prefs.scene;
+      savePrefs();
+      ui.root.querySelector('.pc-game')?.classList.toggle('is-plain',!ui.prefs.scene);
+      target.innerHTML = icon(ui.prefs.scene ? 'scene' : 'track');
+      target.setAttribute('aria-label',sceneLabel(ui.prefs.scene));
+      target.title = sceneLabel(ui.prefs.scene);
+      if (ui.prefs.scene && ui.stage) { ui.stage.width = 0; layoutStage(); }
       focusInput();
       return;
     }
@@ -1867,19 +1891,20 @@
     ui.kbWant = '';
     ui.tallAt = -1;
     const own = ui.ownKeys;
-    return `<div class="pc-game${p.watch ? ' is-watch' : ''}${own ? ' has-kb' : ''}">
+    return `<div class="pc-game${p.watch ? ' is-watch' : ''}${own ? ' has-kb' : ''}${ui.prefs.scene ? '' : ' is-plain'}">
       <header class="pc-gbar"><button type="button" class="pc-icon-button" data-pc="close" aria-label="${p.watch ? '退出观战' : '离开这一局'}">${icon('close')}</button>
         <div class="pc-clock" id="pc-clock" aria-label="时间">${icon('clock')}<span>${p.end === 'timed' ? formatClock(p.minutes*60000) : '0:00'}</span></div>
         <div class="pc-score" aria-label="比分"><span class="pc-score-side" title="抓到">${icon('cuffs')}<b id="pc-catch">0</b></span><i>:</i><span class="pc-score-side" title="嘲笑"><b id="pc-taunt">0</b>${icon('taunt')}</span></div>
         <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>/min</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
         ${p.watch ? '<span class="pc-watch-tag">观战</span>' : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
+        <button type="button" class="pc-icon-button" data-pc="scene" aria-label="${sceneLabel(ui.prefs.scene)}" title="${sceneLabel(ui.prefs.scene)}">${icon(ui.prefs.scene ? 'scene' : 'track')}</button>
         <button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
-      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
-      <div class="pc-panel-type${own ? ' has-kb' : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
-        <div class="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
+      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><div class="pc-plain" id="pc-plain" aria-hidden="true"><div class="pc-plain-track"><span class="pc-plain-end">后方</span><span class="pc-plain-end is-ahead">前方</span></div></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
+      <div class="pc-panel-type${own ? ` has-kb${ui.prefs.keys ? '' : ' kb-off'}` : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
+        <div class="pc-line-wrap" id="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
-        <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>出现候选框时，请把输入法切到英文</span>${own ? '' : `<span class="pc-keys" aria-label="挪威字母">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span>`}</div>
+        <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>出现候选框时，请把输入法切到英文</span>${letterKeys()}${own ? showKeysMarkup() : ''}</div>
         ${own ? keyboardMarkup() : ''}
         <textarea class="pc-input" id="pc-input" aria-label="在这里打字" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
       </div></div>`;
@@ -1906,6 +1931,17 @@
     if (ui.view === 'game' && !ui.ownKeys) useOwnKeys();
   }
   const keyboardMarkup = () => `<div class="pc-kb" id="pc-kb" role="group" aria-label="挪威语键盘" data-page="letters">${keyRows('letters')}</div>`;
+  // æ ø å for a real keyboard without them (on a touch screen they show only while the game's keyboard is put away).
+  const letterKeys = () => `<span class="pc-keys" aria-label="挪威字母">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span>`;
+  const showKeysMarkup = () => `<button type="button" class="pc-kb-show" data-kb-show="1" tabindex="-1" aria-label="显示键盘">${icon('keyboard')}<span>键盘</span></button>`;
+  // Put the game's keyboard away or bring it back; the picture takes the room (at the same scale, see layoutStage).
+  function setKeys(on) {
+    const type = $('#pc-type');
+    ui.prefs.keys = on;
+    savePrefs();
+    type?.classList.toggle('kb-off',!on);
+    if (ui.stage) requestAnimationFrame(layoutStage);
+  }
   // The game screen was drawn for a physical keyboard, yet this is a touch screen: put the system keyboard away and
   // bring the game's own.
   function useOwnKeys() {
@@ -1918,8 +1954,9 @@
     if (document.activeElement === input) input.blur();
     ui.root.querySelector('.pc-game')?.classList.add('has-kb');
     type.classList.add('has-kb');
+    type.classList.toggle('kb-off',!ui.prefs.keys);
     type.classList.remove('is-tap');
-    type.querySelector('.pc-keys')?.remove();
+    type.querySelector('.pc-type-foot')?.insertAdjacentHTML('beforeend',showKeysMarkup());
     type.querySelector('.pc-type-foot')?.insertAdjacentHTML('afterend',keyboardMarkup());
     const game = ui.game, me = game?.players.find(player => player.me), letter = me && game.text.letters[me.letters];
     if (letter) followKeyboard(letter);
@@ -1930,8 +1967,10 @@
     const turn = page === 'digits' ? ['letters','ABC','切换字母'] : ['digits','123','切换数字'];
     const rows = page === 'digits' ? ['12345','67890'] : ['qwertyuiopå','asdfghjkløæ','zxcvbnm'];
     const last = `<button type="button" class="pc-kb-key is-turn" data-kb-page="${turn[0]}" tabindex="-1" aria-label="${turn[2]}">${turn[1]}</button>`;
-    return rows.map((row,index) => `<div class="pc-kb-row${page === 'digits' ? ' is-digits' : ''}">${index === 2 ? last : ''}${[...row].map(key).join('')}</div>`).join('')
-      +(page === 'digits' ? `<div class="pc-kb-row">${last}</div>` : '');
+    // Like a tablet's keyboard, the bottom row ends in a key that puts the keyboard away.
+    const hide = `<button type="button" class="pc-kb-key is-turn is-hide" data-kb-hide="1" tabindex="-1" aria-label="收起键盘" title="收起键盘">${icon('keyboard-hide')}</button>`;
+    return rows.map((row,index) => `<div class="pc-kb-row${page === 'digits' ? ' is-digits' : ''}">${index === 2 ? last : ''}${[...row].map(key).join('')}${index === 2 ? hide : ''}</div>`).join('')
+      +(page === 'digits' ? `<div class="pc-kb-row">${last}${hide}</div>` : '');
   }
   function keyboardPage(page) {
     const board = $('#pc-kb');
@@ -1950,7 +1989,8 @@
     void button.offsetWidth;
     button.classList.add('is-down');
     setTimeout(() => button.classList.remove('is-down'),120);
-    if (button.dataset.kbPage) keyboardPage(button.dataset.kbPage);
+    if (button.dataset.kbHide) setKeys(false);
+    else if (button.dataset.kbPage) keyboardPage(button.dataset.kbPage);
     else feed(button.dataset.kb);
   }
   function focusInput() {
@@ -1960,6 +2000,7 @@
   }
   const soundLabel = on => on ? '声音：开（点按关闭音效和单词读音）' : '声音：关（点按打开音效和单词读音）';
   const musicLabel = on => on ? '背景音乐：开（点按关闭）' : '背景音乐：关（点按打开）';
+  const sceneLabel = on => on ? '画面：开（点按关闭画面，只留一条距离线）' : '画面：关（点按打开画面）';
   const cameraLabel = mode => mode === 'still' ? '镜头：全景（点按改为缓慢跟随）' : '镜头：缓慢跟随（点按改为全景）';
   function startCountdown() {
     const game = ui.game;
@@ -2157,7 +2198,8 @@
     if (words.length) ui.opts.prefetch?.(words);
   }
   // The current sentence as one span per character: typed letters dark, the rest grey, a gold caret under the next.
-  // A word range is set like a sentence: from the current word, as many entries as fill the two lines.
+  // A word range is one row of entries, each with its meaning right under it: from the current word, as many as fit the
+  // row; when the last is typed the next row takes its place (a page turn, never a scroll).
   function renderLine(reset) {
     const game = ui.game, line = $('#pc-line');
     if (!game || !line) return;
@@ -2168,20 +2210,34 @@
     if (!reset && letter.s >= ui.lineFrom && letter.s < ui.lineTo) return;
     const sentences = game.text.sentences, sentence = sentences[letter.s];
     const chars = text => text.split('').map((char,index) => `<span class="pc-char${TYPEABLE.test(char) ? '' : ' is-pass'}" data-i="${index}">${char === ' ' ? ' ' : e(char)}</span>`).join('');
+    const words = sentence.section === 'words', turning = words && ui.lineWords && ui.lineFrom != null && letter.s !== ui.lineFrom;
     ui.lineFrom = letter.s;
     ui.lineTo = letter.s+1;
     ui.lineOffsets = [0];
     ui.lineSentence = -1;
-    line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}<span class="pc-entry">${chars(sentence.text)}</span>`;
-    if (sentence.section === 'words') {
-      const room = line.parentElement.clientHeight;
-      while (ui.lineTo-ui.lineFrom < 24 && sentences[ui.lineTo]?.section === 'words') {
+    ui.lineWords = words;
+    line.classList.toggle('is-words',words);
+    $('#pc-line-wrap')?.classList.toggle('is-words',words);
+    $('#pc-type')?.classList.toggle('is-words',words);
+    if (!words) {
+      line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}<span class="pc-entry">${chars(sentence.text)}</span>`;
+    } else {
+      const entry = item => `<span class="pc-entry"><span class="pc-no">${chars(item.text)}</span><span class="pc-gloss" lang="zh">${e(item.zh || '')}</span></span>`;
+      line.innerHTML = entry(sentence);
+      const room = line.clientWidth;
+      while (ui.lineTo-ui.lineFrom < 16 && sentences[ui.lineTo]?.section === 'words') {
         const next = sentences[ui.lineTo];
-        // A later entry is never split over two lines (one too long for a line starts the next page, where it may wrap).
-        line.insertAdjacentHTML('beforeend',`<span class="pc-gap"> </span><span class="pc-entry is-whole">${chars(next.text)}</span>`);
-        if (line.offsetHeight > room+1 || line.lastElementChild.offsetWidth > line.clientWidth) { line.lastElementChild.remove(); line.lastElementChild.remove(); break; }
+        line.insertAdjacentHTML('beforeend',entry(next));
+        if (line.scrollWidth > room+1) { line.lastElementChild.remove(); break; }
         ui.lineOffsets.push(ui.lineOffsets.at(-1)+sentences[ui.lineTo-1].text.length);
         ui.lineTo++;
+      }
+      ui.lineEntries = [...line.children];
+      line.scrollLeft = 0;
+      if (turning && !reduceMotion()) {
+        line.classList.remove('is-turn');
+        void line.offsetWidth;
+        line.classList.add('is-turn');
       }
     }
     ui.lineChars = [...line.querySelectorAll('.pc-char')];
@@ -2205,6 +2261,10 @@
     ui.lineSentence = letter.s;
     const sentence = game.text.sentences[letter.s];
     $('#pc-zh').textContent = sentence.zh;
+    if (ui.lineWords) (ui.lineEntries || []).forEach((entry,index) => {
+      entry.classList.toggle('is-now',index === letter.s-ui.lineFrom);
+      entry.classList.toggle('is-past',index < letter.s-ui.lineFrom);
+    });
     $('#pc-progress').textContent = sentence.section === 'words' ? `第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 词` : `${sectionLabel(sentence.section)} · 第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 句`;
     prefetchAhead();
   }
@@ -2361,6 +2421,7 @@
     const look = LOOKS[ui.prefs.look];
     if (!look || ui.prefs.look === 'pixel') return '';
     ui.prefs.look = 'pixel';
+    ui.prefs.lookPicked = true;
     savePrefs();
     return `这台电脑的显卡画不动${look.name}画面，已换成像素画面`;
   }
@@ -2390,6 +2451,7 @@
     $('#pc-type')?.addEventListener('pointerdown',event => {
       const own = event.target.closest('.pc-kb-key');
       if (own) { event.preventDefault(); wakeSfx(); pressKey(own); return; }
+      if (event.target.closest('.pc-kb-show')) { event.preventDefault(); setKeys(true); return; }
       const key = event.target.closest('.pc-key');
       if (key) { event.preventDefault(); wakeSfx(); feed(key.dataset.char); focusInput(); return; }
       if (event.target !== input) { event.preventDefault(); focusInput(); }
@@ -2449,7 +2511,10 @@
     stage.tallestAt = width;
     const full = stage.tallest;
     if (stage.width === width && stage.height === height && stage.full === full) return;
+    // A row of words was filled for the old width: it is laid out again from the word being typed.
+    const wider = stage.width && stage.width !== width;
     Object.assign(stage,{width,height,full});
+    if (wider && ui.lineWords) renderLine(true);
     stage.world.resize(width,height,full);
     // On a short stage the small map would cover the road, so it steps aside.
     stage.element.classList.toggle('is-short',height < 260);
@@ -2480,6 +2545,7 @@
       u:frozen ? player.pose.at : position(player),look:frozen ? {name:player.pose.name,kind:'pose'} : lookOf(player)};
   }
   function renderWorld(game,dt) {
+    if (!ui.prefs.scene) { drawPlain(game); return; }
     const stage = ui.stage, now = shownNow(game), still = ui.prefs.camera === 'still' || Boolean(game.watch);
     const views = game.players.filter(player => !player.gone).map(player => viewOf(player,now));
     const shown = stage.world.render({players:views,lap:stage.lap,dt,stamp:stage.clock,still,calm:ui.calm,events:game.fresh.splice(0)});
@@ -2489,6 +2555,52 @@
     placeMarkers(game);
     drawMinimap(stage,views);
     drawSpeedLines(stage,game.players.find(player => player.me && !player.gone),dt,still);
+  }
+  // With the picture off: one quiet line, me in the middle, everyone else placed by how far ahead or behind they are
+  // (the line reaches PLAIN_METRES each way: twice the start gap, where a thief taunts; anyone further sits at the end).
+  const PLAIN_METRES = 2*GAP*METERS_PER_LETTER;
+  function drawPlain(game) {
+    const box = $('#pc-plain'), track = box?.firstElementChild;
+    if (!track) return;
+    const now = shownNow(game);
+    // Nothing on the track is drawn by the world now: its pending events and finished-word bubbles are let go.
+    game.fresh.length = 0;
+    game.bubbles = game.bubbles.filter(bubble => now-bubble.at <= 1500);
+    const players = game.players.filter(player => !player.gone);
+    const me = players.find(player => player.me) || players[0];
+    if (!me) return;
+    const dots = ui.plainDots ||= new Map(), seen = new Set();
+    const items = players.map(player => {
+      const metres = player === me ? 0 : metresBetween(me,player);
+      return {player,metres,x:50+clamp(metres/PLAIN_METRES,-1,1)*44};
+    }).sort((p,q) => p.x-q.x);
+    // Labels that would touch take turns above and below the line.
+    let lastX = -Infinity, flip = false;
+    for (const item of items) {
+      const {player} = item;
+      seen.add(player.id);
+      let dot = dots.get(player.id);
+      if (!dot || dot.element.parentElement !== track) {
+        const element = document.createElement('span');
+        element.innerHTML = '<i></i><b></b><small></small>';
+        track.append(element);
+        dot = {element,key:''};
+        dots.set(player.id,dot);
+      }
+      flip = item.x-lastX < 9 ? !flip : false;
+      lastX = item.x;
+      const mine = player === me && player.me;
+      const far = Math.abs(item.metres), text = mine ? '' : far < 1 ? '并排' : `${item.metres > 0 ? '前方' : '后方'} ${far} 米`;
+      const key = `${player.side}|${player.name}|${text}|${flip}|${Boolean(player.away)}`;
+      if (dot.key !== key) {
+        dot.key = key;
+        dot.element.className = `pc-plain-dot is-${player.side}${mine ? ' is-me' : ''}${flip ? ' is-below' : ''}${player.away ? ' is-away' : ''}`;
+        dot.element.children[1].textContent = mine ? '我' : player.name;
+        dot.element.children[2].textContent = text;
+      }
+      dot.element.style.left = `${item.x.toFixed(2)}%`;
+    }
+    for (const [id,dot] of dots) if (!seen.has(id) || dot.element.parentElement !== track) { dot.element.remove(); dots.delete(id); }
   }
   // Word bubbles are page elements over the canvas, so the words stay crisp at any size. The word before fades out
   // where it stands as the next one appears.
