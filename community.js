@@ -167,9 +167,10 @@
     storeEntry(resultKey(payload.sessionId),{version:2,deviceId:currentIdentity().deviceId,sessionId:payload.sessionId,status:'done'});
     readQueue();
   }
-  async function request(path,{method='GET',body,auth=false,timeout:limit=TIMEOUT_MS}={}) {
+  async function request(path,{method='GET',body,auth=false,timeout:limit=TIMEOUT_MS,duelPoll=''}={}) {
     const headers={Accept:'application/json'};
     if (body) headers['Content-Type']='application/json';
+    if (duelPoll) headers['X-Duel-Poll']=duelPoll;
     if (auth) { const device=await prepareIdentity(); headers['X-Device-Id']=device.deviceId; headers.Authorization=`Bearer ${device.deviceSecret}`; }
     const controller=new AbortController();
     let timer;
@@ -493,10 +494,12 @@
   // Authenticated access for other features (联机翻翻乐). Unlike the calls above it rejects, with error.code set.
   async function publicRequest(path,options={}) {
     if (typeof path !== 'string' || !/^\/[\w\-/]*(\?[\w=&%.-]*)?$/.test(path)) throw issue('invalid_request');
-    const {method='GET',body,auth=true,timeout}=options || {};
+    const {method='GET',body,auth=true,timeout,duelPoll}=options || {};
     if (!['GET','POST','PATCH'].includes(method)) throw issue('invalid_request');
+    // 联机翻翻乐 names the room state it holds in a header, so its poll address never changes and the CORS preflight stays cached.
+    if (duelPoll !== undefined && (typeof duelPoll !== 'string' || !/^\d{1,12}\/(\d{1,6}|-)$/.test(duelPoll))) throw issue('invalid_request');
     if (auth) await ensureRegistered();
-    return request(path,{method,body,auth,timeout});
+    return request(path,{method,body,auth,timeout,duelPoll});
   }
   async function currentProfile() {
     const profile=await ensureRegistered();

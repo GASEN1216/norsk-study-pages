@@ -8,7 +8,9 @@
   const MINUTES = [3,5,8];
   const MIN_POOL = 6, MAX_POOL = 120, MAX_TEXT = 40, MAX_BODY_BYTES = 15800, MAX_SEEN = 4000;
   const MISS_LOCK_MS = 700, OPEN_MISS_MS = 420, GLOW_MS = 750, TICKER_MS = 2200, ROLL_MS = 600, FINALE_MS = 1500;
-  const POLL_MS = {lobby:1500, finished:1500, countdown:500, playing:650, hidden:4000};
+  // Fallback cadence for a server that answers polls at once; a server that holds polls until the room changes
+  // is asked again POLL_GAP_MS after each answer.
+  const POLL_MS = {lobby:1500, finished:1500, countdown:500, playing:650, hidden:4000}, POLL_GAP_MS = 100, POLL_TIMEOUT_MS = 12000;
   const TEAMS = {pine:{name:'松绿队',color:'#2f6b55'}, amber:{name:'琥珀队',color:'#a87a2a'}};
   const TEAM_IDS = ['pine','amber'];
   // Muted, distinguishable tones; the first players get the warm ones (terracotta, amber, rose) to sit with the site's paper and gold.
@@ -320,7 +322,7 @@
     }
     Object.assign(ui,{open:true,opts:options,community,session:(ui.session || 0)+1,room:null,local:null,clock:null,profile:null,
       screen:'',busy:false,message:'',joinCode:validCode(options.join) ? String(options.join) : '',pollTimer:null,polling:null,failures:0,offline:false,
-      tickTimer:null,missTimer:null,toastTimer:null,tickerTimer:null,dealTimer:null,settingsTimer:null,resizeTimer:null,timers:new Set(),
+      tickTimer:null,missTimer:null,toastTimer:null,tickerTimer:null,dealTimer:null,settingsTimer:null,resizeTimer:null,openTimer:null,openArmed:'',timers:new Set(),
       gone:new Set(),glowing:new Set(),built:'',gameKey:'',boardCards:[],boardWave:0,interlude:'',lastSeq:-1,shown:new Map(),words:null,
       confirm:false,honorsFor:'',pushed:'',editing:'',picker:null,lastPhase:'',settingsSync:null,readyRun:0,available:null,
       seen:readSeen(),recorded:'',redraw:'',finale:null,view:'home',records:{status:'idle',data:null,at:0},recordOpen:'',recordWords:new Map(),
@@ -468,7 +470,8 @@
     return timer;
   }
   function stopTimers() {
-    for (const name of ['pollTimer','missTimer','toastTimer','tickerTimer','dealTimer','settingsTimer','resizeTimer']) { clearTimeout(ui[name]); ui[name] = null; }
+    for (const name of ['pollTimer','missTimer','toastTimer','tickerTimer','dealTimer','settingsTimer','resizeTimer','openTimer']) { clearTimeout(ui[name]); ui[name] = null; }
+    ui.openArmed = '';
     clearInterval(ui.tickTimer); ui.tickTimer = null;
     for (const timer of ui.timers || []) clearTimeout(timer);
     ui.timers?.clear?.();
@@ -500,10 +503,12 @@
 
   /* Network */
 
-  async function call(path, body) {
+  async function call(path, body, options={}) {
     const sentAt = Date.now(), session = ui.session;
-    const data = await ui.community.request(path,body === undefined ? {timeout:8000} : {method:'POST',body,timeout:10000});
-    if (session === ui.session) ui.clock = syncClock(ui.clock,data?.serverTime,sentAt,Date.now());
+    const data = await ui.community.request(path,body === undefined ? {timeout:8000,...options} : {method:'POST',body,timeout:10000});
+    // The time a poll was held on the server is not network time: the round trip is what is left of it.
+    const held = Math.max(0,Number(data?.heldMs) || 0);
+    if (session === ui.session) ui.clock = syncClock(ui.clock,data?.serverTime,sentAt+held,Date.now());
     return data;
   }
   function nextDelay() {
@@ -521,11 +526,14 @@
     if (ui.polling?.session === session && ui.polling.code === room.code) return;
     const polling = ui.polling = {session,code:room.code};
     try {
-      const data = await call(`/duel/rooms/${room.code}?v=${room.version}${ui.words ? `&have=${ui.words.number}` : ''}`);
+      // The address never changes (what I hold travels in a header), so the browser keeps its CORS preflight and
+      // each poll costs one round trip. The server answers as soon as the room moves past my version.
+      const data = await call(`/duel/rooms/${room.code}`,undefined,{duelPoll:`${room.version}/${ui.words ? ui.words.number : '-'}`,timeout:POLL_TIMEOUT_MS});
       if (session !== ui.session || ui.room?.code !== room.code) return;
       ui.failures = 0; setOffline(false);
       if (!data.unchanged) applyState(data);
-      schedulePoll(nextDelay());
+      const held = Number.isFinite(data.heldMs);
+      schedulePoll(document.visibilityState === 'hidden' ? POLL_MS.hidden : held ? POLL_GAP_MS : nextDelay());
     } catch (error) {
       if (session !== ui.session || ui.room?.code !== room.code) return;
       if (error?.code === 'room_not_found' || error?.code === 'not_in_room') { lostRoom(friendly(error)); return; }
@@ -960,9 +968,24 @@
     return `<button type="button" class="nd-card" data-nd-card="${index}" aria-label="第 ${index+1} 张牌"><span class="nd-card-inner"><span class="nd-face nd-front ${card.kind === 'no' ? 'is-no' : 'is-zh'}"${card.kind === 'no' ? ' lang="nb"' : ' lang="zh"'}><span class="nd-text">${e(card.face)}</span><span class="nd-tag" aria-hidden="true"></span></span><span class="nd-face nd-back" aria-hidden="true">${icon('star')}</span></span></button>`;
   }
   // A new wave: the cleared board waits through the interlude, then the next cards are dealt.
+  // Cards turn face up (and become tappable) on the wave's opening moment itself, not on the next 200 ms tick.
+  function armOpen() {
+    const room = ui.room, wave = waveOf(room), key = waveKey(room);
+    if (!wave || ui.openArmed === key) return;
+    const wait = wave.opensAt-serverNow();
+    if (wait <= 0) return;
+    ui.openArmed = key;
+    clearTimeout(ui.openTimer);
+    ui.openTimer = setTimeout(() => {
+      ui.openArmed = '';
+      // A clock resync may have moved the opening a little later: wait for it, else open now.
+      if (waveKey(ui.room) === key && waveOf(ui.room).opensAt > serverNow()) armOpen(); else tick();
+    },wait+2);
+  }
   function syncBoard() {
     const room = ui.room, wave = waveOf(room), key = waveKey(room);
     if (!wave) return;
+    armOpen();
     if (ui.built === key) { patchBoard(); return; }
     const wait = wave.opensAt-serverNow();
     if (ui.built && wait > 450 && !reducedMotion()) {
