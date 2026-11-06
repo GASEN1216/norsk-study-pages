@@ -25,7 +25,7 @@
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
-  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],mine:[],wordbookTitle:'我的词本',indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
+  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mine:[],wordbookTitle:'我的词本',indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
   let sessionPools = new WeakMap(), checkedQuestions = new WeakSet(), inputSaveTimer = null;
   let editor = null;
   const EDITOR_REQUEST = 'norsk-practice-editor-request:';
@@ -282,7 +282,7 @@
     return merged;
   }
   function indexData(data) {
-    state.sources.clear(); state.words.clear(); state.prepared.clear(); state.chapters = []; state.basics = []; state.mine = [];
+    state.sources.clear(); state.words.clear(); state.prepared.clear(); state.chapters = []; state.basics = []; state.kitchen = []; state.mine = [];
     state.indexed = data;
     sessionPools = new WeakMap(); checkedQuestions = new WeakSet();
     const add = (token,label,words) => {
@@ -306,6 +306,14 @@
       state.chapters.push({...chapter,...source,sections});
     }
     for (const category of data?.basics?.categories || []) state.basics.push({...category,...add(`basic:${category.id}`,category.title,category.items)});
+    // 厨房 Kjøkken: 开饭啦's food words by kind of food, with their own readings (a public source, like the basics).
+    const kitchenWords = id => (data?.kitchen?.entries || []).filter(item => item?.cat === id && item.word && item.zh).map(item => ({word:item.word,meaning:item.zh,
+      english:item.en || '',ipa:item.ipa || '',pos:KITCHEN_POS[item.pos] || '',gender:item.gender || '',article:item.article || '',forms:(item.forms || []).filter(Boolean),
+      audio:item.clip || '',...(item.ex ? {example:`${item.ex}${item.exZh ? `（${item.exZh}）` : ''}`,exampleSource:'study'} : {})}));
+    for (const category of data?.kitchen?.categories || []) {
+      const words = kitchenWords(category.id);
+      if (words.length) state.kitchen.push({...category,title:category.zh,...add(`kitchen:${category.id}`,`厨房 · ${category.zh}`,words)});
+    }
     // The learner's own wordbook: one source per chapter; words keep their own recording (audio).
     state.wordbookTitle = String(data?.wordbook?.title || '').trim() || '我的词本';
     for (const chapter of data?.wordbook?.chapters || []) state.mine.push({...chapter,...add(`mine:${chapter.id}`,String(chapter.title || ''),chapter.words)});
@@ -325,11 +333,13 @@
     syncSidebar();
   }
   function applyPendingWordbook() { if (state.pendingWordbook) refreshWordbook(state.pendingWordbook); }
-  // Which source tab shows a range: textbook chapters first, then the wordbook, then the basics.
+  const KITCHEN_POS = {noun:'名词',verb:'动词',adj:'形容词',phrase:'短语'};
+  // Which source tab shows a range: textbook chapters first, then the wordbook, the kitchen, then the basics.
   function scopeTabFor(tokens) {
     const list = [...tokens];
     if (list.some(token => token.startsWith('chapter:') || token.startsWith('section:'))) return 'chapters';
     if (list.some(token => token.startsWith('mine:'))) return 'wordbook';
+    if (list.some(token => token.startsWith('kitchen:'))) return 'kitchen';
     return list.length ? 'basics' : 'chapters';
   }
   function poolFor(tokens) {
@@ -463,12 +473,15 @@
   const ONLINE_GAMES = [
     {action:'duel',title:'联机翻翻乐',short:'翻翻乐',note:'和同学抢翻词对，挪威语配中文',meta:'开房间 · 加入房间'},
     {action:'chase',title:'警察抓小偷',short:'警察抓小偷',note:'打课文比速度，警察追、小偷逃',meta:'人机对战 · 开房间 · 加入房间'},
+    {action:'kitchen',title:'开饭啦',short:'开饭啦',note:'听懂点单、配菜上桌，学会挪威的日常饮食',meta:'一个人开张 · 开房间 · 加入房间'},
   ];
   function openOnline() {
     const dialog = $('#pr-online');
     if (!dialog) return;
     const art = name => `assets/online/${name}.webp${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`;
     dialog.innerHTML = `<div class="pr-dialog-heading"><h2 id="pr-online-title" tabindex="-1">联机游戏</h2>${iconButton('online-close','close','关闭')}</div><div class="pr-online-games">${ONLINE_GAMES.map(game => `<button type="button" class="pr-online-game is-${game.action}" data-practice-action="${game.action}"><img class="pr-online-art" src="${e(art(game.action))}" alt="" decoding="async" draggable="false"><span class="pr-online-text"><strong>${game.title}</strong><span>${game.note}</span><small>${game.meta}</small></span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div><p class="pr-online-note">更多联机游戏会陆续加到这里。</p>`;
+    // A card whose picture is still being drawn keeps a quiet warm block instead of a broken image.
+    dialog.querySelectorAll('.pr-online-art').forEach(image => image.addEventListener('error',() => { image.removeAttribute('src'); image.classList.add('is-missing'); },{once:true}));
     if (!dialog.open) dialog.showModal?.();
     $('#pr-online-title')?.focus?.();
   }
@@ -499,6 +512,7 @@
       for (const section of chapter.sections) sources.push({token:section.token,label:section.label,group:'section',parent:chapter.token,words:pick(section.words)});
     }
     for (const category of state.basics) sources.push({token:category.token,label:category.label,group:'basics',words:pick(category.words)});
+    for (const category of state.kitchen) sources.push({token:category.token,label:category.label,group:'basics',words:pick(category.words)});
     for (const chapter of state.mine) sources.push({token:chapter.token,label:chapter.label,group:'wordbook',words:pick(chapter.words)});
     sources.push({token:'favorites',label:'收藏词',group:'mine',words:pick(favoriteKeys().map(key => state.words.get(key)))});
     sources.push({token:'weak',label:'薄弱词',group:'mine',words:pick(weakKeys().map(key => state.words.get(key)))});
@@ -530,7 +544,7 @@
     const pool = poolFor(state.selected), weak = weakKeys().length, favorites = favoriteKeys().length;
     const quick = weak || favorites ? `<div class="pr-quick-row">${weak ? button('weak',`薄弱词 <b>${weak}</b>`,'','pr-chip-button') : ''}${favorites ? button('favorites',`${icon('star',true)}收藏 <b>${favorites}</b>`,'','pr-chip-button') : ''}</div>` : '';
     const minimum = state.activity === 'match' ? 2 : 1;
-    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','基础常识',`data-pr-tab="basics" aria-label="公共基础常识" title="公共基础常识" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section></div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','基础常识',`data-pr-tab="basics" aria-label="公共基础常识" title="公共基础常识" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}${state.kitchen.length ? button('scope-tab','厨房',`data-pr-tab="kitchen" aria-label="厨房 Kjøkken：开饭啦的食物词" title="厨房 Kjøkken：开饭啦的食物词" aria-pressed="${state.scopeTab === 'kitchen'}"`,'pr-small') : ''}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section>${state.kitchen.length ? `<section data-pr-scope-tab="kitchen" ${state.scopeTab === 'kitchen' ? '' : 'hidden'}><div id="pr-kitchen-sources">${state.kitchen.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}</div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
     filterScope();
     updateSelectionUI(false);
     if (!dialog.open) { dialog.showModal?.(); $('#pr-scope-title')?.focus?.(); }
@@ -553,7 +567,7 @@
         if (query && !detail.hidden) detail.open = true;
         detail.querySelectorAll('[data-pr-source-search]').forEach(row => { row.hidden = !!query && !chapterTitle.includes(query) && !row.dataset.prSourceSearch.includes(query); });
       });
-    } else all(state.scopeTab === 'wordbook' ? '#pr-wordbook-sources [data-pr-source-search]' : '#pr-basic-sources [data-pr-source-search]').forEach(row => { row.hidden = !!query && !row.dataset.prSourceSearch.includes(query); if (!row.hidden) shown++; });
+    } else all(state.scopeTab === 'wordbook' ? '#pr-wordbook-sources [data-pr-source-search]' : state.scopeTab === 'kitchen' ? '#pr-kitchen-sources [data-pr-source-search]' : '#pr-basic-sources [data-pr-source-search]').forEach(row => { row.hidden = !!query && !row.dataset.prSourceSearch.includes(query); if (!row.hidden) shown++; });
     if (state.scopeTab === 'wordbook' && !state.mine.some(chapter => chapter.words.length)) shown = 1;
     const empty = $('#pr-source-empty');
     if (empty) empty.hidden = shown > 0;
@@ -570,7 +584,7 @@
         if (child) child.checked = state.selected.has(chapter.token) || state.selected.has(section.token);
       }
     }
-    for (const category of [...state.basics,...state.mine]) {
+    for (const category of [...state.basics,...state.kitchen,...state.mine]) {
       const input = sourceInputs.get(category.token);
       if (input) input.checked = state.selected.has(category.token);
     }
@@ -1277,7 +1291,7 @@
   function onClick(event) {
     const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
     if (requested === 'takeover') { acquireEditor(true); return; }
-    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','series','wordbook-open','scope-tab'].includes(requested)) { requireEditor(); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','series','wordbook-open','scope-tab'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
     if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { state.activity=modeTarget.dataset.prActivity; state.scopeQuery=''; if (state.selected.size) state.scopeTab=scopeTabFor(state.selected); draft(); renderScope(); return; }
@@ -1292,6 +1306,7 @@
       case 'online-close': $('#pr-online')?.close(); break;
       case 'duel': $('#pr-online')?.close(); state.deps.openDuel?.(); break;
       case 'chase': $('#pr-online')?.close(); state.deps.openChase?.(); break;
+      case 'kitchen': $('#pr-online')?.close(); state.deps.openKitchen?.(); break;
       case 'honors': state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
@@ -1301,7 +1316,7 @@
       case 'scope-open': renderScope(); break;
       case 'scope-close': $('#pr-scope')?.close?.(); break;
       case 'series': if (target.dataset.prSeries !== state.seriesId) { state.reopenActivity=state.activity; state.deps.selectSeries?.(target.dataset.prSeries); } break;
-      case 'scope-tab': state.scopeTab=['basics','wordbook'].includes(target.dataset.prTab) ? target.dataset.prTab : 'chapters'; renderScope(); break;
+      case 'scope-tab': state.scopeTab=['basics','wordbook','kitchen'].includes(target.dataset.prTab) ? target.dataset.prTab : 'chapters'; renderScope(); break;
       case 'wordbook-open': $('#pr-scope')?.close?.(); state.deps.openWordbook?.(); break;
       case 'clear-selection': state.selected.clear(); updateSelectionUI(); break;
       case 'save-set': saveSet(); break;

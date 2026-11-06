@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261106-chase-lap';
-import {createReadingLibrary} from './reading-library.mjs?v=20261106-chase-lap';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261106-chase-lap';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261106-chase-lap';
-import * as notesModel from './notes-store.mjs?v=20261106-chase-lap';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261106-chase-lap';
+import {createDataLoader} from './loader.mjs?v=20261106-kitchen';
+import {createReadingLibrary} from './reading-library.mjs?v=20261106-kitchen';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261106-kitchen';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261106-kitchen';
+import * as notesModel from './notes-store.mjs?v=20261106-kitchen';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261106-kitchen';
 
-const VERSION = '20261106-chase-lap';
+const VERSION = '20261106-kitchen';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -157,18 +157,38 @@ function pageImage(book,page,width) {
   if (pageImages.size > 60) pageImages.delete(pageImages.keys().next().value);
   return promise;
 }
-// 加入词本 from 听读: words land in a 听读摘录 directory, made the first time.
-function addToWordbook({word,meaning,example,exampleZh}) {
+// 加入词本 from 听读: words land in a 听读摘录 directory, made the first time (other features name their own folder).
+function addToWordbook({word,meaning,example,exampleZh},title = '听读摘录') {
   const store = wordbook(), value = str(word).trim();
   const problem = wordProblem(value);
   if (problem) { notify(problem); return; }
   if (store.data.entries.some(entry => wordKey(entry.word) === wordKey(value))) { notify(`「${value}」已经在词本里了。`); return; }
   try {
-    const title = '听读摘录';
     const chapterId = store.data.chapters.find(item => item.title === title)?.id || store.addChapter(title);
     store.addEntries(chapterId,[{word:value,meaning:str(meaning || exampleZh || '（听读摘录）').slice(0,200),example:str(example).slice(0,300),pos:/\s/.test(value) ? '短语' : ''}]);
     notify(`已加入词本「${title}」。`);
   } catch (error) { notify(error?.message || '没有加进词本，请重试。'); }
+}
+// Several words at once (开饭啦's 局后小结): new ones go into the named folder, words already in the wordbook are left alone.
+// A game overlay shows its own notices (the site's toast is under it): `quiet` leaves them to the caller, which gets
+// the number added (0 when all were there already) or throws.
+function addWordsToWordbook(list,title,{quiet = false} = {}) {
+  const say = message => { if (!quiet) notify(message); };
+  const store = wordbook(), seen = new Set(store.data.entries.map(entry => wordKey(entry.word)));
+  const fresh = [];
+  for (const item of list || []) {
+    const value = str(item?.word).trim();
+    if (!value || wordProblem(value) || seen.has(wordKey(value))) continue;
+    seen.add(wordKey(value));
+    fresh.push({word:value,meaning:str(item.meaning).slice(0,200),example:str(item.example).slice(0,300),pos:str(item.pos) || (/\s/.test(value) ? '短语' : '')});
+  }
+  if (!fresh.length) { say('这些词都已经在词本里了。'); return 0; }
+  try {
+    const chapterId = store.data.chapters.find(item => item.title === title)?.id || store.addChapter(title);
+    store.addEntries(chapterId,fresh);
+    say(`已把 ${fresh.length} 个词加入词本「${title}」。`);
+    return fresh.length;
+  } catch (error) { if (quiet) throw error; notify(error?.message || '没有加进词本，请重试。'); return 0; }
 }
 // The site's own recording for exactly this spelling; null while the recordings list is not loaded.
 function textbookClip(word) {
@@ -452,6 +472,19 @@ async function openChase(join = '') {
       }});
   } catch { notify('警察抓小偷暂时无法打开，请检查网络后重试。'); }
 }
+// 开饭啦 (the co-op learning kitchen); `join` opens a room from an invitation.
+async function openKitchen(join = '') {
+  try {
+    await loadFeature('kitchen');
+    pauseOtherAudio();
+    audio.pause();
+    window.NorskKitchen.open({community:prepareCommunity,pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,version:VERSION,addWords:addWordsToWordbook,
+      join:typeof join === 'string' ? join : '',onExit:() => {
+        if (/[?&]kitchen=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
+        window.NorskPractice?.refreshHonors?.();
+      }});
+  } catch { notify('开饭啦暂时无法打开，请检查网络后重试。'); }
+}
 // Duels draw words from the practice sources, so the practice view is prepared first.
 function requestDuel(join = '') {
   if (state.view === 'practice' && state.practiceInitialized && state.practiceSeriesId === activeSeriesId()) { openDuel(join); return; }
@@ -506,11 +539,12 @@ async function prepareView(view,viewRun = state.viewRun) {
   if (view === 'practice') {
     // Celebrations are decoration: practice starts without them if they fail to load.
     loadFeature('celebrate').catch(error => console.warn('练习动画未载入',error));
-    const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId)]);
+    // 开饭啦's word list is one more public source (厨房 Kjøkken); practice starts without it if it fails to load.
+    const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId),loadData('kitchen-lexicon').catch(() => null)]);
     if (!current()) return;
     activateVocabulary(seriesId,descriptor,vocabulary);
     if (!state.practiceInitialized || state.practiceSeriesId !== seriesId) {
-      window.NorskPractice.init({data:{...state.data,vocabulary,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openChase,version:VERSION,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
+      window.NorskPractice.init({data:{...state.data,vocabulary,kitchen:state.data['kitchen-lexicon'] || null,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openChase,openKitchen,version:VERSION,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
       state.practiceInitialized = true;
       state.practiceSeriesId = seriesId;
       prepareCommunity().catch(() => {});
@@ -970,7 +1004,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261106-chase-lap').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261106-kitchen').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1900,5 +1934,7 @@ async function initialize() {
   setView(viewFromHash() || 'reading',false);
   const chase = (/[?&]chase=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
   if (chase) openChase(chase);
+  const kitchen = (/[?&]kitchen=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
+  if (kitchen) openKitchen(kitchen);
 }
 initialize();
