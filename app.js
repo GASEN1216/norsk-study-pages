@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261106-chase-wordrow';
-import {createReadingLibrary} from './reading-library.mjs?v=20261106-chase-wordrow';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261106-chase-wordrow';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261106-chase-wordrow';
-import * as notesModel from './notes-store.mjs?v=20261106-chase-wordrow';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261106-chase-wordrow';
+import {createDataLoader} from './loader.mjs?v=20261106-spell-cloze';
+import {createReadingLibrary} from './reading-library.mjs?v=20261106-spell-cloze';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261106-spell-cloze';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261106-spell-cloze';
+import * as notesModel from './notes-store.mjs?v=20261106-spell-cloze';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261106-spell-cloze';
 
-const VERSION = '20261106-chase-wordrow';
+const VERSION = '20261106-spell-cloze';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -970,7 +970,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261106-chase-wordrow').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261106-spell-cloze').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });

@@ -192,6 +192,24 @@ body[data-view="practice"]:has(.pr-session-bar) .main-footer,body[data-view="pra
 .pr-answer-input::placeholder{font-weight:400;font-size:17px;color:#9aa69a}
 .pr-answer-input.is-correct{border-color:var(--pr-right);background:var(--pr-right-bg);color:#1d643e}
 .pr-answer-input.is-wrong{border-color:var(--pr-wrong);background:var(--pr-wrong-bg);color:#9b3a24}
+/* Cloze: the word in the answer field's frame, given letters quiet, blanks as underlined slots; the next slot's line
+   breathes in gold. The real field sits out of sight (still focusable, 16px so iOS does not zoom). */
+.pr-answer-form.is-gap{position:relative}
+.pr-gap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-height:62px;padding:9px 16px;border:2px solid #c3d2c2;border-radius:16px;background:#fff;font:500 28px/1 var(--sans);color:#2f4a3f;cursor:text;transition:border-color .2s ease-out,box-shadow .2s ease-out}
+.pr-answer-form.is-gap:focus-within .pr-gap{border-color:#5f8a77;box-shadow:0 0 0 4px #5f8a7722}
+.pr-gap-char{min-width:.5em;padding:0 1px;text-align:center}
+.pr-gap-space{width:.5em}
+.pr-gap-slot{display:inline-grid;place-items:center;width:1.05em;height:1.42em;border-radius:9px;background:#eef3ec;box-shadow:inset 0 -2px 0 #cfdccd;color:#1f4a3a;font-weight:600;transition:background .2s ease-out,box-shadow .2s ease-out,transform .2s var(--pr-ease,ease-out)}
+.pr-gap-slot.is-filled{background:#e2ede4;box-shadow:inset 0 -2px 0 #8fb09d;animation:pr-gap-in .22s ease-out}
+.pr-gap-slot.is-next{background:#fbf4e4;box-shadow:inset 0 -2.5px 0 #c9a04f,0 0 0 1px #efdfb8;animation:pr-gap-next 1.3s ease-in-out infinite}
+@keyframes pr-gap-next{50%{box-shadow:inset 0 -2.5px 0 #e2c88f,0 0 0 1px #f5ead0}}
+@keyframes pr-gap-in{from{transform:scale(.86)}to{transform:none}}
+.pr-gap-slot.is-shown.is-right{background:#e0f0e5;box-shadow:inset 0 -2px 0 var(--pr-right);color:#1d643e}
+.pr-gap-slot.is-shown.is-miss{background:#fbe7e1;box-shadow:inset 0 -2px 0 var(--pr-wrong);color:#9b3a24}
+.pr-gap.is-correct{border-color:var(--pr-right);background:var(--pr-right-bg)}
+.pr-gap.is-wrong{border-color:var(--pr-wrong);background:var(--pr-wrong-bg)}
+.pr-gap-input{position:absolute;left:50%;bottom:0;width:1px;height:1px;padding:0;border:0;opacity:0;font-size:16px;caret-color:transparent;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.pr-gap-slot.is-next,.pr-gap-slot.is-filled{animation:none}}
 .pr-keyboard-wrap{position:relative;margin-top:12px}
 .pr-keyboard-toggle{position:absolute;right:-6px;top:-4px;width:38px;height:38px;min-height:38px}
 .pr-keyboard{display:flex;flex-direction:column;gap:7px;max-width:620px;margin:0 auto;user-select:none;touch-action:manipulation}
@@ -332,6 +350,7 @@ body[data-view="practice"] .main-footer{margin-top:22px}
 .pr-choice-grid{grid-template-columns:minmax(0,1fr);gap:10px}.pr-judge-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
 .pr-choice{min-height:58px;font-size:17px;padding:10px 16px}
 .pr-answer-input{font-size:21px;min-height:56px}
+.pr-gap{min-height:58px;padding:8px 10px;gap:3px;font-size:25px}
 .pr-keyboard{gap:6px}.pr-keyboard-row{gap:4px}.pr-key{min-height:44px;font-size:16px;border-radius:7px}.pr-key-wide,.pr-key-space{font-size:12px}
 .pr-keyboard-toggle{position:static;display:flex;margin:4px auto 0}
 .pr-feedback{flex-wrap:wrap;gap:10px 12px;padding:14px}

@@ -812,9 +812,34 @@
         }
       }
       if (type === 'spell') questions[key]={type:'spell',direction:'to-nb',acceptableKeys:byPrompt.get(metadata.get(key).prompt).slice()};
+      // 拼写学习: every third word is a cloze (fill in the missing letters) — easier to recall than a whole word from
+      // nothing, and the mix keeps the round from feeling the same. A missed cloze comes back as full spelling in review.
+      if (activity === 'learn' && type === 'spell' && index % 3 === 1) {
+        const gap=gapLetters(pool.get(key).word);
+        if (gap) questions[key].gap=gap;
+      }
     });
     return questions;
   }
+  // Which letters of a word go missing in a cloze: about two in five, always æ ø å é (the letters learners trip on),
+  // never the first letter (it anchors the word). Positions count code points of the NFC form; words under three
+  // letters get no cloze.
+  function gapLetters(word) {
+    const chars=[...String(word || '').normalize('NFC')], letters=chars.map((char,index) => /\p{L}/u.test(char) ? index : -1).filter(index => index >= 0);
+    if (letters.length < 3) return null;
+    const want=Math.max(1,Math.min(letters.length-1,Math.round(letters.length*.4))), open=letters.slice(1);
+    const special=open.filter(index => /[æøåé]/iu.test(chars[index]));
+    return [...shuffled(special),...shuffled(open.filter(index => !special.includes(index)))].slice(0,want).sort((a,b) => a-b);
+  }
+  // A cloze is asked in the first round only, and only while its positions still fit the word (the word list can change
+  // under a saved session).
+  function gapOf(session,question,item) {
+    const gap=question?.gap;
+    if (!Array.isArray(gap) || !gap.length || session.phase === 'review' || !item) return null;
+    const chars=[...String(item.word || '').normalize('NFC')];
+    return gap.every(index => Number.isInteger(index) && /\p{L}/u.test(chars[index] || '')) ? gap : null;
+  }
+  const gapInput = value => [...String(value || '').normalize('NFC').toLocaleLowerCase('nb').replace(/[^\p{L}]/gu,'')];
   function questionDetails(session) { return session.phase === 'review' ? (session.reviewDetails ||= {}) : (session.details ||= {}); }
   function submitObjective(value,unknown=false) {
     const session=currentSession();
@@ -822,8 +847,16 @@
     const key=currentKey(session), item=activeItem(), question=session.questions?.[key];
     if (!item || !question) return;
     let correct=false, submitted=String(value ?? ''), matchedKey=key;
+    const gap=question.type === 'spell' ? gapOf(session,question,item) : null;
     if (unknown) submitted='不知道';
-    else if (question.type === 'spell') {
+    else if (gap) {
+      // The typed letters go into the blanks in order; the whole word is then checked like a spelling.
+      const letters=gapInput(submitted);
+      if (letters.length < gap.length) { announce('还有空没填，也可以选“不知道”。'); $('#pr-answer')?.focus?.(); return; }
+      const chars=[...String(item.word).normalize('NFC')];
+      gap.forEach((index,slot) => { chars[index]=letters[slot]; });
+      submitted=chars.join(''); correct=spellingCorrect(item,submitted);
+    } else if (question.type === 'spell') {
       if (!submitted.trim()) { announce('先输入挪威语，也可以选“不知道”。'); $('#pr-answer')?.focus?.(); return; }
       const pool=sessionPool(session), accepted=(question.acceptableKeys || [key]).find(option => pool.has(option) && spellingCorrect(pool.get(option),submitted));
       correct=!!accepted; matchedKey=accepted || key;
@@ -833,7 +866,7 @@
       correct=option.key === key; submitted=option.text;
     } else if (question.type === 'judge') { if (!['true','false'].includes(submitted)) return; correct=(submitted === 'true') === question.truth; submitted=submitted === 'true' ? '正确' : '错误'; }
     const expected=question.type === 'judge' ? (question.truth ? '正确' : '错误') : question.direction === 'to-zh' ? item.meaning : item.word;
-    grade(correct ? 2 : 0,{type:question.type,direction:question.direction,audio:!!question.audio,submitted:unknown ? '不知道' : submitted,expected,correct,unknown,prompt:question.direction === 'to-zh' ? item.word : item.meaning,proposed:question.proposed || '',choice:question.type === 'choice' ? Number(value) : null,...(matchedKey !== key ? {matchedKey} : {})});
+    grade(correct ? 2 : 0,{type:question.type,direction:question.direction,audio:!!question.audio,submitted:unknown ? '不知道' : submitted,expected,correct,unknown,prompt:question.direction === 'to-zh' ? item.word : item.meaning,proposed:question.proposed || '',choice:question.type === 'choice' ? Number(value) : null,...(matchedKey !== key ? {matchedKey} : {}),...(gap ? {gap:gap.slice()} : {})});
   }
   const touchScreen = () => !!window.matchMedia?.('(pointer: coarse)').matches;
   // A physical keyboard always types into the field, so desktops simply keep the on-screen layout.
@@ -849,9 +882,15 @@
     else if (question.type === 'judge') prompt=`<div class="pr-judge"><span class="${toZh ? 'pr-prompt-word' : 'pr-prompt-text'}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</span><span class="pr-judge-equals" aria-label="是否等于">=</span><span class="${toZh ? 'pr-prompt-text' : 'pr-prompt-word'}" ${toZh ? '' : 'lang="nb"'}>${e(question.proposed)}</span></div>`;
     else prompt=`<div class="pr-prompt-row"><h2 class="pr-prompt${toZh ? ' is-word' : ''}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</h2>${toZh || activity === 'learn' ? iconButton('replay','speaker',toZh ? '朗读' : '听读音','','pr-prompt-speaker') : ''}</div>`;
     let answerUI='';
+    const gap=question.type === 'spell' ? gapOf(session,question,item) : null;
     if (question.type === 'spell') {
       const mode=keyboardMode(), value=done ? (detail?.unknown ? '' : detail?.submitted || '') : session.inputDraft || '';
-      answerUI=`<form class="pr-answer-form" id="pr-answer-form"><label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}></form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用手机键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
+      // A cloze shows the word as letter tiles with blanks; the real field sits out of sight and holds only the letters
+      // typed into the blanks, so the screen keyboard, a phone's own keyboard and a physical one all work as before.
+      const field=gap
+        ? `<label class="sr-only" for="pr-answer">填出空缺的 ${gap.length} 个字母</label><label class="pr-gap${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" id="pr-gap" for="pr-answer" lang="nb" aria-hidden="true">${gapTiles(item,gap,done ? detail : null)}</label><input id="pr-answer" class="pr-gap-input" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="${gap.length}" value="${e(done ? '' : gapInput(value).slice(0,gap.length).join(''))}" ${done ? 'disabled' : ''}>`
+        : `<label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}>`;
+      answerUI=`<form class="pr-answer-form${gap ? ' is-gap' : ''}" id="pr-answer-form">${field}</form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用手机键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
     } else if (question.type === 'choice') {
       answerUI=`<div class="pr-choice-grid${question.options.some(option => option.text.length > 14) ? ' is-long' : ''}">${question.options.map((option,index) => {
         const tone=done ? (option.key === key ? ' is-correct' : detail?.choice === index ? ' is-wrong' : ' is-dim') : '';
@@ -865,9 +904,33 @@
       }).join('')}</div>`;
     }
     const footer=done ? answerPanel(session,item,question,detail) : `<div class="pr-question-footer">${button('unknown','不知道','','pr-quiet')}${question.type === 'spell' ? `<button type="submit" form="pr-answer-form" id="pr-check-answer" class="pr-button pr-primary" ${session.inputDraft?.trim() ? '' : 'disabled'}>检查</button>` : ''}</div>`;
-    shell(sessionBar(session)+`<section class="pr-exercise-card pr-question-card is-${question.type}${question.audio ? ' is-audio' : ''}"><div class="pr-card-corner">${favoriteButton(key)}</div>${prompt}${answerUI}${footer}</section>`);
+    shell(sessionBar(session)+`<section class="pr-exercise-card pr-question-card is-${question.type}${gap ? ' is-gap' : ''}${question.audio ? ' is-audio' : ''}"><div class="pr-card-corner">${favoriteButton(key)}</div>${prompt}${answerUI}${footer}</section>`);
+    if (!done && gap) updateGap();
     if (!done && question.type === 'spell') $('#pr-answer')?.focus?.({preventScroll:true});
     if (done) state.root.querySelector('[data-practice-action="next"]')?.focus?.({preventScroll:true});
+  }
+  // The word as tiles: given letters as they are, blanks as slots. Answered, each blank shows the right letter, green
+  // where it was typed right and red where it was not.
+  function gapTiles(item,gap,detail) {
+    const chars=[...String(item.word).normalize('NFC')], blanks=new Map(gap.map((index,slot) => [index,slot]));
+    const typed=detail && !detail.unknown ? [...String(detail.submitted || '').normalize('NFC')] : [];
+    return chars.map((char,index) => {
+      if (!blanks.has(index)) return char === ' ' ? '<span class="pr-gap-space"></span>' : `<span class="pr-gap-char">${e(char)}</span>`;
+      if (!detail) return `<span class="pr-gap-slot" data-slot="${blanks.get(index)}"></span>`;
+      const right=(typed[index] || '').toLocaleLowerCase('nb') === char.toLocaleLowerCase('nb');
+      return `<span class="pr-gap-slot is-shown ${right ? 'is-right' : 'is-miss'}">${e(char)}</span>`;
+    }).join('');
+  }
+  // Fills the blanks from the hidden field and marks the next one.
+  function updateGap() {
+    const input=$('#pr-answer'), board=$('#pr-gap');
+    if (!input || !board) return;
+    const letters=gapInput(input.value), slots=[...board.querySelectorAll('.pr-gap-slot')];
+    slots.forEach((slot,index) => {
+      slot.textContent=letters[index] || '';
+      slot.classList.toggle('is-filled',!!letters[index]);
+      slot.classList.toggle('is-next',index === letters.length);
+    });
   }
   function answerPanel(session,item,question,detail) {
     const correct=!!detail?.correct, run=correct ? consecutiveCorrect(session) : 0;
@@ -1316,7 +1379,17 @@
     if (!canEdit()) return;
     if (!state.root?.contains(event.target)) return;
     if (event.target.id === 'pr-source-search') { state.scopeQuery=event.target.value; filterScope(); }
-    if (event.target.id === 'pr-answer') { const session=currentSession(); if (session && !session.paused && !answered(session)) { session.inputDraft=event.target.value; saveInputDraft(); updateAnswerButton(); } }
+    if (event.target.id === 'pr-answer') {
+      const session=currentSession();
+      if (session && !session.paused && !answered(session)) {
+        // A cloze field keeps letters only, no more than there are blanks.
+        if (event.target.classList?.contains('pr-gap-input')) {
+          const clean=gapInput(event.target.value).slice(0,Number(event.target.maxLength) || undefined).join('');
+          if (clean !== event.target.value) event.target.value=clean;
+        }
+        session.inputDraft=event.target.value; saveInputDraft(); updateAnswerButton();
+      }
+    }
   }
   function onSubmit(event) {
     if (!canEdit()) { if (event.target.id === 'pr-answer-form') event.preventDefault(); return; }
@@ -1341,12 +1414,25 @@
   }
   function updateAnswerButton() {
     const input=$('#pr-answer'), check=$('#pr-check-answer');
-    if (check) check.disabled=!input?.value.trim();
+    const cloze=input?.classList?.contains('pr-gap-input');
+    if (cloze) updateGap();
+    if (check) check.disabled=cloze ? gapInput(input.value).length < input.maxLength : !input?.value.trim();
   }
   function insertLetter(letter) {
     const session=currentSession(), input=$('#pr-answer');
     if (!session || session.paused || answered(session) || !input || session.questions?.[currentKey(session)]?.type !== 'spell') return;
     if (letter !== 'backspace' && !/^[a-zæøåé0-9 .,?!\-':/()+%&]$/.test(letter)) return;
+    // A cloze takes letters only, one per blank, always at the end (backspace empties the last filled blank).
+    if (input.classList?.contains('pr-gap-input')) {
+      const letters=gapInput(input.value);
+      if (letter === 'backspace') letters.pop();
+      else if (/^\p{L}$/u.test(letter) && letters.length < input.maxLength) letters.push(letter);
+      else return;
+      input.value=letters.join('');
+      input.focus?.({preventScroll:true}); input.setSelectionRange?.(input.value.length,input.value.length);
+      session.inputDraft=input.value; saveInputDraft(); updateAnswerButton();
+      return;
+    }
     let start=input.selectionStart ?? input.value.length;
     const end=input.selectionEnd ?? start;
     if (letter === 'backspace' && start === end && start > 0) {
