@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261106-kitchen';
-import {createReadingLibrary} from './reading-library.mjs?v=20261106-kitchen';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261106-kitchen';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261106-kitchen';
-import * as notesModel from './notes-store.mjs?v=20261106-kitchen';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261106-kitchen';
+import {createDataLoader} from './loader.mjs?v=20261107-kitchen-review';
+import {createReadingLibrary} from './reading-library.mjs?v=20261107-kitchen-review';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261107-kitchen-review';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261107-kitchen-review';
+import * as notesModel from './notes-store.mjs?v=20261107-kitchen-review';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261107-kitchen-review';
 
-const VERSION = '20261106-kitchen';
+const VERSION = '20261107-kitchen-review';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -180,7 +180,7 @@ function addWordsToWordbook(list,title,{quiet = false} = {}) {
     const value = str(item?.word).trim();
     if (!value || wordProblem(value) || seen.has(wordKey(value))) continue;
     seen.add(wordKey(value));
-    fresh.push({word:value,meaning:str(item.meaning).slice(0,200),example:str(item.example).slice(0,300),pos:str(item.pos) || (/\s/.test(value) ? '短语' : '')});
+    fresh.push({word:value,meaning:str(item.meaning).slice(0,200),example:str(item.example).slice(0,300),pos:str(item.pos) || (/\s/.test(value) ? '短语' : ''),audio:item.audio});
   }
   if (!fresh.length) { say('这些词都已经在词本里了。'); return 0; }
   try {
@@ -478,7 +478,7 @@ async function openKitchen(join = '') {
     await loadFeature('kitchen');
     pauseOtherAudio();
     audio.pause();
-    window.NorskKitchen.open({community:prepareCommunity,pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,version:VERSION,addWords:addWordsToWordbook,
+    window.NorskKitchen.open({community:prepareCommunity,pronounce,stopAudio:pauseOtherAudio,prefetch:prefetchPronunciation,notify,escapeHTML,version:VERSION,addWords:addWordsToWordbook,
       join:typeof join === 'string' ? join : '',onExit:() => {
         if (/[?&]kitchen=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
         window.NorskPractice?.refreshHonors?.();
@@ -1004,7 +1004,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261106-kitchen').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261107-kitchen-review').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1391,16 +1391,18 @@ function stopWordSource() {
   try { source.stop(); } catch {}
   try { source.disconnect(); } catch {}
 }
-function playWordBuffer(buffer) {
+function playWordBuffer(buffer,onEnded) {
   const context = wordClips.context;
   const source = context.createBufferSource();
   source.buffer = buffer;
   source.connect(context.destination);
-  source.onended = () => { if (wordClips.source === source) wordClips.source = null; try { source.disconnect(); } catch {} };
+  source.onended = () => { if (wordClips.source === source) wordClips.source = null; try { source.disconnect(); } catch {} onEnded?.(); };
   wordClips.source = source;
   source.start();
 }
+let clearWordEndListener = null;
 function pauseOtherAudio() {
+  clearWordEndListener?.();
   window.NorskMore?.stopAudio?.();
   window.NorskReader?.cancelTrackNavigation?.();
   window.NorskReader?.stopSlice?.();
@@ -1410,10 +1412,12 @@ function pauseOtherAudio() {
   pronunciationAudio.pause();
   if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
-async function pronounce(item) {
+// Ordinary callers still resolve when playback starts. A caller sequencing clips can listen for a natural end.
+async function pronounce(item,{onEnded} = {}) {
   if (!item?.word) return;
   pauseOtherAudio();
   const token = state.pronunciationToken;
+  const ended = () => { if (token === state.pronunciationToken) onEnded?.(); };
   audio.pause();
   if (!state.data.pronunciation && !item.audio) {
     try { await loadData('pronunciation'); }
@@ -1426,7 +1430,7 @@ async function pronounce(item) {
       try {
         const buffer = await decodeWordClip(url);
         if (token !== state.pronunciationToken) return;
-        if (buffer) { playWordBuffer(buffer); return; }
+        if (buffer) { playWordBuffer(buffer,ended); return; }
       } catch(error) { console.warn('读音改用播放器播放',error); }
       if (token !== state.pronunciationToken) return;
     }
@@ -1436,7 +1440,18 @@ async function pronounce(item) {
     pronunciationAudio.playbackRate = state.wordRate;
     pronunciationAudio.preservesPitch = true;
     if (!wordClips.bytes.has(url)) loadWordClip(url).catch(() => {});
-    try { await pronunciationAudio.play(); } catch(error) { if (token === state.pronunciationToken) { console.error('发音播放失败',error); notify('这条读音暂时无法播放，请检查网络后重试。'); } }
+    if (onEnded) {
+      const finish = () => { clear(); ended(); };
+      const clear = () => {
+        pronunciationAudio.removeEventListener('ended',finish);
+        pronunciationAudio.removeEventListener('error',clear);
+        if (clearWordEndListener === clear) clearWordEndListener = null;
+      };
+      clearWordEndListener = clear;
+      pronunciationAudio.addEventListener('ended',finish);
+      pronunciationAudio.addEventListener('error',clear);
+    }
+    try { await pronunciationAudio.play(); } catch(error) { if (token === state.pronunciationToken) { clearWordEndListener?.(); console.error('发音播放失败',error); notify('这条读音暂时无法播放，请检查网络后重试。'); } }
     return;
   }
   // Wordbook entries whose reading is still being made say so instead of the general message.
@@ -1457,7 +1472,7 @@ async function pronounce(item) {
   utterance.lang = voice.lang;
   utterance.rate = state.wordRate;
   state.speechItem = item;
-  utterance.onend = () => { if (token === state.pronunciationToken) state.speechItem = null; };
+  utterance.onend = () => { if (token === state.pronunciationToken) { state.speechItem = null; ended(); } };
   utterance.onerror = () => { if (token === state.pronunciationToken) { state.speechItem = null; notify('挪威语朗读暂时不可用，请稍后重试。'); } };
   speechSynthesis.speak(utterance);
 }

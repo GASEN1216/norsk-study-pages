@@ -431,6 +431,7 @@
         if (!player.away) return out(false,'same');
         player.away = false;
         player.back = true;
+        for (const absent of state.players) if (absent.away) lend(state,scene,absent);
         return out(true,'',[{e:'back',by:player.id}]);
       default:
         return out(false,'invalid');
@@ -504,8 +505,9 @@
     // Cabinets keep their usual names; the same cabinet of different scenes is one cabinet here.
     const cabinets = [], byId = {};
     for (const {scene} of picked) for (const cabinet of scene.cabinets) {
+      const measureChoices = cabinet.id === 'maal' && cabinet.items.some(item => tools.has(item));
       for (const item of cabinet.items) {
-        if (!(items.has(item) || tools.has(item)) || cabinets.some(entry => entry.items.includes(item))) continue;
+        if (!(measureChoices || items.has(item) || tools.has(item)) || cabinets.some(entry => entry.items.includes(item))) continue;
         if (!byId[cabinet.id]) { byId[cabinet.id] = {id:cabinet.id,no:cabinet.no,zh:cabinet.zh,items:[]}; cabinets.push(byId[cabinet.id]); }
         byId[cabinet.id].items.push(item);
       }
@@ -525,9 +527,11 @@
   // same rules to score it. Orders are numbers, words and stations their place in the scene's lists.
   const CODES = {take:'t',place:'p',cook:'k',transfer:'x',trash:'d',serve:'s',miss:'m',chat:'h'};
   const NAMES = Object.fromEntries(Object.entries(CODES).map(([name,code]) => [code,name]));
+  // Optional cabinet choices must survive offline replay, without becoming targets or moving any existing index.
+  const logWords = scene => [...new Set([...scene.words,...scene.cabinets.flatMap(cabinet => cabinet.items)])];
   function packLog(scene,actions) {
     let last = 0;
-    const word = id => scene.words.indexOf(id);
+    const words = logWords(scene), word = id => words.indexOf(id);
     return actions.map(action => {
       const dt = action.at-last; last = action.at;
       const code = CODES[action.t];
@@ -546,7 +550,7 @@
   function unpackLog(scene,log) {
     let at = 0;
     const actions = [];
-    const word = index => Number.isInteger(index) && index >= 0 ? scene.words[index] || '' : '';
+    const words = logWords(scene), word = index => Number.isInteger(index) && index >= 0 ? words[index] || '' : '';
     for (const entry of Array.isArray(log) ? log : []) {
       if (!Array.isArray(entry) || !Number.isInteger(entry[0]) || entry[0] < 0 || !NAMES[entry[1]]) return null;
       at += entry[0];
@@ -708,6 +712,8 @@
     const saved = readJSON(PREFS_KEY,{}) || {};
     return {tier:TIERS[saved.tier] ? saved.tier : 'novice',minutes:MINUTES.includes(saved.minutes) ? saved.minutes : DEFAULT_MINUTES,
       sound:saved.sound !== false,scene:typeof saved.scene === 'string' ? saved.scene.slice(0,40) : '',
+      // How many games this device has started: the first few show short hints.
+      coach:Number.isInteger(saved.coach) ? Math.max(0,saved.coach) : 0,
       // The last progress the server sent, so stars and locks show at once (and offline).
       progress:saved.progress && typeof saved.progress === 'object' ? saved.progress : null};
   }
@@ -747,7 +753,8 @@
   }
   // The short meaning the game's hints show: the first sense without its bracket, which may spell out the Norwegian
   // ("分升（100 毫升；desiliter 的缩写）" → "分升").
-  const zh1 = id => { const sense = firstSense(entry(id)?.zh); return sense.replace(/[（(][^）)]*[）)]/g,'').trim() || sense; };
+  const gameSense = id => entry(id)?.gameZh || firstSense(entry(id)?.zh);
+  const zh1 = id => { const sense = gameSense(id); return sense.replace(/[（(][^）)]*[）)]/g,'').trim() || sense; };
   const scenes = () => [...(ui.data?.scenes || [])].sort((a,b) => a.order-b.order);
   const sceneById = id => id === 'daily' ? ui.daily?.scene || null : (ui.data?.scenes || []).find(scene => scene.id === id) || null;
   // A word as the shelves show it: Norwegian only, a noun's article and a verb's å small and grey.
@@ -892,16 +899,18 @@
     serve:() => { tone(784,.3,{gain:.18}); tone(988,.3,{gain:.16,delay:.08}); tone(1318,.6,{gain:.14,delay:.16}); },
     call:() => { tone(880,.12,{type:'triangle',gain:.2}); tone(1175,.18,{type:'triangle',gain:.18,delay:.1}); },
     finish:() => { tone(523,.5,{gain:.2}); tone(659,.5,{gain:.18,delay:.09}); tone(784,.9,{gain:.18,delay:.18}); },
+    ready:() => { tone(1175,.2,{gain:.1}); tone(1568,.36,{gain:.08,delay:.07}); },
+    goal:() => { tone(784,.45,{gain:.13}); tone(1175,.55,{gain:.11,delay:.12}); tone(1568,.9,{gain:.09,delay:.24}); },
   };
   const play = name => { try { if (sfxContext()) SOUNDS[name]?.(); } catch {} };
   // Safari only lets sound start inside a tap or a key press, so the cues are woken up there (and again after the tab
   // was hidden, which closes them).
   function wakeSfx() { const context = ui.sfx.context; if (ui.prefs?.sound && (!context || context.state !== 'running')) sfxContext(); }
   // A word or a customer's line, read by the site's player (Pernille for words; customers in their own voice).
-  function say(word,audio) {
+  function say(word,audio,onEnded) {
     if (!ui.prefs?.sound || !word) return;
     ui.saidAt = Date.now();
-    try { void Promise.resolve(ui.opts.pronounce?.({word,audio:audio || ''})).catch(() => {}); } catch {}
+    try { void Promise.resolve(ui.opts.pronounce?.({word,audio:audio || ''},{onEnded})).catch(() => {}); } catch {}
   }
   const sayWord = id => { const item = entry(id); if (item) say(item.word,item.clip); };
   // Customers' lines wait for a word that is still being read, so a reading is never cut off.
@@ -911,6 +920,17 @@
     if (wait) later(() => say(line.text,line.audio),wait); else say(line.text,line.audio);
   }
   const lineFor = (group,key,voice) => { const set = ui.data?.lines?.[group]?.[key]; return set?.[voice] || set?.f || (set?.text ? set : null); };
+  // A long restaurant order can exceed five seconds. An exclusion belongs to this reading only.
+  function sayOrder(game,order) {
+    const line = lineFor('order',order.dish,order.voice);
+    if (!line?.text) return;
+    const ticket = ui.orderReading = {}, active = () => ui.orderReading === ticket && ui.game === game && ui.view === 'game' && ui.prefs?.sound && !document.hidden;
+    const without = order.without.length ? lineFor('without',order.without[0],order.voice) : null;
+    const start = () => { if (active()) say(line.text,line.audio,without ? () => { if (active()) say(without.text,without.audio); } : undefined); };
+    const wait = Math.max(0,900-(Date.now()-(ui.saidAt || 0)));
+    if (wait) later(start,wait); else start();
+  }
+  function stopKitchenVoice() { ui.orderReading = null; ui.opts.stopAudio?.(); }
   // This game's words and lines are fetched before the start, so every tap sounds at once (the site keeps 60 decoded).
   function prefetchGame(game) {
     const words = game.scene.words.map(entry).filter(Boolean).map(item => ({word:item.word,audio:item.clip}));
@@ -924,7 +944,7 @@
     if (ui.open) return Promise.resolve(true);
     if (!document?.body) return Promise.resolve(false);
     const prefs = readPrefs();
-    Object.assign(ui,{open:true,opts:options,view:'home',prefs,progress:prefs.progress,game:null,room:null,joining:false,joinCode:'',busy:false,
+    Object.assign(ui,{open:true,opts:options,view:'home',prefs,progress:prefs.progress,nickname:window.NorskCommunity?.localPlayer?.()?.nickname || '',game:null,room:null,joining:false,joinCode:'',busy:false,
       confirming:false,picking:null,resultsFor:null,roomEdit:false,lastFocus:document.activeElement,historyToken:'kc-'+Date.now().toString(36)});
     const root = document.createElement('div');
     root.className = 'kc-root';
@@ -932,15 +952,34 @@
     root.setAttribute('aria-modal','true');
     root.setAttribute('aria-label','开饭啦');
     ui.root = root;
+    // Page redraws replace only this container. The leave dialog stays mounted above it.
+    ui.content = document.createElement('div');
+    root.append(ui.content);
     ui.handlers = {click:onClick,submit:onSubmit,input:onInput,pointerdown:onPress,pointerup:onRelease,pointercancel:onRelease};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
+    // A scrolled strip fades at whichever edge still hides something.
+    root.addEventListener('scroll',event => { const node = event.target; if (node?.classList?.contains('kc-menu-list') || node?.classList?.contains('kc-shelf-tabs')) fadeEdges(node); },{capture:true,passive:true});
     document.addEventListener('keydown',onKey);
     document.addEventListener('focusin',onFocusIn);
     ui.onVisibility = onVisibility;
     ui.onPopState = () => { if (ui.open) requestClose(true); };
     document.addEventListener('visibilitychange',ui.onVisibility);
+    window.addEventListener('online',flushPending);
+    window.addEventListener('norskprofilechange',ui.onPlayerChange = event => {
+      ui.nickname = event.detail?.nickname || '';
+      if (ui.game && !ui.game.room && !ui.game.owner && ui.nickname) {
+        ui.game.owner = ui.nickname;
+        ui.game.ownerDevice ||= window.NorskCommunity?.localPlayer?.()?.deviceId || '';
+      }
+      void flushPending();
+    });
     window.addEventListener('popstate',ui.onPopState);
     window.addEventListener('pagehide',ui.onPageHide = () => releaseSfx());
+    // A turned tablet or a phone's browser bars change the room for the counter: it is laid out again.
+    window.addEventListener('resize',ui.onResize = () => {
+      clearTimeout(ui.resizeTimer);
+      ui.resizeTimer = setTimeout(() => { if (ui.open && ui.view === 'game' && ui.game) { ui.game.shelfRoom = 0; ui.game.shelfColumns = 0; drawGame(); } },160);
+    });
     try { history.pushState({...(history.state && typeof history.state === 'object' ? history.state : {}),norskKitchen:ui.historyToken},'',location.href); } catch {}
     document.body.append(root);
     document.body.classList.add('kc-open');
@@ -963,6 +1002,7 @@
   }
   function exit() {
     if (!ui.open) return;
+    stopKitchenVoice();
     leaveRoom();
     stopGame();
     releaseSfx();
@@ -970,17 +1010,24 @@
     ui.timers.clear();
     for (const [type,handler] of Object.entries(ui.handlers || {})) ui.root?.removeEventListener(type,handler);
     document.removeEventListener('visibilitychange',ui.onVisibility);
+    window.removeEventListener('online',flushPending);
+    window.removeEventListener('norskprofilechange',ui.onPlayerChange);
     document.removeEventListener('keydown',onKey);
     document.removeEventListener('focusin',onFocusIn);
     window.removeEventListener('popstate',ui.onPopState);
     window.removeEventListener('pagehide',ui.onPageHide);
+    window.removeEventListener('resize',ui.onResize);
+    clearTimeout(ui.resizeTimer);
     clearTimeout(ui.toastTimer);
     ui.toast?.remove();
     ui.toast = null;
+    ui.fx?.remove();
+    ui.fx = null;
     ui.root?.remove();
     document.body.classList.remove('kc-open');
     ui.open = false;
     ui.root = null;
+    ui.content = null;
     if (history.state?.norskKitchen === ui.historyToken) {
       try { window.addEventListener('popstate',() => setRoomInURL(null),{once:true}); history.back(); } catch {}
     }
@@ -996,6 +1043,8 @@
     if (ui.picking) { closePicker(); return; }
     if (ui.game?.chatOpen) { ui.game.chatOpen = false; drawGame(); return; }
     if (ui.game?.watch) { ui.game = null; show('room'); return; }
+    // The last moment of a game alone ("Stengt!") goes on to the results by itself.
+    if (ui.game?.closing) return;
     if (ui.game && ['preview','game'].includes(ui.view)) { showConfirm(); return; }
     if (ui.joining) { ui.joining = false; render(); return; }
     if (ui.view === 'room' && ui.roomEdit) { ui.roomEdit = false; render(); return; }
@@ -1032,7 +1081,6 @@
     if (!['preview','game'].includes(view)) stopGame();
     if (scene) { ui.sceneId = scene; ui.prefs.scene = scene; savePrefs(); }
     ui.view = view;
-    ui.confirming = false;
     ui.picking = null;
     render();
     // The boards change with every game played today: they are fetched again each time the page opens.
@@ -1041,7 +1089,7 @@
     $('h2')?.focus?.({preventScroll:true});
   }
   function onVisibility() {
-    if (document.hidden) { releaseSfx(); pauseGame(); }
+    if (document.hidden) { stopKitchenVoice(); releaseSfx(); pauseGame(); }
     else {
       if (ui.room) schedulePoll(0);
       if (ui.game?.paused && !ui.confirming) resumeGame();
@@ -1050,6 +1098,7 @@
   function showConfirm(kind = 'game') {
     if (ui.confirming || !ui.root) return;
     ui.confirming = true;
+    ui.content.inert = true;
     pauseGame();
     const host = ui.room && ui.room.hostId === ui.room.me;
     const text = kind === 'room' ? `离开这个房间吗？${host ? '房主会交给下一位同学。' : '之后可以用房间号再回来。'}`
@@ -1062,6 +1111,7 @@
   }
   function hideConfirm() {
     ui.confirming = false;
+    if (ui.content) ui.content.inert = false;
     ui.root?.querySelector('.kc-confirm-layer')?.remove();
     if (ui.game?.paused && !document.hidden) resumeGame();
   }
@@ -1070,11 +1120,39 @@
   function render() {
     if (!ui.root) return;
     ui.root.classList.toggle('is-game',ui.view === 'game');
+    const entering = ui.shownView !== ui.view;
+    ui.shownView = ui.view;
     if (ui.view === 'game') { drawGame(); return; }
     const page = {scene:scenePage,words:wordsPage,help:helpPage,daily:dailyPage,room:roomPage,preview:previewPage,results:resultsPage}[ui.view] || homePage;
     const keep = focusKey();
-    ui.root.innerHTML = `<div class="kc-shell is-${ui.view}">${page()}</div>`;
+    // A new page comes up gently; the same page drawn again (a poll, a choice) stays still.
+    ui.content.innerHTML = `<div class="kc-shell is-${ui.view}${entering && !reduceMotion() ? ' is-enter' : ''}">${page()}</div>`;
     restoreFocus(keep);
+    // Big paintings fade in once they have loaded, instead of popping in over an empty block.
+    for (const img of ui.root.querySelectorAll('img.kc-hero-art,img.kc-scene-banner')) {
+      if (img.complete && img.naturalWidth) img.classList.add('is-loaded');
+      else img.addEventListener('load',() => img.classList.add('is-loaded'),{once:true});
+    }
+    if (ui.view === 'results') countResults();
+  }
+  // The results page counts its score up once, when it first opens.
+  function countResults() {
+    const r = ui.resultsFor, node = $('.kc-result-score b');
+    if (!r || !node || r.counted) return;
+    r.counted = true;
+    if (reduceMotion() || !r.score) return;
+    const at = performance.now();
+    r.shownScore = 0;
+    node.textContent = '0';
+    // (A redraw meanwhile — the XP arriving — prints the count where it is.)
+    const step = time => {
+      const k = Math.min(1,(time-at)/1100), shown = $('.kc-result-score b');
+      if (ui.resultsFor !== r) return;
+      r.shownScore = Math.round(r.score*(1-(1-k)**3));
+      if (shown) shown.textContent = String(r.shownScore);
+      if (k < 1) requestAnimationFrame(step); else r.shownScore = null;
+    };
+    requestAnimationFrame(step);
   }
   // A page drawn again keeps the focus on the same control (a poll redraws the lobby while someone is choosing).
   function focusKey() {
@@ -1092,27 +1170,36 @@
   const loadingNote = () => ui.loadFailed ? `<p class="kc-empty">菜单没有载入，请检查网络后重试。${button('reload','重试','kc-ghost')}</p>` : '<p class="kc-empty">正在摆桌子…</p>';
   function homePage() {
     const list = scenes(), open = list.filter(scene => unlocked(scene.id)).length;
+    // The newest scene I have opened, one tap away from the top of the page.
+    const current = [...list].reverse().find(scene => unlocked(scene.id)) || null;
+    const started = current && (progressOf(current.id)?.best || sceneStars(current));
+    const resume = ui.data && current ? `<button type="button" class="kc-continue" data-kc="scene" data-id="${e(current.id)}">
+        <span class="kc-continue-text"><small>${started ? '继续' : '从这里开始'} · 第 ${list.indexOf(current)+1} 个场景</small><span><strong lang="nb">${e(current.no)}</strong> ${e(current.zh)}</span></span>
+        ${starRow(sceneStars(current))}<span class="kc-continue-go">${icon('next')}</span></button>` : '';
     const hero = `<section class="kc-hero">${ui.cardArt ? `<img class="kc-hero-art" src="${e(versioned('assets/online/kitchen.webp'))}" alt="" decoding="async" draggable="false">` : '<div class="kc-hero-art is-blank" aria-hidden="true"><span lang="nb">Vær så god</span></div>'}
       <div class="kc-hero-text"><p class="kc-hero-title">听懂点单，端上挪威饭菜</p>
-      <p class="kc-hero-note">听挪威语点单，挑对食材端上桌；词练熟了，下一个场景就开门。</p></div></section>`;
+      <p class="kc-hero-note">听挪威语点单，挑对食材端上桌；词练熟了，下一个场景就开门。</p>${resume}</div></section>`;
     if (!ui.data) return `${topBar('开饭啦','')}${hero}${loadingNote()}`;
     const daily = ui.daily;
     const dailyCard = `<section class="kc-daily"><div class="kc-daily-head"><div class="kc-daily-text"><span class="kc-kicker">Dagens meny</span><p class="kc-daily-title">今日菜单</p></div>
           ${daily ? `<button type="button" class="kc-link" data-kc="daily-open">今日榜${icon('next')}</button>` : '<span class="kc-hint">载入中…</span>'}</div>
         <p class="kc-hint">${daily ? `${e(daily.day)} · ` : ''}全服同一桌菜，北京时间 0 点换；不用解锁。</p>
         ${daily ? `<button type="button" class="kc-daily-dishes" data-kc="daily-open" aria-label="打开今日菜单">${daily.scene.dishes.slice(0,6).map(dish => pic(dish.word,'is-round')).join('')}</button>` : ''}</section>`;
-    return `${topBar('开饭啦','')}${hero}${dailyCard}
-      <section class="kc-panel"><div class="kc-section-head"><h3>场景</h3><span class="kc-hint">已开放 ${open} / ${list.length}</span></div>
-        <ol class="kc-scenes">${list.map((scene,index) => sceneCard(scene,index)).join('')}</ol></section>
-      <div class="kc-actions">${ui.joining ? `<form class="kc-join" novalidate><label for="kc-join-code">房间号</label><input id="kc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 位数字" value="${e(ui.joinCode)}">
+    // Playing together and the reference pages sit right under the menus, not after sixteen scenes.
+    const actions = `<div class="kc-actions">${ui.joining ? `<form class="kc-join" novalidate><label for="kc-join-code">房间号</label><input id="kc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 位数字" value="${e(ui.joinCode)}">
           <button type="submit" class="kc-button kc-primary" data-kc="join-submit" ${ui.busy ? 'disabled' : ''}>${ui.busy ? '正在加入…' : '加入'}</button>${button('join-cancel','取消','kc-quiet')}</form>`
         : `<div class="kc-actions-row">${button('room-create-latest',`${icon('people')}<span>${ui.busy ? '正在开房间…' : '开房间'}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}${button('join-open',`${icon('link')}<span>加入房间</span>`,'kc-ghost')}</div>
-          <div class="kc-actions-row">${button('go',`${icon('book')}<span>食物图鉴</span>`,'kc-quiet','data-value="words"')}${button('go',`${icon('help')}<span>玩法</span>`,'kc-quiet','data-value="help"')}</div>`}</div>`;
+          <div class="kc-actions-row is-quiet">${button('go',`${icon('book')}<span>食物图鉴</span>`,'kc-quiet','data-value="words"')}${button('go',`${icon('help')}<span>玩法</span>`,'kc-quiet','data-value="help"')}</div>`}</div>`;
+    return `${topBar('开饭啦','')}${hero}${dailyCard}${actions}
+      <section class="kc-panel"><div class="kc-section-head"><h3>场景</h3><span class="kc-hint">已开放 ${open} / ${list.length}</span></div>
+        <ol class="kc-scenes">${list.map((scene,index) => sceneCard(scene,index)).join('')}</ol></section>`;
   }
   function sceneCard(scene,index) {
     const open = unlocked(scene.id), count = sceneStars(scene);
-    return `<li><button type="button" class="kc-scene${open ? '' : ' is-locked'}" data-kc="scene" data-id="${e(scene.id)}" aria-label="${e(`${scene.no} ${scene.zh}${open ? `，${count} 星` : '，未开放'}`)}">
-      <span class="kc-scene-n">${String(index+1).padStart(2,'0')}</span><span class="kc-scene-text"><strong lang="nb">${e(scene.no)}</strong><small>${e(scene.zh)}</small></span>
+    // The next scene to open says so; the ones after it stay quiet.
+    const next = !open && scenes().slice(0,index).every(item => unlocked(item.id));
+    return `<li><button type="button" class="kc-scene${open ? '' : ' is-locked'}${next ? ' is-next' : ''}" data-kc="scene" data-id="${e(scene.id)}" aria-label="${e(`${scene.no} ${scene.zh}${open ? `，${count} 星` : '，未开放'}`)}">
+      <span class="kc-scene-n">${String(index+1).padStart(2,'0')}</span><span class="kc-scene-text"><strong lang="nb">${e(scene.no)}</strong><small>${e(scene.zh)}${next ? '<em>上一关 ★★★ 后开放</em>' : ''}</small></span>
       ${open ? starRow(count) : `<span class="kc-scene-lock">${icon('lock')}</span>`}</button></li>`;
   }
   function wordChip(id) {
@@ -1135,9 +1222,9 @@
         ${starRow(count,'is-large')}<p class="kc-scene-note">${e(scene.note || '')}</p>
         <dl class="kc-facts"><div><dt>熟练的词</dt><dd>${known} / ${scene.words.length}</dd></div><div><dt>★ 目标</dt><dd>${targetFor(scene,ui.prefs.minutes)} 分</dd></div><div><dt>最高</dt><dd>${saved?.best ? `${saved.best} 分` : '—'}</dd></div></dl>
         <p class="kc-hint">★ 一局达到目标分 · ★★ 一半的词熟练 · ★★★ 全部熟练（三星开下一个场景）</p></section>
+      <section class="kc-panel kc-choices">${tierField()}${minutesField()}</section>
       <section class="kc-panel"><div class="kc-section-head"><h3>这一关的词</h3><span class="kc-hint">点一下听读音</span></div><ul class="kc-chips">${scene.words.map(wordChip).join('')}</ul></section>
       ${situationsPanel(scene)}
-      <section class="kc-panel kc-choices">${tierField()}${minutesField()}</section>
       <div class="kc-start-bar"><div class="kc-actions-row">${button('solo',`${icon('plate')}<span>一个人开张</span>`,'kc-primary')}${button('room-create',`${icon('people')}<span>${ui.busy ? '正在开房间…' : '开房间'}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}</div></div>`;
   }
   // Things people say at this table, in both customers' voices (tapping again switches voice).
@@ -1297,11 +1384,27 @@
   const sessionId = () => `kc-${Date.now().toString(36)}-${Math.floor(Math.random()*2**32).toString(36)}`;
   // A game on the page: `sceneData` is kitchen.json's scene (names, pictures), `scene` the rules' view of it.
   function newGame({sceneId,scene,rules,state,me,room = false,extra = {}}) {
+    stopKitchenVoice();
     return {sceneId,sceneData:scene,scene:rules,state,me,room,log:[],sel:null,guest:-1,cab:0,phase:'preview',started:0,pausedTotal:0,paused:false,pausedAt:0,
-      timer:null,note:null,calls:new Map(),heard:new Set(),pending:new Set(),floats:[],chatOpen:false,outbox:[],seq:0,seen:0,...extra};
+      timer:null,note:null,calls:new Map(),heard:new Set(),pending:new Set(),floats:[],chatOpen:false,outbox:[],seq:0,seen:0,
+      // What the screen remembers between redraws: which seat each customer sits in (customers never change places),
+      // customers just leaving, slots just filled, a tap just turned down, pictures on their way, the score as shown.
+      seats:new Map(),exits:[],fresh:new Map(),flash:null,flights:[],shown:state.score,goal:state.score >= targetFor(scene,state.minutes),...extra};
   }
-  function beginSolo(sceneId) {
+  async function beginSolo(sceneId) {
     if (!ui.data) return;
+    // Pick the daily menu and its scoring date at entry to preview. A countdown
+    // crossing Beijing midnight still belongs to the menu that was previewed.
+    let menuAt = Date.now();
+    if (sceneId === 'daily' && ui.daily?.day !== beijingDay(menuAt)) {
+      if (ui.loadingSoloDaily) return;
+      const overlay = ui.historyToken, view = ui.view;
+      ui.loadingSoloDaily = true;
+      try { await loadDaily(); } finally { ui.loadingSoloDaily = false; }
+      if (!ui.open || overlay !== ui.historyToken || view !== ui.view) return;
+      menuAt = Date.now();
+      if (ui.daily?.day !== beijingDay(menuAt)) { notify('今天的菜单还未载入，请联网后再试。'); return; }
+    }
     if (sceneId !== 'daily' && !unlocked(sceneId)) { notify('这个场景还没有开放'); return; }
     const found = rulesFor(sceneId);
     if (!found) { notify(sceneId === 'daily' ? '今日菜单需要联网，请稍后再试' : '找不到这个场景'); return; }
@@ -1312,6 +1415,10 @@
     const {minutes,tier} = ui.prefs;
     const state = newMatch(rules,{seed,minutes,tier,players:['me'],weak});
     const game = newGame({sceneId,scene,rules,state,me:'me',extra:{header:{scene:sceneId,day:daily ? ui.daily.day : undefined,seed,tier,minutes,weak:packWeak(rules,weak)}}});
+    const local = window.NorskCommunity?.localPlayer?.();
+    game.owner = local?.nickname || ui.nickname || '';
+    game.ownerDevice = local?.deviceId || '';
+    if (daily) game.playedAt = menuAt;
     ui.game = game;
     prefetchGame(game);
     show('preview');
@@ -1369,13 +1476,18 @@
       const left = game.countEnds-(game.room ? serverNow() : Date.now());
       if (left <= 0) { clearInterval(game.timer); game.timer = null; startPlay(game); return; }
       const number = Math.ceil(left/1000);
-      if (number !== shown) { shown = number; const node = $('#kc-count-n'); if (node) node.textContent = String(number); if (number <= 3) play('tick'); }
+      // Each number comes in on its own (a new element, so its fade starts again).
+      if (number !== shown) { shown = number; const node = $('#kc-count-n'); if (node) node.innerHTML = `<b class="kc-digit">${number}</b>`; if (number <= 3) play('tick'); }
     },100);
   }
   function startPlay(game) {
     if (ui.game !== game) return;
     game.phase = 'play';
-    if (!game.room) { game.started = performance.now(); game.playedAt = Date.now(); }
+    if (!game.room) { game.started = performance.now(); game.playedAt ??= Date.now(); }
+    game.playAt = Date.now();
+    game.coached = new Set();
+    game.coach = !game.watch && (ui.prefs.coach || 0) < 3;
+    if (!game.watch) { ui.prefs.coach = (ui.prefs.coach || 0)+1; savePrefs(); }
     play('go');
     // The first customer's line and the first sounds come with the first tick.
     clearInterval(game.timer);
@@ -1386,6 +1498,7 @@
     if (document.hidden || ui.confirming) pauseGame();
   }
   function stopGame() {
+    if (ui.game) stopKitchenVoice();
     const game = ui.game;
     if (game?.timer) { clearInterval(game.timer); game.timer = null; }
   }
@@ -1394,7 +1507,7 @@
     if (!game) return 0;
     if (game.room) return Math.max(0,Math.min(game.state.duration,Math.round(serverNow()-game.startsAt)));
     if (game.phase !== 'play') return 0;
-    return Math.max(0,Math.round((game.paused ? game.pausedAt : performance.now())-game.started-game.pausedTotal));
+    return Math.min(game.state.duration,Math.max(0,Math.round((game.paused ? game.pausedAt : performance.now())-game.started-game.pausedTotal)));
   }
   // Alone, the kitchen waits while the page is hidden or the leave question is open; a room goes on.
   function pauseGame() {
@@ -1420,8 +1533,10 @@
     if (fresh.length) react(fresh,game);
     const expired = game.expireAt && Date.now() >= game.expireAt;
     if (expired) game.expireAt = 0;
+    // Alone, the kitchen closes for a moment ("Stengt!") before the results.
+    if (game.state.over && !game.room && !game.closing) { game.closing = true; later(() => finishSolo(game),1500); drawGame(); return; }
     if (events.length || expired) drawGame(); else updateHud(game,now);
-    if (game.state.over && !game.room) finishSolo(game);
+    coach(game);
   }
   // Time-driven events are worked out again when a room's state is replaced; each is heard once.
   function remember(game,event) {
@@ -1433,24 +1548,29 @@
   }
   function clockText(ms) { const s = Math.max(0,Math.ceil(ms/1000)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
   function updateHud(game,now = gameNow(game)) {
-    const clock = $('#kc-clock');
-    if (clock) clock.textContent = clockText(game.state.duration-now);
-    const score = $('#kc-score');
-    if (score) score.textContent = String(game.state.score);
+    const clock = $('#kc-clock'), left = game.state.duration-now;
+    if (clock) { clock.textContent = clockText(left); clock.classList.toggle('is-late',game.phase === 'play' && left <= 30000); }
+    // The last five seconds tick, quietly.
+    const second = Math.ceil(left/1000);
+    if (game.phase === 'play' && !game.paused && second >= 1 && second <= 5 && second !== game.lastTick) { game.lastTick = second; play('tick'); }
     if (game.note && Date.now() > game.note.until) { game.note = null; $('#kc-note')?.classList.remove('is-on'); }
   }
 
   // One tap that the rules judge: alone it takes effect at once; in a room it is shown at once and sent to the server.
-  function act(action) {
+  // `from` is where the tap's picture starts its short flight (the word on the shelf, the dish on the menu…).
+  function act(action,from = null) {
     const game = ui.game;
     if (!game || game.phase !== 'play' || game.watch || game.state.over) return null;
     const now = gameNow(game);
+    if (!game.room && now >= game.state.duration) { tick(game); return null; }
     const result = apply(game.state,game.scene,{...action,by:game.me},now);
     if (game.room) queueAction(game,action,now,result);
     else game.log.push({...action,at:now});
+    game.actedAt = Date.now();
     const fresh = result.events.filter(event => remember(game,event));
     react(fresh,game);
     feedback(game,action,result);
+    effects(game,action,result,from);
     drawGame();
     return result;
   }
@@ -1463,7 +1583,7 @@
       const asked = action.t === 'take' ? event?.word : action.t === 'miss' || action.t === 'call' ? action.i || event?.word : event?.chosen || wrong[0][0];
       const label = action.t === 'take' ? '这位要的是' : action.t === 'miss' || action.t === 'call' ? '你选的是' : '这个词是';
       if (asked) {
-        game.note = {html:`<span class="kc-note-label">${label}</span>${wordHTML(asked)}<span class="kc-note-zh">${e(zh1(asked))}</span>${icon('speaker')}`,word:asked,until:Date.now()+2800};
+        game.note = {kind:'fix',html:`<span class="kc-note-label">${label}</span><span class="kc-note-main">${wordHTML(asked)}<span class="kc-note-zh">${e(zh1(asked))}</span></span>${icon('speaker')}`,word:asked,until:Date.now()+3000};
         sayWord(asked);
       }
       return;
@@ -1476,6 +1596,125 @@
     const id = order?.takenBy;
     return id === game.me ? '你' : (ui.room?.players || []).find(player => player.id === id)?.name || '同学';
   }
+  // What my own tap looks like: the picture flies from where I tapped to where it went; a wrong answer warms the
+  // thing tapped for a moment (the correction itself is the note at the top).
+  function effects(game,action,result,from) {
+    if (!result) return;
+    const now = Date.now();
+    if (result.learn.some(([,ok]) => !ok)) {
+      if (action.t === 'take') { game.fresh.set(`bad:dish:${action.d}`,now); game.fresh.set(`bad:guest:${action.c}`,now); }
+      else if (action.t === 'place') game.fresh.set(`bad:plate:${action.c}`,now);
+      else if (action.t === 'cook') game.fresh.set(`bad:kind:${action.k}`,now);
+      else if (action.t === 'miss' || action.t === 'call') game.fresh.set(`bad:slot:${action.c}:${action.n}`,now);
+      buzz(14);
+      return;
+    }
+    if (!result.ok || !from) return;
+    for (const event of result.events) {
+      const order = Number.isInteger(event.n) ? game.state.orders[event.n] : null;
+      if (event.e === 'take') fly(game,from,`.kc-plate[data-n="${event.n}"]`,pic(order?.word || ''),{size:40});
+      else if (event.e === 'place' || event.e === 'transfer') fly(game,from,`.kc-slot[data-n="${event.n}"][data-x="${event.slot}"]`,pic(event.i));
+      else if (event.e === 'cook') fly(game,from,`.kc-station[data-x="${event.x}"]`,pic(event.i));
+      else if (event.e === 'serve' || event.e === 'course') {
+        // The dish goes over to its customer (who gets up once it is the last course).
+        const seat = game.exits.find(exit => exit.at >= now-50 && exit.mood === 'happy' && order && exit.customer === order.customer)?.seat ?? game.seats.get(event.n);
+        if (seat !== undefined) fly(game,from,`.kc-guest[data-seat="${seat}"] .kc-face-ring`,pic(event.e === 'course' ? game.scene.dishes[order.dish]?.courses?.[event.course-1]?.word || order.word : finishedWord(game,order)),{size:44});
+        buzz([8,40,8]);
+      }
+    }
+  }
+  // A short vibration on phones that have one (Android); quiet when the game's sound is off.
+  function buzz(pattern) {
+    try { if (ui.prefs?.sound && navigator.vibrate && window.matchMedia('(pointer: coarse)').matches) navigator.vibrate(pattern); } catch {}
+  }
+  // A picture on its way, from a box on the screen to the element the selector finds once the counter is drawn again.
+  function fly(game,from,selector,html,{size = 34} = {}) {
+    if (!from || reduceMotion() || !html) return;
+    game.flights.push({from,selector,html,size,at:Date.now()});
+  }
+  function fxLayer() {
+    if (!ui.fx || !ui.fx.isConnected) {
+      ui.fx = document.createElement('div');
+      ui.fx.className = 'kc-fx';
+      ui.fx.setAttribute('aria-hidden','true');
+      document.body.append(ui.fx);
+    }
+    return ui.fx;
+  }
+  function runFlights(game) {
+    const list = game.flights.splice(0).filter(item => Date.now()-item.at < 1200);
+    for (const item of list) {
+      const target = ui.root?.querySelector(item.selector);
+      if (!target || typeof Element.prototype.animate !== 'function') continue;
+      const to = target.getBoundingClientRect(), from = item.from;
+      const dx = from.left+from.width/2-(to.left+to.width/2), dy = from.top+from.height/2-(to.top+to.height/2);
+      const node = document.createElement('div');
+      node.className = 'kc-fly';
+      node.style.cssText = `left:${to.left+to.width/2-item.size/2}px;top:${to.top+to.height/2-item.size/2}px;width:${item.size}px;height:${item.size}px`;
+      node.innerHTML = item.html;
+      fxLayer().append(node);
+      // A gentle arc, eased out: it starts quickly and settles where it lands; nothing overshoots.
+      const lift = Math.min(36,Math.hypot(dx,dy)*.18);
+      const flight = node.animate([
+        {transform:`translate(${dx}px,${dy}px) scale(.82)`,opacity:0},
+        {transform:`translate(${dx*.55}px,${dy*.55-lift}px) scale(1)`,opacity:1,offset:.4},
+        {transform:'translate(0,0) scale(1)',opacity:1,offset:.82},
+        {transform:'translate(0,0) scale(.92)',opacity:0},
+      ],{duration:Math.min(640,360+Math.hypot(dx,dy)*.45),easing:'cubic-bezier(.22,1,.36,1)'});
+      const done = () => node.remove();
+      flight.onfinish = done;
+      flight.oncancel = done;
+      // (A page put in the background stops its animations: the picture is taken off all the same.)
+      setTimeout(done,1500);
+    }
+  }
+  // The score counts up to its new value (and the line under it towards the ★ target).
+  function tweenScore(game) {
+    const goal = game.state.score;
+    if (reduceMotion()) { game.shown = goal; paintScore(game); return; }
+    if (game.shown === goal || game.tween?.to === goal) return;
+    game.tween = {from:game.shown,to:goal,at:performance.now()};
+    if (game.tweenFrame) return;
+    const step = time => {
+      const tween = game.tween;
+      if (ui.game !== game || !tween) { game.tweenFrame = 0; return; }
+      const k = Math.min(1,(time-tween.at)/750), eased = 1-(1-k)**3;
+      game.shown = tween.from+(tween.to-tween.from)*eased;
+      paintScore(game);
+      if (k < 1) { game.tweenFrame = requestAnimationFrame(step); return; }
+      game.shown = tween.to;
+      game.tween = null;
+      game.tweenFrame = 0;
+    };
+    game.tweenFrame = requestAnimationFrame(step);
+  }
+  function paintScore(game) {
+    const score = $('#kc-score'), line = $('#kc-goal'), target = Math.max(1,targetFor(game.sceneData,game.state.minutes));
+    if (score) score.textContent = String(Math.round(game.shown));
+    if (line) line.style.transform = `scaleX(${Math.min(1,game.shown/target).toFixed(3)})`;
+  }
+  // The first few games show one short hint at a time, when the player seems to wait for something to happen.
+  function coach(game) {
+    if (!game.coach || game.watch || game.phase !== 'play' || game.state.over) return;
+    if (game.note && game.note.until > Date.now()-600) return;
+    if (Date.now()-Math.max(game.actedAt || 0,game.playAt || 0) < 3200) return;
+    const state = game.state, shop = game.scene.take === 'first', taken = state.orders.filter(order => order.status === 'taken');
+    const tip = (key,text) => {
+      if (game.coached.has(key)) return false;
+      game.coached.add(key);
+      game.note = {kind:'coach',html:`<span class="kc-note-label">小提示</span><span class="kc-note-main"><span class="kc-note-text">${text}</span></span>`,until:Date.now()+4800};
+      drawGame();
+      return true;
+    };
+    if (taken.some(order => complete(order) && !order.naming) && tip('serve','配齐了，点盘子上的 <b lang="nb">Vær så god!</b> 上菜')) return;
+    if (taken.some(order => order.naming) && tip('naming','客人要点下一道菜了，在 <i lang="nb">Meny</i> 上点它的名字')) return;
+    if (game.sel?.kind === 'station' && tip('bin','再点 <b lang="nb">søppel</b> 把糊了的倒掉')) return;
+    if (state.stations.some(station => stationState(station,gameNow(game)) === 'ready') && tip('transfer','工位上的好了，点一下工位，菜就放回盘子')) return;
+    const placed = game.coached.has('place') || state.orders.some(order => [...order.slots,...order.tools].some(slot => slot.s !== 'open'));
+    if (taken.some(order => !order.naming && order.slots.some(slot => slot.k && slot.s === 'open')) && placed && tip('cook','角上有标记的格子要先处理：点词，再点对应的工位')) return;
+    if (taken.length && !game.sel && tip('place','点下面柜子里的词，再点它要放的盘子')) return;
+    if (state.orders.some(order => order.status === 'wait') && !taken.length) tip('take',shop ? '听客人的清单，在 <i lang="nb">Hylla</i> 上点清单上的第一样' : '听客人点单，在 <i lang="nb">Meny</i> 上点这道菜的名字');
+  }
   // Sounds, voices and notices for what happened. My own taps were judged already; others' come from the server.
   function react(events,game) {
     for (const event of events) {
@@ -1483,15 +1722,36 @@
       switch (event.e) {
         case 'arrive':
           if (!order) break;
-          sayLine(lineFor('order',order.dish,order.voice));
-          if (order.without.length) later(() => { if (ui.game === game) sayLine(lineFor('without',order.without[0],order.voice)); },2600);
+          sayOrder(game,order);
           break;
-        case 'leave': if (game.guest === event.n) game.guest = -1; break;
-        case 'done': play('ding'); break;
-        case 'burn': play('burn'); if (!reduceMotion()) game.note = {html:'<span class="kc-note-label">工位上的菜</span><b lang="nb">brent!</b><span class="kc-note-zh">糊了，扔进 søppel</span>',until:Date.now()+2600}; break;
-        case 'cook': play(event.k === 'skjaere' ? 'chop' : 'sizzle'); break;
-        case 'take': case 'named': play('take'); break;
-        case 'trash': play('bin'); break;
+        case 'leave': {
+          if (game.guest === event.n) game.guest = -1;
+          // Tired of waiting: the face fades out of its seat.
+          const seat = game.seats.get(event.n);
+          if (order && seat !== undefined) game.exits.push({seat,customer:order.customer,mood:'impatient',text:'',at:Date.now(),until:Date.now()+1000});
+          break;
+        }
+        case 'done': play('ding'); game.fresh.set(`station:${event.x}`,Date.now()); break;
+        case 'burn':
+          play('burn');
+          game.fresh.set(`station:${event.x}`,Date.now());
+          if (!game.note || game.note.until < Date.now() || game.note.kind === 'coach') game.note = {kind:'burn',html:'<span class="kc-note-label">工位上的菜</span><span class="kc-note-main"><b lang="nb">brent!</b><span class="kc-note-zh">糊了，点它再点 søppel</span></span>',until:Date.now()+2800};
+          break;
+        case 'cook': play(event.k === 'skjaere' ? 'chop' : 'sizzle'); game.fresh.set(`station:${event.x}`,Date.now()); break;
+        case 'take': play('take'); game.fresh.set(`plate:${event.n}`,Date.now()); break;
+        case 'named': play('take'); break;
+        case 'place': case 'transfer': game.fresh.set(`slot:${event.n}:${event.slot}`,Date.now()); if (event.e === 'transfer') game.fresh.set(`station:${event.x}`,Date.now()); break;
+        // Everything is on the plate: the ingredients come together into the dish.
+        // (A room's server repeats the event a moment later; it is shown once.)
+        case 'complete': {
+          const key = `${event.n}:${order?.course ?? 0}`;
+          if (game.readied?.has(key)) break;
+          (game.readied ||= new Set()).add(key);
+          game.fresh.set(`done:${event.n}`,Date.now());
+          play('ready');
+          break;
+        }
+        case 'trash': play('bin'); game.fresh.set(`station:${event.x}`,Date.now()); break;
         case 'course': case 'serve': {
           play('serve');
           game.floats = game.floats.filter(item => item.until > Date.now());
@@ -1499,6 +1759,9 @@
           const reply = lineFor('reply',event.e === 'serve' && event.tip >= 10 ? 'nydelig' : 'takk',order.voice);
           if (reply) sayLine(reply);
           game.floats.push({n:event.n,plate:event.plate,text:`+${event.points+(event.tip || 0)}`,reply:reply?.text || 'Takk!',at:Date.now(),until:Date.now()+1800});
+          // The last course: the customer thanks the kitchen and gets up (the seat empties a moment later).
+          const seat = game.seats.get(event.n);
+          if (event.e === 'serve' && seat !== undefined) game.exits.push({seat,customer:order.customer,mood:'happy',text:reply?.text || 'Takk!',at:Date.now(),until:Date.now()+1500});
           break;
         }
         case 'call':
@@ -1537,44 +1800,124 @@
     if (ui.pressing && Date.now()-ui.pressAt < 1500) { ui.redraw = true; return; }
     ui.root.classList.add('is-game');
     const keep = focusKey();
-    ui.root.innerHTML = gameMarkup(game);
+    // A redraw keeps every strip and shelf where the player had scrolled it.
+    const scrolled = [...ui.root.querySelectorAll('[data-scroll]')].map(node => [node.dataset.scroll,node.scrollLeft,node.scrollTop]);
+    paint(game);
+    // The shelves are paged by the room really left for them (a phone's browser bars come and go): measured once drawn.
+    if (fitShelf(game)) paint(game);
+    for (const [key,left,top] of scrolled) {
+      const node = ui.root.querySelector(`[data-scroll="${CSS.escape(key)}"]`);
+      if (node) { node.scrollLeft = left; node.scrollTop = top; }
+    }
     restoreFocus(keep);
     // A strip that runs on past the screen fades at its edge (only then: a fade on a short strip looks disabled).
-    for (const strip of ui.root.querySelectorAll('.kc-menu-list,.kc-shelf-tabs')) strip.classList.toggle('is-overflow',strip.scrollWidth > strip.clientWidth+2);
+    for (const strip of ui.root.querySelectorAll('.kc-menu-list,.kc-shelf-tabs')) fadeEdges(strip);
     // The next bubble or score to fade is taken off then (tick draws again at that moment).
     const fading = [...game.floats.map(item => item.until),...Object.values(game.chats || {}).map(item => item.until)].filter(at => at > Date.now());
     game.expireAt = fading.length ? Math.min(...fading)+60 : 0;
+    const target = targetFor(game.sceneData,game.state.minutes);
+    // Reaching the ★ target in the middle of a game is worth a quiet moment.
+    if (!game.goal && game.state.score >= target && game.phase === 'play') {
+      game.goal = true;
+      game.goalAt = Date.now();
+      play('goal');
+      notify(`达到 ★ 目标 ${target} 分`,2400);
+    }
+    tweenScore(game);
+    runFlights(game);
   }
+  function paint(game) { ui.content.innerHTML = gameMarkup(game); }
+  // Which edge of a scrolling strip has more to show.
+  function fadeEdges(strip) {
+    const more = strip.scrollWidth > strip.clientWidth+2;
+    strip.classList.toggle('is-overflow',more && strip.scrollLeft+strip.clientWidth < strip.scrollWidth-4);
+    strip.classList.toggle('is-scrolled',more && strip.scrollLeft > 4);
+  }
+  // Rows of slots on a plate for 2, 3 or 4 columns: the most any order of this game needs, so a plate keeps its size
+  // all game long and nothing under it ever jumps.
+  function slotRows(game) {
+    if (!game.rows) {
+      let most = 1;
+      for (const order of game.state.orders) {
+        // A baking measure ("2 dl") takes two cells.
+        const extra = game.scene.dishes[order.dish]?.measure ? 1 : 0;
+        most = Math.max(most,order.slots.length+order.tools.length+extra,...(order.next || []).map(course => course.slots.length+course.tools.length));
+      }
+      game.rows = {most,r2:Math.ceil(most/2),r3:Math.ceil(most/3),r4:Math.ceil(most/4)};
+    }
+    return game.rows;
+  }
+  const SEATS = [0,1,2,3];
+  // Customers keep the seat they sat down in; a new one takes the first free seat (not one someone is just leaving).
+  function seatRow(game,visible) {
+    const now = Date.now(), seats = game.seats;
+    for (const n of [...seats.keys()]) if (!visible.some(order => order.n === n)) seats.delete(n);
+    game.exits = game.exits.filter(exit => exit.until > now);
+    const used = new Set(seats.values()), parting = new Set(game.exits.map(exit => exit.seat));
+    for (const order of visible) {
+      if (seats.has(order.n)) continue;
+      const free = SEATS.filter(seat => !used.has(seat));
+      const seat = free.find(seat => !parting.has(seat)) ?? free[0];
+      if (seat === undefined) continue;
+      seats.set(order.n,seat);
+      used.add(seat);
+    }
+    const row = SEATS.map(() => null);
+    for (const order of visible) { const seat = seats.get(order.n); if (seat !== undefined) row[seat] = order; }
+    return row;
+  }
+  // A moment's effect that must carry on smoothly when the counter is drawn again: the time since it began, as a
+  // negative animation delay ('' once it is over).
+  function since(game,key,ms = 900) {
+    const at = game.fresh.get(key);
+    const age = at ? Date.now()-at : Infinity;
+    return age < ms ? `-${age}ms` : '';
+  }
+  const mark = (game,key) => Date.now()-(game.fresh.get(key) || 0) < 900;
   function gameMarkup(game) {
     const state = game.state, scene = game.scene, now = gameNow(game), tier = state.tier;
     const visible = state.orders.filter(order => order.status === 'wait' || order.status === 'taken').sort((a,b) => a.arrivedAt-b.arrivedAt || a.n-b.n);
     // The customer the menu board answers: the one tapped, or else the first still waiting to order.
     const chosen = visible.find(order => order.n === game.guest);
     if (!chosen || !(chosen.status === 'wait' || chosen.naming)) game.guest = (visible.find(order => order.status === 'wait' || order.naming) || chosen || visible[0] || {n:-1}).n;
+    for (const [key,at] of game.fresh) if (Date.now()-at > 1600) game.fresh.delete(key);
     const room = game.room ? ui.room : null;
     const crew = room ? `<div class="kc-crew" aria-label="厨师">${state.players.map(player => {
       const name = nameOf(player.id), chat = game.chats?.[player.id];
       return `<span class="kc-cook${player.id === game.me ? ' is-me' : ''}${player.away ? ' is-away' : ''}" title="${e(name)}"><span class="kc-avatar">${e(initial(name))}</span>${chat && chat.until > Date.now() ? `<span class="kc-chat-bubble" lang="nb">${e(chat.text)}</span>` : ''}</span>`;
     }).join('')}</div>` : '';
+    const target = targetFor(game.sceneData,state.minutes), left = state.duration-now;
+    const goalAge = game.goalAt ? Date.now()-game.goalAt : Infinity;
     const bar = `<header class="kc-bar"><button type="button" class="kc-icon-button" data-kc="close" aria-label="离开这一局">${icon('close')}</button>
-      <div class="kc-bar-title"><span lang="nb">${e(game.sceneData.no)}</span><span class="kc-clock" id="kc-clock">${clockText(state.duration-now)}</span></div>${crew}
-      <div class="kc-scoreboard"><b id="kc-score">${state.score}</b><small>★ ${targetFor(game.sceneData,state.minutes)}</small></div>
+      <div class="kc-bar-title"><span lang="nb">${e(game.sceneData.no)}</span><span class="kc-clock${game.phase === 'play' && left <= 30000 ? ' is-late' : ''}" id="kc-clock">${clockText(left)}</span></div>${crew}
+      <div class="kc-scoreboard${game.goal ? ' is-reached' : ''}${goalAge < 1800 ? ' is-new' : ''}" ${goalAge < 1800 ? `style="--kc-fx:-${goalAge}ms"` : ''}><b id="kc-score">${Math.round(game.shown)}</b>
+        <small>★ ${target}</small><span class="kc-goal" aria-hidden="true"><i id="kc-goal" style="transform:scaleX(${Math.min(1,game.shown/Math.max(1,target)).toFixed(3)})"></i></span></div>
       ${room && !game.watch ? `<button type="button" class="kc-icon-button" data-kc="chat-open" aria-label="快捷短语" aria-expanded="${game.chatOpen}">${icon('chat')}</button>` : ''}
       <button type="button" class="kc-icon-button" data-kc="sound" aria-label="${ui.prefs.sound ? '关闭声音' : '打开声音'}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>`;
-    const guests = `<section class="kc-guests" aria-label="客人">${visible.slice(0,MAX_WAITING).map(order => guestCard(game,order,now)).join('')}${'<span class="kc-guest is-empty" aria-hidden="true"></span>'.repeat(Math.max(0,MAX_WAITING-visible.length))}</section>`;
+    const guests = `<section class="kc-guests" aria-label="客人">${seatRow(game,visible).map((order,seat) => order ? guestCard(game,order,now,seat) : emptySeat(game,seat)).join('')}</section>`;
     const menu = menuWords(scene);
-    const board = `<section class="kc-menu" aria-label="${scene.take === 'first' ? '货架' : '菜单'}"><span class="kc-menu-label" lang="nb">${scene.take === 'first' ? 'Hylla' : 'Meny'}</span>
-      <div class="kc-menu-list">${menu.map(word => `<button type="button" class="kc-dish" data-kc="dish" data-word="${e(word)}">${wordHTML(word,{article:false})}</button>`).join('')}</div></section>`;
+    const board = `<section class="kc-menu${menu.length > 4 ? ' is-many' : ''}${menu.length > 7 ? ' is-lots' : ''}" aria-label="${scene.take === 'first' ? '货架' : '菜单'}"><span class="kc-menu-label" lang="nb">${scene.take === 'first' ? 'Hylla' : 'Meny'}</span>
+      <div class="kc-menu-list" data-scroll="menu">${menu.map(word => {
+        const wrong = since(game,`bad:dish:${word}`);
+        return `<button type="button" class="kc-dish${wrong ? ' is-wrong' : ''}" data-kc="dish" data-word="${e(word)}" ${wrong ? `style="--kc-fx:${wrong}"` : ''}>${wordHTML(word,{article:false})}</button>`;
+      }).join('')}</div></section>`;
     const pass = `<section class="kc-pass is-${state.plates.length}" aria-label="出餐台">${state.plates.map((n,index) => plateCard(game,n,index,now)).join('')}</section>`;
-    const stations = `<section class="kc-stations" aria-label="工位">${state.stations.map((station,x) => stationCard(game,station,x,now)).join('')}
+    // At most five stations side by side; a room of three or four cooks has two of each, in two rows.
+    const perRow = Math.min(5,Math.max(1,Math.ceil(state.stations.length/Math.ceil(state.stations.length/5))));
+    const stations = `<section class="kc-stations${state.stations.length > 5 ? ' is-two-rows' : ''}${state.stations.length > 3 ? ' is-narrow' : ''}" style="--kc-stcols:${perRow}" aria-label="工位">${state.stations.map((station,x) => stationCard(game,station,x,now)).join('')}
       <button type="button" class="kc-bin${game.sel?.kind === 'station' ? ' is-target' : ''}" data-kc="bin" aria-label="søppel 垃圾桶">${icon('bin')}<span lang="nb">søppel</span></button></section>`;
     const shelf = shelfMarkup(game);
-    const note = `<button type="button" class="kc-note${game.note && game.note.until > Date.now() ? ' is-on' : ''}" id="kc-note" data-kc="hear" data-word="${e(game.note?.word || '')}" ${game.note ? '' : 'tabindex="-1"'}>${game.note?.html || ''}</button>`;
-    const count = game.phase === 'countdown' ? `<div class="kc-count" aria-live="assertive"><span id="kc-count-n">${Math.max(1,Math.ceil((game.countEnds-(game.room ? serverNow() : Date.now()))/1000))}</span><small>准备开张</small></div>` : '';
-    const over = state.over && game.room ? '<div class="kc-count is-end"><span lang="nb">Stengt!</span><small>本局结束，正在算分…</small></div>' : '';
+    const noteOn = game.note && game.note.until > Date.now();
+    if (game.note && !game.note.at) game.note.at = Date.now();
+    const note = `<button type="button" class="kc-note is-${game.note?.kind || 'fix'}${noteOn ? ' is-on' : ''}" id="kc-note" data-kc="hear" data-word="${e(game.note?.word || '')}" ${noteOn && game.note.word ? '' : 'tabindex="-1"'} ${noteOn ? `style="--kc-fx:-${Date.now()-game.note.at}ms"` : ''}>${game.note?.html || ''}</button>`;
+    const count = game.phase === 'countdown' ? `<div class="kc-count" aria-live="assertive"><span id="kc-count-n"><b class="kc-digit">${Math.max(1,Math.ceil((game.countEnds-(game.room ? serverNow() : Date.now()))/1000))}</b></span><small>准备开张</small></div>` : '';
+    const over = state.over && (game.room || game.closing) ? `<div class="kc-count is-end"><span lang="nb">Stengt!</span><small>${game.room ? '本局结束，正在算分…' : '打烊了，正在算分…'}</small></div>` : '';
     const watch = game.watch ? '<p class="kc-watch">观战中 · 下一局一起做</p>' : '';
-    const chat = game.chatOpen ? `<div class="kc-chat-menu">${CHATS.map(id => `<button type="button" class="kc-button kc-ghost" data-kc="chat" data-value="${id}" lang="nb">${e(ui.data?.lines?.chat?.[id]?.text || id)}</button>`).join('')}</div>` : '';
-    return `<div class="kc-game is-${tier}${game.sel ? ' is-holding' : ''}${state.plates.length === PLATES_ROOM ? ' is-room' : ''}">${bar}${chat}${watch}${guests}${board}${pass}${stations}${shelf}${note}${count}${over}${pickerMarkup(game)}</div>`;
+    const chat = game.chatOpen ? `<div class="kc-chat-menu" style="--kc-fx:${since(game,'chat',400) || '-400ms'}">${CHATS.map(id => `<button type="button" class="kc-button kc-ghost" data-kc="chat" data-value="${id}" lang="nb">${e(ui.data?.lines?.chat?.[id]?.text || id)}</button>`).join('')}</div>` : '';
+    const rows = slotRows(game);
+    // Looping motion (steam, a glowing button) runs on the clock, so a redraw picks it up where it was.
+    const layout = `--kc-r2:${rows.r2};--kc-r3:${rows.r3};--kc-r4:${rows.r4};--kc-phase:-${Date.now()%3600000}ms`;
+    return `<div class="kc-game is-${tier}${game.sel ? ' is-holding' : ''}${game.sel?.kind === 'station' ? ' is-binning' : ''}${state.plates.length === PLATES_ROOM ? ' is-room' : ''}${rows.most > 4 ? ' is-dense' : ''}${scene.take === 'first' ? ' is-shop' : ''}" style="${layout}">${bar}${chat}${watch}${guests}${board}${pass}${stations}${shelf}${note}${count}${over}${pickerMarkup(game)}</div>`;
   }
   // The menu board: every dish name of the scene (and later courses); in the shop, everything on the shelves.
   function menuWords(scene) {
@@ -1591,36 +1934,66 @@
     if (order.status === 'served') return 'happy';
     return order.leavesAt-now < order.patience*.3 ? 'impatient' : 'neutral';
   }
-  function guestCard(game,order,now) {
+  // A customer at the counter: the face inside a ring that empties as their patience runs out, and a bubble with the
+  // order (by tier). Only a customer who has just come in walks in; the counter is drawn again often and stays still.
+  function guestCard(game,order,now,seat) {
     const tier = game.state.tier, scene = game.scene, dish = scene.dishes[order.dish];
     const elapsed = Math.max(0,now-order.arrivedAt);
     const asking = order.status === 'wait' || order.naming;
+    const hurry = order.leavesAt-now < order.patience*.3;
     let bubble;
-    if (tier === 'expert') bubble = `${icon('speaker')}<span class="kc-sr">再听一遍</span>`;
-    else if (!asking) bubble = `${icon('check')}<small>已接单</small>`;
-    else if (scene.take === 'first') bubble = `<span class="kc-bubble-list">${dish.slots.slice(0,4).map(([item],index) => pic(item,index ? 'is-tiny' : 'is-small')).join('')}</span>${showZh(dish.slots[0][0],tier) ? `<small>${e(dish.slots.slice(0,4).map(([item]) => zh1(item)).join('、'))}</small>` : ''}`;
-    else bubble = `${pic(order.word,'is-small')}${showZh(order.word,tier) ? `<small>${e(zh1(order.word))}</small>` : ''}`;
-    const without = order.without.length && tier !== 'expert' && asking ? `<span class="kc-without">${pic(order.without[0],'is-tiny')}${showZh(order.without[0],tier) ? `<small>不要${e(zh1(order.without[0]))}</small>` : ''}</span>` : '';
+    if (!asking) bubble = `<span class="kc-bubble-done">${icon('check')}<small>已接单</small></span>`;
+    else if (tier === 'expert') bubble = `<span class="kc-bubble-ear">${icon('speaker')}</span><span class="kc-sr">再听一遍</span>`;
+    else if (scene.take === 'first') bubble = `<span class="kc-bubble-list">${dish.slots.slice(0,4).map(([item]) => pic(item,'is-list')).join('')}</span>${showZh(dish.slots[0][0],tier) ? `<small>${e(dish.slots.slice(0,4).map(([item]) => zh1(item)).join('、'))}</small>` : ''}`;
+    else bubble = `${pic(order.word,'is-bubble')}${showZh(order.word,tier) ? `<small>${e(zh1(order.word))}</small>` : ''}`;
+    // Something to leave out: a small crossed picture on the bubble's corner (and on 新手 its name).
+    const without = order.without.length && tier !== 'expert' && asking ? `<span class="kc-without">${pic(order.without[0],'is-tiny')}</span>` : '';
+    const withoutZh = without && showZh(order.without[0],tier) ? `<small class="kc-without-zh">不要${e(zh1(order.without[0]))}</small>` : '';
     const label = tier === 'novice' ? `客人，${asking ? `想要${zh1(order.word)}` : '已接单'}` : '客人';
-    // Only a customer who has just come in walks in; the page is drawn again often and must stay still.
-    return `<button type="button" class="kc-guest is-${order.status}${order.naming ? ' is-naming' : ''}${game.guest === order.n ? ' is-selected' : ''}${elapsed < 450 ? ' is-arriving' : ''}" data-kc="guest" data-n="${order.n}" aria-label="${e(label)}"
-      style="--kc-patience:${order.patience}ms;--kc-elapsed:-${elapsed}ms">${faceHTML(order.customer,mood(order,now))}<span class="kc-patience"><i></i></span><span class="kc-bubble">${bubble}${without}</span></button>`;
+    const wrong = since(game,`bad:guest:${order.n}`);
+    return `<button type="button" class="kc-guest is-${order.status}${order.naming ? ' is-naming' : ''}${game.guest === order.n && asking ? ' is-selected' : ''}${elapsed < 450 ? ' is-arriving' : ''}${hurry ? ' is-hurry' : ''}${wrong ? ' is-wrong' : ''}${withoutZh ? ' has-without' : ''}" data-kc="guest" data-n="${order.n}" data-seat="${seat}" aria-label="${e(label)}"
+      style="--kc-patience:${order.patience}ms;--kc-elapsed:-${elapsed}ms${wrong ? `;--kc-fx:${wrong}` : ''}${elapsed < 450 ? `;--kc-in:-${elapsed}ms` : ''}"><span class="kc-face-ring">${faceHTML(order.customer,mood(order,now))}${RING}</span><span class="kc-bubble">${bubble}${withoutZh}${without}</span></button>`;
   }
+  const RING = '<svg class="kc-ring" viewBox="0 0 40 40" aria-hidden="true"><circle class="kc-ring-track" cx="20" cy="20" r="18.6"/><circle class="kc-ring-time" cx="20" cy="20" r="18.6"/></svg>';
+  // A seat with nobody in it, or the customer who just got up: thanked and leaving, or tired of waiting.
+  function emptySeat(game,seat) {
+    const exit = game.exits.find(item => item.seat === seat && item.until > Date.now());
+    if (!exit) return `<span class="kc-guest is-empty" data-seat="${seat}" aria-hidden="true"><span class="kc-seat"></span></span>`;
+    return `<span class="kc-guest is-leaving is-${exit.mood}" data-seat="${seat}" aria-hidden="true" style="--kc-fx:-${Date.now()-exit.at}ms"><span class="kc-face-ring">${faceHTML(exit.customer,exit.mood)}</span>${exit.text ? `<span class="kc-bubble is-reply"><span lang="nb">${e(exit.text)}</span></span>` : ''}</span>`;
+  }
+  // Where the things already on a plate lie on the round plate of a wide screen (one in the middle, more in a ring).
+  const discSpot = (index,count) => {
+    if (count === 1) return 'left:50%;top:50%';
+    const angle = index/count*2*Math.PI-Math.PI/2, radius = count > 4 ? 29 : 24;
+    return `left:${(50+radius*Math.cos(angle)).toFixed(1)}%;top:${(50+radius*Math.sin(angle)).toFixed(1)}%`;
+  };
+  // What a finished order looks like: the dish (in the shop, the shopping list's picture).
+  const finishedWord = (game,order) => game.scene.take === 'first' ? game.scene.dishes[order.dish]?.word || order.word : order.word;
   function plateCard(game,n,index,now) {
     // A dish just handed over leaves its points and the customer's thanks on the plate for a moment.
     const float = game.floats.find(item => item.plate === index && item.until > Date.now());
     const floatHTML = float ? `<span class="kc-float" aria-hidden="true" style="animation-delay:-${Date.now()-float.at}ms"><b>${e(float.text)}</b><small lang="nb">${e(float.reply)}</small></span>` : '';
     const undo = undoing(game,`plate#${index}`) ? ' is-undo' : '';
-    if (n < 0) return `<div class="kc-plate is-empty${undo}" aria-label="空盘子 ${index+1}">${icon('plate')}${floatHTML}</div>`;
+    if (n < 0) return `<div class="kc-plate is-empty${undo}${float ? ' has-float' : ''}" data-plate="${index}" aria-label="空盘子 ${index+1}"><span class="kc-plate-mark">${icon('plate')}</span><span class="kc-dish-plate" aria-hidden="true"><span class="kc-disc"></span></span>${floatHTML}</div>`;
     const order = game.state.orders[n], tier = game.state.tier, holding = game.sel?.kind === 'word';
     const done = complete(order) && !order.naming;
     const courses = order.next.length || order.course ? `<span class="kc-courses">${Array.from({length:order.course+1+order.next.length},(_,i) => `<i class="${i < order.course ? 'is-done' : i === order.course ? 'is-now' : ''}"></i>`).join('')}</span>` : '';
     const slots = [...order.slots.map((slot,i) => ({...slot,i:slot.i,index:i})),...order.tools.map((tool,i) => ({...tool,k:'',index:order.slots.length+i}))];
-    const body = order.naming ? `<p class="kc-naming">在菜单上点下一道菜</p>`
+    const body = order.naming ? `<p class="kc-naming">${icon('chat')}<span>在 Meny 上点下一道菜</span></p>`
       : `<div class="kc-slots">${slots.map(slot => slotButton(game,order,slot,tier)).join('')}</div>`;
-    return `<div class="kc-plate${holding && !order.naming ? ' is-target' : ''}${done ? ' is-done' : ''}${game.pending.has(`plate:${n}`) ? ' is-pending' : ''}${undo}" data-kc="plate" data-n="${n}">
-      <div class="kc-ticket-head">${faceHTML(order.customer,mood(order,now),'is-mini')}${courses}</div>${body}
-      ${done ? `<button type="button" class="kc-serve" data-kc="serve" data-n="${n}" lang="nb">Vær så god!</button>` : ''}${floatHTML}</div>`;
+    // On a wide screen the order also lies on a real plate: what is on it so far, then the finished dish.
+    const finished = finishedWord(game,order), lying = slots.filter(slot => slot.s === 'done' && slot.index < order.slots.length);
+    const ready = since(game,`done:${n}`,1200);
+    const disc = `<span class="kc-dish-plate" aria-hidden="true"><span class="kc-disc">${done ? `<span class="kc-disc-dish${ready ? ' is-fresh' : ''}" ${ready ? `style="--kc-fx:${ready}"` : ''}>${pic(finished,'is-dish',false)}</span>`
+      : lying.map((slot,i) => { const fresh = since(game,`slot:${n}:${slot.index}`); return `<span class="kc-disc-item${fresh ? ' is-fresh' : ''}" style="${discSpot(i,lying.length)}${fresh ? `;--kc-fx:${fresh}` : ''}">${pic(slot.i,'is-on-plate')}</span>`; }).join('')}</span></span>`;
+    // On a phone the slip's empty corner shows, very faintly, the dish it will become (not on 高手, where the plate's
+    // words are listened for).
+    const ghost = !done && !order.naming && tier !== 'expert' ? `<span class="kc-plate-ghost" aria-hidden="true">${pic(finished,'is-ghost')}</span>` : '';
+    const serve = done ? `<button type="button" class="kc-serve${ready ? ' is-fresh' : ''}" data-kc="serve" data-n="${n}" ${ready ? `style="--kc-fx:${ready}"` : ''}><span class="kc-serve-pic">${pic(finished,'is-tiny')}</span><span lang="nb">Vær så god!</span></button>` : '';
+    const taken = since(game,`plate:${n}`), wrong = since(game,`bad:plate:${n}`);
+    const style = [taken ? `--kc-in:${taken}` : '',wrong ? `--kc-fx:${wrong}` : ''].filter(Boolean).join(';');
+    return `<div class="kc-plate${holding && !order.naming ? ' is-target' : ''}${done ? ' is-done' : ''}${order.naming ? ' is-naming' : ''}${game.pending.has(`plate:${n}`) ? ' is-pending' : ''}${undo}${taken ? ' is-new' : ''}${wrong ? ' is-wrong' : ''}${float ? ' has-float' : ''}" data-kc="plate" data-n="${n}" data-plate="${index}" ${style ? `style="${style}"` : ''}>
+      <div class="kc-ticket-head">${faceHTML(order.customer,mood(order,now),'is-mini')}${courses}</div>${ghost}${body}${disc}${serve}${floatHTML}</div>`;
   }
   // A baking order asks for a measure ("2 dl sukker"): its slot shows the amount and the ingredient, and the unit is
   // what is answered.
@@ -1636,29 +2009,40 @@
       return `<button type="button" class="kc-slot is-measure is-${state}${away ? ' is-away' : ''}${pending ? ' is-pending' : ''}" data-kc="slot" data-n="${order.n}" data-x="${slot.index}" aria-label="${e(label)}">
         <span class="kc-measure"><b>${e(String(measure.amount))}</b>${unit}</span>${pic(measure.item,'is-tiny')}${state === 'done' ? `<i class="kc-tick">${icon('check')}</i>` : ''}</button>`;
     }
-    // The station's mark sits on the slot's corner; 新手 reads the food and the verb on one line ("奶酪·切").
-    const mark = slot.k ? `<span class="kc-slot-kind" aria-hidden="true">${icon(slot.k)}</span>` : '';
+    // The station's mark sits on the slot's corner (on 新手 the Chinese verb itself, "切"), the food's name under its
+    // picture.
+    const mark = slot.k ? `<span class="kc-slot-kind${tier === 'novice' ? ' is-word' : ''}" aria-hidden="true">${tier === 'novice' ? e(KIND_NAMES[slot.k]) : icon(slot.k)}</span>` : '';
     let face;
     if (state === 'done') face = `${pic(item,'is-tiny')}${tier === 'expert' ? `<small class="kc-slot-word">${wordHTML(item,{article:false})}</small>` : ''}<i class="kc-tick">${icon('check')}</i>`;
     else if (tier === 'expert') face = `${icon('speaker')}${mark}`;
-    else face = `${pic(item,'is-tiny')}${showZh(item,tier) ? `<small>${e(zh1(item))}${slot.k && tier === 'novice' ? `·${KIND_NAMES[slot.k]}` : ''}</small>` : ''}${mark}`;
+    else face = `${pic(item,'is-tiny')}${showZh(item,tier) ? `<small>${e(zh1(item))}</small>` : ''}${mark}`;
     const label = state === 'done' ? '已放好' : tier === 'novice' ? `${zh1(item)}${slot.k ? `，要${KIND_NAMES[slot.k]}` : ''}` : tier === 'expert' ? '听这一样' : '一样食材';
-    return `<button type="button" class="kc-slot is-${state}${away ? ' is-away' : ''}${pending ? ' is-pending' : ''}${undoing(game,`slot:${order.n}:${slot.index}`) ? ' is-undo' : ''}" data-kc="slot" data-n="${order.n}" data-x="${slot.index}" aria-label="${e(label)}">${face}${away ? `<span class="kc-slot-away">${icon('people')}</span>` : ''}</button>`;
+    const key = `slot:${order.n}:${slot.index}`, filled = since(game,key), wrong = since(game,`bad:${key}`);
+    const style = [filled ? `--kc-fx:${filled}` : '',wrong ? `--kc-fx:${wrong}` : ''].filter(Boolean).join(';');
+    return `<button type="button" class="kc-slot is-${state}${away ? ' is-away' : ''}${pending ? ' is-pending' : ''}${undoing(game,key) ? ' is-undo' : ''}${filled ? ' is-fresh' : ''}${wrong ? ' is-wrong' : ''}" data-kc="slot" data-n="${order.n}" data-x="${slot.index}" aria-label="${e(label)}" ${style ? `style="${style}"` : ''}>${face}${away ? `<span class="kc-slot-away">${icon('people')}</span>` : ''}</button>`;
   }
+  // A station shows only its verb (the verb is what is asked); while it works, the food on it and a slow meter, and over
+  // a pot, a pan, the oven or the grill a little steam (smoke once it has burnt).
+  const HOT = new Set(['koke','steke','bake','grille']);
   function stationCard(game,station,x,now) {
     const status = stationState(station,now), verb = game.scene.verbs[station.kind];
-    const style = station.item ? `style="--kc-cook:${COOK_MS[station.kind]}ms;--kc-cook-at:-${Math.max(0,now-station.startedAt)}ms;--kc-burn:${BURN_MS[station.kind] || 1}ms;--kc-burn-at:-${Math.max(0,now-station.doneAt)}ms"` : '';
+    const fx = since(game,`station:${x}`), wrong = since(game,`bad:kind:${station.kind}`);
+    const vars = [station.item ? `--kc-cook:${COOK_MS[station.kind]}ms;--kc-cook-at:-${Math.max(0,now-station.startedAt)}ms;--kc-burn:${BURN_MS[station.kind] || 1}ms;--kc-burn-at:-${Math.max(0,now-station.doneAt)}ms` : '',
+      fx ? `--kc-in:${fx}` : '',wrong ? `--kc-fx:${wrong}` : ''].filter(Boolean).join(';');
     const holding = game.sel?.kind === 'word', chosen = game.sel?.kind === 'station' && game.sel.x === x;
     const flag = status === 'burnt' ? '<b class="kc-flag is-burnt" lang="nb">brent!</b>' : status === 'ready' ? `<b class="kc-flag is-ready">${icon('check')}</b>` : '';
-    return `<button type="button" class="kc-station is-${status}${holding ? ' is-target' : ''}${chosen ? ' is-selected' : ''}${game.pending.has(`station:${x}`) ? ' is-pending' : ''}${undoing(game,`station:${x}`) ? ' is-undo' : ''}" data-kc="station" data-x="${x}" ${style}>
-      <span class="kc-verb">${verb ? wordHTML(verb) : e(station.kind)}</span>${station.item ? pic(station.item,'is-tiny') : ''}${flag}<i class="kc-meter"><i></i></i></button>`;
+    const steam = station.item && HOT.has(station.kind) ? '<span class="kc-steam" aria-hidden="true"><i></i><i></i><i></i></span>' : '';
+    return `<button type="button" class="kc-station is-${status} is-${station.kind}${holding ? ' is-target' : ''}${chosen ? ' is-selected' : ''}${game.pending.has(`station:${x}`) ? ' is-pending' : ''}${undoing(game,`station:${x}`) ? ' is-undo' : ''}${fx ? ' is-new' : ''}${wrong ? ' is-wrong' : ''}" data-kc="station" data-x="${x}" ${vars ? `style="${vars}"` : ''}>
+      ${steam}<span class="kc-verb">${verb ? wordHTML(verb) : e(station.kind)}</span><span class="kc-station-pic">${station.item ? pic(station.item,'is-tiny') : ''}</span>${flag}<i class="kc-meter"><i></i></i></button>`;
   }
   // My shelves. A phone turns them in pages of whole cabinets, as many as fit the room left under the stations (small
   // cabinets share a page, so a page is never half empty and seldom scrolls); a tablet or a computer shows them all.
   function shelfPages(game) {
     const mine = (game.sceneData.cabinets || []).filter(cabinet => game.state.owner[cabinet.id] === game.me), pages = [];
-    // A cabinet takes its name's line and its rows of three words; the counter above takes about 520 px of the screen.
-    const room = Math.max(150,(window.innerHeight || 800)-520), cost = cabinet => 26+Math.ceil(cabinet.items.length/3)*52;
+    // A cabinet takes its name's line and its rows of words (the room and the columns are measured on the page; until
+    // then, the counter above is taken to fill about 520 px of the screen).
+    const room = Math.max(120,game.shelfRoom || (window.innerHeight || 800)-520), columns = game.shelfColumns || 3;
+    const cost = cabinet => 26+Math.ceil(cabinet.items.length/columns)*52;
     for (const cabinet of mine) {
       const last = pages[pages.length-1];
       if (last && last.height+cost(cabinet) <= room) { last.cabinets.push(cabinet); last.height += cost(cabinet); }
@@ -1666,22 +2050,41 @@
     }
     return pages;
   }
+  // The room under the stations, read off the page; true when the pages should be laid out again.
+  function fitShelf(game) {
+    const shelf = $('.kc-shelf');
+    if (!shelf || game.watch || !shelf.querySelector('.kc-cabinet')) return false;
+    const style = getComputedStyle(shelf), tile = shelf.querySelector('.kc-tile');
+    const inner = shelf.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+    const tileWidth = tile ? parseFloat(getComputedStyle(tile.parentElement).getPropertyValue('--kc-tile-min')) || 98 : 98;
+    const columns = Math.max(2,Math.floor((inner+6)/(tileWidth+6)));
+    // The page tabs (36 px and a gap) are counted in even before there are two pages.
+    const room = Math.round((shelf.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)-42)/8)*8;
+    if (room === game.shelfRoom && columns === game.shelfColumns) return false;
+    const before = JSON.stringify(shelfPages(game).map(page => page.cabinets.map(cabinet => cabinet.id)));
+    game.shelfRoom = room;
+    game.shelfColumns = columns;
+    return JSON.stringify(shelfPages(game).map(page => page.cabinets.map(cabinet => cabinet.id))) !== before;
+  }
   function shelfMarkup(game) {
     if (game.watch) return '';
     const tier = game.state.tier, pages = shelfPages(game);
     if (!pages.length) return '<section class="kc-shelf"><p class="kc-empty">你的柜子暂时交给了同学。</p></section>';
     game.cab = Math.min(game.cab,pages.length-1);
     const holding = game.sel?.kind === 'word' ? game.sel.word : '';
-    const tabs = pages.length > 1 ? `<div class="kc-shelf-tabs" role="tablist">${pages.map((page,index) => `<button type="button" role="tab" class="kc-shelf-tab" aria-selected="${index === game.cab}" data-kc="cab" data-value="${index}"><span lang="nb">${e(page.cabinets.map(cabinet => cabinet.no).join(' · '))}</span>${tier === 'novice' ? `<small>${e(page.cabinets.map(cabinet => cabinet.zh).join('·'))}</small>` : ''}</button>`).join('')}</div>` : '';
-    const now = Date.now();
-    return `<section class="kc-shelf" aria-label="我的柜子">${tabs}${pages.map((page,index) => `<div class="kc-page${index === game.cab ? ' is-on' : ''}">${page.cabinets.map(cabinet => `<div class="kc-cabinet" role="group" aria-label="${e(cabinet.no)}">
+    const tabs = pages.length > 1 ? `<div class="kc-shelf-tabs" role="tablist" data-scroll="tabs">${pages.map((page,index) => `<button type="button" role="tab" class="kc-shelf-tab" aria-selected="${index === game.cab}" data-kc="cab" data-value="${index}"><span lang="nb">${e(page.cabinets.map(cabinet => cabinet.no).join(' · '))}</span>${tier === 'novice' ? `<small>${e(page.cabinets.map(cabinet => cabinet.zh).join('·'))}</small>` : ''}</button>`).join('')}</div>` : '';
+    const now = Date.now(), turned = since(game,'cab',400);
+    // A classmate's shout makes the word glow three times (from the moment it came, whatever is drawn meanwhile).
+    const called = item => { const until = game.calls.get(item) || 0; return until > now ? ` is-called" style="--kc-fx:-${now-(until-7000)}ms` : ''; };
+    return `<section class="kc-shelf${pages.length > 1 ? ' is-paged' : ''}" aria-label="我的柜子" data-scroll="shelf">${tabs}${pages.map((page,index) => `<div class="kc-page${index === game.cab ? ` is-on${turned ? ` is-turned" style="--kc-fx:${turned}` : ''}` : ''}" data-scroll="page-${index}">${page.cabinets.map(cabinet => `<div class="kc-cabinet" role="group" aria-label="${e(cabinet.no)}" style="--kc-n:${cabinet.items.length}">
       <p class="kc-cabinet-name"><span lang="nb">${e(cabinet.no)}</span>${tier === 'novice' ? `<small>${e(cabinet.zh)}</small>` : ''}</p>
-      <div class="kc-tiles">${cabinet.items.map(item => `<button type="button" class="kc-tile${holding === item ? ' is-selected' : ''}${(game.calls.get(item) || 0) > now ? ' is-called' : ''}" data-kc="tile" data-word="${e(item)}" aria-pressed="${holding === item}">${wordHTML(item)}</button>`).join('')}</div></div>`).join('')}</div>`).join('')}</section>`;
+      <div class="kc-tiles">${cabinet.items.map(item => `<button type="button" class="kc-tile${holding === item ? ' is-selected' : ''}${called(item)}" data-kc="tile" data-word="${e(item)}" aria-pressed="${holding === item}">${wordHTML(item)}</button>`).join('')}</div></div>`).join('')}</div>`).join('')}</section>`;
   }
   function pickerMarkup(game) {
     const picking = ui.picking;
     if (!picking || picking.game !== game) return '';
-    return `<div class="kc-sheet-layer"><div class="kc-sheet" role="dialog" aria-modal="true" aria-labelledby="kc-sheet-title"><p id="kc-sheet-title">${e(picking.title || '向同学要哪一样？')}</p>
+    const age = `--kc-fx:-${Math.min(1000,Date.now()-(picking.at || 0))}ms`;
+    return `<div class="kc-sheet-layer" style="${age}"><div class="kc-sheet" style="${age}" role="dialog" aria-modal="true" aria-labelledby="kc-sheet-title"><p id="kc-sheet-title">${e(picking.title || '向同学要哪一样？')}</p>
       <div class="kc-picks${picking.options.length > 4 ? ' is-many' : ''}">${picking.options.map(word => `<button type="button" class="kc-pick" data-kc="pick" data-word="${e(word)}">${wordHTML(word)}</button>`).join('')}</div>${button('pick-cancel','取消','kc-quiet')}</div></div>`;
   }
   function closePicker() { ui.picking = null; drawGame(); }
@@ -1692,16 +2095,16 @@
     const n = Number(target.dataset.n), x = Number(target.dataset.x), word = target.dataset.word;
     const state = game.state, now = gameNow(game);
     switch (kc) {
-      case 'sound': ui.prefs.sound = !ui.prefs.sound; savePrefs(); if (!ui.prefs.sound) releaseSfx(); drawGame(); return true;
-      case 'chat-open': game.chatOpen = !game.chatOpen; drawGame(); return true;
+      case 'sound': ui.prefs.sound = !ui.prefs.sound; savePrefs(); if (!ui.prefs.sound) { stopKitchenVoice(); releaseSfx(); } drawGame(); return true;
+      case 'chat-open': game.chatOpen = !game.chatOpen; game.fresh.set('chat',Date.now()); drawGame(); return true;
       case 'chat': game.chatOpen = false; act({t:'chat',w:target.dataset.value}); return true;
-      case 'cab': game.cab = Number(target.dataset.value) || 0; drawGame(); return true;
+      case 'cab': game.cab = Number(target.dataset.value) || 0; game.fresh.set('cab',Date.now()); drawGame(); return true;
       case 'pick-cancel': closePicker(); return true;
       case 'pick': {
         const picking = ui.picking;
         ui.picking = null;
         if (!picking) return true;
-        if (picking.mode === 'place') { act({t:'place',c:picking.n,i:word}); return true; }
+        if (picking.mode === 'place') { act({t:'place',c:picking.n,i:word},target.getBoundingClientRect()); return true; }
         const order = state.orders[picking.n], slot = order?.slots[picking.slot] || order?.tools[picking.slot-(order?.slots.length || 0)];
         act({t:slot && slot.i === word ? 'call' : 'miss',c:picking.n,n:picking.slot,i:word});
         return true;
@@ -1711,8 +2114,7 @@
         if (!order) return true;
         // Tapping the customer again (or any customer on 高手) says the order once more.
         if (game.guest === n || state.tier === 'expert') {
-          sayLine(lineFor('order',order.dish,order.voice));
-          if (order.without.length) later(() => sayLine(lineFor('without',order.without[0],order.voice)),2400);
+          sayOrder(game,order);
         }
         game.guest = n;
         drawGame();
@@ -1724,7 +2126,7 @@
           : state.orders.filter(item => item.status === 'wait' || item.naming).sort((a,b) => a.arrivedAt-b.arrivedAt)[0];
         if (!order) { notify(state.orders.some(item => item.status === 'wait' || item.status === 'taken') ? '这几位都接好单了' : '还没有客人在等',1800); return true; }
         game.guest = order.n;
-        act({t:'take',c:order.n,d:word});
+        act({t:'take',c:order.n,d:word},target.getBoundingClientRect());
         return true;
       }
       case 'tile':
@@ -1736,20 +2138,26 @@
         const order = state.orders[n];
         if (!order) return true;
         if (game.sel?.kind === 'word') {
-          const item = game.sel.word;
+          const item = game.sel.word, from = heldTile();
           game.sel = null;
-          act({t:'place',c:n,i:item});
+          act({t:'place',c:n,i:item},from);
           return true;
         }
         if (kc !== 'slot') return true;
         const slot = order.slots[x] || order.tools[x-order.slots.length];
         if (!slot || slot.s === 'done') { if (slot) sayWord(slot.i); return true; }
         if (state.tier === 'expert') sayWord(slot.i);
+        // 新手: a slot too narrow for its whole name shows it at the top (never the Norwegian word).
+        if (state.tier === 'novice' && !order.naming && !(game.room && state.owner[game.scene.cabinetOf[slot.i]] !== game.me) && !measureOf(game,order,{...slot,index:x})) {
+          game.note = {kind:'info',html:`<span class="kc-note-label">这一格要</span><span class="kc-note-main"><span class="kc-note-text">${e(zh1(slot.i))}${slot.k ? ` · 要${KIND_NAMES[slot.k]}` : ''}</span></span>`,until:Date.now()+2200};
+          drawGame();
+          return true;
+        }
         // A measure on my own shelf: the units to choose from come up at once.
         const measure = measureOf(game,order,{...slot,index:x});
         const unitShelf = measure ? game.sceneData.cabinets.find(cabinet => cabinet.items.includes(slot.i)) : null;
         if (unitShelf && state.owner[unitShelf.id] === game.me && !order.naming) {
-          ui.picking = {game,n,slot:x,mode:'place',title:`${measure.amount} 个什么？选用量单位`,options:[...unitShelf.items]};
+          ui.picking = {at:Date.now(),game,n,slot:x,mode:'place',title:`${measure.amount} 个什么？选用量单位`,options:[...unitShelf.items]};
           drawGame();
           $('.kc-sheet [data-kc="pick"]')?.focus();
           return true;
@@ -1757,7 +2165,7 @@
         // Something on a classmate's shelf: ask for it in Norwegian, picked out of four words.
         if (game.room && state.owner[game.scene.cabinetOf[slot.i]] !== game.me && !order.naming) {
           const shelf = Object.keys(game.scene.cabinetOf).filter(item => state.owner[game.scene.cabinetOf[item]] === game.me);
-          ui.picking = {game,n,slot:x,mode:'call',title:'向同学要哪一样？',options:distractors(game.scene,slot.i,shelf,state.seed ^ (n*131+x),ui.categoryOf || {})};
+          ui.picking = {at:Date.now(),game,n,slot:x,mode:'call',title:'向同学要哪一样？',options:distractors(game.scene,slot.i,shelf,state.seed ^ (n*131+x),ui.categoryOf || {})};
           drawGame();
           $('.kc-sheet [data-kc="pick"]')?.focus();
         }
@@ -1767,13 +2175,13 @@
         const station = state.stations[x];
         if (!station) return true;
         if (game.sel?.kind === 'word') {
-          const item = game.sel.word;
+          const item = game.sel.word, from = heldTile();
           game.sel = null;
-          act({t:'cook',i:item,k:station.kind});
+          act({t:'cook',i:item,k:station.kind},from);
           return true;
         }
         const status = stationState(station,now);
-        if (status === 'ready') { game.sel = null; act({t:'transfer',x}); return true; }
+        if (status === 'ready') { game.sel = null; act({t:'transfer',x},target.getBoundingClientRect()); return true; }
         if (status === 'burnt') { game.sel = game.sel?.kind === 'station' && game.sel.x === x ? null : {kind:'station',x}; drawGame(); return true; }
         if (status === 'cooking') { notify(WHY.cooking(),1200); return true; }
         notify('先在柜子里点一个词，再点工位',1800);
@@ -1786,9 +2194,15 @@
         if (burnt >= 0) act({t:'trash',x:burnt}); else notify('先点糊了的工位，再点 søppel',1800);
         return true;
       }
-      case 'serve': act({t:'serve',c:n}); return true;
+      case 'serve': act({t:'serve',c:n},(target.closest('.kc-plate') || target).getBoundingClientRect()); return true;
       default: return false;
     }
+  }
+  // Where the word in my hand is on the screen (it may be on a shelf page turned away: then the shelf itself).
+  function heldTile() {
+    const tile = $('.kc-tile.is-selected');
+    const box = tile?.getBoundingClientRect();
+    return box && box.width ? box : $('.kc-shelf')?.getBoundingClientRect() || null;
   }
 
   /* ---------- Alone: the result goes to the server as a replayable log ---------- */
@@ -1799,50 +2213,103 @@
     const state = game.state, me = state.players[0], scene = game.sceneData, daily = game.sceneId === 'daily';
     const record = {sessionId:sessionId(),...game.header,rules:ui.data?.rulesHash || '',playedAt:game.playedAt || Date.now(),durationMs:state.duration,log:packLog(game.scene,game.log)};
     if (!daily) delete record.day;
+    if (game.owner) record.owner = game.owner;
+    rememberResult(record,game.ownerDevice);
     ui.resultsFor = {sessionId:record.sessionId,sceneId:game.sceneId,room:false,score:state.score,target:targetFor(scene,state.minutes),served:state.served,gone:state.gone,
       tier:state.tier,minutes:state.minutes,players:[{id:'me',name:ui.nickname || '我',correct:me.correct,wrong:me.wrong,served:me.served,dishes:me.dishes,me:true}],
       learn:me.learn,starsBefore:daily ? null : sceneStars(scene),starsAfter:null,xp:null,upload:'sending'};
     ui.game = null;
     show('results');
-    const list = readJSON(PENDING_KEY,[]);
-    writeJSON(PENDING_KEY,[...(Array.isArray(list) ? list : []),record].slice(-20));
     void flushPending();
   }
-  // Games played offline (or whose upload failed) are sent again later, oldest first; the server ignores repeats.
-  async function flushPending() {
-    if (ui.flushing) return;
-    ui.flushing = true;
-    try {
-      let list = readJSON(PENDING_KEY,[]);
-      if (!Array.isArray(list) || !list.length) return;
-      const api = await community();
-      for (const record of [...list]) {
-        let reply = null, drop = false;
-        // A game older than three days is no longer accepted.
-        if (!record || Date.now()-(record.playedAt || 0) > 3*86400000) drop = true;
-        else {
-          // Two whole games from one nickname are taken at least 100 ms apart: a queue sent at once waits a moment.
-          const send = () => api.request('/kitchen/result',{method:'POST',body:record,timeout:12000});
-          try { reply = await send().catch(async error => { if (error?.code !== 'rate_limited') throw error; await new Promise(resolve => setTimeout(resolve,1200)); return send(); }); drop = true; }
-          catch (error) {
-            if (['invalid_request','update_required','too_old','duplicate'].includes(error?.code)) { drop = true; if (error.code === 'update_required') notify('开饭啦有新版本，请刷新页面。'); }
-            else break;
-          }
-        }
-        if (drop) { list = list.filter(item => item?.sessionId !== record?.sessionId); writeJSON(PENDING_KEY,list); }
-        if (reply && ui.resultsFor?.sessionId === record.sessionId) {
-          Object.assign(ui.resultsFor,{xp:Number.isFinite(reply.xp) ? reply.xp : null,starsAfter:Number.isInteger(reply.stars) ? reply.stars : null,upload:'done',
-            unlocked:(reply.unlocked || []).filter(id => !unlocked(id))});
-        }
+  // One key per match: acknowledging a result never overwrites another tab's new game.
+  const RESULT_PREFIX = 'norsk-kitchen-result-v2:';
+  const localResults = new Map(); // also carries a result to the server when browser storage is full
+  let uploadFlight = null, uploadAgain = false;
+  function rememberResult(record,deviceId = '') {
+    const item = {deviceId,record};
+    localResults.set(record.sessionId,item);
+    writeJSON(RESULT_PREFIX+record.sessionId,item);
+  }
+  function forgetResult(id) {
+    localResults.delete(id);
+    try { localStorage.removeItem(RESULT_PREFIX+id); } catch { /* Retrying the same ID is safe. */ }
+  }
+  function pendingResults() {
+    // Keep the old array until all entries have a durable per-game copy.
+    const legacy = readJSON(PENDING_KEY,[]);
+    if (Array.isArray(legacy) && legacy.length) {
+      let copied = true;
+      for (const record of legacy) if (record?.sessionId) {
+        const item = {deviceId:'',record};
+        localResults.set(record.sessionId,item);
+        if (!writeJSON(RESULT_PREFIX+record.sessionId,item)) copied = false;
       }
-    } catch {
-      if (ui.resultsFor?.upload === 'sending') ui.resultsFor.upload = 'offline';
-    } finally {
-      ui.flushing = false;
-      if (ui.resultsFor?.upload === 'sending' && readJSON(PENDING_KEY,[]).some(item => item?.sessionId === ui.resultsFor.sessionId)) ui.resultsFor.upload = 'offline';
-      await loadProgress();
-      if (ui.open && ui.view === 'results') render();
+      if (copied) try { localStorage.removeItem(PENDING_KEY); } catch {}
     }
+    const items = new Map(localResults);
+    try {
+      for (let i=0; i<localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(RESULT_PREFIX)) continue;
+        const item = readJSON(key,null);
+        if (item?.record?.sessionId && key === RESULT_PREFIX+item.record.sessionId) items.set(item.record.sessionId,item);
+      }
+    } catch { /* Games completed in this tab can still be sent from memory. */ }
+    return [...items.values()].sort((a,b) => a.record.playedAt-b.record.playedAt);
+  }
+  function resultStatus(id,status) {
+    if (ui.resultsFor?.sessionId === id) ui.resultsFor.upload = status;
+  }
+  async function drainResults() {
+    const items = pendingResults();
+    if (!items.length) return;
+    const api = await community(), deviceId = api.localPlayer?.()?.deviceId;
+    for (const {record,deviceId:ownerDevice} of items) {
+      const id = record.sessionId;
+      if (Date.now()-record.playedAt > 3*86400000) { forgetResult(id); resultStatus(id,'expired'); continue; }
+      if (ownerDevice && deviceId && ownerDevice !== deviceId) { resultStatus(id,'identity'); continue; }
+      const send = () => api.request('/kitchen/result',{method:'POST',body:record,timeout:12000});
+      let reply;
+      try {
+        try { reply = await send(); } catch (error) {
+          if (error?.code !== 'rate_limited') throw error;
+          await new Promise(resolve => setTimeout(resolve,1200));
+          reply = await send();
+        }
+        if (reply?.accepted !== true) break;
+      } catch (error) {
+        const code = error?.code;
+        if (code === 'identity_changed' || code === 'scene_locked') { resultStatus(id,'identity'); continue; }
+        if (code === 'update_required') { resultStatus(id,'version'); continue; }
+        if (code === 'invalid_request' || code === 'too_old') {
+          forgetResult(id); resultStatus(id,code === 'too_old' ? 'expired' : 'invalid'); continue;
+        }
+        break; // network failure or service-wide limit; retry on reconnect
+      }
+      forgetResult(id);
+      if (ui.resultsFor?.sessionId === id) Object.assign(ui.resultsFor,{
+        xp:Number.isFinite(reply.xp) ? reply.xp : null, starsAfter:Number.isInteger(reply.stars) ? reply.stars : null,upload:'done',
+        unlocked:(reply.unlocked || []).filter(scene => !unlocked(scene))});
+    }
+  }
+  function flushPending() {
+    if (uploadFlight) { uploadAgain = true; return uploadFlight; }
+    uploadFlight = (async () => {
+      do {
+        uploadAgain = false;
+        try { await drainResults(); } catch { /* Offline: keep all unconfirmed games. */ }
+      } while (uploadAgain);
+    })().finally(() => {
+      uploadFlight = null;
+      const r = ui.resultsFor;
+      if (r && !r.room && ['sending','offline','unsaved'].includes(r.upload)) {
+        r.upload = readJSON(RESULT_PREFIX+r.sessionId,null) ? 'offline' : 'unsaved';
+      }
+      void loadProgress();
+      if (ui.open && ui.view === 'results') render();
+    });
+    return uploadFlight;
   }
   function summary(learn) {
     const rows = new Map();
@@ -1860,27 +2327,35 @@
     const scene = sceneById(r.sceneId) || (r.sceneId === 'daily' ? null : null);
     const reached = r.score >= r.target;
     const rows = summary(r.learn);
-    const upload = r.room ? (r.xpPending ? '经验结算中…' : '') : r.upload === 'sending' ? '正在上传成绩…' : r.upload === 'offline' ? '成绩已存在这台设备上，联网后自动补传。' : '';
-    const starLine = r.starsBefore == null ? '' : `<div class="kc-result-stars">${starRow(r.starsAfter ?? r.starsBefore,'is-large')}${r.starsAfter != null && r.starsAfter > r.starsBefore ? '<span class="kc-hint">新的一颗星</span>' : ''}</div>`;
+    const upload = r.room ? (r.xpPending ? '经验结算中…' : '') : ({
+      sending:'正在上传成绩…', offline:'成绩已存在这台设备上，联网后自动补传。',
+      unsaved:'设备未能保存成绩。请保持此页打开，恢复联网后会再次上传。',
+      identity:'这局需要原来的学习身份及场景资格；符合条件时会补传。',
+      version:'成绩还在，游戏规则版本不匹配，请刷新后重试。',
+      expired:'这局已超过三天补传期限，未计入成绩。',invalid:'服务器未接受这局记录，未计入成绩。'
+    }[r.upload] || '');
+    // A star won in this game lights up on its own, a moment after the page opens.
+    const after = r.starsAfter ?? r.starsBefore, gained = r.starsAfter != null && r.starsAfter > r.starsBefore;
+    const starLine = r.starsBefore == null ? '' : `<div class="kc-result-stars"><span class="kc-stars is-large" aria-label="${after} 星">${[0,1,2].map(index => `<i class="${index < after ? 'is-on' : ''}${gained && index >= r.starsBefore && index < after ? ' is-new' : ''}">${icon('star')}</i>`).join('')}</span>${gained ? `<span class="kc-hint kc-new-star">新的${after-r.starsBefore > 1 ? ` ${after-r.starsBefore} ` : '一'}颗星</span>` : ''}</div>`;
     const unlocks = (r.unlocked || []).map(id => sceneById(id)).filter(Boolean);
     const people = r.players.length > 1 ? `<section class="kc-panel"><div class="kc-section-head"><h3>厨师们</h3></div><ul class="kc-crew-list">${r.players.map(player => `<li class="${player.me ? 'is-me' : ''}"><span class="kc-avatar">${e(initial(player.name))}</span><span class="kc-crew-name">${e(player.name)}</span><span class="kc-hint">答对 ${player.correct} · 答错 ${player.wrong} · 上菜 ${player.served}${Number.isFinite(player.xp) ? ` · +${player.xp} XP` : ''}</span></li>`).join('')}</ul></section>` : '';
     const mine = r.players.find(player => player.me) || r.players[0] || {correct:0,wrong:0,served:0};
     return `${topBar('本局结束',r.room ? 'room' : r.sceneId === 'daily' ? 'daily' : 'scene')}
       <section class="kc-result-hero${reached ? ' is-reached' : ''}" ${scene ? sceneArt(scene) : ''}><span class="kc-kicker" lang="nb">${e(scene?.no || 'Dagens meny')}</span>
-        <p class="kc-result-score"><b>${r.score}</b><small>分</small></p><p class="kc-hint">${reached ? `达到 ★ 目标（${r.target} 分）` : `★ 目标 ${r.target} 分`} · 上菜 ${r.served} 道${r.gone ? ` · 走掉 ${r.gone} 位客人` : ''}</p>
+        <p class="kc-result-score"><b>${r.shownScore ?? r.score}</b><small>分</small></p><p class="kc-hint">${reached ? `达到 ★ 目标（${r.target} 分）` : `★ 目标 ${r.target} 分`} · 上菜 ${r.served} 道${r.gone ? ` · 走掉 ${r.gone} 位客人` : ''}</p>
         ${starLine}${unlocks.length ? `<p class="kc-unlock">新场景开放：<strong lang="nb">${e(unlocks[0].no)}</strong> ${e(unlocks[0].zh)}</p>` : ''}
         <dl class="kc-facts"><div><dt>答对</dt><dd>${mine.correct}</dd></div><div><dt>答错</dt><dd>${mine.wrong}</dd></div><div><dt>我上的菜</dt><dd>${mine.served}</dd></div>${Number.isFinite(r.xp) ? `<div><dt>经验</dt><dd>+${r.xp}</dd></div>` : ''}</dl>
         ${upload ? `<p class="kc-hint">${upload}</p>` : ''}</section>
       ${people}
       <section class="kc-panel"><div class="kc-section-head"><h3>这一局遇到的词</h3>${rows.length ? button('wordbook',`${icon('plus')}<span>全部加入词本</span>`,'kc-link') : ''}</div>
-        ${rows.length ? `<ul class="kc-entries is-summary">${rows.map(row => `<li class="kc-entry${row.wrong ? ' is-missed' : ''}">${pic(row.word,'is-small')}<div class="kc-entry-text"><p>${wordHTML(row.word)}</p><p class="kc-entry-zh">${e(firstSense(entry(row.word)?.zh))}</p></div>
+        ${rows.length ? `<ul class="kc-entries is-summary">${rows.map(row => `<li class="kc-entry${row.wrong ? ' is-missed' : ''}">${pic(row.word,'is-small')}<div class="kc-entry-text"><p>${wordHTML(row.word)}</p><p class="kc-entry-zh">${e(gameSense(row.word))}</p></div>
           <span class="kc-tally">${row.right ? `<b class="is-right">✓ ${row.right}</b>` : ''}${row.wrong ? `<b class="is-wrong">✗ ${row.wrong}</b>` : ''}</span><button type="button" class="kc-icon-button is-small" data-kc="hear" data-word="${e(row.word)}" aria-label="听 ${e(plainWord(row.word))}">${icon('speaker')}</button></li>`).join('')}</ul>` : '<p class="kc-empty">这一局还没有作答。</p>'}</section>
-      <div class="kc-actions-row">${r.room ? button('to-room','回到房间','kc-primary') : `${button('again','再来一局','kc-primary')}${button('to-scene',r.sceneId === 'daily' ? '回到今日菜单' : '回到场景','kc-ghost')}`}</div>`;
+      <div class="kc-start-bar"><div class="kc-actions-row">${r.room ? button('to-room','回到房间','kc-primary') : `${button('again','再来一局','kc-primary')}${button('to-scene',r.sceneId === 'daily' ? '回到今日菜单' : '回到场景','kc-ghost')}`}</div></div>`;
   }
   // 局后小结 → 我的词本: every word of the game goes into the 开饭啦 folder, with its meaning.
   function addSummaryToWordbook() {
     const rows = summary(ui.resultsFor?.learn);
-    const list = rows.map(row => entry(row.word)).filter(Boolean).map(item => ({word:item.word,meaning:item.zh || '',example:item.ex || '',exampleZh:item.exZh || '',pos:item.pos === 'phrase' ? '短语' : ''}));
+    const list = rows.map(row => entry(row.word)).filter(Boolean).map(item => ({word:item.word,meaning:item.zh || '',example:item.ex || '',exampleZh:item.exZh || '',pos:item.pos === 'phrase' ? '短语' : '',audio:item.clip}));
     if (!list.length) return;
     try {
       const added = ui.opts.addWords?.(list,'开饭啦',{quiet:true});
@@ -1899,7 +2374,7 @@
     ui.clock = !clock || rtt <= clock.rtt*1.25+30 || clock.age >= 20 ? {offset,rtt,age:0} : {...clock,rtt:clock.rtt*1.05,age:clock.age+1};
   }
   const roomError = error => ({room_not_found:'房间不存在或已过期，请核对房间号。',room_full:'这个房间已经满了（最多 4 人）。',not_in_room:'你已不在这个房间。',
-    rate_limited:'操作有点频繁，请稍等片刻。',not_host:'只有房主可以这样做。',room_busy:'这一局正在进行，等它结束再改。',locked:'房主还没有开放这个场景。',
+    rate_limited:'操作有点频繁，请稍等片刻。',not_host:'只有房主可以这样做。',room_busy:'这一局正在进行，等它结束再改。',scene_locked:'当前房主尚未解锁这个场景，请换一个场景。',
     update_required:'开饭啦有新版本，请刷新页面后再进房间。',timeout:'网络有点慢，请再试一次。',too_many_rooms:'现在开着的房间太多了，请稍后再试。',
     unauthorized:'联机身份失效了，请刷新页面后再试。',not_found:'联机服务还没有准备好，请稍后再试。'}[error?.code] || '联机暂时连不上，请检查网络后重试。');
   async function call(path,body,options = {}) {
@@ -1943,6 +2418,8 @@
   }
   function enterRoom(state) {
     ui.room = null;
+    ui.roomSession = {polling:false};
+    ui.failures = 0;
     ui.roomEdit = false;
     setRoomInURL(state.code);
     applyRoom(state);
@@ -1953,6 +2430,7 @@
     const room = ui.room;
     if (!room) return;
     ui.room = null;
+    ui.roomSession = null;
     clearTimeout(ui.pollTimer);
     setRoomInURL(null);
     if (ui.game?.room) { stopGame(); ui.game = null; }
@@ -1960,9 +2438,11 @@
   }
   function lostRoom(message) {
     ui.room = null;
+    ui.roomSession = null;
     clearTimeout(ui.pollTimer);
     setRoomInURL(null);
     if (ui.game?.room) { stopGame(); ui.game = null; }
+    if (ui.confirming) hideConfirm();
     notify(message);
     show('home');
   }
@@ -1972,28 +2452,31 @@
     ui.pollTimer = setTimeout(poll,Math.max(0,delay));
   }
   async function poll() {
-    const room = ui.room;
-    if (!room || !ui.open || ui.polling) return;
-    ui.polling = true;
+    const room = ui.room, session = ui.roomSession;
+    if (!room || !session || !ui.open || session.polling) return;
+    session.polling = true;
     try {
       const data = await call(`/rooms/${room.code}`,undefined,{poll:`${room.version}/${room.match ? room.match.number : '-'}`,timeout:POLL_TIMEOUT_MS});
-      if (ui.room?.code !== room.code) return;
+      if (ui.roomSession !== session) return;
       // Back after a dropped connection: the notice that stayed up is replaced.
       if (ui.failures >= 2) notify('又连上了',1400);
       ui.failures = 0;
       if (!data.unchanged) applyRoom(data);
       schedulePoll(document.hidden ? POLL_HIDDEN_MS : Number.isFinite(data.heldMs) ? POLL_GAP_MS : 900);
     } catch (error) {
-      if (ui.room?.code !== room.code) return;
+      if (ui.roomSession !== session) return;
       if (['room_not_found','not_in_room'].includes(error?.code)) { lostRoom(roomError(error)); return; }
       ui.failures = (ui.failures || 0)+1;
       if (ui.failures === 2) notify('网络断了，正在重新连接…',0);
       schedulePoll(error?.code === 'rate_limited' ? 4000 : Math.min(8000,800*2**Math.min(ui.failures-1,3)));
-    } finally { ui.polling = false; }
+    } finally { session.polling = false; }
   }
   // Everything the room says: the lobby, a game loading, the menu preview, the countdown, play, the results.
   function applyRoom(state) {
     if (!state || !state.code) return;
+    const current = ui.room;
+    if (current && (current.code !== state.code || state.version < current.version ||
+        (state.version === current.version && state.serverTime < current.serverTime))) return;
     if (ui.failures >= 2) { ui.failures = 0; notify('又连上了',1400); }
     ui.room = state;
     const match = state.match, me = state.me;
@@ -2014,7 +2497,7 @@
       syncGame(game,match);
       if (state.status === 'loading' && taking && !game.loadedSent) {
         game.loadedSent = true;
-        void preloadPictures(game).then(() => roomAction('ready',{loaded:true},true));
+        void preloadPictures(game).then(() => { if (ui.game === game) return roomAction('ready',{loaded:true},true); });
       }
       if (state.status === 'loading' || state.status === 'preview') {
         if (ui.view !== 'preview') show('preview'); else render();
@@ -2142,7 +2625,7 @@
       }
       drawGame();
     } catch (error) {
-      if (['room_not_found','not_in_room'].includes(error?.code)) { lostRoom(roomError(error)); return; }
+      if (ui.game === game && ['room_not_found','not_in_room'].includes(error?.code)) { lostRoom(roomError(error)); return; }
     } finally {
       game.inflight = false;
       if (ui.game === game && game.outbox.length) later(() => flushOutbox(game),game.outbox.some(item => Date.now()-item.sentAt > 1500) ? 600 : 0);
@@ -2162,13 +2645,15 @@
     void loadProgress();
   }
   async function roomAction(name,body,quiet = false) {
-    const room = ui.room;
+    const room = ui.room, session = ui.roomSession;
     if (!room) return null;
     try {
       const data = await call(`/rooms/${room.code}/${name}`,body);
-      if (ui.room?.code === room.code) applyRoom(data);
+      if (ui.roomSession !== session) return null;
+      applyRoom(data);
       return data;
     } catch (error) {
+      if (ui.roomSession !== session) return null;
       if (['room_not_found','not_in_room'].includes(error?.code)) lostRoom(roomError(error));
       else if (!quiet || error?.code !== 'service_unavailable') notify(roomError(error));
       return null;

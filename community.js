@@ -58,6 +58,11 @@
     catch { throw issue('storage_unavailable'); }
     return identity;
   }
+  // The kitchen can bind an offline game to its learner without reading the device secret.
+  function localPlayer() {
+    const saved=storedIdentity() || state.identity;
+    return saved ? {deviceId:saved.deviceId,nickname:saved.nickname} : null;
+  }
   function indexedIdentityLock(run) {
     // A readwrite transaction serializes first creation on browsers without Web Locks.
     // The database coordinates access only; credentials remain in localStorage.
@@ -537,6 +542,6 @@
     return applyHonors(await request('/honors/makeup',{method:'POST',body:{day},auth:true}));
   }
 
-  window.NorskCommunity = {init:safe(initialize),mount:safe(mount),startPresence:safe(startPresence),submitResult:safe(submitResult),flush:safe(recover),levelInfo,request:publicRequest,profile:currentProfile,honors,claimMakeup};
+  window.NorskCommunity = {init:safe(initialize),mount:safe(mount),startPresence:safe(startPresence),submitResult:safe(submitResult),flush:safe(recover),levelInfo,request:publicRequest,profile:currentProfile,localPlayer,honors,claimMakeup};
   window.dispatchEvent(new Event('norskcommunityready'));
 })();
