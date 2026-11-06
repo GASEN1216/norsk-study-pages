@@ -314,6 +314,7 @@ body.pc-open{overflow:hidden}
 .pc-plain-end{position:absolute;left:0;top:12px;font-size:11px;letter-spacing:.12em;color:#b9b2a0}
 .pc-plain-end.is-ahead{left:auto;right:0}
 .pc-plain-dot{position:absolute;top:0;width:0;height:0;transition:left .25s linear}
+.pc-plain-dot.is-jump{transition:none}
 .pc-plain-dot i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--pc-police);box-shadow:0 0 0 3px #fdfbf4}
 .pc-plain-dot.is-thief i{background:var(--pc-thief)}
 .pc-plain-dot.is-me i{left:-6px;top:-6px;width:12px;height:12px;background:var(--pc-gold);box-shadow:0 0 0 3px #fdfbf4,0 0 0 4px #e7d6ab}

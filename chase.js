@@ -1,6 +1,6 @@
 /* 警察抓小偷 (Politi og røver): type the textbook to outrun the other side. Loaded on demand; nothing touches the page until open().
    Every letter typed right moves your runner one step round the loop, and the vehicle grows with your speed. Police catch a thief
-   by reaching it; a thief taunts an officer by stretching its lead to twice the start gap. Played against the computer in the
+   by reaching it; a thief taunts an officer by lapping it (coming round the loop to it from behind). Played against the computer in the
    browser, or with classmates in a room, where the server referees (scripts/community_api.py runs the same rules). */
 (() => {
   'use strict';
@@ -8,8 +8,9 @@
 
   /* ---------- Rules and tuning ---------- */
   const PREFS_KEY = 'norsk-chase-v1', RECORDS_KEY = 'norsk-chase-records-v1', MAX_RECORDS = 120, MAX_RECORD_SENTENCES = 40;
-  // The chase is measured in letters, not in laps, so a map can be as long as it likes: the thief starts GAP letters
-  // ahead; the officer catches up by gaining those GAP letters, the thief taunts by stretching the lead to twice GAP.
+  // The chase is measured in letters: the thief starts GAP letters ahead; the officer catches up by gaining those GAP
+  // letters, the thief taunts by lapping the officer, a lead of one whole lap of the map (its `lap` in letters; the
+  // user, 2026-11-06, went back to lapping from "twice the start gap").
   const GAP = 30;
   const METERS_PER_LETTER = 2.5;     // how far one letter carries a runner on the map: an easy jog at 120/min
   const EASE = .42;                  // seconds a typed letter takes to turn into distance on the track
@@ -23,7 +24,8 @@
   const SIDES = {police:{name:'警察',team:'警方'},thief:{name:'小偷',team:'小偷团'}};
   const VEHICLES = {police:['跑步','自行车','警用摩托','警车','直升机'],thief:['跑步','滑板','越野摩托','黑色跑车','直升机']};
   const SPRITES = {police:['police-run','police-bike','police-moto','police-car','police-heli'],thief:['thief-run','thief-skate','thief-moto','thief-car','thief-heli']};
-  const LEVELS = {easy:{name:'新手',rate:70},normal:{name:'熟练',rate:110},hard:{name:'高手',rate:160},match:{name:'旗鼓相当',rate:0}};
+  // Bot speeds in letters per minute (user, 2026-11-06: 新手 20, 高手 240; the server's CHASE_LEVELS holds the same).
+  const LEVELS = {easy:{name:'新手',rate:20},normal:{name:'熟练',rate:110},hard:{name:'高手',rate:240},match:{name:'旗鼓相当',rate:0}};
   const ENDS = {catch:{name:'抓到为止'},timed:{name:'限时'}};
   // How the 3D scene is drawn: each player chooses for their own picture (it changes nothing in the game, so a room's
   // players may each see their own). chase-brunstad.mjs builds all three; the cast follows the look.
@@ -35,20 +37,24 @@
   // Brunstad (scripts/build_chase_plan.py), and the lakeside village drawn in code, which loads fastest. Each region
   // goes by the name people use at Brunstad, in Chinese and Norwegian (the user's list, 2026-11-05); the region ids
   // stay as they are because records and rooms keep them.
+  // `lap` is one lap of the map's loop in letters: its length / METERS_PER_LETTER, rounded. The rules use it (the server's
+  // CHASE_LAPS holds the same numbers) and the picture spreads the loop over exactly that many letters, so a lap in the
+  // rules is a lap on screen. test_chase_rules.py checks both against the maps' loops.
   const REGIONS = [
-    {id:'festival',name:'会议中心',no:'Konferansesenter',color:'#c08f3a'},
-    {id:'garden',name:'花园城',no:'Hageby',color:'#b0523c'},
-    {id:'village',name:'山坡村',no:'Rekketun',color:'#4e7b68'},
-    {id:'arena',name:'体育馆',no:'Arena',color:'#596e9e'},
-    {id:'beach',name:'海滩',no:'Stranda',color:'#3a8a9e'},
-    {id:'fields',name:'节日广场',no:'Festplass',color:'#8a7a35'},
+    {id:'festival',name:'会议中心',no:'Konferansesenter',color:'#c08f3a',lap:453},
+    {id:'garden',name:'花园城',no:'Hageby',color:'#b0523c',lap:504},
+    {id:'village',name:'山坡村',no:'Rekketun',color:'#4e7b68',lap:498},
+    {id:'arena',name:'体育馆',no:'Arena',color:'#596e9e',lap:221},
+    {id:'beach',name:'海滩',no:'Stranda',color:'#3a8a9e',lap:392},
+    {id:'fields',name:'节日广场',no:'Festplass',color:'#8a7a35',lap:665},
   ];
   const MAPS = [
     ...REGIONS.map(region => ({...region,place:'Brunstad',kind:'brunstad',manifest:`assets/chase/maps/${region.id}/map.json`,
       files:{'world.json':'assets/chase/brunstad/world.json','terrain.png':'assets/chase/brunstad/terrain.png'}})),
-    {id:'lakeside',name:'湖畔小镇',place:'练习图 · 载入最快',kind:'lakeside',color:'#7a8f4a'},
+    {id:'lakeside',name:'湖畔小镇',place:'练习图 · 载入最快',kind:'lakeside',color:'#7a8f4a',lap:168},
   ];
   const mapOf = id => MAPS.find(item => item.id === id) || MAPS[0];
+  const lapOf = id => mapOf(id).lap;
   const mapTitle = id => { const item = mapOf(id); return item.no ? `${item.name} ${item.no}` : item.name; };
   const BOOKS = [{id:'god-i-norsk',name:'God i norsk',prefix:''},{id:'pa-vei',name:'På vei',prefix:'pa-vei-'},{id:'ty-conversation',name:'Norwegian Conversation',prefix:'ty-conversation-'}];
   const TYPEABLE = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/, RUNS = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]+/g;
@@ -185,12 +191,13 @@
   const position = player => player.offset+player.dist;
   const immune = (player,now) => now < (player.immuneUntil || 0);
   const pairKey = (police,thief) => `${police.id}|${thief.id}`;
-  // Where a pair stands on the road: -1 once the officer has reached the thief, 1 once the thief's lead is twice the
-  // start gap, 0 in between; only moving out of 0 is a catch or a taunt. A new pair starts from where it stands, so a
-  // thief already far ahead of a newly placed officer is not a taunt: the officer has to close in first.
+  // Where a pair stands on the road: -1 once the officer has reached the thief, 1 once the thief has lapped the officer
+  // (a lead of one whole lap: the thief has come round to the officer from behind), 0 in between; only moving out of 0
+  // is a catch or a taunt. A new pair starts from where it stands, so a thief already a lap ahead of a newly placed
+  // officer is not a taunt: the officer has to close in first.
   const leadOf = (police,thief) => position(thief)-position(police);
-  const zoneOf = (police,thief) => { const lead = leadOf(police,thief); return lead <= 0 ? -1 : lead >= 2*GAP ? 1 : 0; };
-  const freshPair = (police,thief) => ({zone:zoneOf(police,thief)});
+  const zoneOf = (police,thief,lap) => { const lead = leadOf(police,thief); return lead <= 0 ? -1 : lead >= lap ? 1 : 0; };
+  const freshPair = (game,police,thief) => ({zone:zoneOf(police,thief,game.lap)});
   // A respawned or side-switched player starts at the start gap from the nearest opponent: a thief GAP letters ahead of
   // the front officer, an officer GAP letters behind the last thief. So every score takes GAP letters, nobody scores
   // straight away, and every catch or taunt happens where the two really are.
@@ -204,7 +211,7 @@
     for (const key of [...game.pairs.keys()]) if (!only || key.split('|').includes(only.id)) game.pairs.delete(key);
     for (const police of game.players) {
       if (police.side !== 'police') continue;
-      for (const thief of game.players) if (thief.side === 'thief' && (!only || police === only || thief === only)) game.pairs.set(pairKey(police,thief),freshPair(police,thief));
+      for (const thief of game.players) if (thief.side === 'thief' && (!only || police === only || thief === only)) game.pairs.set(pairKey(police,thief),freshPair(game,police,thief));
     }
   }
   function settle(game,now) {
@@ -214,8 +221,8 @@
       for (const thief of game.players) {
         if (thief.side !== 'thief' || police.side !== 'police') continue;
         const key = pairKey(police,thief);
-        if (!game.pairs.has(key)) game.pairs.set(key,freshPair(police,thief));
-        const pair = game.pairs.get(key), zone = zoneOf(police,thief), before = pair.zone;
+        if (!game.pairs.has(key)) game.pairs.set(key,freshPair(game,police,thief));
+        const pair = game.pairs.get(key), zone = zoneOf(police,thief,game.lap), before = pair.zone;
         if (zone === before) continue;
         pair.zone = zone;
         // Only leaving the middle counts; coming back into it (or a grace period) is silent.
@@ -268,7 +275,7 @@
     return {id,name,side,startSide:side,offset:side === 'thief' ? GAP : 0,letters:0,dist:0,vel:0,times:[],rate:0,tier:1,maxTier:1,
       upSince:0,downSince:0,tierSince:0,errors:0,words:0,wordIndex:0,catches:0,taunts:0,caught:0,taunted:0,immuneUntil:0,pose:null,switched:0,lane:0,bot:null,me:false,...extra};
   }
-  function createGame({side,opponents=1,teammates=0,level='match',end='catch',minutes=3,usual=0,random=Math.random,names=BOT_NAMES,me='我'}={}) {
+  function createGame({side,map='lakeside',opponents=1,teammates=0,level='match',end='catch',minutes=3,usual=0,random=Math.random,names=BOT_NAMES,me='我'}={}) {
     const other = side === 'police' ? 'thief' : 'police', pool = [...names];
     for (let i = pool.length-1; i > 0; i--) { const j = Math.floor(random()*(i+1)); [pool[i],pool[j]] = [pool[j],pool[i]]; }
     const players = [newPlayer('me',me,side,{me:true})];
@@ -278,7 +285,8 @@
     for (let i = 0; i < opponents; i++) players.push(bot(players.length-1,other));
     // Lanes keep runners on one spot side by side: me in the middle, the others alternating outward.
     players.forEach((player,index) => { player.lane = index === 0 ? 0 : (index % 2 ? 1 : -1)*Math.ceil(index/2); });
-    const game = {mode:end,duration:(MINUTES.includes(minutes) ? minutes : 3)*60000,players,pairs:new Map(),score:{catch:0,taunt:0},events:[],usual,over:''};
+    const game = {mode:end,duration:(MINUTES.includes(minutes) ? minutes : 3)*60000,players,pairs:new Map(),score:{catch:0,taunt:0},events:[],usual,over:'',
+      map,lap:lapOf(map)};
     refreshPairs(game);
     return game;
   }
@@ -368,8 +376,15 @@
     const recent = (Array.isArray(records) ? records : []).slice(0,10).map(record => Number(record?.me?.rate) || 0).filter(Boolean);
     return recent.length ? Math.round(recent.reduce((a,b) => a+b,0)/recent.length) : 0;
   }
-  // Who is in front of whom, in metres along the road, for the markers at the edge of the picture.
-  const metresBetween = (from,to) => Math.round((position(to)-position(from))*METERS_PER_LETTER);
+  // Where another runner is from me on the loop, the short way round, in metres (+ ahead, − behind), and whether meeting
+  // it that way is a lap: the thief's lead on the officer is more than half a lap but not yet a whole one, so the thief
+  // comes up behind the officer. The edge markers and the plain line say it the same way.
+  function loopGap(game,me,other) {
+    const lap = game.lap, apart = position(other)-position(me);
+    const lead = me.side === other.side ? 0 : me.side === 'police' ? apart : -apart;
+    return {metres:Math.round((mod(apart+lap/2,lap)-lap/2)*METERS_PER_LETTER),lapping:lead > lap/2 && lead < lap};
+  }
+  const gapText = ({metres,lapping}) => Math.abs(metres) < 1 ? '并排' : `${metres > 0 ? '前方' : '后方'} ${Math.abs(metres)} 米${lapping ? ' · 套圈' : ''}`;
   const formatClock = ms => { const s = Math.max(0,Math.ceil(ms/1000)); return `${Math.floor(s/60)}:${String(s % 60).padStart(2,'0')}`; };
 
   /* ---------- Overlay state ---------- */
@@ -956,7 +971,7 @@
     const recent = ui.records.slice(0,3);
     return `${topBar('警察抓小偷','')}
       <section class="pc-hero"><img class="pc-hero-art" src="${sprite('key-art')}" alt="" decoding="async" draggable="false">
-        <div class="pc-hero-text"><span class="pc-kicker">Politi og røver</span><p class="pc-hero-title">打课文，比速度</p><p class="pc-hero-note">打对一个字母就前进一步，打完一个词会念给你听。警察追上小偷算抓到；小偷把警察甩开一大截，就能回头嘲笑他。</p></div></section>
+        <div class="pc-hero-text"><span class="pc-kicker">Politi og røver</span><p class="pc-hero-title">打课文，比速度</p><p class="pc-hero-note">打对一个字母就前进一步，打完一个词会念给你听。警察追上小偷算抓到；小偷多跑一圈、从后面追上警察，就是套圈，可以嘲笑他。</p></div></section>
       <div class="pc-actions">${button('go','<span>人机对战</span>','pc-primary pc-wide','data-view="setup"')}
         ${ui.joining ? `<form class="pc-join" novalidate><label for="pc-join-code">房间号</label><input id="pc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 位数字" value="${e(ui.joinCode)}">
           ${button('room-join',ui.busy ? '正在加入…' : '加入','pc-primary',`type="submit"${ui.busy ? ' disabled' : ''}`).replace('type="button" ','')}${button('room-join-cancel','取消','pc-quiet')}</form>`
@@ -975,7 +990,7 @@
   function setupPage() {
     const p = ui.prefs;
     const sideTile = side => `<button type="button" class="pc-side is-${side}" role="radio" aria-checked="${p.side === side}" tabindex="${p.side === side ? 0 : -1}" data-pc="set" data-key="side" data-value="${side}">
-      <img src="${sprite(side === 'police' ? 'police-catch' : 'thief-taunt')}" alt="" decoding="async" draggable="false"><span class="pc-side-name">${SIDES[side].name}</span><small>${side === 'police' ? '追上小偷就是抓到' : '甩开警察就能嘲笑他'}</small></button>`;
+      <img src="${sprite(side === 'police' ? 'police-catch' : 'thief-taunt')}" alt="" decoding="async" draggable="false"><span class="pc-side-name">${SIDES[side].name}</span><small>${side === 'police' ? '追上小偷就是抓到' : '套警察一圈就能嘲笑他'}</small></button>`;
     return `${topBar('人机对战')}
       <section class="pc-panel pc-setup">
         <div class="pc-field"><span class="pc-label">地图 · 在 Brunstad 平面图上点选赛道</span>${planMarkup()}</div>
@@ -1573,7 +1588,7 @@
       [...players.filter(player => player.me),...players.filter(player => !player.me)]
         .forEach((player,index) => { player.lane = index === 0 ? 0 : (index % 2 ? 1 : -1)*Math.ceil(index/2); });
       const game = {mode:settings.end,duration:match.duration,players,pairs:new Map(),score:{catch:0,taunt:0},events:[],usual:0,over:'',
-        room:true,watch,code:state.code,number:match.number,seq:0,byId:new Map(players.map(player => [player.id,player])),status:'loading',
+        lap:lapOf(settings.map),room:true,watch,code:state.code,number:match.number,seq:0,byId:new Map(players.map(player => [player.id,player])),status:'loading',
         title:settings.title || sectionName(settings.section),map:settings.map,firstSection:settings.section,lastSection:settings.section,
         words,wordsSeed:match.id,wordsPass:0,
         paused:false,bubbles:[],fresh:[]};
@@ -1852,7 +1867,7 @@
       const seed = Math.random();
       const [section] = await Promise.all([range ? loadClips().catch(() => null).then(() => buildWordList(range.list,`${seed}-0`,clipFor)) : loadSection(prefs.section),loadAssets()]);
       if (!current()) return;
-      const game = createGame({side:prefs.side,opponents:prefs.opponents,teammates:prefs.teammates,level:prefs.level,end:prefs.end,minutes:prefs.minutes,
+      const game = createGame({side:prefs.side,map:prefs.map,opponents:prefs.opponents,teammates:prefs.teammates,level:prefs.level,end:prefs.end,minutes:prefs.minutes,
         usual:usualRate(ui.records),me:ui.nickname || '我'});
       game.text = appendSection(createText(),section);
       game.sectionsLoaded = [section];
@@ -1900,7 +1915,7 @@
         <button type="button" class="pc-icon-button" data-pc="scene" aria-label="${sceneLabel(ui.prefs.scene)}" title="${sceneLabel(ui.prefs.scene)}">${icon(ui.prefs.scene ? 'scene' : 'track')}</button>
         <button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
-      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><div class="pc-plain" id="pc-plain" aria-hidden="true"><div class="pc-plain-track"><span class="pc-plain-end">后方</span><span class="pc-plain-end is-ahead">前方</span></div></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
+      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><div class="pc-plain" id="pc-plain" aria-hidden="true"><div class="pc-plain-track"><span class="pc-plain-end">后方半圈</span><span class="pc-plain-end is-ahead">前方半圈</span></div></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
       <div class="pc-panel-type${own ? ` has-kb${ui.prefs.keys ? '' : ' kb-off'}` : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
         <div class="pc-line-wrap" id="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
@@ -2287,7 +2302,7 @@
     if (!banner) return;
     const catchIt = event.type === 'catch';
     const who = player => player.me ? '你' : player.name;
-    const line = catchIt ? `${who(event.winner)}抓住了${who(event.loser)}` : `${who(event.winner)}嘲笑了${who(event.loser)}`;
+    const line = catchIt ? `${who(event.winner)}抓住了${who(event.loser)}` : `${who(event.winner)}套了${who(event.loser)}一圈`;
     // The loser starts again at the start gap from the nearest opponent (on its new side, when it changed sides).
     const playsOn = game.players.some(player => player.side !== event.loser.side);
     const tail = event.switched ? `${who(event.loser)}换到${SIDES[event.loser.side].team}${playsOn ? '，从起跑距离重新出发' : ''}` : event.respawn ? `${who(event.loser)}${catchIt ? '挣脱手铐，重新领先一段' : '回到起跑时的追击距离'}` : '';
@@ -2493,8 +2508,9 @@
     // Real map data comes with its sources named in the corner (the short form; the full notice is its title).
     if (world.attribution) stageElement.insertAdjacentHTML('beforeend',`<p class="pc-credit" title="${e(world.attribution)}">${e(ui.plan?.credit || world.attribution)}</p>`);
     const credit = Boolean(world.attribution);
-    // Letters for one lap of this map: a longer map simply takes more typing to go round.
-    ui.stage = {lap:Math.max(GAP*3,world.perimeter/METERS_PER_LETTER),credit,canvas,element:stageElement,world,overlay:$('#pc-overlay'),minimap:$('#pc-minimap'),fx:$('#pc-fx'),
+    // Letters for one lap of this map, the rules' own number (a longer map simply takes more typing to go round), so the
+    // thief laps the officer in the picture just when the rules say so.
+    ui.stage = {lap:lapOf(mapId),credit,canvas,element:stageElement,world,overlay:$('#pc-overlay'),minimap:$('#pc-minimap'),fx:$('#pc-fx'),
       veil:$('#pc-veil'),bubbles:new Map(),lines:[],lastStamp:0,clock:0};
     if ('ResizeObserver' in window) { ui.stage.observer = new ResizeObserver(() => layoutStage()); ui.stage.observer.observe(stageElement); }
     layoutStage();
@@ -2556,9 +2572,10 @@
     drawMinimap(stage,views);
     drawSpeedLines(stage,game.players.find(player => player.me && !player.gone),dt,still);
   }
-  // With the picture off: one quiet line, me in the middle, everyone else placed by how far ahead or behind they are
-  // (the line reaches PLAIN_METRES each way: twice the start gap, where a thief taunts; anyone further sits at the end).
-  const PLAIN_METRES = 2*GAP*METERS_PER_LETTER;
+  // With the picture off: the loop as one quiet line, me in the middle and half a lap each way, so both ends are the
+  // same far side of the loop. Everyone else sits where they are on the loop, the short way round: a runner more than
+  // half a lap ahead shows behind me, which is where it really is (a thief about to lap an officer comes up from
+  // behind). Catches and laps both happen where two dots meet; nothing happens at the ends.
   function drawPlain(game) {
     const box = $('#pc-plain'), track = box?.firstElementChild;
     if (!track) return;
@@ -2569,10 +2586,10 @@
     const players = game.players.filter(player => !player.gone);
     const me = players.find(player => player.me) || players[0];
     if (!me) return;
-    const dots = ui.plainDots ||= new Map(), seen = new Set();
+    const dots = ui.plainDots ||= new Map(), seen = new Set(), half = game.lap*METERS_PER_LETTER/2;
     const items = players.map(player => {
-      const metres = player === me ? 0 : metresBetween(me,player);
-      return {player,metres,x:50+clamp(metres/PLAIN_METRES,-1,1)*44};
+      const gap = player === me ? {metres:0,lapping:false} : loopGap(game,me,player);
+      return {player,...gap,x:50+clamp(gap.metres/half,-1,1)*44};
     }).sort((p,q) => p.x-q.x);
     // Labels that would touch take turns above and below the line.
     let lastX = -Infinity, flip = false;
@@ -2590,7 +2607,7 @@
       flip = item.x-lastX < 9 ? !flip : false;
       lastX = item.x;
       const mine = player === me && player.me;
-      const far = Math.abs(item.metres), text = mine ? '' : far < 1 ? '并排' : `${item.metres > 0 ? '前方' : '后方'} ${far} 米`;
+      const text = mine ? '' : gapText(item);
       const key = `${player.side}|${player.name}|${text}|${flip}|${Boolean(player.away)}`;
       if (dot.key !== key) {
         dot.key = key;
@@ -2598,6 +2615,12 @@
         dot.element.children[1].textContent = mine ? '我' : player.name;
         dot.element.children[2].textContent = text;
       }
+      // Round the far side a dot leaves one end and comes in at the other: it fades towards the ends and jumps across
+      // without gliding over the whole line.
+      dot.element.classList.toggle('is-jump',dot.x !== undefined && Math.abs(item.x-dot.x) > 44);
+      dot.x = item.x;
+      const fade = clamp((44-Math.abs(item.x-50))/6,0,1);
+      dot.element.style.opacity = fade < 1 ? ((player.away ? .35 : 1)*(.25+.75*fade)).toFixed(2) : '';
       dot.element.style.left = `${item.x.toFixed(2)}%`;
     }
     for (const [id,dot] of dots) if (!seen.has(id) || dot.element.parentElement !== track) { dot.element.remove(); dots.delete(id); }
@@ -2688,7 +2711,7 @@
       }
       marker.element.hidden = false;
       if (marker.side !== player.side) { marker.side = player.side; marker.element.className = `pc-marker is-${player.side}`; }
-      const metres = metresBetween(me,player), text = `${metres >= 0 ? '前方' : '后方'} ${Math.abs(metres)} 米`;
+      const gap = loopGap(game,me,player), metres = gap.metres, text = gapText(gap);
       if (marker.text !== text) {
         // Its width is measured when the wording grows or shrinks, so a long name stays inside the picture.
         const resize = marker.text.length !== text.length;
