@@ -70,7 +70,6 @@ body[data-view="practice"]:has(.pr-session-bar) .main-footer,body[data-view="pra
 .pr-online-game{display:grid;grid-template-columns:132px minmax(0,1fr) auto;align-items:center;gap:16px;padding:10px 14px 10px 10px;border:1px solid #eadfc6;border-radius:18px;background:linear-gradient(115deg,#fbf6e8,#fffef9 62%);color:var(--pr-ink);text-align:left;transition:border-color .2s ease-out,box-shadow .2s ease-out,transform .2s ease-out}
 .pr-online-game:hover{border-color:#d6c08a;box-shadow:0 10px 24px -18px #6b4f17;transform:translateY(-1px)}
 .pr-online-art{width:132px;height:88px;border-radius:13px;object-fit:cover;background:#efe4cc;box-shadow:0 0 0 1px #eadfc6}
-.pr-online-game.is-chase .pr-online-art{object-position:30% 58%}
 .pr-online-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pr-online-text strong{font:600 18px/1.3 var(--serif,Georgia,serif);color:var(--pr-green)}
 .pr-online-text span{font-size:14px;color:var(--pr-ink)}
