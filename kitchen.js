@@ -1193,7 +1193,7 @@
         ${starRow(sceneStars(current))}<span class="kc-continue-go">${icon('next')}</span></button>` : '';
     const hero = `<section class="kc-hero">${ui.cardArt ? `<img class="kc-hero-art" src="${e(versioned('assets/online/kitchen.webp'))}" alt="" decoding="async" draggable="false">` : '<div class="kc-hero-art is-blank" aria-hidden="true"><span lang="nb">Vær så god</span></div>'}
       <div class="kc-hero-text"><p class="kc-hero-title">听懂点单，端上挪威饭菜</p>
-      <p class="kc-hero-note">听挪威语点单，挑对食材端上桌；词练熟了，下一个场景就开门。</p>${resume}</div></section>`;
+      <p class="kc-hero-note">听挪威语点单，挑对食材端上桌；每过一关得一颗星，拿到 ★★ 开下一个场景。</p>${resume}</div></section>`;
     if (!ui.data) return `${topBar('开饭啦','')}${hero}${loadingNote()}`;
     const daily = ui.daily;
     const dailyCard = `<section class="kc-daily"><div class="kc-daily-head"><div class="kc-daily-text"><span class="kc-kicker">Dagens meny</span><p class="kc-daily-title">今日菜单</p></div>

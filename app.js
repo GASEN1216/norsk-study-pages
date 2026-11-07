@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261107-kitchen-two-rooms';
-import {createReadingLibrary} from './reading-library.mjs?v=20261107-kitchen-two-rooms';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261107-kitchen-two-rooms';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261107-kitchen-two-rooms';
-import * as notesModel from './notes-store.mjs?v=20261107-kitchen-two-rooms';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261107-kitchen-two-rooms';
+import {createDataLoader} from './loader.mjs?v=20261107-kitchen-stars';
+import {createReadingLibrary} from './reading-library.mjs?v=20261107-kitchen-stars';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261107-kitchen-stars';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261107-kitchen-stars';
+import * as notesModel from './notes-store.mjs?v=20261107-kitchen-stars';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261107-kitchen-stars';
 
-const VERSION = '20261107-kitchen-two-rooms';
+const VERSION = '20261107-kitchen-stars';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1004,7 +1004,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261107-kitchen-two-rooms').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261107-kitchen-stars').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
