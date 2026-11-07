@@ -1,8 +1,8 @@
 /* 开饭啦 · Vær så god: a co-op learning kitchen. Loaded on demand; nothing touches the page until open().
    Customers order dishes; the kitchen answers in Norwegian: tap the dish's name to take the order, the ingredients'
    words to fill the plate, the right verb to cook, and hand it over with "Vær så god!". Played alone in the browser
-   (the server replays the action log to score it) or with up to four classmates in one kitchen, where every
-   ingredient sits on one player's shelf and the server referees (scripts/community_api.py runs the same rules). */
+   (the server replays the action log to score it) or with classmates in one kitchen, where every ingredient sits
+   on one player's shelf (with more cooks than cabinets, two or more share one) and the server referees (scripts/community_api.py runs the same rules). */
 (() => {
   'use strict';
   if (window.NorskKitchen) return;
@@ -19,14 +19,17 @@
   const TIER_PASS = {novice:1,standard:3,expert:7};
   const UNLOCK_STARS = 2, ROOM_ACCURACY = 80, ROOM_MIN_ANSWERS = 5;
   const MINUTES = [3,4,5], DEFAULT_MINUTES = 4;
-  const MAX_PLAYERS = 4;
+  // A room has no real cap on cooks (user 2026-11-07); MAX_PLAYERS only guards the server. Up to four the shelves
+  // and customers are dealt as before; past four customers come quicker (never closer than ARRIVE_MIN), and once there
+  // are more cooks than cabinets the extra cooks share the busiest cabinets.
+  const MAX_PLAYERS = 30, ARRIVE_MIN = 5000;
   // Stations, in the order they stand on the counter; each cooks for COOK_MS, then the dish waits BURN_MS before it
   // burns (0: a cut never burns).
   const KINDS = ['skjaere','koke','steke','bake','grille'];
   const COOK_MS = {skjaere:2500,koke:6000,steke:5000,bake:7000,grille:5500};
   const BURN_MS = {skjaere:0,koke:9000,steke:7000,bake:8000,grille:6000};
   const MAX_WAITING = 4;                       // customers at the counter at once
-  const ARRIVE_GAP = [0,15000,12000,10000,8500]; // ms between arrivals, by number of cooks (±25 %)
+  const ARRIVE_GAP = [0,15000,12000,10000,8500]; // ms between arrivals, by number of cooks (±25 %); see arriveGap
   const FIRST_ARRIVAL = 1500, QUIET_END = 25000; // nobody new arrives in the last 25 s
   const MAX_ORDERS = 60;
   const PATIENCE_BASE = 40000, PATIENCE_SLOT = 9000, PATIENCE_COOK = 6000;
@@ -93,7 +96,7 @@
       const words = dishWords(scene,scene.dishes[id]);
       return 4+Math.floor(12*words.filter(word => weakSet.has(word)).length/words.length);
     });
-    const gap = ARRIVE_GAP[Math.max(1,Math.min(MAX_PLAYERS,players))];
+    const gap = arriveGap(players);
     const orders = [], recent = [];
     let at = FIRST_ARRIVAL, last = -1;
     while (at <= duration-QUIET_END && orders.length < MAX_ORDERS) {
@@ -127,9 +130,9 @@
     return orders;
   }
 
-  // Which player keeps which cabinet: the busiest cabinets are dealt first, each to whoever has the least to do so
-  // far; ties go round from a different player each round, so the shelves change from game to game.
-  function cabinets(scene,players,round = 0) {
+  const arriveGap = players => players <= 4 ? ARRIVE_GAP[Math.max(1,players)] : Math.max(ARRIVE_MIN,Math.floor(ARRIVE_GAP[4]*4/players));
+  // How often each cabinet's things are asked for over the scene's dishes.
+  function demandOf(scene) {
     const demand = {};
     for (const cabinet of scene.cabinets) demand[cabinet.id] = 0;
     for (const id of scene.dishList) {
@@ -138,6 +141,12 @@
         for (const tool of course.tools || []) if (scene.cabinetOf[tool] in demand) demand[scene.cabinetOf[tool]]++;
       }
     }
+    return demand;
+  }
+  // Which player keeps which cabinet: the busiest cabinets are dealt first, each to whoever has the least to do so
+  // far; ties go round from a different player each round, so the shelves change from game to game.
+  function cabinets(scene,players,round = 0) {
+    const demand = demandOf(scene);
     const order = scene.cabinets.map((cabinet,index) => ({id:cabinet.id,index,demand:demand[cabinet.id]}))
       .sort((a,b) => b.demand-a.demand || a.index-b.index);
     const load = players.map(() => 0), owner = {}, count = players.length;
@@ -152,10 +161,30 @@
     }
     return owner;
   }
+  // Cooks left without a cabinet (more cooks than cabinets) help at one: each, in turn from `round`, joins the cabinet
+  // with the most work per pair of hands (ties: the busier one, then the earlier one). Helpers use its things too.
+  function crew(scene,players,owner,round = 0) {
+    const demand = demandOf(scene), share = {}, count = players.length;
+    const kept = new Set(Object.values(owner)), hands = {};
+    for (const cabinet of scene.cabinets) hands[cabinet.id] = 1;
+    for (let step = 0; step < count; step++) {
+      const player = players[(step+round)%count];
+      if (kept.has(player) || !scene.cabinets.length) continue;
+      let best = null;
+      for (const cabinet of scene.cabinets) {
+        if (!best) { best = cabinet.id; continue; }
+        const mineWork = (demand[cabinet.id]+1)*hands[best], bestWork = (demand[best]+1)*hands[cabinet.id];
+        if (mineWork > bestWork || mineWork === bestWork && demand[cabinet.id] > demand[best]) best = cabinet.id;
+      }
+      (share[best] ||= []).push(player);
+      hands[best]++;
+    }
+    return share;
+  }
 
   function newMatch(scene,{seed,minutes = DEFAULT_MINUTES,tier = 'standard',players = ['me'],round = 0,weak = []}) {
     const count = players.length, per = count >= 3 ? 2 : 1;
-    const owner = cabinets(scene,players,round);
+    const owner = cabinets(scene,players,round), share = crew(scene,players,owner,round);
     const stations = [];
     for (const kind of scene.stations) for (let index = 0; index < per; index++) {
       stations.push({id:`${kind}-${index}`,kind,item:'',order:-1,slot:-1,by:'',startedAt:-1,doneAt:-1,burnAt:-1});
@@ -163,7 +192,7 @@
     return {v:1,scene:scene.id,seed:seed >>> 0,tier:TIERS[tier] ? tier : 'standard',minutes,duration:minutes*60000,players:players.map(id => ({
       id,home:scene.cabinets.filter(cabinet => owner[cabinet.id] === id).map(cabinet => cabinet.id),away:false,back:false,
       correct:0,wrong:0,dishes:0,served:0,counted:[],learn:[],done:[]})),
-      owner,plates:Array(count === 1 ? PLATES_SOLO : PLATES_ROOM).fill(-1),stations,
+      owner,share,plates:Array(count === 1 ? PLATES_SOLO : PLATES_ROOM).fill(-1),stations,
       orders:plan(scene,{seed,minutes,players:count,weak}).map(order => {
         const dish = scene.dishes[order.dish];
         const courses = coursesOf(dish).map((course,index) => ({w:index ? course.word : takeWord(scene,dish),
@@ -230,7 +259,9 @@
 
   const stationState = (station,t) => !station.item ? 'empty' : t < station.doneAt ? 'cooking' : station.burnAt > 0 && t >= station.burnAt ? 'burnt' : 'ready';
   const complete = order => order.slots.every(slot => slot.s === 'done') && order.tools.every(tool => tool.s === 'done');
-  const mine = (state,player,item,scene) => state.owner[scene.cabinetOf[item]] === player.id;
+  // A cook holds a cabinet they keep or help at.
+  const holds = (state,cabinet,id) => state.owner[cabinet] === id || (state.share?.[cabinet] || []).includes(id);
+  const mine = (state,player,item,scene) => holds(state,scene.cabinetOf[item],player.id);
   const holder = (state,item,scene) => state.owner[scene.cabinetOf[item]] || '';
   // Points for a dish handed over at time t: its size, its cooking, and a tip for every second the customer had left.
   function tip(order,t) { return Math.floor(TIP_MAX*Math.max(0,order.leavesAt-t)/order.patience); }
@@ -276,9 +307,11 @@
   function lend(state,scene,player) {
     for (const cabinet of scene.cabinets) {
       if (state.owner[cabinet.id] !== player.id) continue;
+      // Someone already helping at it takes it over, if anyone online is; otherwise whoever keeps the fewest.
+      const helping = (state.share?.[cabinet.id] || []).filter(id => id !== player.id && state.players.some(other => other.id === id && !other.away));
       let best = null;
       for (const other of state.players) {
-        if (other.away || other === player) continue;
+        if (other.away || other === player || helping.length && !helping.includes(other.id)) continue;
         const held = scene.cabinets.filter(entry => state.owner[entry.id] === other.id).length;
         if (!best || held < best.held) best = {player:other,held};
       }
@@ -1140,8 +1173,17 @@
     if (ui.view === 'game') { drawGame(); return; }
     const page = {scene:scenePage,words:wordsPage,help:helpPage,daily:dailyPage,room:roomPage,preview:previewPage,results:resultsPage}[ui.view] || homePage;
     const keep = focusKey();
-    // A new page comes up gently; the same page drawn again (a poll, a choice) stays still.
+    // A new page comes up gently; the same page drawn again (a poll, a choice) stays still — and where it was scrolled
+    // to: its height is held for a moment, so pictures still loading cannot shorten it and pull the page up.
+    const top = entering ? 0 : ui.root.scrollTop;
+    const hold = height => { if (ui.content?.style) ui.content.style.minHeight = height; };
+    if (top) hold(`${ui.content.offsetHeight}px`);
     ui.content.innerHTML = `<div class="kc-shell is-${ui.view}${entering && !reduceMotion() ? ' is-enter' : ''}">${page()}</div>`;
+    if (top) {
+      if (ui.root.scrollTop !== top) ui.root.scrollTop = top;
+      clearTimeout(ui.heightTimer);
+      ui.heightTimer = setTimeout(() => hold(''),1500);
+    } else hold('');
     restoreFocus(keep);
     // Big paintings fade in once they have loaded, instead of popping in over an empty block.
     for (const img of ui.root.querySelectorAll('img.kc-hero-art,img.kc-scene-banner')) {
@@ -1932,10 +1974,16 @@
   // The bar: leave, the scene and its clock, the cooks, the score with its line towards the ★ target, sound.
   function barMarkup(game,now) {
     const state = game.state, room = game.room ? ui.room : null;
-    const crew = room ? `<div class="kc-crew" aria-label="厨师">${state.players.map(player => {
+    // Up to four cooks all show; a bigger crew shows me and whoever just spoke, and "+N" for the rest, so the bar
+    // keeps the scene and the clock in view.
+    const talking = id => (game.chats?.[id]?.until || 0) > Date.now();
+    const shown = state.players.length <= 4 ? state.players : [...new Set([...state.players.filter(player => player.id === game.me),
+      ...state.players.filter(player => talking(player.id)).sort((a,b) => game.chats[b.id].until-game.chats[a.id].until),...state.players])].slice(0,3);
+    const more = state.players.length-shown.length;
+    const crew = room ? `<div class="kc-crew" aria-label="厨师">${shown.map(player => {
       const name = nameOf(player.id), chat = game.chats?.[player.id];
       return `<span class="kc-cook${player.id === game.me ? ' is-me' : ''}${player.away ? ' is-away' : ''}" title="${e(name)}"><span class="kc-avatar">${e(initial(name))}</span>${chat && chat.until > Date.now() ? `<span class="kc-chat-bubble" lang="nb">${e(chat.text)}</span>` : ''}</span>`;
-    }).join('')}</div>` : '';
+    }).join('')}${more ? `<span class="kc-cook is-more" title="${e(`一共 ${state.players.length} 位厨师`)}"><span class="kc-avatar">+${more}</span></span>` : ''}</div>` : '';
     const target = targetFor(game.sceneData,state.minutes,state.tier), left = state.duration-now;
     const goalAge = game.goalAt ? Date.now()-game.goalAt : Infinity;
     return `<header class="kc-bar"><button type="button" class="kc-icon-button" data-kc="close" aria-label="离开这一局">${icon('close')}</button>
@@ -2050,13 +2098,13 @@
     const {cooking,ready} = groups(game);
     const cabinets = data.cabinets || [];
     // On a phone one cabinet is open at a time: at first the fullest of mine (usually the fridge).
-    if (!cabinets.some(cabinet => cabinet.id === game.cabOpen)) game.cabOpen = ([...cabinets].filter(cabinet => state.owner[cabinet.id] === game.me).sort((a,b) => b.items.length-a.items.length)[0] || cabinets[0])?.id || '';
+    if (!cabinets.some(cabinet => cabinet.id === game.cabOpen)) game.cabOpen = ([...cabinets].filter(cabinet => holds(state,cabinet.id,game.me)).sort((a,b) => b.items.length-a.items.length)[0] || cabinets[0])?.id || '';
     // A kitchen with many cabinets draws its painted furniture smaller, so a computer's wall holds it all.
     const pieces = cabinets.reduce((sum,cabinet) => { const look = PAINTED[FURNITURE[cabinet.id] || 'shelf']; return sum+(look ? Math.ceil(cabinet.items.length/(look.cols*look.rows.length)) : 1); },0);
     const scale = Math.min(1,5.2/Math.max(5.2,cabinets.length+(pieces-cabinets.length)*.5)).toFixed(3);
     const wall = `<section class="kc-wall" aria-label="柜子" data-scroll="wall" style="--kc-scale:${scale}">${cabinets.map(cabinet => furniture(game,cabinet,now)).join('')}</section>`;
     const cabs = `<nav class="kc-cabs" aria-label="打开哪个柜子" data-scroll="cabs">${cabinets.map(cabinet => {
-      const theirs = game.room && state.owner[cabinet.id] !== game.me;
+      const theirs = game.room && !holds(state,cabinet.id,game.me);
       return `<button type="button" class="kc-cab${game.cabOpen === cabinet.id ? ' is-on' : ''}${theirs ? ' is-theirs' : ''}" data-kc="cab" data-value="${e(cabinet.id)}" aria-pressed="${game.cabOpen === cabinet.id}">${pic(cabinet.items[0],'is-tiny')}<b lang="nb">${e(cabinet.no)}</b>${novice ? `<small>${e(cabinet.zh)}</small>` : ''}</button>`;
     }).join('')}</nav>`;
     const hob = painted() && artURL('kitchen/komfyr') ? state.stations.map((station,x) => ['koke','steke'].includes(station.kind) ? x : -1).filter(x => x >= 0).slice(0,2) : [];
@@ -2072,12 +2120,16 @@
       ['--kc-hood-art','kitchen/avtrekk'],['--kc-hatch-art','kitchen/passluke'],['--kc-bell-art','kitchen/ringeklokke'],['--kc-hob-art','kitchen/komfyr']]
       .filter(([,id]) => artURL(id)).map(([name,id]) => `${name}:url('${e(artURL(id))}')`).join(';') : '';
     const scene = data.bg && artURL(data.bg) ? `;--kc-art:url('${e(artURL(data.bg))}')` : '';
-    return `<div class="kc-kitchen${stove ? '' : ' is-nostove'}${art ? ' is-painted' : ''}" style="${art}${scene}">${rail}${stove}${pass}${wall}${cabs}</div>`;
+    return `<div class="kc-kitchen${stove ? '' : ' is-nostove'}${art ? ' is-painted' : ''}" data-scroll="kitchen" style="${art}${scene}">${rail}${stove}${pass}${wall}${cabs}</div>`;
   }
   function furniture(game,cabinet,now) {
     const state = game.state, type = FURNITURE[cabinet.id] || 'shelf', owner = state.owner[cabinet.id];
-    const theirs = game.room && owner !== game.me, novice = state.tier === 'novice';
-    const whose = theirs ? `<span class="kc-whose"><span class="kc-avatar">${e(initial(nameOf(owner)))}</span>${e(nameOf(owner))}</span>` : '';
+    const theirs = game.room && !holds(state,cabinet.id,game.me), novice = state.tier === 'novice';
+    // Whose it is; in a big room a cabinet may have helpers: "Bo +2" on theirs, the others' initials on mine.
+    const helpers = (state.share?.[cabinet.id] || []).filter(id => id !== owner);
+    const others = [owner,...helpers].filter(id => id !== game.me);
+    const whose = !game.room ? '' : theirs ? `<span class="kc-whose"><span class="kc-avatar">${e(initial(nameOf(owner)))}</span>${e(nameOf(owner))}${helpers.length ? `<small>+${helpers.length}</small>` : ''}</span>`
+      : others.length ? `<span class="kc-whose is-shared" title="${e(others.map(nameOf).join('、'))}">${others.slice(0,3).map(id => `<span class="kc-avatar">${e(initial(nameOf(id)))}</span>`).join('')}${others.length > 3 ? `<small>+${others.length-3}</small>` : ''}<small>一起用</small></span>` : '';
     const cols = Math.min(cabinet.items.length,FURNITURE_COLS[type]);
     const name = `<p class="kc-furn-name"><span lang="nb">${e(cabinet.no)}</span>${novice ? `<small>${e(cabinet.zh)}</small>` : ''}${whose}</p>`;
     const look = PAINTED[type];
@@ -2149,7 +2201,7 @@
   const undoing = (game,key) => Boolean(game.undo && game.undo.until > Date.now() && game.undo.keys.has(key));
   function ticketLine(game,order,slot) {
     const tier = game.state.tier, item = slot.i, state = slot.s, key = `slot:${order.n}:${slot.index}`;
-    const away = game.room && state === 'open' && game.state.owner[game.scene.cabinetOf[item]] !== game.me;
+    const away = game.room && state === 'open' && !holds(game.state,game.scene.cabinetOf[item],game.me);
     const measure = measureOf(game,order,slot);
     const word = measure ? `<span class="kc-no" lang="nb">${e(String(measure.amount))} ${e(plainWord(item))}<i class="kc-art"> ${e(plainWord(measure.item))}</i></span>` : wordHTML(item);
     const zh = measure ? `${measure.amount} ${zh1(item)}${zh1(measure.item)}` : zh1(item);
@@ -2236,7 +2288,7 @@
   function pickItem(game,item,from) {
     if (game.watch || !item) return;
     const state = game.state, scene = game.scene, holder = state.owner[scene.cabinetOf[item]];
-    if (game.room && holder !== game.me) { notify(`这样在${nameOf(holder)}的柜子里：在订单上点这一样，用挪威语喊人要`,2600); return; }
+    if (game.room && !holds(state,scene.cabinetOf[item],game.me)) { notify(`这样在${nameOf(holder)}的柜子里：在订单上点这一样，用挪威语喊人要`,2600); return; }
     if (game.hand?.item === item) { game.hand = null; drawGame(); return; }
     const making = state.orders.filter(order => order.status === 'taken' && !order.naming && !complete(order))
       .sort((a,b) => (b.n === game.focus)-(a.n === game.focus) || a.takenAt-b.takenAt || a.n-b.n);
@@ -2287,8 +2339,8 @@
     game.focus = n;
     const slot = order.slots[x] || order.tools[x-order.slots.length];
     if (!slot) { drawGame(); return; }
-    if (slot.s === 'open' && !game.watch && game.room && state.owner[game.scene.cabinetOf[slot.i]] !== game.me && !order.naming) {
-      const shelf = Object.keys(game.scene.cabinetOf).filter(item => state.owner[game.scene.cabinetOf[item]] === game.me);
+    if (slot.s === 'open' && !game.watch && game.room && !holds(state,game.scene.cabinetOf[slot.i],game.me) && !order.naming) {
+      const shelf = Object.keys(game.scene.cabinetOf).filter(item => holds(state,game.scene.cabinetOf[item],game.me));
       ui.picking = {at:Date.now(),game,n,slot:x,mode:'call',title:'向同学要哪一样？',options:distractors(game.scene,slot.i,shelf,state.seed ^ (n*131+x),ui.categoryOf || {})};
       drawGame();
       $('.kc-sheet [data-kc="pick"]')?.focus();
@@ -2473,7 +2525,7 @@
     // Samples with quick round trips are trusted most.
     ui.clock = !clock || rtt <= clock.rtt*1.25+30 || clock.age >= 20 ? {offset,rtt,age:0} : {...clock,rtt:clock.rtt*1.05,age:clock.age+1};
   }
-  const roomError = error => ({room_not_found:'房间不存在或已过期，请核对房间号。',room_full:'这个房间已经满了（最多 4 人）。',not_in_room:'你已不在这个房间。',
+  const roomError = error => ({room_not_found:'房间不存在或已过期，请核对房间号。',room_full:'这个房间已经满了。',not_in_room:'你已不在这个房间。',
     rate_limited:'操作有点频繁，请稍等片刻。',not_host:'只有房主可以这样做。',room_busy:'这一局正在进行，等它结束再改。',scene_locked:'当前房主尚未解锁这个场景，请换一个场景。',
     update_required:'开饭啦有新版本，请刷新页面后再进房间。',timeout:'网络有点慢，请再试一次。',too_many_rooms:'现在开着的房间太多了，请稍后再试。',
     unauthorized:'联机身份失效了，请刷新页面后再试。',not_found:'联机服务还没有准备好，请稍后再试。'}[error?.code] || '联机暂时连不上，请检查网络后重试。');
@@ -2792,7 +2844,7 @@
       <section class="kc-panel kc-room-head"><div><span class="kc-kicker">房间号</span><p class="kc-code">${e(room.code)}</p></div>${button('invite',`${icon('link')}<span>邀请同学</span>`,'kc-ghost')}</section>
       <section class="kc-panel"><div class="kc-section-head"><h3>下一局</h3>${host && between ? `<button type="button" class="kc-link" data-kc="room-edit">${ui.roomEdit ? '收起' : '修改'}</button>` : ''}</div>
         <p class="kc-room-setting"><strong>${e(sceneName)}</strong><span>${e(TIERS[settings.tier]?.name || '')} · ${settings.minutes || DEFAULT_MINUTES} 分钟</span></p>${editor}</section>
-      <section class="kc-panel"><div class="kc-section-head"><h3>厨师</h3><span class="kc-hint">${(room.players || []).length} / ${room.maxPlayers || MAX_PLAYERS}</span></div><ul class="kc-crew-list">${players}</ul></section>
+      <section class="kc-panel"><div class="kc-section-head"><h3>厨师</h3><span class="kc-hint">${(room.players || []).length} 人</span></div><ul class="kc-crew-list">${players}</ul></section>
       ${between ? `<div class="kc-start-bar"><div class="kc-actions-row">${button('room-ready',me?.ready ? '取消准备' : '准备好了',me?.ready ? 'kc-ghost' : 'kc-primary')}${host ? button('room-start','开始','kc-ghost') : ''}</div><p class="kc-hint kc-center">${status}</p></div>`
         : `<div class="kc-start-bar"><p class="kc-hint kc-center">${status}</p></div>`}`;
   }

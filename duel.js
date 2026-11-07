@@ -22,7 +22,7 @@
   const goalOf = room => room?.match?.goal || room?.settings?.goal || 'time';
   const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/u;
   const ERRORS = {
-    room_not_found:'房间不存在或已过期。', room_full:'房间已满（最多 8 人）。', not_host:'只有房主可以这样做。',
+    room_not_found:'房间不存在或已过期。', room_full:'房间已满。', not_host:'只有房主可以这样做。',
     not_in_room:'你已不在这个房间。', rate_limited:'操作有点频繁，请稍等片刻。', invalid_pairs:'这组词暂时无法使用，请换一组范围。',
     storage_unavailable:'浏览器暂时无法记住你的身份，请允许保存网站数据后重试。', timeout:'网络有点慢，请稍后重试。',
     room_busy:'这一局正在进行。', not_started:'这一波还没开始。', game_over:'这一局已经结束。', not_in_game:'本局你在观战，下一局再一起玩。',
@@ -484,6 +484,8 @@
     } catch { /* The share link still works. */ }
   }
   function toast(message, duration=2600) {
+    // On the board a message never covers the cards: it goes into the line above them, like a claim does.
+    if (ui.screen === 'game' && $('#nd-ticker')) { showNote(message); return; }
     const node = $('#nd-toast');
     if (!node) return;
     clearTimeout(ui.toastTimer);
@@ -737,6 +739,13 @@
     }
     render();
   }
+  function showNote(message) {
+    const node = $('#nd-ticker');
+    node.innerHTML = `<span class="nd-ticker-note">${e(message)}</span>`;
+    node.classList.remove('is-shown'); void node.offsetWidth; node.classList.add('is-shown');
+    clearTimeout(ui.tickerTimer);
+    ui.tickerTimer = setTimeout(() => node.classList.remove('is-shown'),TICKER_MS);
+  }
   function showTicker(claim, room) {
     const node = $('#nd-ticker');
     if (!node) return;
@@ -831,7 +840,7 @@
   function homeMarkup() {
     return `${messageMarkup()}<section class="nd-hero" aria-labelledby="nd-hero-title">
       <div class="nd-hero-deck" aria-hidden="true">${heroDeck()}</div>
-      <div class="nd-hero-copy"><p class="nd-eyebrow">多人实时 · 挪威语配对</p><h3 class="nd-hero-title" id="nd-hero-title">翻开、配对，<br>抢在别人前面。</h3><p class="nd-hero-sub">挪威语和它的中文意思，谁先配上归谁。最多 8 人，也可以分队对抗。</p></div>
+      <div class="nd-hero-copy"><p class="nd-eyebrow">多人实时 · 挪威语配对</p><h3 class="nd-hero-title" id="nd-hero-title">翻开、配对，<br>抢在别人前面。</h3><p class="nd-hero-sub">挪威语和它的中文意思，谁先配上归谁。人数不限，也可以分队对抗。</p></div>
       <div class="nd-hero-actions">
         <button type="button" class="nd-cta" data-nd-action="setup" data-nd-focus="setup"><span class="nd-cta-icon">${icon('plus')}</span><span class="nd-cta-text"><b>开一个房间</b><small>选词、定规则，再邀请同学</small></span>${icon('next')}</button>
         <form class="nd-join-card" data-nd-form="join"><label for="nd-join-code">有房间号？直接加入</label><div class="nd-join-row"><input id="nd-join-code" class="nd-code-input" name="code" type="text" inputmode="numeric" enterkeyhint="go" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="····" value="${e(ui.joinCode)}"><button type="submit" class="nd-join-go"${ui.busy ? ' disabled' : ''}>${ui.busy ? '加入中…' : '加入'}</button></div></form>
@@ -947,7 +956,7 @@
       <p class="nd-code-tiles" aria-label="房间号 ${room.code.split('').join(' ')}">${room.code.split('').map((digit,index) => `<span style="--i:${index}">${digit}</span>`).join('')}</p>
       <div class="nd-room-actions">${button('copy-code',`${icon('copy')}<span>复制房间号</span>`,'nd-ghost','data-nd-focus="copy-code"')}${button('share',`${icon('share')}<span>邀请同学</span>`,'nd-ghost','data-nd-focus="share"')}</div>
       <p class="nd-link" title="${e(link)}">${e(link.replace(/^https?:\/\//,''))}</p></section>
-      <section class="nd-panel nd-room" aria-labelledby="nd-roster-title"><header class="nd-section-head"><h3 id="nd-roster-title">${icon('team')}玩家</h3><span class="nd-muted">${active.length}/${room.maxPlayers || 8} 人</span></header>${roster(room)}</section>
+      <section class="nd-panel nd-room" aria-labelledby="nd-roster-title"><header class="nd-section-head"><h3 id="nd-roster-title">${icon('team')}玩家</h3><span class="nd-muted">${active.length} 人</span></header>${roster(room)}</section>
       ${nextPanel(room,'第一局')}<div class="nd-foot">${button('leave','离开房间','nd-quiet')}</div>`;
   }
   // Played to the last word, the ring fills with claimed pairs and shows how many are left; timed, it runs down.

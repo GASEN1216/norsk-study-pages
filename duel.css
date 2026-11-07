@@ -272,6 +272,7 @@ body.nd-open{overflow:hidden}
 .nd-ticker-zh{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .nd-ticker-points{flex:none;margin-left:auto;font-weight:600;color:#8a6420;font-variant-numeric:tabular-nums}
 .nd-ticker small{flex:none;font-size:11px;color:#8a6420}
+.nd-ticker-note{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--nd-muted)}
 .nd-watch{padding:6px 10px;border-radius:10px;background:var(--nd-gold-soft);color:#7a6229;font-size:13px;text-align:center}
 
 /* Game: board and cards. Columns, row height and face size come from layoutBoard(). */
