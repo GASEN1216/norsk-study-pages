@@ -242,13 +242,17 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-help-n{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--kc-gold-soft);color:var(--kc-gold);font:500 15px/1 var(--serif,Georgia,serif)}
 .kc-help h3{font:500 16px/1.4 var(--serif,Georgia,serif);color:var(--kc-green)}
 .kc-help p{margin-top:2px;font-size:14px;line-height:1.75;color:var(--kc-muted)}
-.kc-board{display:grid;margin-top:10px}
-.kc-board li{display:flex;align-items:center;gap:12px;padding:10px 6px;border-top:1px solid #efeee4}
-.kc-board li:first-child{border-top:0}
-.kc-board li.is-me{border-radius:12px;background:var(--kc-gold-soft)}
+/* The daily leaderboard (its own name: .kc-board is the front counter's menu board) */
+.kc-ranking{display:grid;min-width:0;margin-top:10px}
+.kc-ranking li{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 6px;border-top:1px solid #efeee4}
+.kc-ranking li:first-child{border-top:0}
+.kc-ranking li.is-me{border-radius:12px;background:var(--kc-gold-soft)}
+.kc-ranking .kc-rank{flex:none}
+.kc-ranking-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kc-ranking.is-team .kc-ranking-name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;white-space:normal;overflow-wrap:anywhere;font-size:14px;line-height:1.45}
+.kc-ranking-count{flex:none;padding:1px 7px;border-radius:8px;background:#f3ecdb;color:#8a6a2c;font-size:11px;white-space:nowrap}
+.kc-ranking b{flex:none;font:500 16px/1 var(--serif,Georgia,serif);color:var(--kc-green)}
 .kc-rank{width:24px;font:500 15px/1 var(--serif,Georgia,serif);color:var(--kc-gold);text-align:center}
-.kc-board-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.kc-board b{font:500 16px/1 var(--serif,Georgia,serif);color:var(--kc-green)}
 .kc-shell.is-room .kc-start-bar{box-shadow:0 1px 0 #e6e3d6}
 .kc-room-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .kc-code{font:500 38px/1.1 var(--serif,Georgia,serif);letter-spacing:.18em;color:var(--kc-green)}
@@ -844,6 +848,38 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
    scrolls a little rather than squeezing the fridge away) */
 @media (max-width:719px) and (orientation:portrait){
   .kc-kitchen{grid-template-rows:max-content max-content minmax(176px,1fr) max-content;overflow-y:auto;overscroll-behavior:contain}
+  /* The stove has the whole width: rings, board and oven side by side with room for their labels (a big room's
+     second set of tools wraps to a second row). The pass sits at the foot beside the cabinet tabs, on the way to the
+     front; each order's slip stands beside its tray, so an order takes one short row */
+  .kc-kitchen{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"rail rail" "stove stove" "wall wall" "cabs pass"}
+  .kc-kitchen.is-nostove{grid-template-areas:"rail rail" "wall wall" "wall wall" "cabs pass"}
+  .kc-kitchen.is-painted .kc-pass{align-self:end;width:100px}
+  .kc-col{--kc-col-w:auto;grid-template-columns:minmax(150px,176px) auto;align-items:center;gap:6px}
+  .kc-col.is-spare{--kc-col-w:72px;grid-template-columns:auto}
+  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:100px}
+  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:64px}
+  .kc-kitchen.is-painted .kc-tools{flex-wrap:wrap;justify-content:center;gap:6px 16px;padding:8px 6px 6px}
+  .kc-hob{--kc-hob-w:136px}
+  /* A cabinet with more things than one piece of furniture holds shows its pieces one above another, each scaled so
+     all of them fit the space left (never smaller than 170 px wide; only then does the wall scroll) */
+  .kc-kitchen.is-painted .kc-wall{container:kc-wall/size}
+  .kc-kitchen.is-painted .kc-furn-sets{flex-direction:column;flex-wrap:nowrap;align-items:center;gap:8px}
+  .kc-kitchen.is-painted .kc-furn.is-open .kc-furn-set{width:clamp(min(190px,100%),calc((100cqh - 60px - (var(--kc-sets) - 1)*8px)/var(--kc-sets)*var(--kc-ar)),min(var(--kc-set-w),100%))}
+}
+/* …and when even that leaves them too small (a short phone, a long order slip), they stand side by side as tall as the
+   wall allows, in a strip that swipes sideways; the next piece shows at the edge */
+@media (max-width:719px) and (orientation:portrait){
+  @container kc-wall (max-height:360px){
+    .kc-kitchen.is-painted .kc-furn.is-sets-2 .kc-furn-sets{flex-direction:row;justify-content:flex-start;align-items:flex-end;gap:12px;margin:0 -12px;padding:0 12px 2px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding:0 12px;scrollbar-width:none}
+    .kc-kitchen.is-painted .kc-furn.is-sets-2.is-open .kc-furn-set{flex:none;width:min(calc((100cqh - 56px)*var(--kc-ar)),calc(100cqw - 64px),var(--kc-set-w));scroll-snap-align:start}
+  }
+  @container kc-wall (max-height:520px){
+    .kc-kitchen.is-painted .kc-furn.is-sets-3 .kc-furn-sets{flex-direction:row;justify-content:flex-start;align-items:flex-end;gap:12px;margin:0 -12px;padding:0 12px 2px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding:0 12px;scrollbar-width:none}
+    .kc-kitchen.is-painted .kc-furn.is-sets-3.is-open .kc-furn-set{flex:none;width:min(calc((100cqh - 56px)*var(--kc-ar)),calc(100cqw - 64px),var(--kc-set-w));scroll-snap-align:start}
+  }
+  .kc-furn-sets.is-overflow{-webkit-mask-image:linear-gradient(90deg,#000 82%,#0000);mask-image:linear-gradient(90deg,#000 82%,#0000)}
+  .kc-furn-sets.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000);mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000)}
+  .kc-furn-sets.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%);mask-image:linear-gradient(90deg,#0000,#000 12%)}
 }
 @media (max-width:719px) and (max-height:760px) and (orientation:portrait){
   .kc-kitchen{grid-template-rows:max-content max-content minmax(150px,1fr) max-content;gap:6px}
@@ -861,11 +897,12 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-ticket-head{height:20px}
   .kc-line{min-height:25px;padding:1px 5px}
   .kc-line .kc-pic.is-line{width:20px;height:20px}
-  .kc-tray{width:min(100%,118px)}
-  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:68px}
-  .kc-hob{--kc-hob-w:80px}
+  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:92px}
+  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:60px}
+  .kc-hob{--kc-hob-w:124px}
   .kc-kitchen.is-painted .kc-tools{padding:6px 4px 4px}
-  .kc-kitchen.is-painted .kc-pass{width:112px}
+  .kc-kitchen.is-painted .kc-pass{width:92px}
+  .kc-cabs{position:static;margin:0;padding:2px 2px 4px;background:none}
 }
 /* A computer's wall: the fridge, then the shelves one above another, then the rack, crate and cooler, column by column */
 @media (min-width:960px) and (min-height:600px){

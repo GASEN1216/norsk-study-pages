@@ -1980,12 +1980,15 @@
   function keyRows(page) {
     const key = char => `<button type="button" class="pc-kb-key" data-kb="${char}" tabindex="-1">${char}</button>`;
     const turn = page === 'digits' ? ['letters','ABC','切换字母'] : ['digits','123','切换数字'];
-    const rows = page === 'digits' ? ['12345','67890'] : ['qwertyuiopå','asdfghjkløæ','zxcvbnm'];
+    // A phone's own layout: æ ø å on a row of their own above qwertyuiop / asdfghjkl / zxcvbnm, ten keys at most a row.
+    const rows = page === 'digits' ? ['12345','67890'] : ['æøå','qwertyuiop','asdfghjkl','zxcvbnm'];
+    const kinds = page === 'digits' ? ['is-digits','is-digits'] : ['is-nordic','','is-mid','is-bottom'];
+    const bottom = page === 'digits' ? -1 : 3;
     const last = `<button type="button" class="pc-kb-key is-turn" data-kb-page="${turn[0]}" tabindex="-1" aria-label="${turn[2]}">${turn[1]}</button>`;
     // Like a tablet's keyboard, the bottom row ends in a key that puts the keyboard away.
     const hide = `<button type="button" class="pc-kb-key is-turn is-hide" data-kb-hide="1" tabindex="-1" aria-label="收起键盘" title="收起键盘">${icon('keyboard-hide')}</button>`;
-    return rows.map((row,index) => `<div class="pc-kb-row${page === 'digits' ? ' is-digits' : ''}">${index === 2 ? last : ''}${[...row].map(key).join('')}${index === 2 ? hide : ''}</div>`).join('')
-      +(page === 'digits' ? `<div class="pc-kb-row">${last}${hide}</div>` : '');
+    return rows.map((row,index) => `<div class="pc-kb-row${kinds[index] ? ` ${kinds[index]}` : ''}">${index === bottom ? last : ''}${[...row].map(key).join('')}${index === bottom ? hide : ''}</div>`).join('')
+      +(page === 'digits' ? `<div class="pc-kb-row is-bottom">${last}${hide}</div>` : '');
   }
   function keyboardPage(page) {
     const board = $('#pc-kb');

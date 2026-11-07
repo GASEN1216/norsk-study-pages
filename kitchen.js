@@ -1006,7 +1006,7 @@
     ui.handlers = {click:onClick,submit:onSubmit,input:onInput,pointerdown:onPress,pointerup:onRelease,pointercancel:onRelease};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
     // A scrolled strip fades at whichever edge still hides something.
-    root.addEventListener('scroll',event => { const node = event.target; if (node?.classList?.contains('kc-board-list') || node?.classList?.contains('kc-rail') || node?.classList?.contains('kc-cabs')) fadeEdges(node); },{capture:true,passive:true});
+    root.addEventListener('scroll',event => { const node = event.target; if (node?.classList?.contains('kc-board-list') || node?.classList?.contains('kc-rail') || node?.classList?.contains('kc-cabs') || node?.classList?.contains('kc-furn-sets')) fadeEdges(node); },{capture:true,passive:true});
     document.addEventListener('keydown',onKey);
     document.addEventListener('focusin',onFocusIn);
     ui.onVisibility = onVisibility;
@@ -1178,7 +1178,10 @@
     const top = entering ? 0 : ui.root.scrollTop;
     const hold = height => { if (ui.content?.style) ui.content.style.minHeight = height; };
     if (top) hold(`${ui.content.offsetHeight}px`);
-    ui.content.innerHTML = `<div class="kc-shell is-${ui.view}${entering && !reduceMotion() ? ' is-enter' : ''}">${page()}</div>`;
+    const markup = `<div class="kc-shell is-${ui.view}${entering && !reduceMotion() ? ' is-enter' : ''}">${page()}</div>`;
+    // The same page drawn again (a poll, a choice) changes only what changed.
+    if (!entering && ui.content.firstElementChild?.classList.contains('kc-shell')) morph(ui.content,markup);
+    else ui.content.innerHTML = markup;
     if (top) {
       if (ui.root.scrollTop !== top) ui.root.scrollTop = top;
       clearTimeout(ui.heightTimer);
@@ -1357,7 +1360,11 @@
       <section class="kc-panel kc-choices">${tierField()}${minutesField()}</section>
       <div class="kc-start-bar"><div class="kc-actions-row">${button('solo-daily',`${icon('plate')}<span>一个人开张</span>`,'kc-primary')}${button('room-create-daily',`${icon('people')}<span>开房间</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}</div></div>
       <section class="kc-panel"><div class="kc-tabs" role="tablist">${[['solo','单人榜'],['team','合作榜']].map(([id,name]) => `<button type="button" role="tab" class="kc-tab" aria-selected="${ui.dailyTab === id}" data-kc="daily-tab" data-value="${id}">${name}</button>`).join('')}</div>
-        ${rows.length ? `<ol class="kc-board">${rows.map((row,index) => `<li class="${row.me ? 'is-me' : ''}"><span class="kc-rank">${index+1}</span><span class="kc-board-name">${e(ui.dailyTab === 'team' ? (row.names || []).join(' · ') : row.name)}</span><b>${row.score}</b></li>`).join('')}</ol>` : '<p class="kc-empty">今天还没有人上榜，来做第一桌吧。</p>'}</section>`;
+        ${rows.length ? `<ol class="kc-ranking${ui.dailyTab === 'team' ? ' is-team' : ''}">${rows.map((row,index) => {
+          // A team row names everyone (two lines at most) and says how many cooked together.
+          const names = ui.dailyTab === 'team' ? row.names || [] : [row.name];
+          return `<li class="${row.me ? 'is-me' : ''}"><span class="kc-rank">${index+1}</span><span class="kc-ranking-name">${e(names.join(' · '))}</span>${names.length > 2 ? `<small class="kc-ranking-count">${names.length} 人</small>` : ''}<b>${row.score}</b></li>`;
+        }).join('')}</ol>` : '<p class="kc-empty">今天还没有人上榜，来做第一桌吧。</p>'}</section>`;
   }
 
   /* ---------- Clicks and keys ---------- */
@@ -1898,7 +1905,7 @@
     }
     restoreFocus(keep);
     // A strip that runs on past the screen fades at its edge (only then: a fade on a short strip looks disabled).
-    for (const strip of ui.root.querySelectorAll('.kc-rail,.kc-cabs,.kc-board-list')) fadeEdges(strip);
+    for (const strip of ui.root.querySelectorAll('.kc-rail,.kc-cabs,.kc-board-list,.kc-furn.is-open .kc-furn-sets')) fadeEdges(strip);
     // The next bubble, score or leaving customer to fade is taken off then (tick draws again at that moment).
     const fading = [...game.floats.map(item => item.until),...game.exits.map(item => item.until),...Object.values(game.chats || {}).map(item => item.until)].filter(at => at > Date.now());
     game.expireAt = fading.length ? Math.min(...fading)+60 : 0;
@@ -1913,7 +1920,112 @@
     tweenScore(game);
     runFlights(game);
   }
-  function paint(game) { ui.content.innerHTML = gameMarkup(game); }
+  /* ---------- Redraws that change only what changed ----------
+     Writing the whole screen anew on every change made every picture load again (a flash) and cut short whatever was
+     moving. morph() brings the screen in line with new markup instead: nodes are matched by kind and key, attributes and
+     text are updated in place, and pictures stay. Effects are timed by negative delays that name a moment
+     (`--kc-fx:-420ms` = it began 420 ms ago); a delay that still names the same moment is left alone (re-writing it would
+     move a running animation), and an element whose moment changed is drawn new, so its effect starts again. */
+  const KEY_ATTRS = ['id','data-n','data-word','data-x','data-cab','data-value','data-id','data-key','data-kc'];
+  const MOMENT = /^-(\d+(?:\.\d+)?)ms$/;
+  function nodeKey(node) {
+    if (node.nodeType !== 1) return `#${node.nodeType}`;
+    let key = `${node.localName}.${node.classList[0] || ''}`;
+    for (const name of KEY_ATTRS) { const value = node.getAttribute(name); if (value !== null) key += `|${name}=${value}`; }
+    return key;
+  }
+  function styleParts(text) {
+    const parts = new Map();
+    for (const piece of String(text || '').split(';')) {
+      const at = piece.indexOf(':');
+      if (at > 0) parts.set(piece.slice(0,at).trim(),piece.slice(at+1).trim());
+    }
+    return parts;
+  }
+  // The new style, keeping the old wording of every moment that has not moved; null when a moment moved.
+  function mergedStyle(oldText,newText,drawnAt,now) {
+    const before = styleParts(oldText), after = styleParts(newText), out = [];
+    for (const [name,value] of after) {
+      const was = before.get(name), moment = MOMENT.exec(value), prior = was && MOMENT.exec(was);
+      if (moment && prior && Number(moment[1]) > 0 && Number(prior[1]) > 0) {
+        if (Math.abs((now-Number(moment[1]))-(drawnAt-Number(prior[1]))) > 250) return null;
+        out.push(`${name}:${was}`);
+      } else if (moment && Number(moment[1]) > 0 && was !== undefined && was !== value) return null;
+      else out.push(`${name}:${value}`);
+    }
+    return out.join(';');
+  }
+  function morphAttributes(from,to,drawnAt,now) {
+    for (const {name} of [...from.attributes]) if (!to.hasAttribute(name)) from.removeAttribute(name);
+    for (const {name,value} of [...to.attributes]) {
+      if (name === 'style') {
+        const style = from.hasAttribute('style') ? mergedStyle(from.getAttribute('style'),value,drawnAt,now) : value;
+        if (style === null) return false;
+        if (style !== from.getAttribute('style')) from.setAttribute('style',style);
+      } else if (from.getAttribute(name) !== value) from.setAttribute(name,value);
+    }
+    return true;
+  }
+  function morphChildren(parent,next,state) {
+    const pool = new Map();
+    for (const child of [...parent.childNodes]) {
+      const key = nodeKey(child);
+      if (!pool.has(key)) pool.set(key,[]);
+      pool.get(key).push(child);
+    }
+    const order = [];
+    for (const child of [...next.childNodes]) {
+      const old = pool.get(nodeKey(child))?.shift();
+      if (old && morphNode(old,child,state)) order.push(old);
+      else { if (old) state.removed.push(old); order.push(child); state.added.push(child); }
+    }
+    for (const left of pool.values()) for (const node of left) state.removed.push(node);
+    for (const node of state.removed) if (node.parentNode === parent) node.remove();
+    let cursor = parent.firstChild;
+    for (const node of order) {
+      if (node === cursor) cursor = cursor.nextSibling;
+      else parent.insertBefore(node,cursor);
+    }
+  }
+  function morphNode(from,to,state) {
+    if (from.nodeType !== 1) { if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue; return true; }
+    if (from.localName !== to.localName) return false;
+    if (from.localName === 'img' && from.getAttribute('src') !== to.getAttribute('src')) return false;
+    if (!morphAttributes(from,to,state.drawnAt,state.now)) return false;
+    morphChildren(from,to,state);
+    return true;
+  }
+  function morph(container,html) {
+    const now = Date.now(), drawnAt = container.__drawnAt || now;
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const state = {now,drawnAt,removed:[],added:[]};
+    morphChildren(container,template.content,state);
+    // A node drawn new takes the old copy of any picture it shows, so the picture does not have to load again.
+    const spare = new Map();
+    for (const node of state.removed) {
+      for (const img of node.nodeType === 1 ? (node.localName === 'img' ? [node] : node.querySelectorAll('img')) : []) {
+        const src = img.getAttribute('src');
+        if (!spare.has(src)) spare.set(src,[]);
+        spare.get(src).push(img);
+      }
+    }
+    if (spare.size) for (const node of state.added) {
+      for (const img of node.nodeType === 1 ? (node.localName === 'img' ? [node] : [...node.querySelectorAll('img')]) : []) {
+        const old = spare.get(img.getAttribute('src'))?.pop();
+        if (!old || !img.parentNode) continue;
+        for (const {name} of [...old.attributes]) if (!img.hasAttribute(name)) old.removeAttribute(name);
+        for (const {name,value} of [...img.attributes]) if (old.getAttribute(name) !== value) old.setAttribute(name,value);
+        img.replaceWith(old);
+      }
+    }
+    container.__drawnAt = now;
+  }
+  function paint(game) {
+    const markup = gameMarkup(game);
+    if (ui.content.firstElementChild?.classList.contains('kc-game')) morph(ui.content,markup);
+    else { ui.content.innerHTML = markup; ui.content.__drawnAt = Date.now(); }
+  }
   // Which edge of a scrolling strip has more to show.
   function fadeEdges(strip) {
     const wide = strip.scrollWidth > strip.clientWidth+2, tall = strip.scrollHeight > strip.clientHeight+2;
@@ -2144,9 +2256,11 @@
           const bottom = (1-floor)/look.ar/height*100;
           return itemHTML(game,item,`left:${x.toFixed(2)}%;bottom:${bottom.toFixed(2)}%;width:${(span*look.size).toFixed(2)}%`);
         }).join('');
-        return `<div class="kc-furn-set" style="aspect-ratio:${(1/height).toFixed(4)};background-image:url('${e(artURL(look.img))}');--kc-rows:${rows}">${spots}</div>`;
+        return `<div class="kc-furn-set" style="aspect-ratio:${(1/height).toFixed(4)};--kc-ar:${(1/height).toFixed(4)};background-image:url('${e(artURL(look.img))}');--kc-rows:${rows}">${spots}</div>`;
       }).join('');
-      return `<div class="kc-furn is-${type} is-painted${game.cabOpen === cabinet.id ? ' is-open' : ''}${theirs ? ' is-theirs' : ''}" data-cab="${e(cabinet.id)}" style="--kc-sets:${count}">${name}<div class="kc-furn-sets">${sets}</div></div>`;
+      // Several pieces: on a short phone they stand side by side in a strip that swipes sideways (see kitchen.css).
+      const multi = count > 1 ? ` is-multi is-sets-${Math.min(count,3)}` : '';
+      return `<div class="kc-furn is-${type} is-painted${multi}${game.cabOpen === cabinet.id ? ' is-open' : ''}${theirs ? ' is-theirs' : ''}" data-cab="${e(cabinet.id)}" style="--kc-sets:${count}">${name}<div class="kc-furn-sets"${count > 1 ? ` data-scroll="sets-${e(cabinet.id)}"` : ''}>${sets}</div></div>`;
     }
     return `<div class="kc-furn is-${type}${game.cabOpen === cabinet.id ? ' is-open' : ''}${theirs ? ' is-theirs' : ''}" data-cab="${e(cabinet.id)}" style="--kc-cols:${cols}">
       ${name}<div class="kc-furn-body">${cabinet.items.map(item => itemHTML(game,item)).join('')}</div></div>`;

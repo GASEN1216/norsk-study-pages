@@ -425,13 +425,18 @@ body.pc-open{overflow:hidden}
    centred under the long ones with keys of one size, the way a real keyboard looks. */
 .pc-panel-type.has-kb{cursor:default;padding-bottom:max(8px,env(safe-area-inset-bottom))}
 .pc-kb{display:grid;gap:7px;max-width:600px;margin:10px auto 0;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.pc-kb-row{display:grid;grid-template-columns:repeat(22,minmax(0,1fr));column-gap:5px}
+.pc-kb-row{display:grid;grid-template-columns:repeat(20,minmax(0,1fr));column-gap:5px}
 .pc-kb-key{grid-column:span 2;display:grid;place-items:center;min-width:0;height:44px;padding:0;border:1px solid var(--pc-warm-line);border-radius:9px;background:#fffef9;box-shadow:0 1.5px 0 #e3d6b8;color:var(--pc-ink);font:400 19px/1 var(--serif,Georgia,serif);transition:background .14s ease-out,transform .14s ease-out,box-shadow .14s ease-out}
 .pc-kb-key.is-down{background:var(--pc-gold-soft);border-color:#dccb9f;box-shadow:0 0 0 #e3d6b8;transform:translateY(1.5px);transition-duration:0s}
-.pc-kb-key.is-turn{grid-column:span 4;background:#f6efdf;color:var(--pc-muted);font:500 13px/1 var(--sans,system-ui,sans-serif);letter-spacing:.06em}
+.pc-kb-key.is-turn{grid-column:span 3;background:#f6efdf;color:var(--pc-muted);font:500 13px/1 var(--sans,system-ui,sans-serif);letter-spacing:.06em}
 .pc-kb-row.is-digits .pc-kb-key{grid-column:span 4}
-.pc-kb-row.is-digits .pc-kb-key:first-child{grid-column:2/span 4}
-.pc-kb-key.is-hide{grid-column:19/span 4}
+.pc-kb-row.is-digits .pc-kb-key:first-child{grid-column:1/span 4}
+/* æ ø å: a row of their own on top, wide keys on a warm ground, so the letters Norwegian adds are easy to find and hit */
+.pc-kb-row.is-nordic .pc-kb-key{grid-column:span 4;background:#fbf3df;border-color:#e6d3a6;color:#6f5320}
+.pc-kb-row.is-nordic .pc-kb-key:first-child{grid-column:5/span 4}
+.pc-kb-row.is-nordic .pc-kb-key.is-down{background:var(--pc-gold-soft)}
+.pc-kb-row.is-mid .pc-kb-key:first-child{grid-column:2/span 2}
+.pc-kb-key.is-hide{grid-column:18/span 3}
 .pc-kb-key .pc-icon{width:22px;height:22px}
 /* Put away, the keyboard leaves one quiet button (and æ ø å for a real keyboard) at the foot of the panel. */
 .pc-panel-type.has-kb .pc-keys,.pc-kb-show{display:none}
