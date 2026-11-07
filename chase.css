@@ -454,6 +454,16 @@ body.pc-open{overflow:hidden}
 .pc-root.is-cramped .pc-panel-type{padding-top:8px}
 .pc-root.is-cramped .pc-kb{gap:6px;margin-top:8px}
 .pc-root.is-cramped .pc-kb-key{height:40px}
+/* A phone held upright: the keyboard runs almost edge to edge like the phone's own (3–4 px from each side), keys
+   about 33 × 46 px with 6 px between them and the letters at 22 px */
+@media (pointer:coarse) and (orientation:portrait) and (max-width:600px),(max-width:600px) and (orientation:portrait){
+  .pc-panel-type.has-kb .pc-kb{max-width:none;margin:10px calc(4px - max(18px,env(safe-area-inset-left))) 0 calc(4px - max(18px,env(safe-area-inset-left)));row-gap:10px}
+  .pc-panel-type.has-kb .pc-kb-row{column-gap:6px}
+  .pc-panel-type.has-kb .pc-kb-key{height:46px;border-radius:7px;font-size:22px}
+  .pc-panel-type.has-kb .pc-kb-key.is-turn{font-size:14px}
+  .pc-root.is-cramped .pc-panel-type.has-kb .pc-kb{row-gap:8px;margin-top:8px}
+  .pc-root.is-cramped .pc-panel-type.has-kb .pc-kb-key{height:44px}
+}
 /* A phone on its side: the keyboard still runs across the foot of the screen, full width, so both thumbs reach it the
    way they reach the phone's own keyboard. The bar, the sentence and the keys get lower to leave the picture its room. */
 @media (pointer:coarse) and (orientation:landscape) and (max-height:500px){
