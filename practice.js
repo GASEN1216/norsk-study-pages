@@ -21,7 +21,17 @@
     const types = unique((Array.isArray(value?.types) ? value.types : QUIZ_TYPES).filter(type => QUIZ_TYPES.includes(type)));
     return {types:types.length ? types : ['spell'],direction:['to-nb','to-zh','mixed'].includes(value?.direction) ? value.direction : 'to-nb'};
   }
-  const normalize = word => String(word || '').normalize('NFC').trim().toLocaleLowerCase('nb');
+  // Locale-aware lower-casing is slow and indexing asks for the same few thousand words again and again: remember them.
+  const normalized = new Map();
+  const normalize = word => {
+    const text = String(word || '');
+    let key = normalized.get(text);
+    if (key === undefined) {
+      key = text.normalize('NFC').trim().toLocaleLowerCase('nb');
+      if (normalized.size < 60000) normalized.set(text,key);
+    }
+    return key;
+  };
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
@@ -281,7 +291,9 @@
     if (Array.isArray(word.formsExpanded)) merged.formsExpanded = unique([...(Array.isArray(existing.formsExpanded) ? existing.formsExpanded : []),...word.formsExpanded]);
     return merged;
   }
+  const wordbookSignature = wordbook => { try { return JSON.stringify([wordbook?.title || '',wordbook?.chapters || []]); } catch { return ''; } };
   function indexData(data) {
+    state.wordbookSignature = wordbookSignature(data?.wordbook);
     state.sources.clear(); state.words.clear(); state.prepared.clear(); state.chapters = []; state.basics = []; state.kitchen = []; state.mine = [];
     state.indexed = data;
     sessionPools = new WeakMap(); checkedQuestions = new WeakSet();
@@ -324,6 +336,8 @@
     if (!state.indexed) return;
     if (state.visible && state.screen === 'session' && currentSession()) { state.pendingWordbook = wordbook; return; }
     state.pendingWordbook = null;
+    // The store also changes for sync bookkeeping; the words are indexed again only when the wordbook itself changed.
+    if (wordbookSignature(wordbook) === state.wordbookSignature) return;
     indexData({...state.indexed,wordbook});
     const kept = [...state.selected].filter(token => state.sources.has(token));
     if (kept.length !== state.selected.size) { state.selected = new Set(kept); if (canEdit()) draft(); }

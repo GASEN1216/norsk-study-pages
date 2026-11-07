@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261107-big-rooms';
-import {createReadingLibrary} from './reading-library.mjs?v=20261107-big-rooms';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261107-big-rooms';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261107-big-rooms';
-import * as notesModel from './notes-store.mjs?v=20261107-big-rooms';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261107-big-rooms';
+import {createDataLoader} from './loader.mjs?v=20261107-speed';
+import {createReadingLibrary} from './reading-library.mjs?v=20261107-speed';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261107-speed';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261107-speed';
+import * as notesModel from './notes-store.mjs?v=20261107-speed';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261107-speed';
 
-const VERSION = '20261107-big-rooms';
+const VERSION = '20261107-speed';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -1004,7 +1004,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261107-big-rooms').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261107-speed').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1165,10 +1165,37 @@ function wordGrammar(item) {
   const forms = Array.isArray(sourceForms) ? sourceForms.join(' · ') : typeof sourceForms === 'string' ? sourceForms : '';
   return `${details.length ? `<p class="word-grammar">${details.map(escapeHTML).join(' · ')}</p>` : ''}${forms ? `<p class="word-grammar">变化：${escapeHTML(forms)}</p>` : ''}${item.usage ? `<p class="word-grammar">${escapeHTML(typeof item.usage === 'string' ? item.usage : '')}</p>` : ''}`;
 }
+// Each example is marked up once: a long word list draws the same sentences again on every visit.
+const highlightedCache = new Map();
 function highlightedSentence(sentence,word) {
   if (!sentence) return '';
+  const cacheKey = `${word}\u0000${sentence}`;
+  const cached = highlightedCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const html = markSentence(sentence,word);
+  if (highlightedCache.size > 20000) highlightedCache.clear();
+  highlightedCache.set(cacheKey,html);
+  return html;
+}
+// The word, wherever it stands on its own (not inside a longer word), case-insensitively. A plain search with a
+// one-character boundary test; a sentence whose lower case changes length falls back to the regular expression.
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+function markSentence(sentence,word) {
   const target = str(word).replace(/^(?:en|ei|et|å)\s+/i,'').trim();
   if (!target) return escapeHTML(sentence);
+  const text = str(sentence), lower = text.toLowerCase(), needle = target.toLowerCase();
+  if (lower.length === text.length && needle.length === target.length) {
+    let html = '', from = 0, at = lower.indexOf(needle);
+    while (at >= 0) {
+      const end = at+needle.length;
+      if (!(at > 0 && WORD_CHAR.test(text[at-1])) && !(end < text.length && WORD_CHAR.test(text[end]))) {
+        html += `${escapeHTML(text.slice(from,at))}<mark>${escapeHTML(text.slice(at,end))}</mark>`;
+        from = end;
+      }
+      at = lower.indexOf(needle,at+1 > from ? at+1 : from);
+    }
+    return html+escapeHTML(text.slice(from));
+  }
   const escapedTarget = target.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   try {
     const expression = new RegExp(`(?<![\\p{L}\\p{N}])(${escapedTarget})(?![\\p{L}\\p{N}])`,'giu');
@@ -1179,6 +1206,16 @@ function vocabularyExample(word) {
   if (word.sentence) return highlightedSentence(word.sentence,word.word);
   if (word.example) return `<span class="example-label">学习例句</span>${highlightedSentence(word.example,word.word)}`;
   return '<span class="muted">可点击原词表查看用法。</span>';
+}
+// What a search looks through, lower-cased once per word instead of on every keystroke.
+const searchTexts = new WeakMap();
+function searchText(word) {
+  let text = searchTexts.get(word);
+  if (text === undefined) {
+    text = [word.word,word.meaning,word.english,word.englishGloss,word.sentence,word.example,word.usage,word.syllables,word.ipa].map(value => str(value).toLocaleLowerCase('nb')).join('\u0001');
+    searchTexts.set(word,text);
+  }
+  return text;
 }
 async function renderVocabulary() {
   if (state.wordbookActive) { if (state.view === 'vocabulary') window.NorskWordbook?.render(); return; }
@@ -1198,7 +1235,7 @@ async function renderVocabulary() {
   const selection = vocabularySelection();
   const query = $('#vocab-search').value.trim().toLocaleLowerCase('nb');
   const order = state.vocabSort || 'easy';
-  state.words = selection.words.filter(word => !query || [word.word,word.meaning,word.english,word.englishGloss,word.sentence,word.example,word.usage,word.syllables,word.ipa].some(value => str(value).toLocaleLowerCase('nb').includes(query)));
+  state.words = selection.words.filter(word => !query || searchText(word).includes(query));
   state.words.sort((a,b) => order === 'alpha' ? compareWords(str(a.word),str(b.word)) : ((Number(a.difficulty) || 3) - (Number(b.difficulty) || 3)) * (order === 'hard' ? -1 : 1) || compareWords(str(a.word),str(b.word)));
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;

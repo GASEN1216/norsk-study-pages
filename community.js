@@ -25,7 +25,8 @@
   };
   const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const count = value => [...String(value)].length;
-  const formatNumber = value => Number(value).toLocaleString('zh-CN');
+  const numberFormat = (() => { try { return new Intl.NumberFormat('zh-CN'); } catch { return null; } })();
+  const formatNumber = value => numberFormat ? numberFormat.format(Number(value)) : Number(value).toLocaleString('zh-CN');
   const isMounted = () => Boolean(state.container && state.container.isConnected !== false);
   const isVisible = () => isMounted() && document.visibilityState !== 'hidden' && !state.container.closest?.('[hidden]');
   function base() {

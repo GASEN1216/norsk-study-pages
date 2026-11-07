@@ -183,7 +183,7 @@ body.nd-open{overflow:hidden}
 .nd-range-change .nd-icon{width:16px;height:16px}
 .nd-estimate{margin-top:16px;font-size:13px;color:var(--nd-muted)}
 /* The create bar stays at the bottom of the screen while the settings scroll. */
-.nd-setup-bar{position:sticky;bottom:max(10px,env(safe-area-inset-bottom));z-index:2;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border:1px solid var(--nd-line);border-radius:20px;background:#fffef9eb;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 12px 30px -16px #1d3a2e66}
+.nd-setup-bar{position:sticky;bottom:max(10px,env(safe-area-inset-bottom));z-index:2;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border:1px solid var(--nd-line);border-radius:20px;background:#fffef9f7;box-shadow:0 12px 30px -16px #1d3a2e66}
 .nd-setup-bar .nd-chips{flex:1;min-width:0}
 .nd-setup-bar .nd-button{flex:none;min-width:132px}
 .nd-summary{padding:12px 14px;border-radius:16px;background:var(--nd-soft)}
