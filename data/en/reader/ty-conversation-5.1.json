@@ -1,0 +1,20 @@
+{
+ "id": "ty-conversation-5.1",
+ "sentences": {
+  "Hei! Kan jeg hjelpe deg?": "Hello! Can I help you?",
+  "Hei! Jeg er syk.": "Hello! I'm ill.",
+  "Jeg kaster opp.": "I'm being sick.",
+  "Jeg har diaré.": "I have diarrhoea.",
+  "Har du feber?": "Do you have a temperature?",
+  "Nei, jeg har ikke feber.": "No, I don't have a temperature.",
+  "Har du hodepine?": "Do you have a headache?",
+  "Nei, men jeg føler meg syk.": "No, but I feel ill.",
+  "Er du allergisk?": "Are you allergic to anything?",
+  "Nei, jeg er ikke allergisk.": "No, I'm not allergic.",
+  "Her har du en god medisin.": "Here's a good medicine.",
+  "Medisinen koster tjuetre kroner.": "The medicine costs twenty-three kroner.",
+  "Du må drikke vann.": "You must drink water.",
+  "Takk for hjelpen.": "Thanks for your help.",
+  "Adjø, og god bedring.": "Goodbye, and get well soon."
+ }
+}

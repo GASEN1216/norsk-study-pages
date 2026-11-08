@@ -376,6 +376,13 @@ body[data-view="practice"]:has(.pr-session-bar) .main{padding-top:16px}
 .pr-home-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:20px}
 .pr-home-heading .pr-home-title{margin:0}
 .pr-series-label{font-size:12px;color:#65786b;font-weight:500}
+/* Interface language: a quiet text link after the textbook name; its tap area grows without taking space. */
+.pr-home-meta{display:inline-flex;align-items:baseline;gap:7px;flex:none;white-space:nowrap}
+.pr-lang-dot{font-size:12px;color:#b9b29c}
+.pr-lang-switch{position:relative;padding:0;border:0;background:none;font:inherit;font-size:12px;font-weight:500;line-height:inherit;color:#65786b;cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;transition:color .18s ease,text-decoration-color .18s ease}
+.pr-lang-switch::after{content:"";position:absolute;inset:-12px -10px}
+.pr-lang-switch:hover{color:#2f5d4c;text-decoration-color:#c9a04a}
+.pr-lang-switch:focus-visible{outline:2px solid #5f8a77;outline-offset:3px;border-radius:3px}
 /* Textbook choice sits in the range dialog, above the word sources. */
 .pr-series-choice{display:flex;align-items:center;gap:12px;margin:0 0 12px}
 .pr-series-choice .pr-setting-label{flex-shrink:0;font-size:13px;color:var(--pr-muted)}
@@ -440,4 +447,16 @@ body[data-view="practice"]:has(.pr-session-bar) .main{padding-top:16px}
  .pr-flash-english{font-size:17px}
  .pr-flash-sub-english{font-size:14px}
  .pr-card-english{font-size:15px}
+}
+/* English interface only: longer words keep to one line and the same rhythm as the Chinese layout. */
+html[lang="en"] .pr-rating{padding-inline:10px;white-space:nowrap}
+html[lang="en"] .pr-setting-label{flex-basis:76px}
+html[lang="en"] .pr-series-choice .pr-setting-label{white-space:nowrap}
+html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
+@media(max-width:640px){
+  html[lang="en"] .pr-rating{gap:6px;font-size:14.5px}
+  html[lang="en"] .pr-rating kbd{display:none}
+  html[lang="en"] .pr-setting-label,html[lang="en"] .pr-setting-rate .word-rate-control>span{flex-basis:70px}
+  html[lang="en"] .pr-mode-card .pr-mode-description{font-size:12.5px}
+  html[lang="en"] .pr-source-tabs .pr-button{flex:1 1 auto;padding-inline:6px;font-size:13px;white-space:nowrap;overflow-wrap:normal}
 }

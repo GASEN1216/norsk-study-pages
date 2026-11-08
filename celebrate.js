@@ -3,6 +3,8 @@
 (() => {
   'use strict';
   if (window.NorskCelebrate) return;
+  const L10N = window.NorskI18n || {lang:'zh',english:false,t:(text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text,gloss:item => String(item?.meaning ?? item?.zh ?? ''),data:() => Promise.resolve(null),name:nickname => String(nickname ?? ''),set() {}};
+  const tx = L10N.t;
   const reduced = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const rand = (min,max) => min+Math.random()*(max-min);
   const pick = list => list[Math.floor(Math.random()*list.length)];
@@ -166,7 +168,8 @@
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(weekStart || '');
     if (!match) return '';
     const first = new Date(Date.UTC(+match[1],+match[2]-1,+match[3])), last = new Date(first.getTime()+6*86400000);
-    const label = date => `${date.getUTCMonth()+1}月${date.getUTCDate()}日`;
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const label = date => L10N.english ? `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}` : `${date.getUTCMonth()+1}月${date.getUTCDate()}日`;
     return `${label(first)} – ${label(last)}`;
   }
   let ceremonyOpen = false;
@@ -178,12 +181,12 @@
       const mine = winners.find(entry => entry.id === meId);
       const order = [2,1,3].map(rank => winners.find(entry => entry.rank === rank)).filter(Boolean);
       const delays = {3:.7,2:1.3,1:2};
-      const labels = {1:'第一名',2:'第二名',3:'第三名'};
+      const labels = {1:tx('第一名'),2:tx('第二名'),3:tx('第三名')};
       const previousFocus = document.activeElement;
       const layer = document.createElement('div');
       layer.className = 'nk-ceremony';
       layer.setAttribute('role','dialog'); layer.setAttribute('aria-modal','true'); layer.setAttribute('aria-labelledby','nk-ceremony-title');
-      layer.innerHTML = `<div class="nk-ceremony-light" aria-hidden="true"></div><div class="nk-ceremony-inner"><p class="nk-ceremony-kicker" lang="nb">Ukens mestere</p><h2 id="nk-ceremony-title">上周领奖台</h2><p class="nk-ceremony-dates">${escapeHTML(weekLabel(weekStart))}</p><ol class="nk-podium">${order.map(entry => `<li class="nk-place is-${entry.rank}${entry.id === meId ? ' is-me' : ''}" style="--delay:${delays[entry.rank]}s" aria-label="${labels[entry.rank]}：${escapeHTML(entry.nickname)}，${Number(entry.xp) || 0} XP"><div class="nk-place-award">${trophy(entry.rank)}</div><strong class="nk-place-name"><span class="nk-place-text">${escapeHTML(entry.nickname)}</span>${entry.id === meId ? '<span class="nk-place-me">我</span>' : ''}</strong><span class="nk-place-xp">${Number(entry.xp).toLocaleString('zh-CN')} XP</span><div class="nk-place-plinth"><span>${entry.rank}</span></div></li>`).join('')}</ol><p class="nk-ceremony-note">${mine ? `你是上周${labels[mine.rank]}。` : '新的一周已经开始。'}</p><button type="button" class="nk-ceremony-close">${mine ? '收下奖杯' : '继续'}</button></div>`;
+      layer.innerHTML = `<div class="nk-ceremony-light" aria-hidden="true"></div><div class="nk-ceremony-inner"><p class="nk-ceremony-kicker" lang="nb">Ukens mestere</p><h2 id="nk-ceremony-title">${tx('上周领奖台')}</h2><p class="nk-ceremony-dates">${escapeHTML(weekLabel(weekStart))}</p><ol class="nk-podium">${order.map(entry => `<li class="nk-place is-${entry.rank}${entry.id === meId ? ' is-me' : ''}" style="--delay:${delays[entry.rank]}s" aria-label="${tx('{place}：{name}，{xp} XP',{place:labels[entry.rank],name:escapeHTML(L10N.name(entry.nickname)),xp:Number(entry.xp) || 0})}"><div class="nk-place-award">${trophy(entry.rank)}</div><strong class="nk-place-name"><span class="nk-place-text">${escapeHTML(L10N.name(entry.nickname))}</span>${entry.id === meId ? `<span class="nk-place-me">${tx('我')}</span>` : ''}</strong><span class="nk-place-xp">${Number(entry.xp).toLocaleString('zh-CN')} XP</span><div class="nk-place-plinth"><span>${entry.rank}</span></div></li>`).join('')}</ol><p class="nk-ceremony-note">${mine ? tx('你是上周{place}。',{place:labels[mine.rank]}) : tx('新的一周已经开始。')}</p><button type="button" class="nk-ceremony-close">${mine ? tx('收下奖杯') : tx('继续')}</button></div>`;
       document.body.append(layer);
       document.body.classList.add('nk-ceremony-open');
       const timers = [];

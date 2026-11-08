@@ -2,15 +2,26 @@
 (() => {
   'use strict';
   if (window.NorskPractice) return;
+  const L10N = window.NorskI18n || {lang:'zh',english:false,t:(text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text,gloss:item => String(item?.meaning ?? item?.zh ?? ''),data:() => Promise.resolve(null),name:nickname => String(nickname ?? ''),set() {}};
+  const tx = L10N.t;
+  // English devices: meanings are English glosses (Chinese only where a word has none); Chinese stays in meaningZh.
+  const EN = !!L10N.english;
+  const CJK = /[\u3400-\u9fff\uff01-\uff5e\u3000-\u303f]/;
+  // On English devices, Chinese-only notes, usage and example translations are left out.
+  const readable = text => !EN || !CJK.test(String(text || ''));
+  const dropChineseGloss = text => EN ? String(text || '').replace(/\s*[（(][^（()）]*[\u3400-\u9fff][^（()）]*[）)]\s*$/u,'').trim() : text;
+  const SENSE = EN ? '; ' : '；', COLON = EN ? ': ' : '：';
+  // Data labels (parts of speech, basics and kitchen categories) are Chinese; English devices look each part up.
+  const dataText = value => EN ? String(value || '').split(/(；|／|\/)/).map(part => /^(；|／|\/)$/.test(part) ? (part === '；' ? '; ' : '/') : tx(part.trim())).join('') : value;
   const LEGACY_STORAGE_KEY = 'norsk-practice-v1';
   const storageKeyFor = seriesId => seriesId === 'god-i-norsk' ? LEGACY_STORAGE_KEY : `${LEGACY_STORAGE_KEY}:${encodeURIComponent(seriesId)}`;
-  const RATINGS = {2:'认识',1:'模糊',0:'不认识'};
+  const RATINGS = {2:tx('认识'),1:tx('模糊'),0:tx('不认识')};
   const ACTIVITIES = {
-    cards:{title:'翻面词卡',description:'翻面回想，不会的再来'},
-    learn:{title:'拼写学习',description:'看中文拼写，错了再练'},
-    quiz:{title:'综合测验',description:'判断 · 选择 · 拼写'},
-    match:{title:'配对消除',description:'限时配对，错配加时'},
-    listen:{title:'听音选义',description:'听读音，选出意思'}
+    cards:{title:tx('翻面词卡'),description:tx('翻面回想，不会的再来')},
+    learn:{title:tx('拼写学习'),description:tx('看中文拼写，错了再练')},
+    quiz:{title:tx('综合测验'),description:tx('判断 · 选择 · 拼写')},
+    match:{title:tx('配对消除'),description:tx('限时配对，错配加时')},
+    listen:{title:tx('听音选义'),description:tx('听读音，选出意思')}
   };
   // Every finished activity earns leaderboard XP; self-rated cards earn participation XP only.
   const RANKED = ['cards','learn','quiz','match','listen'];
@@ -35,7 +46,7 @@
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
-  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mine:[],wordbookTitle:'我的词本',indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
+  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mine:[],wordbookTitle:tx('我的词本'),indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
   let sessionPools = new WeakMap(), checkedQuestions = new WeakSet(), inputSaveTimer = null;
   let editor = null;
   const EDITOR_REQUEST = 'norsk-practice-editor-request:';
@@ -163,7 +174,7 @@
       if (!value || value.version !== 1 || !Array.isArray(value.sets) || !Array.isArray(value.history) || !value.stats || typeof value.stats !== 'object') throw new Error('Invalid practice history');
       return {...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:true,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}};
     } catch {
-      storageFailure('本机学习记录暂时无法读取。本次仍可练习，新进度可能无法在刷新后恢复。');
+      storageFailure(tx('本机学习记录暂时无法读取。本次仍可练习，新进度可能无法在刷新后恢复。'));
       return blankStore();
     }
   }
@@ -173,12 +184,12 @@
   function ownsStore(store,key) { return editor?.key === key && editor.status === 'owned' && store === state.store; }
   function editorMessage() {
     if (!editor || editor.status === 'owned') return '';
-    if (editor.status === 'memory') return '当前浏览器无法协调多个标签页的保存。本次仍可练习，但新记录只保留在当前页面；请勿刷新或关闭。';
-    return editor.status === 'waiting' ? '正在连接本机学习记录，暂时只读。' : '这个教材的学习记录正在另一标签页中使用。本页暂时只读。';
+    if (editor.status === 'memory') return tx('当前浏览器无法协调多个标签页的保存。本次仍可练习，但新记录只保留在当前页面；请勿刷新或关闭。');
+    return editor.status === 'waiting' ? tx('正在连接本机学习记录，暂时只读。') : tx('这个教材的学习记录正在另一标签页中使用。本页暂时只读。');
   }
   function editorMarkup() {
     const message=editorMessage();
-    return message ? `<p class="pr-storage-warning" role="status">${e(message)}${editor?.status === 'readonly' ? button('takeover','在此继续','','pr-small') : ''}</p>` : '';
+    return message ? `<p class="pr-storage-warning" role="status">${e(message)}${editor?.status === 'readonly' ? button('takeover',tx('在此继续'),'','pr-small') : ''}</p>` : '';
   }
   function releaseEditor() {
     const previous=editor;
@@ -199,7 +210,7 @@
     if (!locks?.request) { unavailable(); return; }
     if (wait) {
       try { localStorage.setItem(EDITOR_REQUEST+lock.key,uid()); }
-      catch { lock.status='readonly'; storageFailure('无法向另一标签页请求继续，请先关闭那一页，再刷新本页。'); renderSetup(); return; }
+      catch { lock.status='readonly'; storageFailure(tx('无法向另一标签页请求继续，请先关闭那一页，再刷新本页。')); renderSetup(); return; }
     }
     renderSetup();
     try {
@@ -218,13 +229,13 @@
   }
   function requireEditor() {
     if (canEdit()) return true;
-    announce(editorMessage() || '请先连接本机学习记录。');
+    announce(editorMessage() || tx('请先连接本机学习记录。'));
     return false;
   }
   function persistStore(store,key) {
     if (!ownsStore(store,key)) return;
     try { localStorage.setItem(key,JSON.stringify(store)); }
-    catch { storageFailure('本机存储空间不足或暂不可用。本次仍可练习，刷新后可能丢失新进度。'); }
+    catch { storageFailure(tx('本机存储空间不足或暂不可用。本次仍可练习，刷新后可能丢失新进度。')); }
     if (store === state.store) syncSidebar();
   }
   function persist() {
@@ -254,8 +265,8 @@
     const run = () => {
       state.speakTimer=null;
       if (token !== state.playToken) return;
-      if (!state.deps.pronounce) { announce('读音服务暂未准备好，请刷新页面后重试。'); return; }
-      const failed = () => { if (token === state.playToken) announce('这条读音暂时无法播放，可以点喇叭重试。'); };
+      if (!state.deps.pronounce) { announce(tx('读音服务暂未准备好，请刷新页面后重试。')); return; }
+      const failed = () => { if (token === state.playToken) announce(tx('这条读音暂时无法播放，可以点喇叭重试。')); };
       try { Promise.resolve(state.deps.pronounce(item)).catch(failed); } catch { failed(); }
     };
     if (delay > 0 && typeof setTimeout === 'function') state.speakTimer=setTimeout(run,delay); else run();
@@ -267,10 +278,15 @@
   }
   function plainValue(value) {
     if (value == null) return '';
-    if (Array.isArray(value)) return unique(value.map(plainValue)).join('；');
-    if (typeof value === 'object') return Object.entries(value).map(([key,item]) => `${key}：${plainValue(item)}`).join('；');
+    if (Array.isArray(value)) return unique(value.map(plainValue)).join(SENSE);
+    if (typeof value === 'object') return Object.entries(value).map(([key,item]) => `${key}${COLON}${plainValue(item)}`).join(SENSE);
     return String(value);
   }
+  // Senses merge with '；' as always; English devices merge English senses with '; ' and keep the Chinese apart.
+  const MERGED_FIELDS = EN ? ['meaning','meaningZh','english','pos','gender','article'] : ['meaning','english','pos','gender','article'];
+  const EN_SENSES = new Set(EN ? ['meaning','english'] : []);
+  // An English device practises with English meanings; meaningZh keeps the Chinese for the online games.
+  const localized = word => EN && word ? {...word,meaningZh:word.meaning ?? '',meaning:L10N.gloss(word)} : word;
   function combine(existing,word,label) {
     if (!word?.word) return existing;
     const key = normalize(word.word);
@@ -281,7 +297,7 @@
     if (!existing) return {...word,key,sourceLabels:[label],practiceExamples:examples,practiceTextExamples:textExamples,practiceLearningExamples:learningExamples};
     const merged = {...existing};
     for (const [field,value] of Object.entries(word)) if ((merged[field] == null || merged[field] === '') && value != null) merged[field] = value;
-    for (const field of ['meaning','english','pos','gender','article']) merged[field] = unique([existing[field],word[field]].flatMap(value => String(value || '').split('；'))).join('；');
+    for (const field of MERGED_FIELDS) merged[field] = unique([existing[field],word[field]].flatMap(value => String(value || '').split(EN_SENSES.has(field) ? /\s*[;；]\s*/ : '；'))).join(EN_SENSES.has(field) ? '; ' : '；');
     merged.sourceEntry = unique([existing.sourceEntry,word.sourceEntry]).join('\n');
     merged.sourceLabels = unique([...existing.sourceLabels,label]);
     merged.practiceExamples = unique([...existing.practiceExamples,...examples]);
@@ -299,7 +315,8 @@
     sessionPools = new WeakMap(); checkedQuestions = new WeakSet();
     const add = (token,label,words) => {
       const entries = new Map();
-      for (const word of words || []) {
+      for (const raw of words || []) {
+        const word = localized(raw);
         const key = normalize(word.word);
         if (!key) continue;
         entries.set(key,combine(entries.get(key),word,label));
@@ -311,23 +328,25 @@
     };
     for (const chapter of data?.vocabulary?.chapters || []) {
       const number = chapter.number ?? chapter.id;
-      const label = `第 ${number} 章 · ${chapter.title}`;
+      const label = tx('第 {n} 章 · {title}',{n:number,title:chapter.title});
       const sections = (chapter.sections || []).map(section => ({...section,...add(`section:${section.id}`,`${section.number ?? (/^[\d.]+$/.test(String(section.id)) ? section.id : '')} ${section.title}`.trim(),section.words)}));
       const chapterWords = Array.isArray(chapter.words) ? chapter.words : (chapter.sections || []).flatMap(section => section.words || []);
       const source = add(`chapter:${chapter.id}`,label,chapterWords);
       state.chapters.push({...chapter,...source,sections});
     }
-    for (const category of data?.basics?.categories || []) state.basics.push({...category,...add(`basic:${category.id}`,category.title,category.items)});
+    for (const category of data?.basics?.categories || []) state.basics.push({...category,...add(`basic:${category.id}`,dataText(category.title),category.items)});
     // 厨房 Kjøkken: 开饭啦's food words by kind of food, with their own readings (a public source, like the basics).
     const kitchenWords = id => (data?.kitchen?.entries || []).filter(item => item?.cat === id && item.word && item.zh).map(item => ({word:item.word,meaning:item.zh,
       english:item.en || '',ipa:item.ipa || '',pos:KITCHEN_POS[item.pos] || '',gender:item.gender || '',article:item.article || '',forms:(item.forms || []).filter(Boolean),
-      audio:item.clip || '',...(item.ex ? {example:`${item.ex}${item.exZh ? `（${item.exZh}）` : ''}`,exampleSource:'study'} : {})}));
+      audio:item.clip || '',...(item.ex ? {example:`${item.ex}${item.exZh && !EN ? `（${item.exZh}）` : ''}`,exampleSource:'study'} : {})}));
     for (const category of data?.kitchen?.categories || []) {
       const words = kitchenWords(category.id);
-      if (words.length) state.kitchen.push({...category,title:category.zh,...add(`kitchen:${category.id}`,`厨房 · ${category.zh}`,words)});
+      if (words.length) state.kitchen.push({...category,title:category.zh,...add(`kitchen:${category.id}`,tx('厨房 · {name}',{name:dataText(category.zh)}),words)});
     }
     // The learner's own wordbook: one source per chapter; words keep their own recording (audio).
-    state.wordbookTitle = String(data?.wordbook?.title || '').trim() || '我的词本';
+    // The wordbook's default name is stored in Chinese; English devices show it in English.
+    const wordbookTitle = String(data?.wordbook?.title || '').trim();
+    state.wordbookTitle = (EN && wordbookTitle === '我的词本' ? '' : wordbookTitle) || tx('我的词本');
     for (const chapter of data?.wordbook?.chapters || []) state.mine.push({...chapter,...add(`mine:${chapter.id}`,String(chapter.title || ''),chapter.words)});
   }
   // The wordbook changed (an edit, or a sync from another device): only its sources are new. Selections
@@ -371,7 +390,7 @@
   }
   function selectedLabel(tokens) {
     const labels = tokens.map(token => state.sources.get(token)?.label).filter(Boolean);
-    return labels.length > 2 ? `${labels.slice(0,2).join(' + ')} 等 ${labels.length} 组` : labels.join(' + ');
+    return labels.length > 2 ? tx('{names} 等 {n} 组',{names:labels.slice(0,2).join(' + '),n:labels.length}) : labels.join(' + ');
   }
   function weakKeys() {
     return Object.entries(state.store.stats).filter(([key,stats]) => state.words.has(key) && stats.seen > 0 && (stats.lastPoints < 2 || stats.points / stats.seen < 1.5)).map(([key]) => key);
@@ -432,7 +451,7 @@
     state.quiz = quizConfig(config.quiz);
   }
   function renderTOC() {
-    return `<div class="pr-sidebar">${button('setup','选择练习','','pr-side-button')}${button('history','学习记录','','pr-side-button')}<div class="pr-sidebar-stats"><span><strong data-practice-stat="practiced">${Object.keys(state.store.stats).length}</strong>已练词语</span><span><strong data-practice-stat="sessions">${state.store.history.length}</strong>完成次数</span></div></div>`;
+    return `<div class="pr-sidebar">${button('setup',tx('选择练习'),'','pr-side-button')}${button('history',tx('学习记录'),'','pr-side-button')}<div class="pr-sidebar-stats"><span><strong data-practice-stat="practiced">${Object.keys(state.store.stats).length}</strong>${tx('已练词语')}</span><span><strong data-practice-stat="sessions">${state.store.history.length}</strong>${tx('完成次数')}</span></div></div>`;
   }
   function syncSidebar() {
     const values = {weak:weakKeys().length,favorites:favoriteKeys().length,practiced:Object.keys(state.store.stats).length,sessions:state.store.history.length};
@@ -450,21 +469,23 @@
   // The wordbook's chapters that have words, with a whole-book row when there are several.
   function wordbookSources() {
     const chapters = state.mine.filter(chapter => chapter.words.length);
-    if (!chapters.length) return `<div class="pr-source-empty pr-wordbook-empty"><p>词本还是空的。</p>${button('wordbook-open','去添加','','pr-small')}</div>`;
-    const whole = chapters.length > 1 ? `<label class="pr-source-row pr-wordbook-all" data-pr-source-search="${e(state.wordbookTitle.toLocaleLowerCase('nb'))}"><input type="checkbox" data-pr-wordbook-all="1" ${chapters.every(chapter => state.selected.has(chapter.token)) ? 'checked' : ''}><span>整本</span><small>${poolFor(chapters.map(chapter => chapter.token)).size}</small></label>` : '';
+    if (!chapters.length) return `<div class="pr-source-empty pr-wordbook-empty"><p>${tx('词本还是空的。')}</p>${button('wordbook-open',tx('去添加'),'','pr-small')}</div>`;
+    const whole = chapters.length > 1 ? `<label class="pr-source-row pr-wordbook-all" data-pr-source-search="${e(state.wordbookTitle.toLocaleLowerCase('nb'))}"><input type="checkbox" data-pr-wordbook-all="1" ${chapters.every(chapter => state.selected.has(chapter.token)) ? 'checked' : ''}><span>${tx('整本')}</span><small>${poolFor(chapters.map(chapter => chapter.token)).size}</small></label>` : '';
     return `<div class="pr-chapter-list" id="pr-wordbook-sources">${whole}${chapters.map(chapter => sourceCheckbox(chapter,state.selected.has(chapter.token))).join('')}</div>`;
   }
   function savedGroups() {
     const saved = state.store.sets, recent = state.store.recent;
-    const rows = [...saved.map(set => `<div class="pr-saved-row"><span>${e(set.name)}</span>${button('saved-load','选用',`data-pr-id="${e(set.id)}"`,'pr-small')}${iconButton('saved-delete','close',`删除组合 ${e(set.name)}`,`data-pr-id="${e(set.id)}"`)}</div>`),...recent.map((entry,index) => `<div class="pr-saved-row is-recent"><span>${e(entry.label || selectedLabel(entry.sources))}</span>${button('recent-load','选用',`data-pr-index="${index}"`,'pr-small')}</div>`)];
-    return `<div class="pr-setting-block"><span class="pr-setting-label">常用范围</span>${rows.join('')}<div class="pr-save-combo"><label class="sr-only" for="pr-set-name">组合名称</label><input id="pr-set-name" type="text" maxlength="40" placeholder="给当前范围起个名字">${button('save-set','保存','','pr-small')}</div></div>`;
+    const rows = [...saved.map(set => `<div class="pr-saved-row"><span>${e(set.name)}</span>${button('saved-load',tx('选用'),`data-pr-id="${e(set.id)}"`,'pr-small')}${iconButton('saved-delete','close',tx('删除组合 {name}',{name:e(set.name)}),`data-pr-id="${e(set.id)}"`)}</div>`),...recent.map((entry,index) => `<div class="pr-saved-row is-recent"><span>${e(entry.label || selectedLabel(entry.sources))}</span>${button('recent-load',tx('选用'),`data-pr-index="${index}"`,'pr-small')}</div>`)];
+    return `<div class="pr-setting-block"><span class="pr-setting-label">${tx('常用范围')}</span>${rows.join('')}<div class="pr-save-combo"><label class="sr-only" for="pr-set-name">${tx('组合名称')}</label><input id="pr-set-name" type="text" maxlength="40" placeholder="${tx('给当前范围起个名字')}">${button('save-set',tx('保存'),'','pr-small')}</div></div>`;
   }
   function renderSetup() {
     state.screen = 'setup';
     applyPendingWordbook();
     const active = currentSession();
-    const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>继续${e(ACTIVITIES[activityOf(active)].title)}</strong><span>${Object.keys(active.answers || {}).length} / ${active.firstKeys.length} 词</span></div>${button('resume','继续','','pr-primary')}</section>` : '';
-    shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">今天练什么？</h2><span class="pr-series-label">${e(state.seriesTitle)}</span></div><div class="pr-mode-grid" role="group" aria-label="练习方式">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
+    const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>${tx('继续{title}',{title:e(ACTIVITIES[activityOf(active)].title)})}</strong><span>${tx('{done} / {n} 词',{done:Object.keys(active.answers || {}).length,n:active.firstKeys.length})}</span></div>${button('resume',tx('继续'),'','pr-primary')}</section>` : '';
+    // The interface language switch sits quietly beside the textbook name; choosing reloads the page.
+    const language = `<span class="pr-lang-dot" aria-hidden="true">·</span><button type="button" class="pr-lang-switch" data-practice-action="language" ${EN ? 'lang="zh" aria-label="Switch to Chinese">中文' : 'lang="en" aria-label="切换到英文界面">English'}</button>`;
+    shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">${tx('今天练什么？')}</h2><span class="pr-home-meta"><span class="pr-series-label">${e(state.seriesTitle)}</span>${language}</span></div><div class="pr-mode-grid" role="group" aria-label="${tx('练习方式')}">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
     const slot = $('#pr-community-slot');
     if (slot) state.deps.mountCommunity?.(slot);
     loadHonors();
@@ -474,26 +495,35 @@
   // One quiet bar between the modes and the records: this week's challenge, today's quests, and the door to the games played together.
   function goalsMarkup() {
     const h = state.honors;
-    const duel = `<button type="button" class="pr-goal is-duel" data-practice-action="online" aria-haspopup="dialog" aria-controls="pr-online"><span class="pr-goal-label">联机游戏</span><span class="pr-goal-sub">${ONLINE_GAMES.map(game => game.short).join(' · ')}</span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`;
+    const duel = `<button type="button" class="pr-goal is-duel" data-practice-action="online" aria-haspopup="dialog" aria-controls="pr-online"><span class="pr-goal-label">${tx('联机游戏')}</span><span class="pr-goal-sub">${ONLINE_GAMES.map(game => game.short).join(' · ')}</span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`;
     if (!h?.week?.challenge) return duel;
     const c = h.week.challenge, number = String(h.week.n).padStart(2,'0');
     const quests = h.today?.quests || [];
     const done = quests.filter(quest => quest.done).length;
     const value = c.done ? 100 : c.target ? Math.max(0,Math.min(100,Math.round(c.progress/c.target*100))) : 0;
-    return `<button type="button" class="pr-goal is-week${c.done ? ' is-done' : ''}" data-practice-action="honors" aria-label="本周挑战：${e(c.title || '')}，${c.done ? '已完成' : `${Math.min(c.progress,c.target)} / ${c.target}`}"><img class="pr-goal-badge" src="assets/honors/week-${number}.webp" alt="" loading="lazy" decoding="async"><span class="pr-goal-label">本周挑战 <span lang="nb">${e(c.theme || '')}</span></span><span class="pr-goal-sub">${e(c.title || '')}</span><span class="pr-goal-meter"><i style="width:${value}%"></i></span><b class="pr-goal-count">${c.done ? '完成' : `${Math.min(c.progress,c.target)}/${c.target}`}</b></button>
-      <button type="button" class="pr-goal is-quests" data-practice-action="honors" title="${e(quests.map(quest => `${quest.done ? '✓' : '·'} ${quest.title}`).join('；'))}" aria-label="今日任务，完成 ${done} / ${quests.length}"><span class="pr-goal-label">今日任务</span><span class="pr-goal-dots" aria-hidden="true">${quests.map(quest => `<i class="${quest.done ? 'is-done' : ''}"></i>`).join('')}</span><b class="pr-goal-count">${done}/${quests.length}</b></button>${duel}`;
+    const title = challengeTitle(c);
+    return `<button type="button" class="pr-goal is-week${c.done ? ' is-done' : ''}" data-practice-action="honors" aria-label="${tx('本周挑战：{title}，{state}',{title:e(title),state:c.done ? tx('已完成') : `${Math.min(c.progress,c.target)} / ${c.target}`})}"><img class="pr-goal-badge" src="assets/honors/week-${number}.webp" alt="" loading="lazy" decoding="async"><span class="pr-goal-label">${tx('本周挑战')} <span lang="nb">${e(c.theme || '')}</span></span><span class="pr-goal-sub">${e(title)}</span><span class="pr-goal-meter"><i style="width:${value}%"></i></span><b class="pr-goal-count">${c.done ? tx('完成') : `${Math.min(c.progress,c.target)}/${c.target}`}</b></button>
+      <button type="button" class="pr-goal is-quests" data-practice-action="honors" title="${e(quests.map(quest => `${quest.done ? '✓' : '·'} ${questTitle(quest)}`).join(SENSE))}" aria-label="${tx('今日任务，完成 {done} / {n}',{done,n:quests.length})}"><span class="pr-goal-label">${tx('今日任务')}</span><span class="pr-goal-dots" aria-hidden="true">${quests.map(quest => `<i class="${quest.done ? 'is-done' : ''}"></i>`).join('')}</span><b class="pr-goal-count">${done}/${quests.length}</b></button>${duel}`;
   }
+  // The server names quests and the weekly challenge in Chinese; English devices word them from the goal and target.
+  const CHALLENGE_TITLES = {
+    quests:n => tx('完成 {n} 个每日任务',{n}),days:n => Number(n) >= 7 ? tx('本周 7 天都有练习') : tx('本周 {n} 天有练习',{n}),
+    words:n => tx('练习 {n} 个词',{n:Number(n).toLocaleString('en-US')}),xp:n => tx('获得 {n} XP',{n:Number(n).toLocaleString('en-US')}),
+    duels:n => tx('玩 {n} 局联机翻翻乐',{n}),correct:n => tx('答对 {n} 题',{n}),modes:() => tx('五种练习各完成一次'),
+  };
+  const challengeTitle = c => String((EN && CHALLENGE_TITLES[c?.goal] && Number.isFinite(Number(c.target)) ? CHALLENGE_TITLES[c.goal](c.target) : c?.title) || '');
+  const questTitle = quest => EN ? tx(String(quest?.title || '')) : quest.title;
   // 联机游戏: one door for every game played with classmates. Each card opens its own game; new games join this list.
   const ONLINE_GAMES = [
-    {action:'duel',title:'联机翻翻乐',short:'翻翻乐',note:'和同学抢翻词对，挪威语配中文',meta:'开房间 · 加入房间'},
-    {action:'chase',title:'警察抓小偷',short:'警察抓小偷',note:'打课文比速度，警察追、小偷逃',meta:'人机对战 · 开房间 · 加入房间'},
-    {action:'kitchen',title:'开饭啦',short:'开饭啦',note:'听懂点单、配菜上桌，学会挪威的日常饮食',meta:'一个人开张 · 开房间 · 加入房间'},
+    {action:'duel',title:tx('联机翻翻乐'),short:tx('翻翻乐'),note:tx('和同学抢翻词对，挪威语配中文'),meta:tx('开房间 · 加入房间')},
+    {action:'chase',title:tx('警察抓小偷'),short:tx('警察抓小偷'),note:tx('打课文比速度，警察追、小偷逃'),meta:tx('人机对战 · 开房间 · 加入房间')},
+    {action:'kitchen',title:tx('开饭啦'),short:tx('开饭啦'),note:tx('听懂点单、配菜上桌，学会挪威的日常饮食'),meta:tx('一个人开张 · 开房间 · 加入房间')},
   ];
   function openOnline() {
     const dialog = $('#pr-online');
     if (!dialog) return;
     const art = name => `assets/online/${name}.webp${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`;
-    dialog.innerHTML = `<div class="pr-dialog-heading"><h2 id="pr-online-title" tabindex="-1">联机游戏</h2>${iconButton('online-close','close','关闭')}</div><div class="pr-online-games">${ONLINE_GAMES.map(game => `<button type="button" class="pr-online-game is-${game.action}" data-practice-action="${game.action}"><img class="pr-online-art" src="${e(art(game.action))}" alt="" decoding="async" draggable="false"><span class="pr-online-text"><strong>${game.title}</strong><span>${game.note}</span><small>${game.meta}</small></span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div><p class="pr-online-note">更多联机游戏会陆续加到这里。</p>`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><h2 id="pr-online-title" tabindex="-1">${tx('联机游戏')}</h2>${iconButton('online-close','close',tx('关闭'))}</div><div class="pr-online-games">${ONLINE_GAMES.map(game => `<button type="button" class="pr-online-game is-${game.action}" data-practice-action="${game.action}"><img class="pr-online-art" src="${e(art(game.action))}" alt="" decoding="async" draggable="false"><span class="pr-online-text"><strong>${game.title}</strong><span>${game.note}</span><small>${game.meta}</small></span><svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div><p class="pr-online-note">${tx('更多联机游戏会陆续加到这里。')}</p>`;
     // A card whose picture is still being drawn keeps a quiet warm block instead of a broken image.
     dialog.querySelectorAll('.pr-online-art').forEach(image => image.addEventListener('error',() => { image.removeAttribute('src'); image.classList.add('is-missing'); },{once:true}));
     if (!dialog.open) dialog.showModal?.();
@@ -518,8 +548,11 @@
   // Word groups the multiplayer game can draw from: chapters of the current series and the basics.
   // Word ranges for 联机翻翻乐, shaped like the practice range picker: chapters with their sections,
   // basics categories, and the learner's own favourites and weak words. Words carry their first sense.
+  // Rooms mix Chinese and English players: meaning is always the Chinese first sense, as before, and english carries
+  // the whole English gloss ('' when a word has none; the games trim it to its first sense).
   function duelSources() {
-    const pick = words => words.filter(word => word?.word && word.meaning).map(word => ({key:word.key,word:word.word,meaning:String(word.meaning).split('；')[0]}));
+    const chinese = word => EN ? word.meaningZh : word.meaning;
+    const pick = words => words.filter(word => word?.word && chinese(word)).map(word => ({key:word.key,word:word.word,meaning:String(chinese(word)).split('；')[0],english:String(word.english || '').split(/\s*[;；]\s*/).filter(Boolean).join('; ')}));
     const sources = [];
     for (const chapter of state.chapters) {
       sources.push({token:chapter.token,label:chapter.label,group:'chapter',words:pick(chapter.words)});
@@ -528,37 +561,37 @@
     for (const category of state.basics) sources.push({token:category.token,label:category.label,group:'basics',words:pick(category.words)});
     for (const category of state.kitchen) sources.push({token:category.token,label:category.label,group:'basics',words:pick(category.words)});
     for (const chapter of state.mine) sources.push({token:chapter.token,label:chapter.label,group:'wordbook',words:pick(chapter.words)});
-    sources.push({token:'favorites',label:'收藏词',group:'mine',words:pick(favoriteKeys().map(key => state.words.get(key)))});
-    sources.push({token:'weak',label:'薄弱词',group:'mine',words:pick(weakKeys().map(key => state.words.get(key)))});
+    sources.push({token:'favorites',label:tx('收藏词'),group:'mine',words:pick(favoriteKeys().map(key => state.words.get(key)))});
+    sources.push({token:'weak',label:tx('薄弱词'),group:'mine',words:pick(weakKeys().map(key => state.words.get(key)))});
     return sources.filter(source => source.words.length);
   }
   function historyStats() {
-    return `<div class="pr-history-stats"><span><b>${Object.keys(state.store.stats).length}</b>已练词语</span><span><b>${state.store.history.length}</b>完成次数</span><span><b>${weakKeys().length}</b>薄弱词</span></div>`;
+    return `<div class="pr-history-stats"><span><b>${Object.keys(state.store.stats).length}</b>${tx('已练词语')}</span><span><b>${state.store.history.length}</b>${tx('完成次数')}</span><span><b>${weakKeys().length}</b>${tx('薄弱词')}</span></div>`;
   }
   function historyEntry(result,actions=true) {
     const activity=activityOf(result), summary=resultSummary(result);
-    return `<article class="pr-history-entry"><span class="pr-mode-icon is-${activity}">${icon(activity)}</span><button type="button" class="pr-history-main" data-practice-action="history-detail" data-pr-id="${e(result.id)}"><strong>${e(ACTIVITIES[activity].title)}</strong><span>${e(result.label)} · ${e(dateLabel(result.finishedAt))}</span></button><span class="pr-history-score">${summary.score}<small>${summary.unit}</small></span>${actions && result.answers.some(answer => answer.points < 2) ? button('history-weak','练错词',`data-pr-id="${e(result.id)}"`,'pr-small pr-quiet') : ''}</article>`;
+    return `<article class="pr-history-entry"><span class="pr-mode-icon is-${activity}">${icon(activity)}</span><button type="button" class="pr-history-main" data-practice-action="history-detail" data-pr-id="${e(result.id)}"><strong>${e(ACTIVITIES[activity].title)}</strong><span>${e(result.label)} · ${e(dateLabel(result.finishedAt))}</span></button><span class="pr-history-score">${summary.score}<small>${summary.unit}</small></span>${actions && result.answers.some(answer => answer.points < 2) ? button('history-weak',tx('练错词'),`data-pr-id="${e(result.id)}"`,'pr-small pr-quiet') : ''}</article>`;
   }
   function historyColumn() {
     const history = state.store.history;
-    return `<section class="pr-home-history" aria-labelledby="pr-home-history-title"><div class="pr-column-head"><h3 id="pr-home-history-title">学习记录</h3>${history.length ? button('history',`全部 ${history.length}`,'','pr-small pr-quiet') : ''}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.slice(0,6).map(result => historyEntry(result,false)).join('')}</div>` : '<p class="pr-column-empty">完成一组练习后，记录会出现在这里。</p>'}</section>`;
+    return `<section class="pr-home-history" aria-labelledby="pr-home-history-title"><div class="pr-column-head"><h3 id="pr-home-history-title">${tx('学习记录')}</h3>${history.length ? button('history',tx('全部 {n}',{n:history.length}),'','pr-small pr-quiet') : ''}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.slice(0,6).map(result => historyEntry(result,false)).join('')}</div>` : `<p class="pr-column-empty">${tx('完成一组练习后，记录会出现在这里。')}</p>`}</section>`;
   }
   function scopeOptions() {
-    const quiz = state.activity === 'quiz' ? `<div class="pr-setting-block"><span class="pr-setting-label">题型</span><div class="pr-chip-group" role="group" aria-label="测验题型">${[['judge','判断'],['choice','选择'],['spell','拼写']].map(([value,label]) => `<label class="pr-chip"><input type="checkbox" data-pr-quiz-type="${value}" ${state.quiz.types.includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div><label class="pr-setting-block"><span class="pr-setting-label">方向</span><select id="pr-quiz-direction"><option value="to-nb" ${state.quiz.direction === 'to-nb' ? 'selected' : ''}>中文 → 挪威语</option><option value="to-zh" ${state.quiz.direction === 'to-zh' ? 'selected' : ''}>挪威语 → 中文</option><option value="mixed" ${state.quiz.direction === 'mixed' ? 'selected' : ''}>混合</option></select></label>` : '';
-    return `<details class="pr-options"><summary>更多设置</summary><div class="pr-settings">${quiz}<label class="pr-setting-block"><span class="pr-setting-label">顺序</span><select id="pr-order"><option value="random" ${state.mode === 'random' ? 'selected' : ''}>随机</option><option value="weak" ${state.mode === 'weak' ? 'selected' : ''}>薄弱词优先</option></select></label><div class="pr-setting-block pr-setting-rate">${rateControl()}</div>${savedGroups()}</div></details>`;
+    const quiz = state.activity === 'quiz' ? `<div class="pr-setting-block"><span class="pr-setting-label">${tx('题型')}</span><div class="pr-chip-group" role="group" aria-label="${tx('测验题型')}">${[['judge',tx('判断')],['choice',tx('选择')],['spell',tx('拼写')]].map(([value,label]) => `<label class="pr-chip"><input type="checkbox" data-pr-quiz-type="${value}" ${state.quiz.types.includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div><label class="pr-setting-block"><span class="pr-setting-label">${tx('方向')}</span><select id="pr-quiz-direction"><option value="to-nb" ${state.quiz.direction === 'to-nb' ? 'selected' : ''}>${tx('中文 → 挪威语')}</option><option value="to-zh" ${state.quiz.direction === 'to-zh' ? 'selected' : ''}>${tx('挪威语 → 中文')}</option><option value="mixed" ${state.quiz.direction === 'mixed' ? 'selected' : ''}>${tx('混合')}</option></select></label>` : '';
+    return `<details class="pr-options"><summary>${tx('更多设置')}</summary><div class="pr-settings">${quiz}<label class="pr-setting-block"><span class="pr-setting-label">${tx('顺序')}</span><select id="pr-order"><option value="random" ${state.mode === 'random' ? 'selected' : ''}>${tx('随机')}</option><option value="weak" ${state.mode === 'weak' ? 'selected' : ''}>${tx('薄弱词优先')}</option></select></label><div class="pr-setting-block pr-setting-rate">${rateControl()}</div>${savedGroups()}</div></details>`;
   }
   function seriesChoice() {
     const options = state.deps.seriesOptions || [];
     if (options.length < 2) return '';
-    return `<div class="pr-series-choice"><span class="pr-setting-label">教材</span><div class="pr-series-options" role="group" aria-label="选择教材">${options.map(item => button('series',e(item.title),`data-pr-series="${e(item.id)}" aria-pressed="${item.id === state.seriesId}"`,'pr-small')).join('')}</div></div>`;
+    return `<div class="pr-series-choice"><span class="pr-setting-label">${tx('教材')}</span><div class="pr-series-options" role="group" aria-label="${tx('选择教材')}">${options.map(item => button('series',e(item.title),`data-pr-series="${e(item.id)}" aria-pressed="${item.id === state.seriesId}"`,'pr-small')).join('')}</div></div>`;
   }
   function renderScope() {
     const dialog = $('#pr-scope');
     if (!dialog) return;
     const pool = poolFor(state.selected), weak = weakKeys().length, favorites = favoriteKeys().length;
-    const quick = weak || favorites ? `<div class="pr-quick-row">${weak ? button('weak',`薄弱词 <b>${weak}</b>`,'','pr-chip-button') : ''}${favorites ? button('favorites',`${icon('star',true)}收藏 <b>${favorites}</b>`,'','pr-chip-button') : ''}</div>` : '';
+    const quick = weak || favorites ? `<div class="pr-quick-row">${weak ? button('weak',tx('薄弱词 <b>{n}</b>',{n:weak}),'','pr-chip-button') : ''}${favorites ? button('favorites',`${icon('star',true)}${tx('收藏 <b>{n}</b>',{n:favorites})}`,'','pr-chip-button') : ''}</div>` : '';
     const minimum = state.activity === 'match' ? 2 : 1;
-    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close','返回练习方式','','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="词语来源">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab','基础常识',`data-pr-tab="basics" aria-label="公共基础常识" title="公共基础常识" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}${state.kitchen.length ? button('scope-tab','厨房',`data-pr-tab="kitchen" aria-label="厨房 Kjøkken：开饭啦的食物词" title="厨房 Kjøkken：开饭啦的食物词" aria-pressed="${state.scopeTab === 'kitchen'}"`,'pr-small') : ''}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="搜索章节或分类" aria-label="搜索练习范围" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="展开小节">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section>${state.kitchen.length ? `<section data-pr-scope-tab="kitchen" ${state.scopeTab === 'kitchen' ? '' : 'hidden'}><div id="pr-kitchen-sources">${state.kitchen.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}</div><p class="pr-source-empty" id="pr-source-empty" hidden>没有匹配的范围</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? `已选 <b>${pool.size}</b> 词` : '还没有选择'}</span>${button('clear-selection','清空',pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start','开始','id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close',tx('返回练习方式'),'','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="${tx('词语来源')}">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab',tx('基础常识'),`data-pr-tab="basics" aria-label="${tx('公共基础常识')}" title="${tx('公共基础常识')}" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}${state.kitchen.length ? button('scope-tab',tx('厨房'),`data-pr-tab="kitchen" aria-label="${tx('厨房 Kjøkken：开饭啦的食物词')}" title="${tx('厨房 Kjøkken：开饭啦的食物词')}" aria-pressed="${state.scopeTab === 'kitchen'}"`,'pr-small') : ''}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="${tx('搜索章节或分类')}" aria-label="${tx('搜索练习范围')}" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="${tx('展开小节')}">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section>${state.kitchen.length ? `<section data-pr-scope-tab="kitchen" ${state.scopeTab === 'kitchen' ? '' : 'hidden'}><div id="pr-kitchen-sources">${state.kitchen.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}</div><p class="pr-source-empty" id="pr-source-empty" hidden>${tx('没有匹配的范围')}</p>${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? tx('已选 <b>{n}</b> 词',{n:pool.size}) : tx('还没有选择')}</span>${button('clear-selection',tx('清空'),pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start',tx('开始'),'id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
     filterScope();
     updateSelectionUI(false);
     if (!dialog.open) { dialog.showModal?.(); $('#pr-scope-title')?.focus?.(); }
@@ -609,7 +642,7 @@
     }
     const pool = poolFor(state.selected);
     const scopeCount = $('#pr-scope-count'), start = $('#pr-start'), clear = state.root.querySelector('[data-practice-action="clear-selection"]');
-    if (scopeCount) scopeCount.innerHTML = pool.size ? `已选 <b>${pool.size}</b> 词${state.activity === 'match' && pool.size < 2 ? ' · 配对至少 2 词' : ''}` : '还没有选择';
+    if (scopeCount) scopeCount.innerHTML = pool.size ? `${tx('已选 <b>{n}</b> 词',{n:pool.size})}${state.activity === 'match' && pool.size < 2 ? tx(' · 配对至少 2 词') : ''}` : tx('还没有选择');
     if (start) start.disabled = !pool.size || (state.activity === 'match' && pool.size < 2);
     if (clear) clear.hidden = !pool.size;
     if (save) draft();
@@ -626,9 +659,9 @@
       closeDialogs(); stopAudio(); stopMatchClock();
       const sources = config.sources || [...state.selected];
       const pool = customKeys ? customPool(customKeys) : poolFor(sources);
-      if (!pool.size) { announce('这组目前没有可练习的词，请重新选择范围。'); return; }
+      if (!pool.size) { announce(tx('这组目前没有可练习的词，请重新选择范围。')); return; }
       const activity = activityOf(config);
-      if (activity === 'match' && pool.size < 2) { announce('配对消除至少需要 2 个词，请多选一些词语。'); return; }
+      if (activity === 'match' && pool.size < 2) { announce(tx('配对消除至少需要 2 个词，请多选一些词语。')); return; }
       const mode = config.mode || state.mode;
       const prepared = state.prepared.get(orderSignature(sources,customKeys,mode,activity));
       state.prepared.clear();
@@ -643,10 +676,10 @@
       persist(); renderSession(); autoPlay(session); if (activity === 'match') startMatchClock();
     };
     if (currentSession()) {
-      confirmDialog('还有一组未完成的练习','开始新练习会放弃旧练习的剩余进度，已答的记录会保留。',[
-        {action:'confirm-resume',text:'继续上次练习',primary:true},
-        {action:'confirm-run',text:'开始新的练习',run:begin},
-        {action:'confirm-close',text:'取消'},
+      confirmDialog(tx('还有一组未完成的练习'),tx('开始新练习会放弃旧练习的剩余进度，已答的记录会保留。'),[
+        {action:'confirm-resume',text:tx('继续上次练习'),primary:true},
+        {action:'confirm-run',text:tx('开始新的练习'),run:begin},
+        {action:'confirm-close',text:tx('取消')},
       ]);
     } else begin();
   }
@@ -676,14 +709,14 @@
     // After a synonym was accepted, replay the word the learner actually wrote.
     const detail = answered(session) && questionDetails(session)[currentKey(session)];
     const item = (detail?.matchedKey && sessionPool(session).get(detail.matchedKey)) || activeItem();
-    if (!item) { announce('这个词已不在当前词表中，请继续下一词。'); return; }
+    if (!item) { announce(tx('这个词已不在当前词表中，请继续下一词。')); return; }
     if (!promptAudioAllowed(session)) return;
     stopAudio();
     const token = state.playToken;
     try {
-      if (!state.deps.pronounce) { announce('读音服务暂未准备好，请刷新页面后重试。'); return; }
+      if (!state.deps.pronounce) { announce(tx('读音服务暂未准备好，请刷新页面后重试。')); return; }
       await state.deps.pronounce(item);
-    } catch { if (token === state.playToken) announce('这条读音暂时无法播放，可以点喇叭重试。'); }
+    } catch { if (token === state.playToken) announce(tx('这条读音暂时无法播放，可以点喇叭重试。')); }
   }
   // Read the new prompt when it is safe: Norwegian card faces, Norwegian prompts and listening items.
   function autoPlay(session) {
@@ -710,7 +743,7 @@
   }
   function sessionBar(session) {
     const {done,total,review} = progressOf(session), percent = Math.round(done/Math.max(total,1)*100), match = activityOf(session) === 'match';
-    return `<div class="pr-session-bar${review ? ' is-review' : ''}">${iconButton('exit','close','退出练习')}<div class="pr-progress" role="progressbar" aria-label="${review ? '错词重练进度' : '练习进度'}" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${percent}%"></span></div><span class="pr-progress-count">${review ? '<b>重练</b>' : ''}${done}/${total}</span>${rateControl()}${match ? iconButton('pause',session.paused ? 'play' : 'pause',session.paused ? '继续' : '暂停') : ''}</div>`;
+    return `<div class="pr-session-bar${review ? ' is-review' : ''}">${iconButton('exit','close',tx('退出练习'))}<div class="pr-progress" role="progressbar" aria-label="${review ? tx('错词重练进度') : tx('练习进度')}" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${percent}%"></span></div><span class="pr-progress-count">${review ? `<b>${tx('重练')}</b>` : ''}${done}/${total}</span>${rateControl()}${match ? iconButton('pause',session.paused ? 'play' : 'pause',session.paused ? tx('继续') : tx('暂停')) : ''}</div>`;
   }
   function renderSession() {
     const session = currentSession();
@@ -722,18 +755,18 @@
     if (activity === 'match') { renderMatch(session); return; }
     ensureQuestions(session);
     const item = activeItem();
-    if (!item) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>这个词已不在词表中</h2>${button('setup','重新选择','','pr-primary pr-wide')}</section>`); return; }
-    if (session.paused) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>已暂停</h2>${button('resume','继续练习','','pr-primary pr-wide')}</section>`); return; }
+    if (!item) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>${tx('这个词已不在词表中')}</h2>${button('setup',tx('重新选择'),'','pr-primary pr-wide')}</section>`); return; }
+    if (session.paused) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>${tx('已暂停')}</h2>${button('resume',tx('继续练习'),'','pr-primary pr-wide')}</section>`); return; }
     if (activity === 'cards') renderCards(session,item); else renderQuestion(session,item);
   }
   function renderReviewIntro(session) {
     const count = new Set(session.reviewKeys).size;
-    shell(`<section class="pr-exercise-card pr-center-card pr-round-intro"><span class="pr-round-count">${count}</span><h2>还有 ${count} 个词没记住</h2><p>再练一遍，直到全部答对。</p>${button('review-start','开始重练','','pr-primary pr-wide')}${button('finish','先看结果','','pr-quiet')}</section>`);
+    shell(`<section class="pr-exercise-card pr-center-card pr-round-intro"><span class="pr-round-count">${count}</span><h2>${tx('还有 {n} 个词没记住',{n:count})}</h2><p>${tx('再练一遍，直到全部答对。')}</p>${button('review-start',tx('开始重练'),'','pr-primary pr-wide')}${button('finish',tx('先看结果'),'','pr-quiet')}</section>`);
   }
   function favoriteKeys() { return (state.store.favorites || []).filter(key => state.words.has(key)); }
   function favoriteButton(key) {
     const favorite = (state.store.favorites || []).includes(key);
-    return button('favorite',icon('star',favorite),`data-pr-key="${e(key)}" aria-pressed="${favorite}" aria-label="${favorite ? '取消收藏' : '收藏这个词'}" title="${favorite ? '取消收藏' : '收藏'}"`,'pr-icon-button pr-favorite-button');
+    return button('favorite',icon('star',favorite),`data-pr-key="${e(key)}" aria-pressed="${favorite}" aria-label="${favorite ? tx('取消收藏') : tx('收藏这个词')}" title="${favorite ? tx('取消收藏') : tx('收藏')}"`,'pr-icon-button pr-favorite-button');
   }
   function toggleFavorite(key) {
     if (!state.words.has(key)) return;
@@ -746,19 +779,19 @@
       if (control.dataset?.prKey !== key) return;
       control.innerHTML = icon('star',favorite);
       control.setAttribute('aria-pressed',String(favorite));
-      control.setAttribute('aria-label',favorite ? '取消收藏' : '收藏这个词');
-      control.title = favorite ? '取消收藏' : '收藏';
+      control.setAttribute('aria-label',favorite ? tx('取消收藏') : tx('收藏这个词'));
+      control.title = favorite ? tx('取消收藏') : tx('收藏');
     });
   }
   function renderCards(session,item) {
     const key = currentKey(session), done = answered(session), points = answerMap(session)[key];
     const reverse = !!session.cardsReverse, showWord = reverse ? session.flipped : !session.flipped;
-    const english = String(item.english || item.englishGloss || '').trim();
+    const english = EN ? '' : String(item.english || item.englishGloss || '').trim();
     const meaning = `<span class="pr-flash-meaning">${e(item.meaning)}</span>${english ? `<span class="pr-flash-english" lang="en">${e(english)}</span>` : ''}`;
     const main = showWord ? `<span class="pr-flash-word" lang="nb">${e(item.word)}</span>${item.ipa ? `<span class="pr-flash-ipa">${e(item.ipa)}</span>` : ''}` : meaning;
     const sub = session.flipped ? (showWord ? `<span class="pr-flash-sub">${e(item.meaning)}${english ? `<span class="pr-flash-sub-english" lang="en">${e(english)}</span>` : ''}</span>` : `<span class="pr-flash-sub" lang="nb">${e(item.word)}</span>`) : '';
-    const ratings = done ? `<div class="pr-rated"><span class="pr-rated-chip is-${points}">${e(RATINGS[points])}</span>${button('next','下一张','','pr-primary')}</div>` : `<div class="pr-rating-buttons">${[[0,'不认识','pr-unknown'],[1,'模糊','pr-unsure'],[2,'认识','pr-known']].map(([value,label,kind],index) => button('rate',`${label}<kbd>${index+1}</kbd>`,`data-pr-points="${value}"`,`pr-rating ${kind}`)).join('')}</div>`;
-    shell(sessionBar(session)+`<section class="pr-exercise-card pr-cards-card"><button type="button" class="pr-flashcard${session.flipped ? ' is-flipped' : ''}${state.flipAnimation ? ' is-turning' : ''}" data-practice-action="flip" aria-label="翻面" aria-pressed="${session.flipped}">${main}${sub}<span class="pr-flip-mark" aria-hidden="true">${icon('turn')}</span></button><div class="pr-card-tools">${iconButton('previous','left','上一张',session.index && session.phase === 'first' ? '' : 'disabled')}${iconButton('replay','speaker','朗读')}${favoriteButton(key)}${iconButton('card-direction','swap',reverse ? '改为挪威语在正面' : '改为中文在正面',`aria-pressed="${reverse}"`)}</div>${ratings}</section>`);
+    const ratings = done ? `<div class="pr-rated"><span class="pr-rated-chip is-${points}">${e(RATINGS[points])}</span>${button('next',tx('下一张'),'','pr-primary')}</div>` : `<div class="pr-rating-buttons">${[[0,RATINGS[0],'pr-unknown'],[1,RATINGS[1],'pr-unsure'],[2,RATINGS[2],'pr-known']].map(([value,label,kind],index) => button('rate',`${label}<kbd>${index+1}</kbd>`,`data-pr-points="${value}"`,`pr-rating ${kind}`)).join('')}</div>`;
+    shell(sessionBar(session)+`<section class="pr-exercise-card pr-cards-card"><button type="button" class="pr-flashcard${session.flipped ? ' is-flipped' : ''}${state.flipAnimation ? ' is-turning' : ''}" data-practice-action="flip" aria-label="${EN ? 'Flip card' : '翻面'}" aria-pressed="${session.flipped}">${main}${sub}<span class="pr-flip-mark" aria-hidden="true">${icon('turn')}</span></button><div class="pr-card-tools">${iconButton('previous','left',tx('上一张'),session.index && session.phase === 'first' ? '' : 'disabled')}${iconButton('replay','speaker',tx('朗读'))}${favoriteButton(key)}${iconButton('card-direction','swap',reverse ? tx('改为挪威语在正面') : tx('改为中文在正面'),`aria-pressed="${reverse}"`)}</div>${ratings}</section>`);
     state.flipAnimation = false;
   }
   function flipCard() {
@@ -880,12 +913,12 @@
     else if (gap) {
       // The typed letters go into the blanks in order; the whole word is then checked like a spelling.
       const letters=gapInput(submitted);
-      if (letters.length < gap.length) { announce('还有空没填，也可以选“不知道”。'); $('#pr-answer')?.focus?.(); return; }
+      if (letters.length < gap.length) { announce(tx('还有空没填，也可以选“不知道”。')); $('#pr-answer')?.focus?.(); return; }
       const chars=[...String(item.word).normalize('NFC')];
       gap.forEach((index,slot) => { chars[index]=letters[slot]; });
       submitted=chars.join(''); correct=spellingCorrect(item,submitted);
     } else if (question.type === 'spell') {
-      if (!submitted.trim()) { announce('先输入挪威语，也可以选“不知道”。'); $('#pr-answer')?.focus?.(); return; }
+      if (!submitted.trim()) { announce(tx('先输入挪威语，也可以选“不知道”。')); $('#pr-answer')?.focus?.(); return; }
       const pool=sessionPool(session), accepted=(question.acceptableKeys || [key]).find(option => pool.has(option) && spellingCorrect(pool.get(option),submitted));
       correct=!!accepted; matchedKey=accepted || key;
     } else if (question.type === 'choice') {
@@ -903,12 +936,12 @@
   }
   function renderQuestion(session,item) {
     const activity=activityOf(session), key=currentKey(session), question=session.questions?.[key], done=answered(session), detail=questionDetails(session)[key];
-    if (!question) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>这道题暂时无法显示</h2>${button('setup','重新选择','','pr-primary pr-wide')}</section>`); return; }
+    if (!question) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>${tx('这道题暂时无法显示')}</h2>${button('setup',tx('重新选择'),'','pr-primary pr-wide')}</section>`); return; }
     const toZh=question.direction === 'to-zh', promptText=toZh ? item.word : item.meaning;
     let prompt;
-    if (question.audio) prompt=`<button type="button" class="pr-listen-button" data-practice-action="replay" aria-label="播放读音">${icon('speaker')}</button>${done ? `<p class="pr-listen-reveal" lang="nb">${e(item.word)}</p>` : ''}`;
-    else if (question.type === 'judge') prompt=`<div class="pr-judge"><span class="${toZh ? 'pr-prompt-word' : 'pr-prompt-text'}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</span><span class="pr-judge-equals" aria-label="是否等于">=</span><span class="${toZh ? 'pr-prompt-text' : 'pr-prompt-word'}" ${toZh ? '' : 'lang="nb"'}>${e(question.proposed)}</span></div>`;
-    else prompt=`<div class="pr-prompt-row"><h2 class="pr-prompt${toZh ? ' is-word' : ''}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</h2>${toZh || activity === 'learn' ? iconButton('replay','speaker',toZh ? '朗读' : '听读音','','pr-prompt-speaker') : ''}</div>`;
+    if (question.audio) prompt=`<button type="button" class="pr-listen-button" data-practice-action="replay" aria-label="${tx('播放读音')}">${icon('speaker')}</button>${done ? `<p class="pr-listen-reveal" lang="nb">${e(item.word)}</p>` : ''}`;
+    else if (question.type === 'judge') prompt=`<div class="pr-judge"><span class="${toZh ? 'pr-prompt-word' : 'pr-prompt-text'}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</span><span class="pr-judge-equals" aria-label="${tx('是否等于')}">=</span><span class="${toZh ? 'pr-prompt-text' : 'pr-prompt-word'}" ${toZh ? '' : 'lang="nb"'}>${e(question.proposed)}</span></div>`;
+    else prompt=`<div class="pr-prompt-row"><h2 class="pr-prompt${toZh ? ' is-word' : ''}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</h2>${toZh || activity === 'learn' ? iconButton('replay','speaker',toZh ? tx('朗读') : tx('听读音'),'','pr-prompt-speaker') : ''}</div>`;
     let answerUI='';
     const gap=question.type === 'spell' ? gapOf(session,question,item) : null;
     if (question.type === 'spell') {
@@ -916,22 +949,22 @@
       // A cloze shows the word as letter tiles with blanks; the real field sits out of sight and holds only the letters
       // typed into the blanks, so the screen keyboard, a phone's own keyboard and a physical one all work as before.
       const field=gap
-        ? `<label class="sr-only" for="pr-answer">填出空缺的 ${gap.length} 个字母</label><label class="pr-gap${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" id="pr-gap" for="pr-answer" lang="nb" aria-hidden="true">${gapTiles(item,gap,done ? detail : null)}</label><input id="pr-answer" class="pr-gap-input" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="${gap.length}" value="${e(done ? '' : gapInput(value).slice(0,gap.length).join(''))}" ${done ? 'disabled' : ''}>`
-        : `<label class="sr-only" for="pr-answer">${question.audio ? '写出听到的挪威语' : '输入挪威语'}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? '写出听到的词' : '输入挪威语'}" value="${e(value)}" ${done ? 'disabled' : ''}>`;
-      answerUI=`<form class="pr-answer-form${gap ? ' is-gap' : ''}" id="pr-answer-form">${field}</form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? '显示屏幕键盘' : '使用手机键盘',`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
+        ? `<label class="sr-only" for="pr-answer">${tx('填出空缺的 {n} 个字母',{n:gap.length})}</label><label class="pr-gap${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" id="pr-gap" for="pr-answer" lang="nb" aria-hidden="true">${gapTiles(item,gap,done ? detail : null)}</label><input id="pr-answer" class="pr-gap-input" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="${gap.length}" value="${e(done ? '' : gapInput(value).slice(0,gap.length).join(''))}" ${done ? 'disabled' : ''}>`
+        : `<label class="sr-only" for="pr-answer">${question.audio ? tx('写出听到的挪威语') : tx('输入挪威语')}</label><input id="pr-answer" class="pr-answer-input${done ? (detail?.correct ? ' is-correct' : ' is-wrong') : ''}" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${question.audio ? tx('写出听到的词') : tx('输入挪威语')}" value="${e(value)}" ${done ? 'disabled' : ''}>`;
+      answerUI=`<form class="pr-answer-form${gap ? ' is-gap' : ''}" id="pr-answer-form">${field}</form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? tx('显示屏幕键盘') : tx('使用手机键盘'),`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
     } else if (question.type === 'choice') {
       answerUI=`<div class="pr-choice-grid${question.options.some(option => option.text.length > 14) ? ' is-long' : ''}">${question.options.map((option,index) => {
         const tone=done ? (option.key === key ? ' is-correct' : detail?.choice === index ? ' is-wrong' : ' is-dim') : '';
         return `<button type="button" class="pr-choice${tone}" data-practice-action="objective" data-pr-value="${index}" ${question.direction === 'to-nb' ? 'lang="nb"' : ''} ${done ? 'disabled' : ''}><kbd>${index+1}</kbd><span>${e(option.text)}</span></button>`;
       }).join('')}</div>`;
     } else {
-      answerUI=`<div class="pr-choice-grid pr-judge-buttons">${[['true','对','check'],['false','错','cross']].map(([value,label,name],index) => {
+      answerUI=`<div class="pr-choice-grid pr-judge-buttons">${[['true',tx('对'),'check'],['false',tx('错'),'cross']].map(([value,label,name],index) => {
         const chosen=detail?.submitted === (value === 'true' ? '正确' : '错误'), right=String(question.truth) === value;
         const tone=done ? (right ? ' is-correct' : chosen ? ' is-wrong' : ' is-dim') : '';
         return `<button type="button" class="pr-choice${tone}" data-practice-action="objective" data-pr-value="${value}" ${done ? 'disabled' : ''}><kbd>${index+1}</kbd>${icon(name)}<span>${label}</span></button>`;
       }).join('')}</div>`;
     }
-    const footer=done ? answerPanel(session,item,question,detail) : `<div class="pr-question-footer">${button('unknown','不知道','','pr-quiet')}${question.type === 'spell' ? `<button type="submit" form="pr-answer-form" id="pr-check-answer" class="pr-button pr-primary" ${session.inputDraft?.trim() ? '' : 'disabled'}>检查</button>` : ''}</div>`;
+    const footer=done ? answerPanel(session,item,question,detail) : `<div class="pr-question-footer">${button('unknown',tx('不知道'),'','pr-quiet')}${question.type === 'spell' ? `<button type="submit" form="pr-answer-form" id="pr-check-answer" class="pr-button pr-primary" ${session.inputDraft?.trim() ? '' : 'disabled'}>${tx('检查')}</button>` : ''}</div>`;
     shell(sessionBar(session)+`<section class="pr-exercise-card pr-question-card is-${question.type}${gap ? ' is-gap' : ''}${question.audio ? ' is-audio' : ''}"><div class="pr-card-corner">${favoriteButton(key)}</div>${prompt}${answerUI}${footer}</section>`);
     if (!done && gap) updateGap();
     if (!done && question.type === 'spell') $('#pr-answer')?.focus?.({preventScroll:true});
@@ -964,8 +997,8 @@
     const correct=!!detail?.correct, run=correct ? consecutiveCorrect(session) : 0;
     const shown=(detail?.matchedKey && sessionPool(session).get(detail.matchedKey)) || item;
     // Answers restored from the old self-rated listening mode carry no details.
-    const title=!detail ? '已记录' : correct ? (run >= 3 ? `连对 ${run} 题` : '答对了') : detail.unknown ? '记一下' : '答错了';
-    return `<div class="pr-feedback is-${!detail ? 'neutral' : correct ? 'correct' : 'wrong'}" role="status" aria-live="polite"><span class="pr-feedback-mark" aria-hidden="true">${icon(correct ? 'check' : 'cross')}</span><div class="pr-feedback-copy"><strong>${title}</strong><p><button type="button" class="pr-feedback-word" data-practice-action="word-card" data-pr-key="${e(shown.key || item.key)}" lang="nb">${e(shown.word)}</button><span>${e(shown.meaning)}</span></p></div>${iconButton('replay','speaker','再听一遍','','pr-feedback-replay')}${button('next','继续','','pr-primary pr-next')}</div>`;
+    const title=!detail ? tx('已记录') : correct ? (run >= 3 ? tx('连对 {n} 题',{n:run}) : tx('答对了')) : detail.unknown ? tx('记一下') : tx('答错了');
+    return `<div class="pr-feedback is-${!detail ? 'neutral' : correct ? 'correct' : 'wrong'}" role="status" aria-live="polite"><span class="pr-feedback-mark" aria-hidden="true">${icon(correct ? 'check' : 'cross')}</span><div class="pr-feedback-copy"><strong>${title}</strong><p><button type="button" class="pr-feedback-word" data-practice-action="word-card" data-pr-key="${e(shown.key || item.key)}" lang="nb">${e(shown.word)}</button><span>${e(shown.meaning)}</span></p></div>${iconButton('replay','speaker',tx('再听一遍'),'','pr-feedback-replay')}${button('next',tx('继续'),'','pr-primary pr-next')}</div>`;
   }
   function matchGroups(keys,pool) {
     const groups=[];
@@ -991,7 +1024,7 @@
     match.roundDone=!match.roundKeys.length; state.justMatched=[];
   }
   function matchTime(session) { return (session.match?.elapsedMs || 0)+(state.matchStartedAt == null ? 0 : Math.max(0,Date.now()-state.matchStartedAt))+(session.match?.penaltyMs || 0); }
-  function timeLabel(ms) { return `${(Math.max(0,ms)/1000).toFixed(1)} 秒`; }
+  function timeLabel(ms) { return tx('{n} 秒',{n:(Math.max(0,ms)/1000).toFixed(1)}); }
   function stopMatchClock() {
     const session=currentSession();
     if (session?.match && state.matchStartedAt != null) session.match.elapsedMs+=Math.max(0,Date.now()-state.matchStartedAt);
@@ -1018,8 +1051,8 @@
       const matched=match.matched.includes(item.id), fresh=state.justMatched.includes(item.id);
       return `<button type="button" class="pr-match-tile${match.selected === item.id ? ' is-selected' : ''}${matched ? (fresh ? ' is-just-matched' : ' is-matched') : ''}${match.wrong.includes(item.id) ? ' is-wrong' : ''}" data-practice-action="match-tile" data-pr-tile="${e(item.id)}" ${matched ? 'disabled aria-hidden="true" tabindex="-1"' : ''} ${item.side === 'word' ? 'lang="nb"' : ''}>${e(item.text)}</button>`;
     };
-    const board=session.paused ? `<div class="pr-center-card pr-match-paused"><h2>已暂停</h2>${button('resume','继续','','pr-primary pr-wide')}</div>` : `<div class="pr-match-board"><div class="pr-match-col">${match.tiles.filter(item => item.side === 'word').map(tile).join('')}</div><div class="pr-match-col">${match.tiles.filter(item => item.side === 'meaning').map(tile).join('')}</div></div>${match.roundDone ? `<div class="pr-match-next">${button('match-next','下一组','','pr-primary pr-wide')}</div>` : ''}`;
-    shell(sessionBar(session)+`<section class="pr-exercise-card pr-match-card"><div class="pr-match-head"><strong class="pr-timer" id="pr-match-time" role="timer" aria-label="用时">${timeLabel(matchTime(session))}</strong>${match.penaltyMs ? `<span class="pr-penalty">含加时 ${timeLabel(match.penaltyMs)}</span>` : ''}${best ? `<span class="pr-best">最佳 ${timeLabel(best.timeMs)}</span>` : ''}</div>${board}</section>`);
+    const board=session.paused ? `<div class="pr-center-card pr-match-paused"><h2>${tx('已暂停')}</h2>${button('resume',tx('继续'),'','pr-primary pr-wide')}</div>` : `<div class="pr-match-board"><div class="pr-match-col">${match.tiles.filter(item => item.side === 'word').map(tile).join('')}</div><div class="pr-match-col">${match.tiles.filter(item => item.side === 'meaning').map(tile).join('')}</div></div>${match.roundDone ? `<div class="pr-match-next">${button('match-next',tx('下一组'),'','pr-primary pr-wide')}</div>` : ''}`;
+    shell(sessionBar(session)+`<section class="pr-exercise-card pr-match-card"><div class="pr-match-head"><strong class="pr-timer" id="pr-match-time" role="timer" aria-label="${tx('用时')}">${timeLabel(matchTime(session))}</strong>${match.penaltyMs ? `<span class="pr-penalty">${tx('含加时 {time}',{time:timeLabel(match.penaltyMs)})}</span>` : ''}${best ? `<span class="pr-best">${tx('最佳 {time}',{time:timeLabel(best.timeMs)})}</span>` : ''}</div>${board}</section>`);
     state.justMatched=[];
   }
   function matchSignature(session) { return JSON.stringify(session.firstKeys.slice().sort()); }
@@ -1066,23 +1099,24 @@
     session.match.round++; makeMatchRound(session); persist(); renderSession(); startMatchClock();
   }
   function renderFacts(item) {
-    const verbLabels = {infinitive:'原形',present:'现在时',past:'过去时',pastParticiple:'过去分词'};
-    const verbForms = item.verbForms && typeof item.verbForms === 'object' ? Object.entries(item.verbForms).map(([key,value]) => `${verbLabels[key] || key}：${plainValue(value)}`).join('；') : plainValue(item.verbForms);
-    const genders = {m:'阳性',f:'阴性',n:'中性','f/m':'阴性或阳性','m/f':'阳性或阴性','m/n':'阳性或中性','f/n':'阴性或中性'};
-    const gender = plainValue(item.gender).split('；').map(value => genders[value.trim()] || value).join('；');
+    const verbLabels = {infinitive:tx('原形'),present:tx('现在时'),past:tx('过去时'),pastParticiple:tx('过去分词')};
+    const verbForms = item.verbForms && typeof item.verbForms === 'object' ? Object.entries(item.verbForms).map(([key,value]) => `${verbLabels[key] || key}${COLON}${plainValue(value)}`).join(SENSE) : plainValue(item.verbForms);
+    const genders = {m:tx('阳性'),f:tx('阴性'),n:tx('中性'),'f/m':tx('阴性或阳性'),'m/f':tx('阳性或阴性'),'m/n':tx('阳性或中性'),'f/n':tx('阴性或中性')};
+    const gender = plainValue(item.gender).split(EN ? /\s*[;；]\s*/ : '；').map(value => genders[value.trim()] || value).join(SENSE);
+    const shown = value => readable(value) ? value : '';
     const facts = [
-      ['词性',item.pos || item.partOfSpeech],['音节',plainValue(item.syllables)],['性别 / 冠词',unique([gender,plainValue(item.article)]).join(' · ')],
-      ['变化形式',plainValue(item.formsExpanded || item.forms || item.inflections || item.conjugation)],['动词变化',verbForms],['语法',plainValue(item.grammar)],
+      [tx('词性'),dataText(item.pos || item.partOfSpeech)],[tx('音节'),plainValue(item.syllables)],[tx('性别 / 冠词'),unique([gender,plainValue(item.article)]).join(' · ')],
+      [tx('变化形式'),shown(plainValue(item.formsExpanded || item.forms || item.inflections || item.conjugation))],[tx('动词变化'),shown(verbForms)],[tx('语法'),shown(plainValue(item.grammar))],
     ].filter(([,value]) => value);
     return facts.length ? `<dl class="pr-word-facts">${facts.map(([label,value]) => `<div><dt>${e(label)}</dt><dd>${e(value)}</dd></div>`).join('')}</dl>` : '';
   }
   function openWordCard(key) {
     const item = state.words.get(key), dialog = $('#pr-card');
     if (!item || !dialog) return;
-    const usage = unique([plainValue(item.usage),plainValue(item.note)]);
-    const examples = unique([...(item.practiceTextExamples || []),...(item.practiceLearningExamples || [])]).slice(0,3);
-    const english = String(item.english || item.englishGloss || '').trim();
-    dialog.innerHTML = `<div class="pr-card-top"><span class="pr-card-handle" aria-hidden="true"></span>${iconButton('card-close','close','关闭词卡')}</div><div class="pr-card-word"><div class="pr-card-head"><h2 id="pr-card-title" lang="nb">${e(item.word)}</h2>${item.ipa ? `<span class="pr-card-ipa">${e(item.ipa)}</span>` : ''}</div>${button('result-word',icon('speaker'),`data-pr-key="${e(key)}" aria-label="朗读 ${e(item.word)}" title="朗读"`,'pr-icon-button')}</div>${item.meaning ? `<p class="pr-card-meaning${english ? ' has-english' : ''}"><span>${e(item.meaning)}</span>${english ? `<span class="pr-card-english" lang="en">${e(english)}</span>` : ''}</p>` : ''}${renderFacts(item)}${usage.length ? `<section class="pr-card-section">${usage.map(text => `<p>${e(text)}</p>`).join('')}</section>` : ''}${examples.length ? `<section class="pr-card-section">${examples.map(example => `<p class="pr-card-example" lang="nb">${e(example)}</p>`).join('')}</section>` : ''}<div class="pr-card-foot">${rateControl()}${favoriteButton(key)}</div>`;
+    const usage = unique([plainValue(item.usage),plainValue(item.note)]).filter(readable);
+    const examples = unique([...(item.practiceTextExamples || []),...(item.practiceLearningExamples || [])].map(dropChineseGloss)).slice(0,3);
+    const english = EN ? '' : String(item.english || item.englishGloss || '').trim();
+    dialog.innerHTML = `<div class="pr-card-top"><span class="pr-card-handle" aria-hidden="true"></span>${iconButton('card-close','close',tx('关闭词卡'))}</div><div class="pr-card-word"><div class="pr-card-head"><h2 id="pr-card-title" lang="nb">${e(item.word)}</h2>${item.ipa ? `<span class="pr-card-ipa">${e(item.ipa)}</span>` : ''}</div>${button('result-word',icon('speaker'),`data-pr-key="${e(key)}" aria-label="${tx('朗读 {word}',{word:e(item.word)})}" title="${tx('朗读')}"`,'pr-icon-button')}</div>${item.meaning ? `<p class="pr-card-meaning${english ? ' has-english' : ''}"><span>${e(item.meaning)}</span>${english ? `<span class="pr-card-english" lang="en">${e(english)}</span>` : ''}</p>` : ''}${renderFacts(item)}${usage.length ? `<section class="pr-card-section">${usage.map(text => `<p>${e(text)}</p>`).join('')}</section>` : ''}${examples.length ? `<section class="pr-card-section">${examples.map(example => `<p class="pr-card-example" lang="nb">${e(example)}</p>`).join('')}</section>` : ''}<div class="pr-card-foot">${rateControl()}${favoriteButton(key)}</div>`;
     if (!dialog.open) dialog.showModal?.();
   }
   function recordGrade(session,key,points,detail=null) {
@@ -1191,7 +1225,7 @@
     return sync;
   }
   function dateLabel(date) {
-    try { return new Date(date).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+    try { return EN ? new Date(date).toLocaleString('en-GB',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : new Date(date).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
     catch { return ''; }
   }
   // Share of first answers that were right (self-rated cards use their score).
@@ -1201,10 +1235,10 @@
   }
   function resultSummary(result) {
     const activity=activityOf(result), correct=result.answers.filter(answer => answer.points === 2).length;
-    if (activity === 'match') return {score:(result.timeMs/1000).toFixed(1),unit:'秒',headline:result.newBest ? '新纪录！' : '全部配对完成',note:`一次配对成功 ${correct} / ${result.total}`};
-    if (isObjective(result)) return {score:scoreOf(result),unit:'%',headline:`答对 ${correct} / ${result.total}`,note:result.reviewed ? `重练 ${result.reviewed} 词，全部答对` : ''};
+    if (activity === 'match') return {score:(result.timeMs/1000).toFixed(1),unit:tx('秒'),headline:result.newBest ? tx('新纪录！') : tx('全部配对完成'),note:tx('一次配对成功 {done} / {n}',{done:correct,n:result.total})};
+    if (isObjective(result)) return {score:scoreOf(result),unit:'%',headline:tx('答对 {done} / {n}',{done:correct,n:result.total}),note:result.reviewed ? tx('重练 {n} 词，全部答对',{n:result.reviewed}) : ''};
     const counts=[2,1,0].map(points => result.answers.filter(answer => answer.points === points).length);
-    return {score:scoreOf(result),unit:'分',headline:`认识 ${counts[0]} · 模糊 ${counts[1]} · 不认识 ${counts[2]}`,note:result.reviewed ? `重练 ${result.reviewed} 词` : ''};
+    return {score:scoreOf(result),unit:tx('分'),headline:tx('认识 {known} · 模糊 {unsure} · 不认识 {unknown}',{known:counts[0],unsure:counts[1],unknown:counts[2]}),note:result.reviewed ? tx('重练 {n} 词',{n:result.reviewed}) : ''};
   }
   function renderResult(result,fromHistory=false) {
     state.screen = 'results'; state.result = result;
@@ -1216,15 +1250,15 @@
     const rows=[...result.answers].sort((a,b) => a.points-b.points).map(answer => {
       const detail=answer.detail, mark=answer.points === 2 ? 'is-right' : answer.points === 1 ? 'is-unsure' : 'is-wrong';
       const label=objective ? (answer.points === 2 ? icon('check') : icon('cross')) : e(RATINGS[answer.points]);
-      const mine=objective && answer.points < 2 && detail && activity !== 'match' && !detail.unknown && detail.type !== 'judge' ? `<small>你答 ${e(detail.submitted)}</small>` : objective && detail?.errors ? `<small>错配 ${detail.errors} 次</small>` : '';
-      return `<div class="pr-result-word ${mark}">${state.words.has(answer.key) ? button('result-word',icon('speaker'),`data-pr-key="${e(answer.key)}" aria-label="朗读 ${e(answer.word)}"`,'pr-icon-button') : '<span></span>'}<button type="button" class="pr-result-main" data-practice-action="word-card" data-pr-key="${e(answer.key)}" ${state.words.has(answer.key) ? '' : 'disabled'}><strong lang="nb">${e(answer.word)}</strong><span>${e(answer.meaning)}</span>${mine}</button><span class="pr-result-mark" ${objective ? `aria-label="${answer.points === 2 ? '正确' : '错误'}"` : ''}>${label}</span></div>`;
+      const mine=objective && answer.points < 2 && detail && activity !== 'match' && !detail.unknown && detail.type !== 'judge' ? `<small>${tx('你答 {answer}',{answer:e(detail.submitted)})}</small>` : objective && detail?.errors ? `<small>${tx('错配 {n} 次',{n:detail.errors})}</small>` : '';
+      return `<div class="pr-result-word ${mark}">${state.words.has(answer.key) ? button('result-word',icon('speaker'),`data-pr-key="${e(answer.key)}" aria-label="${tx('朗读 {word}',{word:e(answer.word)})}"`,'pr-icon-button') : '<span></span>'}<button type="button" class="pr-result-main" data-practice-action="word-card" data-pr-key="${e(answer.key)}" ${state.words.has(answer.key) ? '' : 'disabled'}><strong lang="nb">${e(answer.word)}</strong><span>${e(answer.meaning)}</span>${mine}</button><span class="pr-result-mark" ${objective ? `aria-label="${answer.points === 2 ? tx('正确') : tx('错误')}"` : ''}>${label}</span></div>`;
     }).join('');
-    shell(`<section class="pr-results-hero"><div class="pr-score"><strong>${summary.score}</strong><span>${summary.unit}</span></div><div class="pr-results-copy"><h2>${e(summary.headline)}</h2><p>${e(ACTIVITIES[activity].title)} · ${e(result.label)}${fromHistory ? ` · ${e(dateLabel(result.finishedAt))}` : ''}</p>${summary.note ? `<p>${e(summary.note)}</p>` : ''}</div></section><div class="pr-result-actions">${button('result-again',activity === 'match' ? '再玩一次' : '再练一次','','pr-primary')}${weak.length ? button('result-weak',`练错词 ${weak.length}`,'','pr-secondary') : ''}${button(fromHistory ? 'history' : 'setup','返回','','pr-quiet')}</div><section class="pr-result-list" aria-label="答题回顾">${rows}</section>`);
+    shell(`<section class="pr-results-hero"><div class="pr-score"><strong>${summary.score}</strong><span>${summary.unit}</span></div><div class="pr-results-copy"><h2>${e(summary.headline)}</h2><p>${e(ACTIVITIES[activity].title)} · ${e(result.label)}${fromHistory ? ` · ${e(dateLabel(result.finishedAt))}` : ''}</p>${summary.note ? `<p>${e(summary.note)}</p>` : ''}</div></section><div class="pr-result-actions">${button('result-again',activity === 'match' ? tx('再玩一次') : tx('再练一次'),'','pr-primary')}${weak.length ? button('result-weak',tx('练错词 {n}',{n:weak.length}),'','pr-secondary') : ''}${button(fromHistory ? 'history' : 'setup',tx('返回'),'','pr-quiet')}</div><section class="pr-result-list" aria-label="${tx('答题回顾')}">${rows}</section>`);
   }
   function renderHistory() {
     state.screen = 'history';
     const history = state.store.history;
-    shell(`<div class="pr-history-page"><div class="pr-page-head"><h2>学习记录</h2>${history.length ? button('export','导出','','pr-quiet') : ''}${button('setup','返回','','pr-secondary')}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.map(result => historyEntry(result)).join('')}</div>` : '<section class="pr-empty"><h3>还没有练习记录</h3><p>完成一组练习后会出现在这里。</p></section>'}</div>`);
+    shell(`<div class="pr-history-page"><div class="pr-page-head"><h2>${tx('学习记录')}</h2>${history.length ? button('export',tx('导出'),'','pr-quiet') : ''}${button('setup',tx('返回'),'','pr-secondary')}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.map(result => historyEntry(result)).join('')}</div>` : `<section class="pr-empty"><h3>${tx('还没有练习记录')}</h3><p>${tx('完成一组练习后会出现在这里。')}</p></section>`}</div>`);
   }
   function closeDialogs() {
     for (const dialog of state.root?.querySelectorAll('dialog[open]') || []) dialog.close();
@@ -1242,9 +1276,9 @@
   function navigate(screen) {
     const go = () => { closeDialogs(); if (screen === 'history') renderHistory(); else renderSetup(); };
     if (state.screen === 'session' && currentSession()) {
-      confirmDialog('先休息一下？','进度已保存，回来后可以继续。',[
-        {action:'confirm-run',text:'保存并离开',primary:true,run:go},
-        {action:'confirm-resume',text:'继续练习'},
+      confirmDialog(tx('先休息一下？'),tx('进度已保存，回来后可以继续。'),[
+        {action:'confirm-run',text:tx('保存并离开'),primary:true,run:go},
+        {action:'confirm-resume',text:tx('继续练习')},
       ]);
     } else { stopAudio(); go(); }
   }
@@ -1255,22 +1289,22 @@
     closeDialogs(); session.paused = false; persist(); renderSession(); autoPlay(session); if (activityOf(session) === 'match') startMatchClock();
   }
   function saveSet() {
-    if (!state.selected.size) { announce('请先选择练习范围。'); return; }
+    if (!state.selected.size) { announce(tx('请先选择练习范围。')); return; }
     const name = $('#pr-set-name').value.trim();
-    if (!name) { $('#pr-set-name').focus(); announce('给这组范围起个名字，就可以随时重练。'); return; }
+    if (!name) { $('#pr-set-name').focus(); announce(tx('给这组范围起个名字，就可以随时重练。')); return; }
     state.mode = ($('#pr-order')?.value || state.mode) === 'weak' ? 'weak' : 'random';
     const config = {sources:[...state.selected],mode:state.mode,activity:state.activity,quiz:quizConfig(state.quiz)};
     const existing = state.store.sets.find(item => item.name === name);
     const save = () => {
       if (existing) Object.assign(existing,config,{updatedAt:now()});
       else state.store.sets.unshift({id:uid(),name,...config,createdAt:now()});
-      state.store.draft=config; persist(); renderSetup(); renderScope(); announce('练习范围已保存。');
+      state.store.draft=config; persist(); renderSetup(); renderScope(); announce(tx('练习范围已保存。'));
     };
-    if (existing) confirmDialog('更新同名范围？',`“${name}”已存在，将改为当前范围。`,[{action:'confirm-run',text:'更新',primary:true,run:save},{action:'confirm-close',text:'取消'}]);
+    if (existing) confirmDialog(tx('更新同名范围？'),tx('“{name}”已存在，将改为当前范围。',{name}),[{action:'confirm-run',text:tx('更新'),primary:true,run:save},{action:'confirm-close',text:tx('取消')}]);
     else save();
   }
   function reviewKeys(keys,label,activity='learn',quiz=state.quiz) {
-    if (!keys.length) { announce('目前没有需要复习的薄弱词，先完成一组练习吧。'); return; }
+    if (!keys.length) { announce(tx('目前没有需要复习的薄弱词，先完成一组练习吧。')); return; }
     startSession({sources:[],mode:'weak',activity,quiz},keys,label);
   }
   // Objective tests and timed games are reviewed by spelling; the other modes repeat themselves.
@@ -1286,8 +1320,8 @@
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url),1000);
-      announce('学习记录已导出，请保留下载的备份文件。');
-    } catch { announce('记录导出失败，请稍后重试。'); }
+      announce(tx('学习记录已导出，请保留下载的备份文件。'));
+    } catch { announce(tx('记录导出失败，请稍后重试。')); }
   }
   // During a session Back first asks, with the same prompt as the × button; elsewhere it leaves as usual.
   function syncBackLayer() {
@@ -1296,16 +1330,16 @@
   }
   function exitPrompt() {
     if (!currentSession()) return;
-    confirmDialog('离开这次练习？','进度会保存，下次从这里继续。',[
-      {action:'confirm-run',text:'保存并退出',primary:true,run:renderSetup},
-      {action:'confirm-resume',text:'继续练习'},
-      {action:'discard',text:'放弃本次进度',danger:true},
+    confirmDialog(tx('离开这次练习？'),tx('进度会保存，下次从这里继续。'),[
+      {action:'confirm-run',text:tx('保存并退出'),primary:true,run:renderSetup},
+      {action:'confirm-resume',text:tx('继续练习')},
+      {action:'discard',text:tx('放弃本次进度'),danger:true},
     ]);
   }
   function onClick(event) {
     const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
     if (requested === 'takeover') { acquireEditor(true); return; }
-    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','series','wordbook-open','scope-tab'].includes(requested)) { requireEditor(); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','series','wordbook-open','scope-tab','language'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
     if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { state.activity=modeTarget.dataset.prActivity; state.scopeQuery=''; if (state.selected.size) state.scopeTab=scopeTabFor(state.selected); draft(); renderScope(); return; }
@@ -1317,6 +1351,7 @@
     switch (action) {
       case 'setup': navigate('setup'); break;
       case 'online': openOnline(); break;
+      case 'language': L10N.set(EN ? 'zh' : 'en'); break;
       case 'online-close': $('#pr-online')?.close(); break;
       case 'duel': $('#pr-online')?.close(); state.deps.openDuel?.(); break;
       case 'chase': $('#pr-online')?.close(); state.deps.openChase?.(); break;
@@ -1324,8 +1359,8 @@
       case 'honors': state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
-      case 'weak': reviewKeys(weakKeys(),'薄弱词复习',state.activity,state.quiz); break;
-      case 'favorites': { const keys=favoriteKeys(); if (!keys.length) { announce('先在练习中点星标收藏词语，就能在这里复习。'); break; } startSession({sources:[],mode:state.mode,activity:state.activity,quiz:state.quiz},keys,'收藏词语'); break; }
+      case 'weak': reviewKeys(weakKeys(),tx('薄弱词复习'),state.activity,state.quiz); break;
+      case 'favorites': { const keys=favoriteKeys(); if (!keys.length) { announce(tx('先在练习中点星标收藏词语，就能在这里复习。')); break; } startSession({sources:[],mode:state.mode,activity:state.activity,quiz:state.quiz},keys,tx('收藏词语')); break; }
       case 'favorite': toggleFavorite(target.dataset.prKey || (session && currentKey(session))); break;
       case 'scope-open': renderScope(); break;
       case 'scope-close': $('#pr-scope')?.close?.(); break;
@@ -1339,7 +1374,7 @@
       case 'saved-start': { const set = state.store.sets.find(item => item.id === id); if (set) startSession(set); break; }
       case 'saved-delete': {
         const set = state.store.sets.find(item => item.id === id);
-        if (set) confirmDialog('删除这个常用范围？',set.name,[{action:'confirm-run',text:'删除',primary:true,run:() => { state.store.sets=state.store.sets.filter(item => item.id !== id); persist(); renderSetup(); renderScope(); }},{action:'confirm-close',text:'保留'}]);
+        if (set) confirmDialog(tx('删除这个常用范围？'),set.name,[{action:'confirm-run',text:tx('删除'),primary:true,run:() => { state.store.sets=state.store.sets.filter(item => item.id !== id); persist(); renderSetup(); renderScope(); }},{action:'confirm-close',text:tx('保留')}]);
         break;
       }
       case 'recent-start': { const config = state.store.recent[Number(target.dataset.prIndex)]; if (config) startSession(config); break; }
@@ -1368,11 +1403,11 @@
       case 'next': next(); break;
       case 'review-start': if (session && session.phase === 'review-intro') { session.phase='review'; session.index=0; session.paused=false; session.inputDraft=''; session.flipped=false; persist(); renderSession(); autoPlay(session); } break;
       case 'finish': finish(); break;
-      case 'result-weak': if (state.result) reviewKeys(state.result.answers.filter(answer => answer.points < 2).map(answer => answer.key),'错词重练',reviewActivity(activityOf(state.result)),state.result.quiz); break;
+      case 'result-weak': if (state.result) reviewKeys(state.result.answers.filter(answer => answer.points < 2).map(answer => answer.key),tx('错词重练'),reviewActivity(activityOf(state.result)),state.result.quiz); break;
       case 'result-again': if (state.result) startSession({sources:state.result.sources,mode:state.result.mode,activity:activityOf(state.result),quiz:state.result.quiz},state.result.customKeys || null,state.result.label); break;
-      case 'result-word': { const word=state.words.get(target.dataset.prKey); stopAudio(); if (word) Promise.resolve().then(() => state.deps.pronounce?.(word)).catch(() => announce('读音暂时无法播放，请稍后重试。')); break; }
+      case 'result-word': { const word=state.words.get(target.dataset.prKey); stopAudio(); if (word) Promise.resolve().then(() => state.deps.pronounce?.(word)).catch(() => announce(tx('读音暂时无法播放，请稍后重试。'))); break; }
       case 'history-detail': { const result=state.store.history.find(item => item.id === id); if (result) renderResult(result,true); break; }
-      case 'history-weak': { const result=state.store.history.find(item => item.id === id); if (result) reviewKeys(result.answers.filter(answer => answer.points < 2).map(answer => answer.key),`${dateLabel(result.finishedAt)} · 错词重练`,reviewActivity(activityOf(result)),result.quiz); break; }
+      case 'history-weak': { const result=state.store.history.find(item => item.id === id); if (result) reviewKeys(result.answers.filter(answer => answer.points < 2).map(answer => answer.key),tx('{date} · 错词重练',{date:dateLabel(result.finishedAt)}),reviewActivity(activityOf(result)),result.quiz); break; }
     }
   }
   function onChange(event) {
@@ -1400,7 +1435,7 @@
     else if (input.dataset.prQuizType) {
       const type=input.dataset.prQuizType, types=state.quiz.types;
       if (!QUIZ_TYPES.includes(type)) return;
-      if (!input.checked && types.length === 1 && types.includes(type)) { input.checked=true; announce('至少保留一种题型。'); return; }
+      if (!input.checked && types.length === 1 && types.includes(type)) { input.checked=true; announce(tx('至少保留一种题型。')); return; }
       state.quiz.types=input.checked ? unique([...types,type]) : types.filter(item => item !== type); draft();
     } else if (input.id === 'pr-quiz-direction') { state.quiz=quizConfig({...state.quiz,direction:input.value}); draft(); }
   }
@@ -1431,8 +1466,8 @@
     const symbols=state.keyboardPage === 'symbols';
     // Same places as a Norwegian keyboard: Å right of P, Ø and Æ right of L.
     const rows=symbols ? ['1234567890'.split(''),['.',',','?','!','-',"'",':','/'],['(',')','+','%','&','backspace']] : ['qwertyuiopå'.split(''),'asdfghjkløæ'.split(''),[...'zxcvbnmé','backspace']];
-    const key = letter => button('letter',letter === 'backspace' ? '⌫' : e(letter),`data-pr-letter="${e(letter)}"${letter === 'backspace' ? ' aria-label="退格"' : ''}`,'pr-key'+(letter === 'backspace' ? ' pr-key-wide' : ''));
-    return `<div class="pr-keyboard${symbols ? ' is-symbols' : ''}" role="group" aria-label="挪威语屏幕键盘">${rows.map(row => `<div class="pr-keyboard-row">${row.map(key).join('')}</div>`).join('')}<div class="pr-keyboard-row">${button('keyboard-page',symbols ? 'ABC' : '123','aria-label="'+(symbols ? '切换字母键盘' : '切换数字和符号')+'"','pr-key pr-key-wide')}${button('letter','空格','data-pr-letter=" " aria-label="空格"','pr-key pr-key-space')}${button('letter','-','data-pr-letter="-"','pr-key')}</div></div>`;
+    const key = letter => button('letter',letter === 'backspace' ? '⌫' : e(letter),`data-pr-letter="${e(letter)}"${letter === 'backspace' ? ` aria-label="${tx('退格')}"` : ''}`,'pr-key'+(letter === 'backspace' ? ' pr-key-wide' : ''));
+    return `<div class="pr-keyboard${symbols ? ' is-symbols' : ''}" role="group" aria-label="${tx('挪威语屏幕键盘')}">${rows.map(row => `<div class="pr-keyboard-row">${row.map(key).join('')}</div>`).join('')}<div class="pr-keyboard-row">${button('keyboard-page',symbols ? 'ABC' : '123','aria-label="'+(symbols ? tx('切换字母键盘') : tx('切换数字和符号'))+'"','pr-key pr-key-wide')}${button('letter',tx('空格'),`data-pr-letter=" " aria-label="${tx('空格')}"`,'pr-key pr-key-space')}${button('letter','-','data-pr-letter="-"','pr-key')}</div></div>`;
   }
   function consecutiveCorrect(session) {
     const keys=currentKeys(session), answers=answerMap(session);

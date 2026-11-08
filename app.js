@@ -1,11 +1,91 @@
-import {createDataLoader} from './loader.mjs?v=20261108-kitchen-shelves';
-import {createReadingLibrary} from './reading-library.mjs?v=20261108-kitchen-shelves';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261108-kitchen-shelves';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261108-kitchen-shelves';
-import * as notesModel from './notes-store.mjs?v=20261108-kitchen-shelves';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261108-kitchen-shelves';
+import {createDataLoader} from './loader.mjs?v=20261108-english';
+import {createReadingLibrary} from './reading-library.mjs?v=20261108-english';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261108-english';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261108-english';
+import * as notesModel from './notes-store.mjs?v=20261108-english';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261108-english';
 
-const VERSION = '20261108-kitchen-shelves';
+const VERSION = '20261108-english';
+
+/* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
+   Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
+   phone's languages is Chinese and it holds no study data yet; the choice is then saved and the switch on the
+   practice page changes it. English text lives in lang/en.json and data/en/, fetched only by English devices. */
+const I18N_KEY = 'norsk-lang-v1';
+const i18n = (() => {
+  let storage = null;
+  try { storage = window.localStorage; } catch {}
+  const read = () => { try { return storage?.getItem(I18N_KEY) || ''; } catch { return ''; } };
+  const save = value => { try { storage?.setItem(I18N_KEY,value); } catch {} };
+  // Test harnesses and non-page embeddings have no location; then there is no ?lang= to honour.
+  let search = '';
+  try { search = location.search || ''; } catch {}
+  let lang = read();
+  const asked = (/[?&]lang=(en|zh)(?:&|$)/.exec(search) || [])[1];
+  if (asked) { lang = asked; save(asked); }
+  if (lang !== 'en' && lang !== 'zh') {
+    const languages = [...(navigator.languages || []),navigator.language || ''].filter(Boolean);
+    const chinese = !languages.length || languages.some(code => /^zh\b/i.test(code));
+    let studied = false;
+    try { for (let i = 0; i < (storage?.length || 0); i++) if (/^norsk-/.test(storage.key(i) || '')) { studied = true; break; } } catch { studied = true; }
+    lang = chinese || studied ? 'zh' : 'en';
+    save(lang);
+  }
+  let strings = {};
+  const fill = (text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text;
+  const t = (text,vars) => {
+    const value = lang === 'en' ? strings[text] : null;
+    if (value == null) return fill(text,vars);
+    return fill(typeof value === 'string' ? value : (Number(vars?.n) === 1 ? value.one : value.other) ?? text,vars);
+  };
+  const english = lang === 'en';
+  const gloss = item => {
+    if (!item) return '';
+    if (english && (item.english || item.en)) return String(item.english || item.en);
+    return String(item.meaning ?? item.zh ?? '');
+  };
+  const cache = new Map();
+  // English-only data (sentence translations, kitchen names) under data/en/; a miss resolves to null.
+  const data = path => {
+    if (!english) return Promise.resolve(null);
+    if (!cache.has(path)) cache.set(path,fetch(`data/en/${path}.json?v=${VERSION}`).then(response => response.ok ? response.json() : null).catch(() => null));
+    return cache.get(path);
+  };
+  const ready = english ? fetch(`lang/en.json?v=${VERSION}`).then(response => response.ok ? response.json() : {}).then(json => { strings = json?.strings || {}; }).catch(() => {}) : Promise.resolve();
+  const set = value => {
+    if (value !== 'en' && value !== 'zh') return;
+    save(value);
+    let url = null;
+    try { url = new URL(location.href); } catch { return; }
+    if (url.searchParams.has('lang')) { url.searchParams.delete('lang'); location.replace(url.href); }
+    else location.reload();
+  };
+  if (english) document.documentElement.lang = 'en';
+  // A default nickname reads "Learner 1234" on English devices; everyone else's own names are shown as typed.
+  const name = nickname => english ? String(nickname ?? '').replace(/^学习者(\d+)$/,'Learner $1') : String(nickname ?? '');
+  return {lang,english,t,gloss,data,ready,set,name,has:text => english && strings[text] != null};
+})();
+window.NorskI18n = i18n;
+const tx = i18n.t;
+// The page frame on English devices: the main navigation and the practice view's heading; study pages stay Chinese.
+function localizeShell() {
+  if (!i18n.english) return;
+  document.title = tx('Norsk 学习书房 · 挪威语学习');
+  for (const button of document.querySelectorAll('.nav-button')) {
+    const label = button.querySelector('span');
+    if (label) label.textContent = tx(label.textContent);
+  }
+  document.querySelector('.main-nav')?.setAttribute('aria-label',tx('主要功能'));
+  document.querySelector('#practice-view')?.setAttribute('aria-label',tx('词汇练习'));
+  const brand = document.querySelector('.brand-name > span');
+  if (brand?.firstChild?.nodeType === 3) brand.firstChild.textContent = tx('学习书房');
+  document.querySelector('.brand')?.setAttribute('aria-label',tx('Norsk 学习书房首页'));
+  const meta = document.querySelector('.header-meta');
+  if (meta?.lastChild?.nodeType === 3) meta.lastChild.textContent = ` ${tx('挪威语')}`;
+  const footer = document.querySelectorAll('.main-footer > span');
+  if (footer[0]) footer[0].textContent = tx('NORSK 学习书房');
+  if (footer[1]?.lastChild?.nodeType === 3) footer[1].lastChild.textContent = ` ${tx('阅读，聆听，学会。')}`;
+}
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -308,7 +388,7 @@ function loadFeature(name) {
     link.onerror = () => { clearTimeout(timer); link.remove(); reject(new Error(`${name}: stylesheet unavailable`)); };
     document.head.append(link);
   });
-  const module = import(`./${name}.js?v=${VERSION}${attempt ? `&retry=${attempt}` : ''}`);
+  const module = i18n.ready.then(() => import(`./${name}.js?v=${VERSION}${attempt ? `&retry=${attempt}` : ''}`));
   const deadline = new Promise((resolve,reject) => { featureTimer = setTimeout(() => reject(new Error(`${name}: feature timeout`)),20000); });
   const promise = Promise.race([Promise.all([stylesheet,module]),deadline]).then(result => {
     clearTimeout(featureTimer);
@@ -457,7 +537,7 @@ async function openDuel(join = '') {
       if (/[?&]room=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
       window.NorskPractice?.refreshHonors?.();
     }});
-  } catch { notify('联机翻翻乐暂时无法打开，请检查网络后重试。'); }
+  } catch { notify(tx('联机翻翻乐暂时无法打开，请检查网络后重试。')); }
 }
 // 警察抓小偷 types the 听读 sentences, or a word range from 练习 when that view has been prepared; `join` opens a room.
 async function openChase(join = '') {
@@ -470,7 +550,7 @@ async function openChase(join = '') {
         if (/[?&]chase=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
         window.NorskPractice?.refreshHonors?.();
       }});
-  } catch { notify('警察抓小偷暂时无法打开，请检查网络后重试。'); }
+  } catch { notify(tx('警察抓小偷暂时无法打开，请检查网络后重试。')); }
 }
 // 开饭啦 (the co-op learning kitchen); `join` opens a room from an invitation.
 async function openKitchen(join = '') {
@@ -483,7 +563,7 @@ async function openKitchen(join = '') {
         if (/[?&]kitchen=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
         window.NorskPractice?.refreshHonors?.();
       }});
-  } catch { notify('开饭啦暂时无法打开，请检查网络后重试。'); }
+  } catch { notify(tx('开饭啦暂时无法打开，请检查网络后重试。')); }
 }
 // Duels draw words from the practice sources, so the practice view is prepared first.
 function requestDuel(join = '') {
@@ -841,17 +921,17 @@ async function setView(view, updateHash = true) {
     button.setAttribute('aria-current', active ? 'page' : 'false');
   });
   for (const name of Object.keys(labels)) $(`#${name}-view`).hidden = name !== view;
-  $('#content-eyebrow').textContent = labels[view][0];
-  $('#heading-note').textContent = labels[view][2];
+  $('#content-eyebrow').textContent = tx(labels[view][0]);
+  $('#heading-note').textContent = tx(labels[view][2]);
   toggleSettings(false);
   toggleSeriesMenu(false);
   $('#heading-search').classList.toggle('open',!!activeSearch().value);
   $('#search-button').setAttribute('aria-expanded',str(!!activeSearch().value));
   $('#search-button').setAttribute('aria-label',activeSearch().value ? '关闭搜索' : '搜索');
   renderStudyPicker();
-  $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? '我的练习' : view === 'more' ? '更多' : '学习目录';
-  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? (state.wordbookActive ? '自己整理的单词和句子' : `${activeSeriesTitle()} · 教材词汇`) : view === 'practice' ? '选一组词语，每天复习一点。' : view === 'more' ? '面试练习、荣誉与随身听。' : '循着目录，慢慢学会。';
-  $('#content-title').textContent = labels[view][1];
+  $('#sidebar-label').textContent = view === 'basics' ? '基础知识' : view === 'practice' ? tx('我的练习') : view === 'more' ? '更多' : '学习目录';
+  $('#sidebar-subtitle').textContent = view === 'basics' ? '从入门到进阶，依次学习。' : view === 'vocabulary' ? (state.wordbookActive ? '自己整理的单词和句子' : `${activeSeriesTitle()} · 教材词汇`) : view === 'practice' ? tx('选一组词语，每天复习一点。') : view === 'more' ? '面试练习、荣誉与随身听。' : '循着目录，慢慢学会。';
+  $('#content-title').textContent = tx(labels[view][1]);
   const hash = view === 'more' ? (state.moreTab === 'home' ? '#more' : `#more/${state.moreTab}`) : `#${view}`;
   if (updateHash && location.hash !== hash) history.replaceState(null,'',hash);
   window.scrollTo(0,0);
@@ -861,7 +941,7 @@ async function setView(view, updateHash = true) {
     if (view === 'vocabulary' && !state.wordbookActive && (!state.data.vocabulary || state.vocabularySeriesId !== activeSeriesId())) $('#vocab-rows').innerHTML = loading('正在载入词表目录…');
     if (view === 'vocabulary' && state.wordbookActive && !window.NorskWordbook) $('#vocab-rows').innerHTML = loading('正在打开我的词本…');
     if (view === 'basics' && !state.data.basics) $('#basics-items').innerHTML = loading('正在载入基础知识…');
-    if (view === 'practice' && (!state.practiceInitialized || state.practiceSeriesId !== activeSeriesId())) $('#practice-view').innerHTML = loading('正在准备练习词语…');
+    if (view === 'practice' && (!state.practiceInitialized || state.practiceSeriesId !== activeSeriesId())) $('#practice-view').innerHTML = loading(tx('正在准备练习词语…'));
     if (view === 'compare' && !state.compareInitialized) $('#compare-view').innerHTML = loading('正在准备双页对照…');
     if (view === 'more' && !state.moreInitialized) $('#more-view').innerHTML = loading('正在准备…');
     if (!['reading','compare'].includes(view)) $('#toc').innerHTML = loading('正在准备目录…');
@@ -873,7 +953,7 @@ async function setView(view, updateHash = true) {
     if (view === 'vocabulary') renderVocabulary();
     if (view === 'basics') renderBasics();
     if (view === 'practice') {
-      $('#content-title').textContent = `${activeSeriesTitle()} · 练习`;
+      $('#content-title').textContent = tx('{series} · 练习',{series:activeSeriesTitle()});
       window.NorskPractice?.show();
       if (state.pendingDuel) { const {join} = state.pendingDuel; state.pendingDuel = null; openDuel(join); }
     }
@@ -1004,7 +1084,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261108-kitchen-shelves').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261108-english').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1954,6 +2034,8 @@ async function loadAudioMetadata() {
   if (state.ready && state.view === 'compare') window.NorskCompare?.refreshAudio();
 }
 async function initialize() {
+  await i18n.ready;
+  localizeShell();
   startPresence();
   showPDFMessage('正在载入阅读目录…');
   loadAudioMetadata();
@@ -1983,7 +2065,7 @@ async function initialize() {
   if (wordbook().data.chapters.length || wordbook().sync.person) syncWordbook();
   const room = (/[?&]room=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
   if (room) { state.pendingDuel = {join:room}; setView('practice',false); return; }
-  setView(viewFromHash() || 'reading',false);
+  setView(viewFromHash() || (i18n.english ? 'practice' : 'reading'),false);
   const chase = (/[?&]chase=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
   if (chase) openChase(chase);
   const kitchen = (/[?&]kitchen=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];

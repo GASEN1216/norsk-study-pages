@@ -563,3 +563,10 @@ body.pc-open{overflow:hidden}
   .pc-char.is-caret::after{animation:none}
   .pc-event,.pc-toast{transition:opacity .2s ease-out}
 }
+
+/* English interface (docs/i18n.md): only under html[lang="en"], so the Chinese layout stays as it is. */
+html[lang="en"] .pc-panel-type.is-tap::after{content:'Tap here to start typing'}
+html[lang="en"] .pc-region-name b{overflow:hidden;font-weight:inherit;text-overflow:ellipsis;white-space:nowrap}
+/* English words run longer than the Chinese: a choice may take two lines rather than spill out of its button. */
+html[lang="en"] .pc-option span,html[lang="en"] .pc-option small{max-width:100%;white-space:normal;line-height:1.2;text-wrap:balance}
+html[lang="en"] .pc-option small{margin-top:2px}

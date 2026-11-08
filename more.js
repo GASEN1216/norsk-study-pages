@@ -4,6 +4,10 @@
   'use strict';
   if (window.NorskMore) return;
   const SEEN_KEY = 'norsk-honors-seen-v1';
+  // Only the honors pop-up shows on the practice page, so only it follows the interface language (docs/i18n.md).
+  const L10N = window.NorskI18n || {lang:'zh',english:false,t:(text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text,gloss:item => String(item?.meaning ?? item?.zh ?? ''),data:() => Promise.resolve(null),name:nickname => String(nickname ?? ''),set() {}};
+  const tx = L10N.t;
+  const EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const TOOLS = {
     interview:{title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
     playlist:{title:'播放列表',note:'把课文录音排成清单，锁屏也能听',meta:'随身听',icon:'<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="12" width="5" height="9" rx="2"/><rect x="17" y="12" width="5" height="9" rx="2"/>'},
@@ -24,7 +28,7 @@
     const [y,m,d] = String(iso || '').split('-').map(Number);
     if (!y) return '';
     const date = new Date(Date.UTC(y,m-1,d+offset));
-    return `${date.getUTCMonth()+1}月${date.getUTCDate()}日`;
+    return L10N.english ? `${EN_MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}` : `${date.getUTCMonth()+1}月${date.getUTCDate()}日`;
   }
   const weekRange = start => start ? `${dayLabel(start)} – ${dayLabel(start,6)}` : '';
   const img = (src,alt,cls = '',eager = false) => `<img class="${cls}" src="${e(src)}" alt="${e(alt)}"${eager ? '' : ' loading="lazy"'} decoding="async" draggable="false">`;
@@ -357,11 +361,11 @@
   function honorKeys(h) {
     const keys = [];
     for (const w of h?.weeks || []) {
-      if (w.challenge?.done) keys.push({key:`week-${w.n}`,image:weekArt(w.n),kicker:`第 ${w.n} 周挑战完成`,title:`${w.challenge.theme || ''} ${w.challenge.themeZh || ''}`.trim(),text:'赛季徽章已收入荣誉。'});
-      if (w.perfect) keys.push({key:`perfect-${w.n}`,image:weekArt(w.n,true),kicker:'七天全勤',title:`第 ${w.n} 周全勤奖章`,text:'这一周七天都有打卡，奖章已收入荣誉。'});
+      if (w.challenge?.done) keys.push({key:`week-${w.n}`,image:weekArt(w.n),kicker:tx('第 {n} 周挑战完成',{n:w.n}),title:(L10N.english ? w.challenge.theme || '' : `${w.challenge.theme || ''} ${w.challenge.themeZh || ''}`).trim(),text:tx('赛季徽章已收入荣誉。')});
+      if (w.perfect) keys.push({key:`perfect-${w.n}`,image:weekArt(w.n,true),kicker:tx('七天全勤'),title:tx('第 {n} 周全勤奖章',{n:w.n}),text:tx('这一周七天都有打卡，奖章已收入荣誉。')});
     }
-    for (const t of h?.trophies || []) keys.push({key:`trophy-${t.weekStart}`,image:art(`trophy-${t.rank}`),kicker:'周榜奖杯',title:`第 ${t.rank} 名 · ${RANKS[t.rank] || ''}`,text:weekRange(t.weekStart)});
-    for (const a of h?.achievements || []) if (a.earned) keys.push({key:`achievement-${a.id}`,image:art(`achievement-${a.id}`),kicker:'成就',title:a.title,text:a.description || ''});
+    for (const t of h?.trophies || []) keys.push({key:`trophy-${t.weekStart}`,image:art(`trophy-${t.rank}`),kicker:tx('周榜奖杯'),title:tx('第 {n} 名 · {cup}',{n:t.rank,cup:tx(RANKS[t.rank] || '')}),text:weekRange(t.weekStart)});
+    for (const a of h?.achievements || []) if (a.earned) keys.push({key:`achievement-${a.id}`,image:art(`achievement-${a.id}`),kicker:tx('成就'),title:tx(a.title || ''),text:tx(a.description || '')});
     return keys;
   }
   function reveal(h) {
@@ -394,7 +398,7 @@
     layer.setAttribute('role','dialog');
     layer.setAttribute('aria-modal','true');
     layer.setAttribute('aria-label',item.kicker);
-    layer.innerHTML = `<div class="mh-reveal-card"><div class="mh-reveal-art">${img(item.image,item.title,'',true)}</div><p class="mh-kicker">${e(item.kicker)}</p><h3>${e(item.title)}</h3>${item.text ? `<p>${e(item.text)}</p>` : ''}<button type="button" class="mh-reveal-ok">收下</button></div>`;
+    layer.innerHTML = `<div class="mh-reveal-card"><div class="mh-reveal-art">${img(item.image,item.title,'',true)}</div><p class="mh-kicker">${e(item.kicker)}</p><h3>${e(item.title)}</h3>${item.text ? `<p>${e(item.text)}</p>` : ''}<button type="button" class="mh-reveal-ok">${tx('收下')}</button></div>`;
     let closing = false;
     const close = () => {
       if (closing) return;

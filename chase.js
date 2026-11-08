@@ -5,6 +5,12 @@
 (() => {
   'use strict';
   if (window.NorskChase) return;
+  // Interface language (docs/i18n.md): tx() gives the Chinese back unchanged on Chinese devices.
+  const L10N = window.NorskI18n || {lang:'zh',english:false,t:(text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text,gloss:item => String(item?.meaning ?? item?.zh ?? ''),data:() => Promise.resolve(null),name:nickname => String(nickname ?? ''),set() {}};
+  const tx = L10N.t, EN = Boolean(L10N.english);
+  // A name as shown: my own runner is 我 (Me), a default nickname reads "Learner 1234" on English devices.
+  const ME = tx('我');
+  const nameOf = name => name === '我' ? ME : L10N.name(name);
 
   /* ---------- Rules and tuning ---------- */
   const PREFS_KEY = 'norsk-chase-v1', RECORDS_KEY = 'norsk-chase-records-v1', MAX_RECORDS = 120, MAX_RECORD_SENTENCES = 40;
@@ -21,15 +27,15 @@
   const TIER_AT = [0,60,100,150,210];   // letters per minute that reach tiers 1–5
   const TIER_DOWN = .86, TIER_UP_MS = 500, TIER_DOWN_MS = 1600;
   const TIER_HOLD_MS = 8000;         // a vehicle is kept at least this long before the next one up
-  const SIDES = {police:{name:'警察',team:'警方'},thief:{name:'小偷',team:'小偷团'}};
-  const VEHICLES = {police:['跑步','自行车','警用摩托','警车','直升机'],thief:['跑步','滑板','越野摩托','黑色跑车','直升机']};
+  const SIDES = {police:{name:tx('警察'),team:tx('警方')},thief:{name:tx('小偷'),team:tx('小偷团')}};
+  const VEHICLES = {police:[tx('跑步'),tx('自行车'),tx('警用摩托'),tx('警车'),tx('直升机')],thief:[tx('跑步'),tx('滑板'),tx('越野摩托'),tx('黑色跑车'),tx('直升机')]};
   const SPRITES = {police:['police-run','police-bike','police-moto','police-car','police-heli'],thief:['thief-run','thief-skate','thief-moto','thief-car','thief-heli']};
   // Bot speeds in letters per minute (user, 2026-11-06: 新手 20, 高手 240; the server's CHASE_LEVELS holds the same).
-  const LEVELS = {easy:{name:'新手',rate:20},normal:{name:'熟练',rate:110},hard:{name:'高手',rate:240},match:{name:'旗鼓相当',rate:0}};
-  const ENDS = {catch:{name:'抓到为止'},timed:{name:'限时'}};
+  const LEVELS = {easy:{name:tx('新手'),rate:20},normal:{name:EN ? tx('熟练（电脑水平）') : '熟练',rate:110},hard:{name:tx('高手'),rate:240},match:{name:tx('旗鼓相当'),rate:0}};
+  const ENDS = {catch:{name:tx('抓到为止')},timed:{name:tx('限时')}};
   // How the 3D scene is drawn: each player chooses for their own picture (it changes nothing in the game, so a room's
   // players may each see their own). chase-brunstad.mjs builds all three; the cast follows the look.
-  const LOOKS = {pixel:{name:'像素',hint:'复古像素画'},town:{name:'Q版',hint:'手绘贴图'},anime:{name:'3D',hint:'动画风建模'}};
+  const LOOKS = {pixel:{name:tx('像素'),hint:tx('复古像素画')},town:{name:tx('Q版'),hint:tx('手绘贴图')},anime:{name:'3D',hint:tx('动画风建模')}};
   const DEFAULT_LOOK = 'anime';
   const BOT_NAMES = ['Ola','Kari','Nora','Jonas','Ingrid','Emil','Sofie','Henrik'];
   // Maps: every Brunstad region (its loop from the map pipeline, work/brunstad-map → scripts/import_chase_map.py; the
@@ -40,22 +46,25 @@
   // `lap` is one lap of the map's loop in letters: its length / METERS_PER_LETTER, rounded. The rules use it (the server's
   // CHASE_LAPS holds the same numbers) and the picture spreads the loop over exactly that many letters, so a lap in the
   // rules is a lap on screen. test_chase_rules.py checks both against the maps' loops.
+  // `en` is the English gloss shown on English devices under the Norwegian name (which leads there).
   const REGIONS = [
-    {id:'festival',name:'会议中心',no:'Konferansesenter',color:'#c08f3a',lap:453},
-    {id:'garden',name:'花园城',no:'Hageby',color:'#b0523c',lap:504},
-    {id:'village',name:'山坡村',no:'Rekketun',color:'#4e7b68',lap:498},
-    {id:'arena',name:'体育馆',no:'Arena',color:'#596e9e',lap:221},
-    {id:'beach',name:'海滩',no:'Stranda',color:'#3a8a9e',lap:392},
-    {id:'fields',name:'节日广场',no:'Festplass',color:'#8a7a35',lap:665},
+    {id:'festival',name:'会议中心',no:'Konferansesenter',en:tx('会议中心'),color:'#c08f3a',lap:453},
+    {id:'garden',name:'花园城',no:'Hageby',en:tx('花园城'),color:'#b0523c',lap:504},
+    {id:'village',name:'山坡村',no:'Rekketun',en:tx('山坡村'),color:'#4e7b68',lap:498},
+    {id:'arena',name:'体育馆',no:'Arena',en:tx('体育馆'),color:'#596e9e',lap:221},
+    {id:'beach',name:'海滩',no:'Stranda',en:tx('海滩'),color:'#3a8a9e',lap:392},
+    {id:'fields',name:'节日广场',no:'Festplass',en:tx('节日广场'),color:'#8a7a35',lap:665},
   ];
   const MAPS = [
     ...REGIONS.map(region => ({...region,place:'Brunstad',kind:'brunstad',manifest:`assets/chase/maps/${region.id}/map.json`,
       files:{'world.json':'assets/chase/brunstad/world.json','terrain.png':'assets/chase/brunstad/terrain.png'}})),
-    {id:'lakeside',name:'湖畔小镇',place:'练习图 · 载入最快',kind:'lakeside',color:'#7a8f4a',lap:168},
+    {id:'lakeside',name:'湖畔小镇',en:tx('湖畔小镇'),place:'练习图 · 载入最快',kind:'lakeside',color:'#7a8f4a',lap:168},
   ];
   const mapOf = id => MAPS.find(item => item.id === id) || MAPS[0];
   const lapOf = id => mapOf(id).lap;
-  const mapTitle = id => { const item = mapOf(id); return item.no ? `${item.name} ${item.no}` : item.name; };
+  // A map's short name: Chinese on Chinese devices, the Norwegian name (or English for the practice map) on English ones.
+  const mapName = item => EN ? item.no || item.en : item.name;
+  const mapTitle = id => { const item = mapOf(id); return EN ? mapName(item) : item.no ? `${item.name} ${item.no}` : item.name; };
   const BOOKS = [{id:'god-i-norsk',name:'God i norsk',prefix:''},{id:'pa-vei',name:'På vei',prefix:'pa-vei-'},{id:'ty-conversation',name:'Norwegian Conversation',prefix:'ty-conversation-'}];
   const TYPEABLE = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]/, RUNS = /[0-9A-Za-zÀ-ÖØ-öø-ÿ]+/g;
   const ALTERNATES = {'å':'å[{','ø':'ø;:ö','æ':'æ\'"ä'};
@@ -82,8 +91,9 @@
   }
   // A reader section as typing material: every letter and digit is typed, everything else is passed over.
   // Words come from the reader's timing data, so each can sound with its own clip once typed.
-  function buildSection(reader,meta,clipFor) {
-    const sentences = [];
+  // `english` is the section's English (data/en/reader/<id>.json, English devices only), keyed by the sentence text.
+  function buildSection(reader,meta,clipFor,english=null) {
+    const sentences = [], translated = english?.sentences || {};
     for (const sentence of reader?.sentences || []) {
       if (sentence?.heading) continue;
       const text = String(sentence.text || '').normalize('NFC');
@@ -101,7 +111,8 @@
         if (!covered.has(match.index)) words.push({start:match.index,end:match.index+match[0].length,text:match[0],key:''});
       }
       words.sort((a,b) => a.start-b.start);
-      sentences.push({text,zh:String(sentence.zh || ''),speaker:String(sentence.speaker || ''),section:meta.id,audio:meta.audio || reader.audio || '',
+      const en = translated[sentence.text] ?? translated[text];
+      sentences.push({text,zh:String(sentence.zh || ''),...(typeof en === 'string' && en ? {en} : {}),speaker:String(sentence.speaker || ''),section:meta.id,audio:meta.audio || reader.audio || '',
         from:Number(sentence.start) || 0,to:Number(sentence.end) || 0,
         words:words.map(word => ({...word,clip:clipFor ? clipFor(word.text,word.key) || '' : ''}))});
     }
@@ -134,7 +145,7 @@
     const items = list.filter(item => TYPEABLE.test(item.no));
     const sentences = seededOrder(seed,items.length).map(index => {
       const item = items[index], text = String(item.no).normalize('NFC'), clip = item.clip || (clipFor ? clipFor(text,'') || '' : '');
-      return {text,zh:String(item.zh || ''),speaker:'',section:'words',audio:clip,from:0,to:clip ? 30 : 0,
+      return {text,zh:String(item.zh || ''),...(item.en ? {en:String(item.en)} : {}),speaker:'',section:'words',audio:clip,from:0,to:clip ? 30 : 0,
         words:[{start:0,end:text.length,text,key:'',clip}]};
     });
     return {id:'words',title:'',sentences};
@@ -384,14 +395,20 @@
     const lead = me.side === other.side ? 0 : me.side === 'police' ? apart : -apart;
     return {metres:Math.round((mod(apart+lap/2,lap)-lap/2)*METERS_PER_LETTER),lapping:lead > lap/2 && lead < lap};
   }
-  const gapText = ({metres,lapping}) => Math.abs(metres) < 1 ? '并排' : `${metres > 0 ? '前方' : '后方'} ${Math.abs(metres)} 米${lapping ? ' · 套圈' : ''}`;
+  // (Called every frame: the wording is looked up once, here.)
+  const GAP_WORDS = {level:tx('并排'),ahead:tx('前方 {n} 米').split('{n}'),behind:tx('后方 {n} 米').split('{n}'),lap:tx(' · 套圈')};
+  const gapText = ({metres,lapping}) => {
+    if (Math.abs(metres) < 1) return GAP_WORDS.level;
+    const [before,after = ''] = metres > 0 ? GAP_WORDS.ahead : GAP_WORDS.behind;
+    return `${before}${Math.abs(metres)}${after}${lapping ? GAP_WORDS.lap : ''}`;
+  };
   const formatClock = ms => { const s = Math.max(0,Math.ceil(ms/1000)); return `${Math.floor(s/60)}:${String(s % 60).padStart(2,'0')}`; };
 
   /* ---------- Overlay state ---------- */
 
   const ui = {open:false,opts:{},root:null,view:'home',prefs:null,records:[],index:null,clips:null,assets:null,images:new Map(),game:null,
     picker:null,stage:null,loop:0,timers:new Set(),sfx:{context:null},slice:null,resultsFor:null,expanded:'',
-    room:null,joining:false,joinCode:'',busy:false,botMenu:'',botMenuNew:false,roomEdit:false,serverUsual:0,clock:null,pollTimer:0,historyKind:'all',uploading:new Set()};
+    room:null,joining:false,joinCode:'',busy:false,botMenu:'',botMenuNew:false,roomEdit:false,serverUsual:0,clock:null,pollTimer:0,historyKind:'all',uploading:new Set(),english:new Map()};
   const $ = selector => ui.root?.querySelector(selector);
   const e = value => (ui.opts.escapeHTML || (text => String(text ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))))(value);
   const versioned = path => `${path}${ui.opts.version ? `${path.includes('?') ? '&' : '?'}v=${encodeURIComponent(ui.opts.version)}` : ''}`;
@@ -428,7 +445,7 @@
   // The mark on an avatar: a name's first character; the last two digits of a default name (学习者1234 → 34, as a class
   // of 学习者 would otherwise all show 学); a room's computer player shows its noun's last character (帅气的小明 → 明).
   const initial = (name,bot) => { const text = String(name || '').trim(), chars = [...text]; return /^学习者\d{2,}$/.test(text) ? text.slice(-2) : (bot && text.includes('的') ? chars[chars.length-1] : chars[0]) || '?'; };
-  const avatar = (name,side,extra='',bot=false) => `<span class="pc-avatar is-${side}${extra}" aria-hidden="true">${e(initial(name,bot))}</span>`;
+  const avatar = (name,side,extra='',bot=false) => `<span class="pc-avatar is-${side}${extra}" aria-hidden="true">${e(initial(name === '我' ? ME : name,bot))}</span>`;
   const sprite = name => versioned(`assets/chase/${name}.webp`);
   const reduceMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
   const later = (fn,ms) => { const id = setTimeout(() => { ui.timers.delete(id); fn(); },ms); ui.timers.add(id); return id; };
@@ -504,8 +521,32 @@
   async function loadSection(id) {
     const index = await loadIndex(), meta = index.sections.find(section => section.id === id);
     if (!meta) throw new Error(`unknown section ${id}`);
-    const [reader] = await Promise.all([fetchJSON(`data/${meta.file}`),loadClips().catch(() => null)]);
-    return buildSection(reader,meta,(word,key) => clipFor(word,key,reader.lexicon));
+    const [reader,,english] = await Promise.all([fetchJSON(`data/${meta.file}`),loadClips().catch(() => null),loadEnglish(id)]);
+    return buildSection(reader,meta,(word,key) => clipFor(word,key,reader.lexicon),english);
+  }
+  // A section's English sentences (English devices only; null elsewhere or while a section has none yet).
+  function loadEnglish(id) {
+    if (!EN) return Promise.resolve(null);
+    return Promise.resolve(L10N.data(`reader/${id}`)).catch(() => null).then(data => {
+      const sentences = data?.sentences && typeof data.sentences === 'object' ? data.sentences : null;
+      ui.english.set(id,sentences);
+      return data;
+    });
+  }
+  // The meaning under a sentence or a word: Chinese on Chinese devices. On English ones a sentence shows its English or
+  // nothing (never the Chinese); a word falls back to its Chinese when it has no English.
+  function meaningOf(item) {
+    if (!EN) return String(item?.zh || '');
+    if (item?.en) return String(item.en);
+    if (item?.section === 'words') return String(item.zh || '');
+    const known = ui.english.get(item?.section);
+    if (known) return String(known[item.text] ?? known[String(item.text || '').normalize('NFC')] ?? '');
+    // An older record: its section's English is fetched once, and the page drawn again when it comes.
+    if (item?.section && !ui.english.has(item.section)) {
+      ui.english.set(item.section,null);
+      void loadEnglish(item.section).then(data => { if (data && ui.open && ['results','history'].includes(ui.view)) render(); });
+    }
+    return '';
   }
   // The next section of the same book, or the chapter's first one again at the end of the book.
   function nextSectionId(id) {
@@ -516,13 +557,26 @@
   }
 
   // Word ranges come from 练习 (its current textbook, the basics and my wordbook), as 联机翻翻乐 uses them.
-  const WORD_GROUPS = [{id:'textbook',name:'课本单词',groups:['chapter','section']},{id:'basics',name:'基础常识',groups:['basics']},{id:'mine',name:'我的词本',groups:['wordbook','mine']}];
+  // `name` is what the room's title carries (the same on every device); `label` is what this device shows.
+  const WORD_GROUPS = [{id:'textbook',name:'课本单词',label:tx('课本单词'),groups:['chapter','section']},{id:'basics',name:'基础常识',label:tx('基础常识'),groups:['basics']},{id:'mine',name:'我的词本',label:tx('我的词本'),groups:['wordbook','mine']}];
   const ROOM_WORDS = 120, ROOM_WORD_BYTES = 14000;
   function wordSources() { try { const list = ui.opts.sources?.(); return Array.isArray(list) ? list : []; } catch { return []; } }
   const wordGroupOf = source => WORD_GROUPS.find(group => group.groups.includes(source?.group)) || WORD_GROUPS[0];
   const wordRangeName = source => `${wordGroupOf(source).name} · ${source.label}`.slice(0,60);
-  // The words of a range, once each, with the first sense of their meaning. A room gets at most ROOM_WORDS of them,
-  // drawn at random, so the list sent to everyone stays small.
+  // A title made on any device ("词语 · 课本单词 · …") in this device's words; other titles are Norwegian already.
+  function titleText(title) {
+    const text = String(title || '');
+    if (!EN) return text;
+    let rest = text.startsWith('词语 · ') ? text.slice(5) : null;
+    if (rest == null) return text;
+    const group = WORD_GROUPS.find(item => rest.startsWith(`${item.name} · `));
+    if (group) rest = `${group.label} · ${rest.slice(group.name.length+3)}`;
+    return `${tx('词语')} · ${rest}`;
+  }
+  // The words of a range, once each, with the first sense of their meaning (Chinese, and English where 练习 has it).
+  // A room gets at most ROOM_WORDS of them, drawn at random, so the list sent to everyone stays small: a word whose
+  // English would pass the budget goes without it.
+  const firstSense = (text,split) => String(text || '').split(split)[0].trim().slice(0,40);
   function wordList(token,room=false) {
     const source = wordSources().find(item => item.token === token);
     if (!source) return null;
@@ -531,20 +585,23 @@
       const no = String(word?.word || '').normalize('NFC').trim(), key = no.toLocaleLowerCase('nb');
       if (!no || no.length > 40 || !TYPEABLE.test(no) || seen.has(key)) continue;
       seen.add(key);
-      list.push({no,zh:String(word.meaning || '').split(/[；;]/)[0].trim().slice(0,40)});
+      const en = firstSense(word.english || word.en,/;/);
+      list.push({no,zh:firstSense(word.meaning,/[；;]/),...(en ? {en} : {})});
     }
     if (!room) return list.length ? {title:wordRangeName(source),list} : null;
-    const picked = [];
+    const picked = [], encoder = new TextEncoder(), sizeOf = item => encoder.encode(JSON.stringify(item)).length+1;
     let bytes = 0;
     for (const index of seededOrder(Math.random(),list.length)) {
-      const item = list[index], size = new TextEncoder().encode(JSON.stringify(item)).length+1;
-      if (picked.length >= ROOM_WORDS || bytes+size > ROOM_WORD_BYTES) break;
+      if (picked.length >= ROOM_WORDS) break;
+      let item = list[index], size = sizeOf(item);
+      if (bytes+size > ROOM_WORD_BYTES && item.en) { item = {no:item.no,zh:item.zh}; size = sizeOf(item); }
+      if (bytes+size > ROOM_WORD_BYTES) break;
       picked.push(item);
       bytes += size;
     }
     return picked.length ? {title:wordRangeName(source),list:picked} : null;
   }
-  const textName = (p = ui.prefs) => p.text === 'words' ? (p.wordsTitle ? `词语 · ${p.wordsTitle}` : '选择词语') : sectionName(p.section);
+  const textName = (p = ui.prefs) => p.text === 'words' ? (p.wordsTitle ? titleText(`词语 · ${p.wordsTitle}`) : tx('选择词语')) : sectionName(p.section);
 
   /* ---------- Sound ---------- */
   // A few quiet synthesised cues; word readings go through the site's own player.
@@ -759,7 +816,7 @@
     root.className = 'pc-root';
     root.setAttribute('role','dialog');
     root.setAttribute('aria-modal','true');
-    root.setAttribute('aria-label','警察抓小偷');
+    root.setAttribute('aria-label',tx('警察抓小偷'));
     ui.root = root;
     ui.handlers = {click:onClick,submit:onSubmit,input:onFieldInput};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
@@ -961,28 +1018,28 @@
       if (again) { again.classList.add('is-playing'); slice.button = again; }
     }
   }
-  const topBar = (title,back='home') => `<header class="pc-top">${back ? `<button type="button" class="pc-icon-button" data-pc="go" data-view="${back}" aria-label="返回">${icon('back')}</button>` : ''}<h2 tabindex="-1">${title}</h2><button type="button" class="pc-icon-button" data-pc="close" aria-label="离开警察抓小偷" title="离开">${icon('close')}</button></header>`;
+  const topBar = (title,back='home') => `<header class="pc-top">${back ? `<button type="button" class="pc-icon-button" data-pc="go" data-view="${back}" aria-label="${tx('返回')}">${icon('back')}</button>` : ''}<h2 tabindex="-1">${title}</h2><button type="button" class="pc-icon-button" data-pc="close" aria-label="${tx('离开警察抓小偷')}" title="${tx('离开')}">${icon('close')}</button></header>`;
   function meCard() {
     const usual = ui.serverUsual || usualRate(ui.records), name = ui.nickname || '我';
-    return `<div class="pc-me">${avatar(name,ui.prefs.side)}<div class="pc-me-text"><strong>${e(name)}</strong><span>${usual ? `平均 <b>${usual}</b>/min` : ui.records.length ? '最近几局还没有速度' : '还没有战绩'}</span></div>
-      ${ui.view === 'history' ? '' : `<button type="button" class="pc-link" data-pc="go" data-view="history">${icon('history')}战绩</button>`}</div>`;
+    return `<div class="pc-me">${avatar(name,ui.prefs.side)}<div class="pc-me-text"><strong>${e(nameOf(name))}</strong><span>${usual ? tx('平均 <b>{n}</b>/min',{n:usual}) : ui.records.length ? tx('最近几局还没有速度') : tx('还没有战绩')}</span></div>
+      ${ui.view === 'history' ? '' : `<button type="button" class="pc-link" data-pc="go" data-view="history">${icon('history')}${tx('战绩')}</button>`}</div>`;
   }
   function homePage() {
     const recent = ui.records.slice(0,3);
-    return `${topBar('警察抓小偷','')}
+    return `${topBar(tx('警察抓小偷'),'')}
       <section class="pc-hero"><img class="pc-hero-art" src="${sprite('key-art')}" alt="" decoding="async" draggable="false">
-        <div class="pc-hero-text"><span class="pc-kicker">Politi og røver</span><p class="pc-hero-title">打课文，比速度</p><p class="pc-hero-note">打对一个字母就前进一步，打完一个词会念给你听。警察追上小偷算抓到；小偷多跑一圈、从后面追上警察，就是套圈，可以嘲笑他。</p></div></section>
-      <div class="pc-actions">${button('go','<span>人机对战</span>','pc-primary pc-wide','data-view="setup"')}
-        ${ui.joining ? `<form class="pc-join" novalidate><label for="pc-join-code">房间号</label><input id="pc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 位数字" value="${e(ui.joinCode)}">
-          ${button('room-join',ui.busy ? '正在加入…' : '加入','pc-primary',`type="submit"${ui.busy ? ' disabled' : ''}`).replace('type="button" ','')}${button('room-join-cancel','取消','pc-quiet')}</form>`
-          : `<div class="pc-actions-row pc-room-actions">${button('room-create',ui.busy ? '正在开房间…' : '开房间','pc-ghost',ui.busy ? 'disabled' : '')}${button('room-join-open','加入房间','pc-ghost')}</div>`}</div>
+        <div class="pc-hero-text"><span class="pc-kicker">Politi og røver</span><p class="pc-hero-title">${tx('打课文，比速度')}</p><p class="pc-hero-note">${tx('打对一个字母就前进一步，打完一个词会念给你听。警察追上小偷算抓到；小偷多跑一圈、从后面追上警察，就是套圈，可以嘲笑他。')}</p></div></section>
+      <div class="pc-actions">${button('go',`<span>${tx('人机对战')}</span>`,'pc-primary pc-wide','data-view="setup"')}
+        ${ui.joining ? `<form class="pc-join" novalidate><label for="pc-join-code">${tx('房间号')}</label><input id="pc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${tx('4 位数字')}" value="${e(ui.joinCode)}">
+          ${button('room-join',ui.busy ? tx('正在加入…') : tx('加入'),'pc-primary',`type="submit"${ui.busy ? ' disabled' : ''}`).replace('type="button" ','')}${button('room-join-cancel',tx('取消'),'pc-quiet')}</form>`
+          : `<div class="pc-actions-row pc-room-actions">${button('room-create',ui.busy ? tx('正在开房间…') : tx('开房间'),'pc-ghost',ui.busy ? 'disabled' : '')}${button('room-join-open',tx('加入房间'),'pc-ghost')}</div>`}</div>
       ${meCard()}
-      ${recent.length ? `<section class="pc-panel"><div class="pc-section-head"><h3>最近几局</h3><button type="button" class="pc-link" data-pc="go" data-view="history">全部${icon('next')}</button></div><ul class="pc-games">${recent.map(gameRow).join('')}</ul></section>` : ''}`;
+      ${recent.length ? `<section class="pc-panel"><div class="pc-section-head"><h3>${tx('最近几局')}</h3><button type="button" class="pc-link" data-pc="go" data-view="history">${tx('全部')}${icon('next')}</button></div><ul class="pc-games">${recent.map(gameRow).join('')}</ul></section>` : ''}`;
   }
   function sectionMeta(id) { return ui.index?.sections?.find(section => section.id === id) || null; }
   function sectionName(id) {
     const meta = sectionMeta(id);
-    return meta ? `${bookOf(id).name} · ${sectionLabel(id)} ${meta.title}` : (ui.index ? '选择课文' : '正在载入课文…');
+    return meta ? `${bookOf(id).name} · ${sectionLabel(id)} ${meta.title}` : (ui.index ? tx('选择课文') : tx('正在载入课文…'));
   }
   function option(group,value,label,current,hint='') {
     return `<button type="button" class="pc-option" role="radio" aria-checked="${current === value}" tabindex="${current === value ? 0 : -1}" data-pc="set" data-key="${group}" data-value="${value}"><span>${label}</span>${hint ? `<small>${hint}</small>` : ''}</button>`;
@@ -990,31 +1047,31 @@
   function setupPage() {
     const p = ui.prefs;
     const sideTile = side => `<button type="button" class="pc-side is-${side}" role="radio" aria-checked="${p.side === side}" tabindex="${p.side === side ? 0 : -1}" data-pc="set" data-key="side" data-value="${side}">
-      <img src="${sprite(side === 'police' ? 'police-catch' : 'thief-taunt')}" alt="" decoding="async" draggable="false"><span class="pc-side-name">${SIDES[side].name}</span><small>${side === 'police' ? '追上小偷就是抓到' : '套警察一圈就能嘲笑他'}</small></button>`;
-    return `${topBar('人机对战')}
+      <img src="${sprite(side === 'police' ? 'police-catch' : 'thief-taunt')}" alt="" decoding="async" draggable="false"><span class="pc-side-name">${SIDES[side].name}</span><small>${side === 'police' ? tx('追上小偷就是抓到') : tx('套警察一圈就能嘲笑他')}</small></button>`;
+    return `${topBar(tx('人机对战'))}
       <section class="pc-panel pc-setup">
-        <div class="pc-field"><span class="pc-label">地图 · 在 Brunstad 平面图上点选赛道</span>${planMarkup()}</div>
-        <div class="pc-field"><span class="pc-label">你当</span><div class="pc-sides" role="radiogroup" aria-label="身份">${sideTile('police')}${sideTile('thief')}</div></div>
-        <div class="pc-field"><span class="pc-label">打字内容</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName(p))}</span>${icon('down')}</button></div>
-        <div class="pc-field"><span class="pc-label">电脑对手</span><div class="pc-segment" role="radiogroup" aria-label="电脑对手">${[1,2,3].map(n => option('opponents',n,`${n} 名`,p.opponents)).join('')}</div></div>
-        <div class="pc-field"><span class="pc-label">电脑队友</span><div class="pc-segment" role="radiogroup" aria-label="电脑队友">${[0,1,2].map(n => option('teammates',n,n ? `${n} 名` : '不要',p.teammates)).join('')}</div></div>
-        <div class="pc-field"><span class="pc-label">电脑水平</span><div class="pc-segment" role="radiogroup" aria-label="电脑水平">${Object.entries(LEVELS).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${level.rate}/min` : '跟着你')).join('')}</div></div>
-        <div class="pc-field"><span class="pc-label">结束方式</span><div class="pc-segment" role="radiogroup" aria-label="结束方式">${option('end','catch','抓到为止',p.end,p.opponents+p.teammates > 1 ? '输了换阵营' : '一次定胜负')}${MINUTES.map(n => option('minutes',n,`${n} 分钟`,p.end === 'timed' ? p.minutes : 0,'比次数')).join('')}</div></div>
+        <div class="pc-field"><span class="pc-label">${tx('地图 · 在 Brunstad 平面图上点选赛道')}</span>${planMarkup()}</div>
+        <div class="pc-field"><span class="pc-label">${tx('你当')}</span><div class="pc-sides" role="radiogroup" aria-label="${tx('身份')}">${sideTile('police')}${sideTile('thief')}</div></div>
+        <div class="pc-field"><span class="pc-label">${tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName(p))}</span>${icon('down')}</button></div>
+        <div class="pc-field"><span class="pc-label">${tx('电脑对手')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑对手')}">${[1,2,3].map(n => option('opponents',n,tx('{n} 名',{n}),p.opponents)).join('')}</div></div>
+        <div class="pc-field"><span class="pc-label">${tx('电脑队友')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑队友')}">${[0,1,2].map(n => option('teammates',n,n ? tx('{n} 名',{n}) : tx('不要'),p.teammates)).join('')}</div></div>
+        <div class="pc-field"><span class="pc-label">${tx('电脑水平')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑水平')}">${Object.entries(LEVELS).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${level.rate}/min` : tx('跟着你'))).join('')}</div></div>
+        <div class="pc-field"><span class="pc-label">${tx('结束方式')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('结束方式')}">${option('end','catch',tx('抓到为止'),p.end,p.opponents+p.teammates > 1 ? tx('输了换阵营') : tx('一次定胜负'))}${MINUTES.map(n => option('minutes',n,tx('{n} 分钟',{n}),p.end === 'timed' ? p.minutes : 0,tx('比次数'))).join('')}</div></div>
         ${lookField()}
       </section>
-      <div class="pc-actions pc-start-bar">${button('start','<span>开始</span>','pc-primary pc-wide',ui.index ? '' : 'disabled')}</div>`;
+      <div class="pc-actions pc-start-bar">${button('start',`<span>${tx('开始')}</span>`,'pc-primary pc-wide',ui.index ? '' : 'disabled')}</div>`;
   }
   // The picture's look, a choice of my own (in a room too: it is not part of the room's settings).
-  function lookField(label = '画面') {
-    return `<div class="pc-field"><span class="pc-label">${label}</span><div class="pc-segment" role="radiogroup" aria-label="画面">${Object.entries(LOOKS).map(([key,look]) => option('look',key,look.name,ui.prefs.look,look.hint)).join('')}</div></div>`;
+  function lookField(label = tx('画面')) {
+    return `<div class="pc-field"><span class="pc-label">${label}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('画面')}">${Object.entries(LOOKS).map(([key,look]) => option('look',key,look.name,ui.prefs.look,look.hint)).join('')}</div></div>`;
   }
   // Brunstad drawn from the real map data: water, woods, roads, paths and buildings, with every region's loop on top in
   // its own colour. A loop, its label or its row in the list beside the plan picks that map.
   function planMarkup() {
     const p = ui.prefs, plan = ui.plan;
-    const row = item => `<button type="button" class="pc-region${p.map === item.id ? ' is-on' : ''}" role="radio" aria-checked="${p.map === item.id}" tabindex="${p.map === item.id ? 0 : -1}" data-pc="set" data-key="map" data-value="${item.id}" style="--pc-region:${item.color}"><i aria-hidden="true"></i><span class="pc-region-name">${e(item.name)}${item.no ? `<span lang="nb">${e(item.no)}</span>` : ''}</span><small>${item.kind === 'brunstad' ? (regionLength(item.id) ? `${(regionLength(item.id)/1000).toFixed(1)} 公里` : '') : '练习图'}</small></button>`;
-    const list = `<div class="pc-regions" role="radiogroup" aria-label="地图">${MAPS.map(row).join('')}</div>`;
-    if (!plan) return `<div class="pc-plan-wrap"><div class="pc-plan is-loading">正在载入 Brunstad 平面图…</div>${list}</div>`;
+    const row = item => `<button type="button" class="pc-region${p.map === item.id ? ' is-on' : ''}" role="radio" aria-checked="${p.map === item.id}" tabindex="${p.map === item.id ? 0 : -1}" data-pc="set" data-key="map" data-value="${item.id}" style="--pc-region:${item.color}"><i aria-hidden="true"></i><span class="pc-region-name">${regionName(item)}</span><small>${item.kind === 'brunstad' ? (regionLength(item.id) ? tx('{n} 公里',{n:(regionLength(item.id)/1000).toFixed(1)}) : '') : tx('练习图')}</small></button>`;
+    const list = `<div class="pc-regions" role="radiogroup" aria-label="${tx('地图')}">${MAPS.map(row).join('')}</div>`;
+    if (!plan) return `<div class="pc-plan-wrap"><div class="pc-plan is-loading">${tx('正在载入 Brunstad 平面图…')}</div>${list}</div>`;
     const [x0,z0,x1,z1] = plan.bounds, width = x1-x0, height = z1-z0;
     const d = (points,close) => `M${points.map(point => `${point[0]} ${point[1]}`).join('L')}${close ? 'Z' : ''}`;
     const shapes = (list,cls) => list.map(points => `<path class="${cls}" d="${d(points,true)}"/>`).join('');
@@ -1025,13 +1082,19 @@
     }).join('');
     const labels = plan.regions.map(region => {
       const item = mapOf(region.id), on = p.map === region.id;
-      return `<button type="button" class="pc-plan-label${on ? ' is-on' : ''}" tabindex="-1" data-pc="set" data-key="map" data-value="${region.id}" style="left:${((region.label[0]-x0)/width*100).toFixed(2)}%;top:${((region.label[1]-z0)/height*100).toFixed(2)}%;--pc-region:${item.color}">${e(item.name)}${item.no ? `<span lang="nb">${e(item.no)}</span>` : ''}</button>`;
+      return `<button type="button" class="pc-plan-label${on ? ' is-on' : ''}" tabindex="-1" data-pc="set" data-key="map" data-value="${region.id}" style="left:${((region.label[0]-x0)/width*100).toFixed(2)}%;top:${((region.label[1]-z0)/height*100).toFixed(2)}%;--pc-region:${item.color}">${EN ? `<span lang="nb">${e(mapName(item))}</span>` : `${e(item.name)}${item.no ? `<span lang="nb">${e(item.no)}</span>` : ''}`}</button>`;
     }).join('');
     return `<div class="pc-plan-wrap"><div class="pc-plan" style="aspect-ratio:${width.toFixed(0)}/${height.toFixed(0)}"><svg viewBox="${x0} ${z0} ${width} ${height}" aria-hidden="true">
       <rect x="${x0}" y="${z0}" width="${width}" height="${height}" class="pc-plan-land"/>${shapes(plan.fields,'pc-plan-field')}${shapes(plan.woods,'pc-plan-wood')}${shapes(plan.water,'pc-plan-water')}
       ${strokes(plan.paths,'pc-plan-path')}${strokes(plan.roads,'pc-plan-road')}${shapes(plan.squares,'pc-plan-square')}${shapes(plan.buildings,'pc-plan-building')}${loops}</svg>${labels}
       <span class="pc-plan-north" aria-hidden="true">N</span>${plan.attribution ? `<small class="pc-plan-credit">${e(plan.credit || plan.attribution)}</small>` : ''}</div>${list}</div>
-      <p class="pc-hint">${e(mapOf(p.map).kind === 'brunstad' ? `一圈 ${(regionLength(p.map)/1000).toFixed(2)} 公里，每分钟打 120 个字母大约 ${Math.max(1,Math.round(regionLength(p.map)/METERS_PER_LETTER/120))} 分钟跑一圈。` : '湖畔小镇是用代码画的练习图，任何手机都能流畅载入。')}</p>`;
+      <p class="pc-hint">${e(mapOf(p.map).kind === 'brunstad' ? tx('一圈 {km} 公里，每分钟打 120 个字母大约 {n} 分钟跑一圈。',{km:(regionLength(p.map)/1000).toFixed(2),n:Math.max(1,Math.round(regionLength(p.map)/METERS_PER_LETTER/120))}) : tx('湖畔小镇是用代码画的练习图，任何手机都能流畅载入。'))}</p>`;
+  }
+  // A map's row in the list: Chinese with the Norwegian under it; on English devices the Norwegian with English under it.
+  function regionName(item) {
+    if (!EN) return `${e(item.name)}${item.no ? `<span lang="nb">${e(item.no)}</span>` : ''}`;
+    if (!item.no) return e(item.en);
+    return `<b lang="nb">${e(item.no)}</b>${item.en && item.en !== item.no ? `<span>${e(item.en)}</span>` : ''}`;
   }
   const regionLength = id => ui.plan?.regions?.find(region => region.id === id)?.length_m || 0;
   function loadPlan() {
@@ -1046,10 +1109,10 @@
   // Two kinds of material in one sheet: 课文 (the 听读 sections, by book) and 词语 (the word ranges of 练习).
   function pickerSheet() {
     const picker = ui.picker, words = picker.kind === 'words';
-    const kinds = `<div class="pc-kinds" role="tablist" aria-label="打字内容">${[['section','课文'],['words','词语']].map(([kind,name]) => `<button type="button" role="tab" aria-selected="${picker.kind === kind}" data-pc="pick-kind" data-value="${kind}">${name}</button>`).join('')}</div>`;
-    const tabs = words ? WORD_GROUPS.map(group => [group.id,group.name,group.id === picker.group]) : BOOKS.map(book => [book.id,book.name,book.id === picker.book]);
-    return `<div class="pc-sheet-layer" data-pc="picker-close"><div class="pc-sheet" role="dialog" aria-modal="true" aria-label="选择打字内容">
-      <div class="pc-sheet-head">${kinds}<button type="button" class="pc-icon-button" data-pc="picker-close" aria-label="关闭">${icon('close')}</button></div>
+    const kinds = `<div class="pc-kinds" role="tablist" aria-label="${tx('打字内容')}">${[['section',tx('课文')],['words',tx('词语')]].map(([kind,name]) => `<button type="button" role="tab" aria-selected="${picker.kind === kind}" data-pc="pick-kind" data-value="${kind}">${name}</button>`).join('')}</div>`;
+    const tabs = words ? WORD_GROUPS.map(group => [group.id,group.label,group.id === picker.group]) : BOOKS.map(book => [book.id,book.name,book.id === picker.book]);
+    return `<div class="pc-sheet-layer" data-pc="picker-close"><div class="pc-sheet" role="dialog" aria-modal="true" aria-label="${tx('选择打字内容')}">
+      <div class="pc-sheet-head">${kinds}<button type="button" class="pc-icon-button" data-pc="picker-close" aria-label="${tx('关闭')}">${icon('close')}</button></div>
       <div class="pc-books" role="tablist">${tabs.map(([id,name,on]) => `<button type="button" role="tab" aria-selected="${on}" data-pc="${words ? 'word-group' : 'book'}" data-value="${id}">${e(name)}</button>`).join('')}</div>
       <div class="pc-chapters">${words ? wordRanges(picker.group) : sectionRanges(picker.book)}</div>
     </div></div>`;
@@ -1057,22 +1120,22 @@
   function sectionRanges(book) {
     const sections = (ui.index?.sections || []).filter(section => bookOf(section.id).id === book), chapters = [...new Set(sections.map(section => section.chapter))];
     const current = ui.prefs.text === 'section' ? ui.prefs.section : '';
-    return chapters.map(chapter => `<section class="pc-chapter"><h4>第 ${chapter} 章</h4><div class="pc-section-list">${sections.filter(section => section.chapter === chapter).map(section => `<button type="button" class="pc-section${section.id === current ? ' is-current' : ''}" data-pc="section" data-value="${e(section.id)}"><b>${e(sectionLabel(section.id))}</b><span>${e(section.title)}</span><small>${section.words} 词</small></button>`).join('')}</div></section>`).join('');
+    return chapters.map(chapter => `<section class="pc-chapter"><h4>${tx('第 {n} 章',{n:chapter})}</h4><div class="pc-section-list">${sections.filter(section => section.chapter === chapter).map(section => `<button type="button" class="pc-section${section.id === current ? ' is-current' : ''}" data-pc="section" data-value="${e(section.id)}"><b>${e(sectionLabel(section.id))}</b><span>${e(section.title)}</span><small>${tx('{n} 词',{n:section.words})}</small></button>`).join('')}</div></section>`).join('');
   }
   // A textbook chapter heads its sections (the whole chapter is its first row); the basics and my wordbook are one list.
   function wordRanges(groupId) {
     const group = WORD_GROUPS.find(item => item.id === groupId) || WORD_GROUPS[0], all = wordSources();
     const sources = all.filter(source => group.groups.includes(source.group));
     const current = ui.prefs.text === 'words' ? ui.prefs.words : '';
-    const row = (source,mark,name) => `<button type="button" class="pc-section${source.token === current ? ' is-current' : ''}" data-pc="words" data-value="${e(source.token)}"><b>${e(mark)}</b><span>${e(name)}</span><small>${source.words.length} 词</small></button>`;
+    const row = (source,mark,name) => `<button type="button" class="pc-section${source.token === current ? ' is-current' : ''}" data-pc="words" data-value="${e(source.token)}"><b>${e(mark)}</b><span>${e(name)}</span><small>${tx('{n} 词',{n:source.words.length})}</small></button>`;
     if (!sources.length) {
-      const note = !all.length ? '词语来自「练习」，请先打开一次练习页再来选。' : group.id === 'mine' ? '我的词本里还没有词语，收藏词和薄弱词也是空的。' : '这里还没有词语。';
+      const note = !all.length ? tx('词语来自「练习」，请先打开一次练习页再来选。') : group.id === 'mine' ? tx('我的词本里还没有词语，收藏词和薄弱词也是空的。') : tx('这里还没有词语。');
       return `<p class="pc-picker-empty">${note}</p>`;
     }
     if (group.id !== 'textbook') return `<div class="pc-section-list">${sources.map((source,index) => row(source,source.group === 'mine' ? '★' : String(index+1),source.label)).join('')}</div>`;
     return sources.filter(source => source.group === 'chapter').map(chapter => {
       const parts = sources.filter(source => source.group === 'section' && source.parent === chapter.token);
-      return `<section class="pc-chapter"><h4>${e(chapter.label)}</h4><div class="pc-section-list">${row(chapter,'全','整章')}${parts.map(part => {
+      return `<section class="pc-chapter"><h4>${e(chapter.label)}</h4><div class="pc-section-list">${row(chapter,tx('全'),tx('整章'))}${parts.map(part => {
         const [mark,...rest] = part.label.split(' ');
         return /^[\d.]+$/.test(mark) && rest.length ? row(part,mark,rest.join(' ')) : row(part,'·',part.label);
       }).join('')}</div></section>`;
@@ -1085,38 +1148,41 @@
     later(() => $('.pc-section.is-current')?.scrollIntoView?.({block:'center'}),30);
   }
   function closePicker() { ui.picker = null; render(); $('.pc-pick')?.focus?.({preventScroll:true}); }
-  const resultName = result => ({win:'胜',loss:'负',draw:'平'}[result] || '');
+  const RESULT_NAMES = {win:tx('胜'),loss:tx('负'),draw:tx('平')};
+  const resultName = result => RESULT_NAMES[result] || '';
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function gameRow(record) {
-    const date = new Date(Number(record.at) || 0), when = Number.isFinite(Number(record.at)) && record.at ? `${date.getMonth()+1}月${date.getDate()}日 ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}` : '';
+    const date = new Date(Number(record.at) || 0), clock = `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+    const when = Number.isFinite(Number(record.at)) && record.at ? EN ? `${date.getDate()} ${MONTHS[date.getMonth()]} ${clock}` : `${date.getMonth()+1}月${date.getDate()}日 ${clock}` : '';
     return `<li class="pc-game-row"><button type="button" class="pc-game-button" data-pc="expand" data-value="${e(record.id)}" aria-expanded="${ui.expanded === record.id}">
       <span class="pc-result is-${e(record.result)}">${resultName(record.result)}</span>
-      <span class="pc-game-main"><strong>${e(record.title || '')}</strong><small>${record.kind === 'room' ? '房间局' : '人机局'} · ${when} · ${e(record.map ? mapOf(record.map).name : '湖畔小镇')} · ${SIDES[record.side]?.name || ''} · ${record.end === 'timed' ? `${record.minutes} 分钟` : '抓到为止'}</small></span>
+      <span class="pc-game-main"><strong>${e(titleText(record.title || ''))}</strong><small>${record.kind === 'room' ? tx('房间局') : tx('人机局')} · ${when} · ${e(mapName(mapOf(record.map || 'lakeside')))} · ${SIDES[record.side]?.name || ''} · ${record.end === 'timed' ? tx('{n} 分钟',{n:record.minutes}) : tx('抓到为止')}</small></span>
       <span class="pc-game-score">${icon('cuffs')}${Number(record.score?.catch) || 0}<i>:</i>${Number(record.score?.taunt) || 0}${icon('taunt')}</span>
       <span class="pc-game-rate"><b>${Number(record.me?.rate) || 0}</b>/min</span></button>
       ${ui.expanded === record.id ? recordDetail(record) : ''}</li>`;
   }
   function recordDetail(record) {
     const me = record.me || {}, others = (record.players || []).filter(player => !player.me);
-    const names = list => list.map(player => `${player.name}${player.side && player.startSide && player.side !== player.startSide ? '（换了阵营）' : ''}`).join('、');
+    const names = list => list.map(player => `${nameOf(player.name)}${player.side && player.startSide && player.side !== player.startSide ? tx('（换了阵营）') : ''}`).join(tx('、'));
     const mates = others.filter(player => (player.startSide || player.side) === record.side), rivals = others.filter(player => (player.startSide || player.side) !== record.side);
-    const people = [mates.length ? `队友 ${names(mates)}` : '', rivals.length ? `对手 ${names(rivals)}` : ''].filter(Boolean).join(' · ');
-    return `<div class="pc-detail"><p class="pc-detail-line">${e(`正确率 ${Number(me.accuracy) || 0}% · ${Number(me.words) || 0} 个词 · 最高 ${VEHICLES[record.finalSide || record.side]?.[(me.maxTier || 1)-1] || ''}${people ? ` · ${people}` : ''}`)}</p>${sentenceList(record.sentences || [],record.id)}</div>`;
+    const people = [mates.length ? tx('队友 {names}',{names:names(mates)}) : '', rivals.length ? tx('对手 {names}',{names:names(rivals)}) : ''].filter(Boolean).join(' · ');
+    return `<div class="pc-detail"><p class="pc-detail-line">${e(`${tx('正确率 {n}% · {words} 个词 · 最高 {vehicle}',{n:Number(me.accuracy) || 0,words:Number(me.words) || 0,vehicle:VEHICLES[record.finalSide || record.side]?.[(me.maxTier || 1)-1] || ''})}${people ? ` · ${people}` : ''}`)}</p>${sentenceList(record.sentences || [],record.id)}</div>`;
   }
   function sentenceList(sentences,owner) {
     if (!sentences.length) return '';
-    return `<ol class="pc-sentences">${sentences.map((sentence,index) => `<li><button type="button" class="pc-play" data-pc="slice" data-owner="${e(owner)}" data-index="${index}" aria-label="${sentence.section === 'words' ? '播放读音' : '播放原书录音'}"${sentence.audio && sentence.to > sentence.from ? '' : ' disabled'}>${icon('play')}</button><span><span lang="nb">${e(sentence.text)}</span><small>${e(sentence.zh)}</small></span></li>`).join('')}</ol>`;
+    return `<ol class="pc-sentences">${sentences.map((sentence,index) => { const meaning = meaningOf(sentence); return `<li><button type="button" class="pc-play" data-pc="slice" data-owner="${e(owner)}" data-index="${index}" aria-label="${sentence.section === 'words' ? tx('播放读音') : tx('播放原书录音')}"${sentence.audio && sentence.to > sentence.from ? '' : ' disabled'}>${icon('play')}</button><span><span lang="nb">${e(sentence.text)}</span>${EN && !meaning ? '' : `<small>${e(meaning)}</small>`}</span></li>`; }).join('')}</ol>`;
   }
   function historyPage() {
     const total = summarize(ui.records), rooms = ui.records.filter(record => record.kind === 'room').length;
     const list = ui.historyKind === 'all' ? ui.records : ui.records.filter(record => (record.kind === 'room' ? 'room' : 'bot') === ui.historyKind);
-    const kinds = {all:'全部',bot:'人机',room:'房间'};
+    const kinds = {all:tx('全部'),bot:tx('人机'),room:EN ? tx('房间（对局类型）') : '房间'};
     const tile = (label,value,note='') => `<div class="pc-tile"><span>${label}</span><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`;
-    return `${topBar('我的战绩')}
+    return `${topBar(tx('我的战绩'))}
       ${meCard()}
-      <section class="pc-panel"><div class="pc-tiles">${tile('总局数',total.games)}${tile('胜率',`${total.winRate}%`,`${total.wins} 胜 ${total.losses} 负 ${total.draws} 平`)}${tile('累计抓到',total.catches)}${tile('累计嘲笑',total.taunts)}${tile('最快一局',total.best ? `${total.best}/min` : '—')}${tile('最高开到',total.bestTier ? VEHICLES[total.bestSide]?.[total.bestTier-1] || `第 ${total.bestTier} 档` : '—')}</div>
-        <p class="pc-sides-line"><span>当警察 ${total.police.games} 局 · 胜 ${total.police.wins}</span><span>当小偷 ${total.thief.games} 局 · 胜 ${total.thief.wins}</span><span>人机 ${total.games-rooms} 局 · 房间 ${rooms} 局</span></p></section>
-      <section class="pc-panel"><div class="pc-section-head"><h3>每局记录</h3>${ui.records.length ? `<div class="pc-segment pc-kinds" role="radiogroup" aria-label="对局类型">${Object.entries(kinds).map(([key,name]) => option('kind',key,name,ui.historyKind)).join('')}</div>` : ''}</div>
-        ${list.length ? `<ul class="pc-games">${list.map(gameRow).join('')}</ul>` : `<p class="pc-empty">${ui.records.length ? `还没有${kinds[ui.historyKind]}局的记录。` : '还没有记录，先来一局人机对战吧。'}</p>`}</section>`;
+      <section class="pc-panel"><div class="pc-tiles">${tile(tx('总局数'),total.games)}${tile(tx('胜率'),`${total.winRate}%`,tx('{wins} 胜 {losses} 负 {draws} 平',{wins:total.wins,losses:total.losses,draws:total.draws}))}${tile(tx('累计抓到'),total.catches)}${tile(tx('累计嘲笑'),total.taunts)}${tile(tx('最快一局'),total.best ? `${total.best}/min` : '—')}${tile(tx('最高开到'),total.bestTier ? VEHICLES[total.bestSide]?.[total.bestTier-1] || tx('第 {n} 档',{n:total.bestTier}) : '—')}</div>
+        <p class="pc-sides-line"><span>${tx('当警察 {n} 局 · 胜 {wins}',{n:total.police.games,wins:total.police.wins})}</span><span>${tx('当小偷 {n} 局 · 胜 {wins}',{n:total.thief.games,wins:total.thief.wins})}</span><span>${tx('人机 {n} 局 · 房间 {rooms} 局',{n:total.games-rooms,rooms})}</span></p></section>
+      <section class="pc-panel"><div class="pc-section-head"><h3>${tx('每局记录')}</h3>${ui.records.length ? `<div class="pc-segment pc-kinds" role="radiogroup" aria-label="${tx('对局类型')}">${Object.entries(kinds).map(([key,name]) => option('kind',key,name,ui.historyKind)).join('')}</div>` : ''}</div>
+        ${list.length ? `<ul class="pc-games">${list.map(gameRow).join('')}</ul>` : `<p class="pc-empty">${ui.records.length ? (ui.historyKind === 'room' ? tx('还没有房间局的记录。') : tx('还没有人机局的记录。')) : tx('还没有记录，先来一局人机对战吧。')}</p>`}</section>`;
   }
 
   /* ---------- Clicks and keys ---------- */
@@ -1219,7 +1285,7 @@
       target.innerHTML = icon(ui.prefs.camera === 'still' ? 'still' : 'follow');
       target.setAttribute('aria-label',cameraLabel(ui.prefs.camera));
       target.title = cameraLabel(ui.prefs.camera);
-      notify(ui.prefs.camera === 'still' ? '镜头拉远，画面里只有赛区；整圈放不下时随你慢慢移动。' : '镜头缓慢跟随，只随你移动一小段。');
+      notify(ui.prefs.camera === 'still' ? tx('镜头拉远，画面里只有赛区；整圈放不下时随你慢慢移动。') : tx('镜头缓慢跟随，只随你移动一小段。'));
       focusInput();
       return;
     }
@@ -1272,9 +1338,9 @@
     const layer = document.createElement('div');
     layer.className = 'pc-confirm-layer';
     const host = ui.room?.state && ui.room.state.hostId === ui.room.state.me;
-    const text = kind === 'room' ? `离开这个房间吗？${host ? '房主会交给下一位同学。' : '之后可以用房间号再回来。'}`
-      : ui.game?.room || (!ui.game && ui.room) ? '离开这一局吗？你会退出这个房间，这一局不会记入战绩。' : '离开这一局吗？这一局不会记入战绩。';
-    layer.innerHTML = `<div class="pc-confirm" role="alertdialog" aria-modal="true" aria-labelledby="pc-confirm-text"><p id="pc-confirm-text">${text}</p><div class="pc-confirm-actions">${button('confirm-stay',kind === 'room' ? '留下' : '继续','pc-primary')}${button('confirm-leave',kind === 'room' ? '离开房间' : '离开','pc-quiet')}</div></div>`;
+    const text = kind === 'room' ? `${tx('离开这个房间吗？')}${host ? tx('房主会交给下一位同学。') : tx('之后可以用房间号再回来。')}`
+      : ui.game?.room || (!ui.game && ui.room) ? tx('离开这一局吗？你会退出这个房间，这一局不会记入战绩。') : tx('离开这一局吗？这一局不会记入战绩。');
+    layer.innerHTML = `<div class="pc-confirm" role="alertdialog" aria-modal="true" aria-labelledby="pc-confirm-text"><p id="pc-confirm-text">${text}</p><div class="pc-confirm-actions">${button('confirm-stay',kind === 'room' ? tx('留下') : tx('继续'),'pc-primary')}${button('confirm-leave',kind === 'room' ? tx('离开房间') : tx('离开'),'pc-quiet')}</div></div>`;
     ui.root.append(layer);
     layer.querySelector('[data-pc="confirm-stay"]')?.focus();
   }
@@ -1294,11 +1360,11 @@
     // Samples with quick round trips are trusted most.
     ui.clock = !clock || rtt <= clock.rtt*1.25+30 || clock.age >= 20 ? {offset,rtt,age:0} : {...clock,rtt:clock.rtt*1.05,age:clock.age+1};
   }
-  const roomError = error => ({room_not_found:'房间不存在或已过期，请核对房间号。',room_full:'这个房间已经满了。',not_in_room:'你已不在这个房间。',
-    rate_limited:'请求太频繁，请稍后再试。',not_host:'只有房主可以这样做。',room_busy:'这一局正在进行，等它结束再改。',too_many_bots:'电脑已经加满了。',
-    cannot_start:'还不能开始：警察和小偷都要有人，并且至少 2 位同学准备好。',timeout:'网络有点慢，请再试一次。',too_many_rooms:'现在开着的房间太多了，请稍后再试。',
-    unauthorized:'联机身份失效了，请刷新页面后再试。',invalid_request:'这个请求没有成功，请刷新页面后再试。',not_found:'联机服务还没有准备好，请稍后再试。'}[error?.code]
-    || '联机暂时连不上，请检查网络后重试。');
+  const ROOM_ERRORS = {room_not_found:tx('房间不存在或已过期，请核对房间号。'),room_full:tx('这个房间已经满了。'),not_in_room:tx('你已不在这个房间。'),
+    rate_limited:tx('请求太频繁，请稍后再试。'),not_host:tx('只有房主可以这样做。'),room_busy:tx('这一局正在进行，等它结束再改。'),too_many_bots:tx('电脑已经加满了。'),
+    cannot_start:tx('还不能开始：警察和小偷都要有人，并且至少 2 位同学准备好。'),timeout:tx('网络有点慢，请再试一次。'),too_many_rooms:tx('现在开着的房间太多了，请稍后再试。'),
+    unauthorized:tx('联机身份失效了，请刷新页面后再试。'),invalid_request:tx('这个请求没有成功，请刷新页面后再试。'),not_found:tx('联机服务还没有准备好，请稍后再试。')};
+  const roomError = error => ROOM_ERRORS[error?.code] || tx('联机暂时连不上，请检查网络后重试。');
   async function roomCall(path,body,timeout=8000) {
     const community = await ui.opts.community?.();
     if (!community?.request) throw Object.assign(new Error('community unavailable'),{code:'offline'});
@@ -1324,14 +1390,14 @@
     finally { ui.busy = false; if (ui.open && ui.view === 'home') render(); }
   }
   async function joinRoom(code) {
-    if (!/^\d{4}$/.test(code)) { notify('请输入 4 位数字的房间号。'); $('#pc-join-code')?.focus?.(); return; }
+    if (!/^\d{4}$/.test(code)) { notify(tx('请输入 4 位数字的房间号。')); $('#pc-join-code')?.focus?.(); return; }
     if (ui.busy) return;
     ui.busy = true;
     ui.joinCode = code;
     // The form shows the code being joined (an invitation opens it filled in); the field keeps its keyboard.
     if (!ui.joining || !$('.pc-join')) { ui.joining = true; render(); }
     const submit = $('.pc-join [data-pc="room-join"]'), opened = ui.historyToken;
-    if (submit) { submit.disabled = true; submit.textContent = '正在加入…'; }
+    if (submit) { submit.disabled = true; submit.textContent = tx('正在加入…'); }
     try {
       // Newcomers go to the side with fewer people (the server decides); anyone can change side in the lobby.
       const state = await roomCall(`/chase/rooms/${code}/join`,{});
@@ -1340,7 +1406,7 @@
     } catch (error) { if (stillWaiting(opened)) notify(roomError(error)); }
     finally {
       ui.busy = false;
-      if (submit?.isConnected) { submit.disabled = false; submit.textContent = '加入'; }
+      if (submit?.isConnected) { submit.disabled = false; submit.textContent = tx('加入'); }
     }
   }
   function enterRoom(state) {
@@ -1421,7 +1487,7 @@
       delay = pollDelay();
     } catch (error) {
       if (ui.room !== room) return;
-      if (['room_not_found','not_in_room','unauthorized'].includes(error?.code)) { lostRoom(error.code === 'room_not_found' ? '房间已经关闭了。' : roomError(error)); return; }
+      if (['room_not_found','not_in_room','unauthorized'].includes(error?.code)) { lostRoom(error.code === 'room_not_found' ? tx('房间已经关闭了。') : roomError(error)); return; }
       room.failures++;
       if (room.failures >= (playing ? 2 : 3)) roomOffline(room,true);
       delay = error?.code === 'rate_limited' ? 3000 : playing ? Math.min(1200,300*room.failures) : Math.min(4000,400*2**Math.min(room.failures,4));
@@ -1435,8 +1501,8 @@
     if (room.offline === offline && !(offline && !ui.toast?.classList.contains('is-on'))) return;
     const was = room.offline;
     room.offline = offline;
-    if (offline) notify('网络不稳，正在重新连接…',0);
-    else if (was) notify('已重新连上。',2000);
+    if (offline) notify(tx('网络不稳，正在重新连接…'),0);
+    else if (was) notify(tx('已重新连上。'),2000);
   }
   function applyRoom(reply) {
     const room = ui.room;
@@ -1445,7 +1511,7 @@
       const host = room.state?.hostId;
       room.state = reply;
       room.version = reply.version;
-      if (host && host !== reply.hostId && reply.hostId === reply.me) notify('房主交给你了：现在可以更改这一局、加电脑和开始。',5000);
+      if (host && host !== reply.hostId && reply.hostId === reply.me) notify(tx('房主交给你了：现在可以更改这一局、加电脑和开始。'),5000);
     }
     const state = room.state, match = state.match;
     const game = ui.game?.room && ui.game.code === room.code ? ui.game : null;
@@ -1459,7 +1525,7 @@
     // While the others load the map: how many are ready.
     if (game?.ready && state.status === 'loading' && match) {
       const loading = $('#pc-loading');
-      if (loading) loading.textContent = `等大家载入地图 · ${Math.min(match.loaded.length,match.participants.length)}/${match.participants.length}`;
+      if (loading) loading.textContent = tx('等大家载入地图 · {done}/{all}',{done:Math.min(match.loaded.length,match.participants.length),all:match.participants.length});
     }
     if (game && reply.live) applyLive(game,reply.live);
     if (game && !game.over) {
@@ -1469,7 +1535,7 @@
         const watched = game.watch;
         ui.game = null;
         show('room');
-        notify(watched ? '这一局结束了。' : '这一局没能开始，回到房间。');
+        notify(watched ? tx('这一局结束了。') : tx('这一局没能开始，回到房间。'));
         return;
       } else if (['countdown','playing'].includes(state.status)) roomCountdown(game,match.startsAt);
     }
@@ -1549,7 +1615,7 @@
     game.watch = true;
     $('#pc-type')?.setAttribute('hidden','');
     $('.pc-game')?.classList.add('is-watch');
-    notify('你离线太久，已离开这一局赛道，可以继续观战。',5000);
+    notify(tx('你离线太久，已离开这一局赛道，可以继续观战。'),5000);
   }
   async function startRoomGame(state,watch) {
     const match = state.match;
@@ -1567,7 +1633,7 @@
     ui.view = 'game';
     ui.root.classList.add('is-game');
     ui.root.innerHTML = gameMarkup({end:settings.end,minutes:settings.minutes,side:mine?.side || 'police',map:settings.map,watch});
-    $('#pc-loading').textContent = `正在载入${mapTitle(settings.map)}…`;
+    $('#pc-loading').textContent = tx('正在载入{map}…',{map:mapTitle(settings.map)});
     ui.hud = {};
     ui.typed = '';
     ui.composing = '';
@@ -1607,7 +1673,7 @@
         if (!ui.ownKeys && window.matchMedia?.('(pointer: coarse)').matches && keyboardHeight() < 80) $('#pc-type')?.classList.add('is-tap');
       }
       const loading = $('#pc-loading');
-      if (loading) { loading.textContent = '等大家载入地图…'; loading.classList.add('is-wait'); }
+      if (loading) { loading.textContent = tx('等大家载入地图…'); loading.classList.add('is-wait'); }
       if (!ui.loop) ui.loop = requestAnimationFrame(frame);
       const latest = ui.room?.state;
       if (latest?.match?.number === game.number && ['countdown','playing'].includes(latest.status)) roomCountdown(game,latest.match.startsAt);
@@ -1617,9 +1683,9 @@
       console.warn('警察抓小偷的房间局没有开始',error);
       ui.game = null;
       const fallback = error?.graphics ? lighterLook() : '';
-      if (fallback && pictureAgain(true,watch)) { notify(`${fallback}。`,5000); return; }
+      if (fallback && pictureAgain(true,watch)) { notify(tx('{fallback}。',{fallback}),5000); return; }
       show('room');
-      notify(error?.graphics ? PICTURE_FAILED : '课文或地图没有载入，请检查网络。');
+      notify(error?.graphics ? PICTURE_FAILED : tx('课文或地图没有载入，请检查网络。'));
     } finally {
       if (ui.starting === token) ui.starting = null;
     }
@@ -1637,7 +1703,7 @@
     };
     if (wait <= -1500) { go(); return; }
     game.status = 'countdown';
-    const steps = ['3','2','1','出发'];
+    const steps = ['3','2','1',tx('出发')];
     game.countdown = steps.map((label,index) => {
       const at = wait-(steps.length-1-index)*1000;
       if (at < -300 && index < steps.length-1) return 0;
@@ -1670,12 +1736,12 @@
     game.status = 'over';
     clearCountdown(game);
     if (game.watch) {
-      const line = results.winner === 'draw' ? '两边打成平手' : `${SIDES[results.winner]?.team || ''}获胜`;
+      const line = results.winner === 'draw' ? tx('两边打成平手') : `${SIDES[results.winner]?.team || ''}${EN ? tx('获胜（阵营）') : '获胜'}`;
       later(() => {
         if (ui.game !== game) return;
         ui.game = null;
         if (ui.view === 'game') show('room');
-        notify(`这一局结束了：${line}。`);
+        notify(tx('这一局结束了：{line}。',{line}));
       },END_HOLD_MS);
       return;
     }
@@ -1764,11 +1830,11 @@
     if (!room) return;
     const link = `${location.origin}${location.pathname}?chase=${room.code}#practice`;
     if (canShare()) {
-      try { await navigator.share({title:'警察抓小偷 · 联机房间',text:`来警察抓小偷的房间 ${room.code}，一起打课文！`,url:link}); return; }
+      try { await navigator.share({title:tx('警察抓小偷 · 联机房间'),text:tx('来警察抓小偷的房间 {code}，一起打课文！',{code:room.code}),url:link}); return; }
       catch (error) { if (error?.name === 'AbortError') return; }
     }
-    try { await navigator.clipboard.writeText(link); notify('邀请链接已复制，同学打开就能进房间。'); }
-    catch { notify(`邀请链接：${link}`,12000,{select:true}); }
+    try { await navigator.clipboard.writeText(link); notify(tx('邀请链接已复制，同学打开就能进房间。')); }
+    catch { notify(tx('邀请链接：{link}',{link}),12000,{select:true}); }
   }
   // A poll re-draws the lobby; the control that had the keyboard focus keeps it (the one that takes focus: the plan's
   // loops share their values with the list's rows). 准备 turns into 取消准备 and keeps the focus too.
@@ -1787,51 +1853,51 @@
     const host = state.hostId === state.me, between = ['lobby','finished'].includes(state.status), s = state.settings;
     const me = state.players.find(player => player.id === state.me), menuFresh = ui.botMenuNew;
     const person = player => {
-      const notes = [player.host ? '房主' : '',!player.online ? '离线' : '',!between && !player.playing ? '观战' : ''].filter(Boolean).join(' · ');
+      const notes = [player.host ? tx('房主') : '',!player.online ? tx('离线') : '',!between && !player.playing ? tx('观战') : ''].filter(Boolean).join(' · ');
       return `<li class="pc-person${player.id === state.me ? ' is-me' : ''}${player.online ? '' : ' is-away'}">${avatar(player.name,player.side)}
-        <span class="pc-person-name"><span class="pc-person-line"><b>${e(player.name)}</b>${player.id === state.me ? '<i>我</i>' : ''}</span>${notes ? `<small>${notes}</small>` : ''}</span>
-        <span class="pc-person-rate">${player.usual ? `<b>${player.usual}</b>/min` : '<small>新选手</small>'}</span>
-        <span class="pc-person-state${between && player.ready ? ' is-ready' : ''}">${between && player.ready ? `${icon('check')}<span>已准备</span>` : ''}</span></li>`;
+        <span class="pc-person-name"><span class="pc-person-line"><b>${e(nameOf(player.name))}</b>${player.id === state.me ? `<i>${ME}</i>` : ''}</span>${notes ? `<small>${notes}</small>` : ''}</span>
+        <span class="pc-person-rate">${player.usual ? `<b>${player.usual}</b>/min` : `<small>${tx('新选手')}</small>`}</span>
+        <span class="pc-person-state${between && player.ready ? ' is-ready' : ''}">${between && player.ready ? `${icon('check')}<span>${tx('已准备')}</span>` : ''}</span></li>`;
     };
     const bot = item => `<li class="pc-person is-bot">${avatar(item.name,item.side,'',true)}
-      <span class="pc-person-name"><b>${e(item.name)}</b><small>电脑 · ${LEVELS[item.level]?.name || ''}</small></span>
-      <span class="pc-person-rate">${item.level === 'match' ? '<small>跟着对手</small>' : `<b>${item.usual}</b>/min`}</span>
-      ${host && between ? `<button type="button" class="pc-person-remove" data-pc="room-bot-remove" data-value="${e(item.id)}" aria-label="移除${e(item.name)}" title="移除">${icon('close')}</button>` : '<span class="pc-person-state"></span>'}</li>`;
+      <span class="pc-person-name"><b>${e(item.name)}</b><small>${tx('电脑')} · ${LEVELS[item.level]?.name || ''}</small></span>
+      <span class="pc-person-rate">${item.level === 'match' ? `<small>${tx('跟着对手')}</small>` : `<b>${item.usual}</b>/min`}</span>
+      ${host && between ? `<button type="button" class="pc-person-remove" data-pc="room-bot-remove" data-value="${e(item.id)}" aria-label="${e(tx('移除{name}',{name:item.name}))}" title="${tx('移除')}">${icon('close')}</button>` : '<span class="pc-person-state"></span>'}</li>`;
     const team = side => {
       const people = state.players.filter(player => player.side === side), bots = state.bots.filter(item => item.side === side);
       const menu = ui.botMenu === side && host && between;
       return `<section class="pc-team is-${side}"><header class="pc-team-head"><img src="${sprite(side === 'police' ? 'police-catch' : 'thief-taunt')}" alt="" decoding="async" draggable="false">
-          <h3>${SIDES[side].team}</h3><span>${people.length+bots.length} 人</span></header>
-        ${people.length+bots.length ? `<ul class="pc-people">${people.map(person).join('')}${bots.map(bot).join('')}</ul>` : `<p class="pc-team-empty">还没有人当${SIDES[side].name}</p>`}
+          <h3>${SIDES[side].team}</h3><span>${tx('{n} 人',{n:people.length+bots.length})}</span></header>
+        ${people.length+bots.length ? `<ul class="pc-people">${people.map(person).join('')}${bots.map(bot).join('')}</ul>` : `<p class="pc-team-empty">${side === 'police' ? tx('还没有人当警察') : tx('还没有人当小偷')}</p>`}
         ${between && ((me && me.side !== side) || (host && state.bots.length < state.maxBots)) ? `<div class="pc-team-foot">
-          ${me && me.side !== side ? `<button type="button" class="pc-link" data-pc="room-side" data-value="${side}">换到${SIDES[side].team}</button>` : ''}
-          ${host && state.bots.length < state.maxBots ? `<button type="button" class="pc-link" data-pc="room-bot-menu" data-value="${side}" aria-expanded="${menu}">${icon('plus')}加电脑</button>` : ''}</div>` : ''}
-        ${menu ? `<div class="pc-segment pc-bot-levels${menuFresh ? ' is-new' : ''}" role="group" aria-label="电脑水平">${Object.entries(LEVELS).map(([key,level]) => `<button type="button" class="pc-option" data-pc="room-bot-add" data-side="${side}" data-value="${key}"><span>${level.name}</span><small>${level.rate ? `${level.rate}/min` : '跟着对手'}</small></button>`).join('')}</div>` : ''}
+          ${me && me.side !== side ? `<button type="button" class="pc-link" data-pc="room-side" data-value="${side}">${side === 'police' ? tx('换到警方') : tx('换到小偷团')}</button>` : ''}
+          ${host && state.bots.length < state.maxBots ? `<button type="button" class="pc-link" data-pc="room-bot-menu" data-value="${side}" aria-expanded="${menu}">${icon('plus')}${tx('加电脑')}</button>` : ''}</div>` : ''}
+        ${menu ? `<div class="pc-segment pc-bot-levels${menuFresh ? ' is-new' : ''}" role="group" aria-label="${tx('电脑水平')}">${Object.entries(LEVELS).map(([key,level]) => `<button type="button" class="pc-option" data-pc="room-bot-add" data-side="${side}" data-value="${key}"><span>${level.name}</span><small>${level.rate ? `${level.rate}/min` : tx('跟着对手')}</small></button>`).join('')}</div>` : ''}
       </section>`;
     };
     // The bot menu rises in once, when it opens, not again with every poll.
     ui.botMenuNew = false;
-    const lesson = s.title || sectionName(s.section);
-    const facts = `<div class="pc-room-facts"><span>${icon('map')}<b>${e(mapTitle(s.map))}</b></span><span title="${e(lesson)}">${icon('book')}<b>${e(lesson)}</b></span><span>${icon('clock')}<b>${s.end === 'timed' ? `限时 ${s.minutes} 分钟` : '抓到为止'}</b></span></div>`;
+    const lesson = titleText(s.title) || sectionName(s.section);
+    const facts = `<div class="pc-room-facts"><span>${icon('map')}<b>${e(mapTitle(s.map))}</b></span><span title="${e(lesson)}">${icon('book')}<b>${e(lesson)}</b></span><span>${icon('clock')}<b>${s.end === 'timed' ? tx('限时 {n} 分钟',{n:s.minutes}) : tx('抓到为止')}</b></span></div>`;
     // One on one, the first catch or taunt decides; with more players the loser changes sides.
     const many = state.players.filter(player => player.online).length+state.bots.length > 2;
     const editor = host && between && ui.roomEdit ? `<div class="pc-setup pc-room-editor">
-        <div class="pc-field"><span class="pc-label">地图</span>${planMarkup()}</div>
-        <div class="pc-field"><span class="pc-label">打字内容</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName())}</span>${icon('down')}</button></div>
-        <div class="pc-field"><span class="pc-label">结束方式</span><div class="pc-segment" role="radiogroup" aria-label="结束方式">${option('end','catch','抓到为止',ui.prefs.end,many ? '输了换阵营' : '一次定胜负')}${MINUTES.map(n => option('minutes',n,`${n} 分钟`,ui.prefs.end === 'timed' ? ui.prefs.minutes : 0,'比次数')).join('')}</div></div></div>` : '';
-    const issue = {people:'至少要 2 位同学准备好',police:'还需要有人当警察',thief:'还需要有人当小偷'}[state.startIssue] || '';
-    const counted = `${state.readyCount}/${state.here} 人已准备`;
-    const hint = issue ? `${counted} · ${issue}` : host && state.readyCount < state.here ? `${counted} · 也可以现在开始，没准备的人观战` : `${counted} · 大家都准备好就自动开始`;
+        <div class="pc-field"><span class="pc-label">${tx('地图')}</span>${planMarkup()}</div>
+        <div class="pc-field"><span class="pc-label">${tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName())}</span>${icon('down')}</button></div>
+        <div class="pc-field"><span class="pc-label">${tx('结束方式')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('结束方式')}">${option('end','catch',tx('抓到为止'),ui.prefs.end,many ? tx('输了换阵营') : tx('一次定胜负'))}${MINUTES.map(n => option('minutes',n,tx('{n} 分钟',{n}),ui.prefs.end === 'timed' ? ui.prefs.minutes : 0,tx('比次数'))).join('')}</div></div></div>` : '';
+    const issue = {people:tx('至少要 2 位同学准备好'),police:tx('还需要有人当警察'),thief:tx('还需要有人当小偷')}[state.startIssue] || '';
+    const counted = tx('{ready}/{here} 人已准备',{ready:state.readyCount,here:state.here});
+    const hint = issue ? `${counted} · ${issue}` : host && state.readyCount < state.here ? `${counted} · ${tx('也可以现在开始，没准备的人观战')}` : `${counted} · ${tx('大家都准备好就自动开始')}`;
     const bar = between
       ? `<div class="pc-actions pc-start-bar pc-room-bar"><p class="pc-room-hint">${e(hint)}</p><div class="pc-room-buttons">
-          ${button('room-ready',me?.ready ? '取消准备' : '准备',me?.ready || host ? 'pc-ghost' : 'pc-primary',`data-value="${me?.ready ? 'off' : 'on'}"`)}
-          ${host ? button('room-start','开始',issue ? 'pc-ghost' : 'pc-primary',issue ? 'disabled' : '') : ''}</div></div>`
-      : `<div class="pc-actions pc-start-bar pc-room-bar"><p class="pc-room-hint">${state.status === 'playing' ? '这一局正在进行，下一局一起玩' : '这一局马上开始，下一局一起玩'}</p><div class="pc-room-buttons">${button('room-watch',`${icon('eye')}<span>观战</span>`,'pc-primary',state.status === 'loading' ? 'disabled' : '')}</div></div>`;
-    return `<header class="pc-top"><button type="button" class="pc-icon-button" data-pc="room-leave" aria-label="离开房间" title="离开房间">${icon('back')}</button><h2 tabindex="-1">联机房间</h2><button type="button" class="pc-icon-button" data-pc="close" aria-label="离开警察抓小偷" title="离开">${icon('close')}</button></header>
-      <section class="pc-room-head"><div class="pc-room-code"><span class="pc-kicker">房间号</span><b>${e(state.code)}</b></div><p>告诉同学这 4 位数字，或者把邀请链接发给他们。</p>${button('room-copy',`${icon('link')}<span>${canShare() ? '邀请同学' : '复制邀请链接'}</span>`,'pc-ghost')}</section>
-      <section class="pc-panel pc-room-game"><div class="pc-section-head"><h3>这一局</h3>${host ? (between ? `<button type="button" class="pc-link" data-pc="room-edit" aria-expanded="${ui.roomEdit}">${ui.roomEdit ? '收起' : '更改'}</button>` : '') : '<small class="pc-hint">房主选择</small>'}</div>${facts}${editor}</section>
+          ${button('room-ready',me?.ready ? tx('取消准备') : tx('准备'),me?.ready || host ? 'pc-ghost' : 'pc-primary',`data-value="${me?.ready ? 'off' : 'on'}"`)}
+          ${host ? button('room-start',tx('开始'),issue ? 'pc-ghost' : 'pc-primary',issue ? 'disabled' : '') : ''}</div></div>`
+      : `<div class="pc-actions pc-start-bar pc-room-bar"><p class="pc-room-hint">${state.status === 'playing' ? tx('这一局正在进行，下一局一起玩') : tx('这一局马上开始，下一局一起玩')}</p><div class="pc-room-buttons">${button('room-watch',`${icon('eye')}<span>${tx('观战')}</span>`,'pc-primary',state.status === 'loading' ? 'disabled' : '')}</div></div>`;
+    return `<header class="pc-top"><button type="button" class="pc-icon-button" data-pc="room-leave" aria-label="${tx('离开房间')}" title="${tx('离开房间')}">${icon('back')}</button><h2 tabindex="-1">${tx('联机房间')}</h2><button type="button" class="pc-icon-button" data-pc="close" aria-label="${tx('离开警察抓小偷')}" title="${tx('离开')}">${icon('close')}</button></header>
+      <section class="pc-room-head"><div class="pc-room-code"><span class="pc-kicker">${tx('房间号')}</span><b>${e(state.code)}</b></div><p>${tx('告诉同学这 4 位数字，或者把邀请链接发给他们。')}</p>${button('room-copy',`${icon('link')}<span>${canShare() ? tx('邀请同学') : tx('复制邀请链接')}</span>`,'pc-ghost')}</section>
+      <section class="pc-panel pc-room-game"><div class="pc-section-head"><h3>${tx('这一局')}</h3>${host ? (between ? `<button type="button" class="pc-link" data-pc="room-edit" aria-expanded="${ui.roomEdit}">${ui.roomEdit ? EN ? tx('收起（房间设置）') : '收起' : tx('更改')}</button>` : '') : `<small class="pc-hint">${tx('房主选择')}</small>`}</div>${facts}${editor}</section>
       <div class="pc-teams">${team('police')}${team('thief')}</div>
-      ${between ? `<section class="pc-panel pc-room-look">${lookField('我的画面 · 只改自己看到的')}</section>` : ''}
+      ${between ? `<section class="pc-panel pc-room-look">${lookField(tx('我的画面 · 只改自己看到的'))}</section>` : ''}
       ${bar}`;
   }
 
@@ -1863,7 +1929,7 @@
     try {
       // A word range is read from 练习 now; when it is gone (another textbook there now), the player picks again.
       const range = prefs.text === 'words' ? wordList(prefs.words) : null;
-      if (prefs.text === 'words' && !range) { ui.game = null; show('setup'); notify('这个词语范围现在不可用，请重新选择打字内容。'); return; }
+      if (prefs.text === 'words' && !range) { ui.game = null; show('setup'); notify(tx('这个词语范围现在不可用，请重新选择打字内容。')); return; }
       const seed = Math.random();
       const [section] = await Promise.all([range ? loadClips().catch(() => null).then(() => buildWordList(range.list,`${seed}-0`,clipFor)) : loadSection(prefs.section),loadAssets()]);
       if (!current()) return;
@@ -1893,9 +1959,9 @@
       console.warn('警察抓小偷没有开始',error);
       ui.game = null;
       const fallback = error?.graphics ? lighterLook() : '';
-      if (fallback && pictureAgain(false)) { notify(`${fallback}。`,5000); return; }
+      if (fallback && pictureAgain(false)) { notify(tx('{fallback}。',{fallback}),5000); return; }
       show('setup');
-      notify(error?.graphics ? PICTURE_FAILED : '课文或图片没有载入，请检查网络后重试。');
+      notify(error?.graphics ? PICTURE_FAILED : tx('课文或图片没有载入，请检查网络后重试。'));
     } finally {
       if (ui.starting === token) ui.starting = null;
     }
@@ -1907,21 +1973,21 @@
     ui.tallAt = -1;
     const own = ui.ownKeys;
     return `<div class="pc-game${p.watch ? ' is-watch' : ''}${own ? ' has-kb' : ''}${ui.prefs.scene ? '' : ' is-plain'}">
-      <header class="pc-gbar"><button type="button" class="pc-icon-button" data-pc="close" aria-label="${p.watch ? '退出观战' : '离开这一局'}">${icon('close')}</button>
-        <div class="pc-clock" id="pc-clock" aria-label="时间">${icon('clock')}<span>${p.end === 'timed' ? formatClock(p.minutes*60000) : '0:00'}</span></div>
-        <div class="pc-score" aria-label="比分"><span class="pc-score-side" title="抓到">${icon('cuffs')}<b id="pc-catch">0</b></span><i>:</i><span class="pc-score-side" title="嘲笑"><b id="pc-taunt">0</b>${icon('taunt')}</span></div>
+      <header class="pc-gbar"><button type="button" class="pc-icon-button" data-pc="close" aria-label="${p.watch ? tx('退出观战') : tx('离开这一局')}">${icon('close')}</button>
+        <div class="pc-clock" id="pc-clock" aria-label="${tx('时间')}">${icon('clock')}<span>${p.end === 'timed' ? formatClock(p.minutes*60000) : '0:00'}</span></div>
+        <div class="pc-score" aria-label="${tx('比分')}"><span class="pc-score-side" title="${tx('抓到')}">${icon('cuffs')}<b id="pc-catch">0</b></span><i>:</i><span class="pc-score-side" title="${tx('嘲笑')}"><b id="pc-taunt">0</b>${icon('taunt')}</span></div>
         <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>/min</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
-        ${p.watch ? '<span class="pc-watch-tag">观战</span>' : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
+        ${p.watch ? `<span class="pc-watch-tag">${tx('观战')}</span>` : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
         <button type="button" class="pc-icon-button" data-pc="scene" aria-label="${sceneLabel(ui.prefs.scene)}" title="${sceneLabel(ui.prefs.scene)}">${icon(ui.prefs.scene ? 'scene' : 'track')}</button>
         <button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
-      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><div class="pc-plain" id="pc-plain" aria-hidden="true"><div class="pc-plain-track"><span class="pc-plain-end">后方半圈</span><span class="pc-plain-end is-ahead">前方半圈</span></div></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">正在载入${e(mapTitle(p.map))}…</p></div>
+      <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><div class="pc-plain" id="pc-plain" aria-hidden="true"><div class="pc-plain-track"><span class="pc-plain-end">${tx('后方半圈')}</span><span class="pc-plain-end is-ahead">${tx('前方半圈')}</span></div></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">${tx('正在载入{map}…',{map:e(mapTitle(p.map))})}</p></div>
       <div class="pc-panel-type${own ? ` has-kb${ui.prefs.keys ? '' : ' kb-off'}` : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
         <div class="pc-line-wrap" id="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
-        <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>出现候选框时，请把输入法切到英文</span>${letterKeys()}${own ? showKeysMarkup() : ''}</div>
+        <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>${tx('出现候选框时，请把输入法切到英文')}</span>${letterKeys()}${own ? showKeysMarkup() : ''}</div>
         ${own ? keyboardMarkup() : ''}
-        <textarea class="pc-input" id="pc-input" aria-label="在这里打字" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
+        <textarea class="pc-input" id="pc-input" aria-label="${tx('在这里打字')}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
       </div></div>`;
   }
   // On a touch screen the system keyboard would cover half the picture (and some phones shrink or shift the page for
@@ -1945,10 +2011,10 @@
     ui.touched = true;
     if (ui.view === 'game' && !ui.ownKeys) useOwnKeys();
   }
-  const keyboardMarkup = () => `<div class="pc-kb" id="pc-kb" role="group" aria-label="挪威语键盘" data-page="letters">${keyRows('letters')}</div>`;
+  const keyboardMarkup = () => `<div class="pc-kb" id="pc-kb" role="group" aria-label="${tx('挪威语键盘')}" data-page="letters">${keyRows('letters')}</div>`;
   // æ ø å for a real keyboard without them (on a touch screen they show only while the game's keyboard is put away).
-  const letterKeys = () => `<span class="pc-keys" aria-label="挪威字母">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span>`;
-  const showKeysMarkup = () => `<button type="button" class="pc-kb-show" data-kb-show="1" tabindex="-1" aria-label="显示键盘">${icon('keyboard')}<span>键盘</span></button>`;
+  const letterKeys = () => `<span class="pc-keys" aria-label="${tx('挪威字母')}">${['æ','ø','å'].map(char => `<button type="button" class="pc-key" data-char="${char}" tabindex="-1">${char}</button>`).join('')}</span>`;
+  const showKeysMarkup = () => `<button type="button" class="pc-kb-show" data-kb-show="1" tabindex="-1" aria-label="${tx('显示键盘')}">${icon('keyboard')}<span>${tx('键盘')}</span></button>`;
   // Put the game's keyboard away or bring it back; the picture takes the room (at the same scale, see layoutStage).
   function setKeys(on) {
     const type = $('#pc-type');
@@ -1979,14 +2045,14 @@
   }
   function keyRows(page) {
     const key = char => `<button type="button" class="pc-kb-key" data-kb="${char}" tabindex="-1">${char}</button>`;
-    const turn = page === 'digits' ? ['letters','ABC','切换字母'] : ['digits','123','切换数字'];
+    const turn = page === 'digits' ? ['letters','ABC',tx('切换字母')] : ['digits','123',tx('切换数字')];
     // A phone's own layout: æ ø å on a row of their own above qwertyuiop / asdfghjkl / zxcvbnm, ten keys at most a row.
     const rows = page === 'digits' ? ['12345','67890'] : ['æøå','qwertyuiop','asdfghjkl','zxcvbnm'];
     const kinds = page === 'digits' ? ['is-digits','is-digits'] : ['is-nordic','','is-mid','is-bottom'];
     const bottom = page === 'digits' ? -1 : 3;
     const last = `<button type="button" class="pc-kb-key is-turn" data-kb-page="${turn[0]}" tabindex="-1" aria-label="${turn[2]}">${turn[1]}</button>`;
     // Like a tablet's keyboard, the bottom row ends in a key that puts the keyboard away.
-    const hide = `<button type="button" class="pc-kb-key is-turn is-hide" data-kb-hide="1" tabindex="-1" aria-label="收起键盘" title="收起键盘">${icon('keyboard-hide')}</button>`;
+    const hide = `<button type="button" class="pc-kb-key is-turn is-hide" data-kb-hide="1" tabindex="-1" aria-label="${tx('收起键盘')}" title="${tx('收起键盘')}">${icon('keyboard-hide')}</button>`;
     return rows.map((row,index) => `<div class="pc-kb-row${kinds[index] ? ` ${kinds[index]}` : ''}">${index === bottom ? last : ''}${[...row].map(key).join('')}${index === bottom ? hide : ''}</div>`).join('')
       +(page === 'digits' ? `<div class="pc-kb-row is-bottom">${last}${hide}</div>` : '');
   }
@@ -2016,17 +2082,17 @@
     const input = $('#pc-input');
     if (input && document.activeElement !== input) { try { input.focus({preventScroll:true}); } catch {} }
   }
-  const soundLabel = on => on ? '声音：开（点按关闭音效和单词读音）' : '声音：关（点按打开音效和单词读音）';
-  const musicLabel = on => on ? '背景音乐：开（点按关闭）' : '背景音乐：关（点按打开）';
-  const sceneLabel = on => on ? '画面：开（点按关闭画面，只留一条距离线）' : '画面：关（点按打开画面）';
-  const cameraLabel = mode => mode === 'still' ? '镜头：全景（点按改为缓慢跟随）' : '镜头：缓慢跟随（点按改为全景）';
+  const soundLabel = on => on ? tx('声音：开（点按关闭音效和单词读音）') : tx('声音：关（点按打开音效和单词读音）');
+  const musicLabel = on => on ? tx('背景音乐：开（点按关闭）') : tx('背景音乐：关（点按打开）');
+  const sceneLabel = on => on ? tx('画面：开（点按关闭画面，只留一条距离线）') : tx('画面：关（点按打开画面）');
+  const cameraLabel = mode => mode === 'still' ? tx('镜头：全景（点按改为缓慢跟随）') : tx('镜头：缓慢跟随（点按改为全景）');
   function startCountdown() {
     const game = ui.game;
     game.status = 'countdown';
     clearCountdown(game);
     $('#pc-loading')?.remove();
     const count = $('#pc-count');
-    const steps = ['3','2','1','出发'];
+    const steps = ['3','2','1',tx('出发')];
     game.countdown = steps.map((label,index) => later(() => {
       if (ui.game !== game || !count) return;
       count.textContent = label;
@@ -2240,7 +2306,7 @@
     if (!words) {
       line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}<span class="pc-entry">${chars(sentence.text)}</span>`;
     } else {
-      const entry = item => `<span class="pc-entry"><span class="pc-no">${chars(item.text)}</span><span class="pc-gloss" lang="zh">${e(item.zh || '')}</span></span>`;
+      const entry = item => `<span class="pc-entry"><span class="pc-no">${chars(item.text)}</span><span class="pc-gloss" lang="${EN && item.en ? 'en' : 'zh'}">${e(meaningOf(item))}</span></span>`;
       line.innerHTML = entry(sentence);
       const room = line.clientWidth;
       while (ui.lineTo-ui.lineFrom < 16 && sentences[ui.lineTo]?.section === 'words') {
@@ -2278,12 +2344,12 @@
     // The meaning and the count follow the sentence or word being typed.
     ui.lineSentence = letter.s;
     const sentence = game.text.sentences[letter.s];
-    $('#pc-zh').textContent = sentence.zh;
+    $('#pc-zh').textContent = meaningOf(sentence);
     if (ui.lineWords) (ui.lineEntries || []).forEach((entry,index) => {
       entry.classList.toggle('is-now',index === letter.s-ui.lineFrom);
       entry.classList.toggle('is-past',index < letter.s-ui.lineFrom);
     });
-    $('#pc-progress').textContent = sentence.section === 'words' ? `第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 词` : `${sectionLabel(sentence.section)} · 第 ${letter.s-sentence.block+1} / ${sentence.blockSize} 句`;
+    $('#pc-progress').textContent = sentence.section === 'words' ? tx('第 {n} / {all} 词',{n:letter.s-sentence.block+1,all:sentence.blockSize}) : `${sectionLabel(sentence.section)} · ${tx('第 {n} / {all} 句',{n:letter.s-sentence.block+1,all:sentence.blockSize})}`;
     prefetchAhead();
   }
 
@@ -2304,12 +2370,16 @@
     const banner = $('#pc-event');
     if (!banner) return;
     const catchIt = event.type === 'catch';
-    const who = player => player.me ? '你' : player.name;
-    const line = catchIt ? `${who(event.winner)}抓住了${who(event.loser)}` : `${who(event.winner)}套了${who(event.loser)}一圈`;
+    // (I am 你 in these lines, so each has its own wording for me.)
+    const names = {winner:nameOf(event.winner.name),loser:nameOf(event.loser.name),name:nameOf(event.loser.name),team:SIDES[event.loser.side].team};
+    const line = catchIt
+      ? event.winner.me ? tx('你抓住了{loser}',names) : event.loser.me ? tx('{winner}抓住了你',names) : tx('{winner}抓住了{loser}',names)
+      : event.winner.me ? tx('你套了{loser}一圈',names) : event.loser.me ? tx('{winner}套了你一圈',names) : tx('{winner}套了{loser}一圈',names);
     // The loser starts again at the start gap from the nearest opponent (on its new side, when it changed sides).
-    const playsOn = game.players.some(player => player.side !== event.loser.side);
-    const tail = event.switched ? `${who(event.loser)}换到${SIDES[event.loser.side].team}${playsOn ? '，从起跑距离重新出发' : ''}` : event.respawn ? `${who(event.loser)}${catchIt ? '挣脱手铐，重新领先一段' : '回到起跑时的追击距离'}` : '';
-    banner.innerHTML = `<img src="${sprite(catchIt ? 'police-catch' : 'thief-taunt')}" alt="" draggable="false"><span><b>${catchIt ? '抓到了！' : '嘲笑！'}</b>${e(line)}${tail ? `<small>${e(tail)}</small>` : ''}</span>`;
+    const playsOn = game.players.some(player => player.side !== event.loser.side), mineLost = event.loser.me;
+    const tail = event.switched ? `${mineLost ? tx('你换到{team}',names) : tx('{name}换到{team}',names)}${playsOn ? tx('，从起跑距离重新出发') : ''}`
+      : event.respawn ? catchIt ? (mineLost ? tx('你挣脱手铐，重新领先一段') : tx('{name}挣脱手铐，重新领先一段',names)) : (mineLost ? tx('你回到起跑时的追击距离') : tx('{name}回到起跑时的追击距离',names)) : '';
+    banner.innerHTML = `<img src="${sprite(catchIt ? 'police-catch' : 'thief-taunt')}" alt="" draggable="false"><span><b>${catchIt ? tx('抓到了！') : tx('嘲笑！')}</b>${e(line)}${tail ? `<small>${e(tail)}</small>` : ''}</span>`;
     banner.className = `pc-event is-on is-${event.type}${mine ? ' is-mine' : ''}`;
     clearTimeout(ui.bannerTimer);
     ui.bannerTimer = later(() => banner.classList.remove('is-on'),2200);
@@ -2338,7 +2408,7 @@
     return game.text.sentences.filter(sentence => sentence.firstLetter < me.letters)
       .filter(sentence => { const key = `${sentence.section}|${sentence.from}|${sentence.text}`; if (seen.has(key)) return false; seen.add(key); return true; })
       .slice(-MAX_RECORD_SENTENCES)
-      .map(sentence => ({text:sentence.text,zh:sentence.zh,audio:sentence.audio,from:sentence.from,to:sentence.to,section:sentence.section}));
+      .map(sentence => ({text:sentence.text,zh:sentence.zh,...(sentence.en ? {en:sentence.en} : {}),audio:sentence.audio,from:sentence.from,to:sentence.to,section:sentence.section}));
   }
   function storeRecord(record) {
     ui.records = [record,...ui.records.filter(item => item.id !== record.id)].slice(0,MAX_RECORDS);
@@ -2384,19 +2454,19 @@
     const {record} = ui.resultsFor || {};
     if (!record) return homePage();
     const won = record.result === 'win', draw = record.result === 'draw';
-    const headline = draw ? '平局' : won ? '你赢了' : '这局输了';
-    const sideWord = record.winner === 'draw' ? '两边打成平手' : `${SIDES[record.winner]?.team || ''}获胜`;
+    const headline = draw ? tx('平局') : won ? tx('你赢了') : tx('这局输了');
+    const sideWord = record.winner === 'draw' ? tx('两边打成平手') : `${SIDES[record.winner]?.team || ''}${EN ? tx('获胜（阵营）') : '获胜'}`;
     const art = record.winner === 'thief' ? 'thief-taunt' : record.winner === 'police' ? 'police-catch' : record.side === 'police' ? 'police-catch' : 'thief-taunt';
     const me = record.me, room = record.kind === 'room';
     const stat = (label,value) => `<div class="pc-tile"><span>${label}</span><b>${value}</b></div>`;
-    return `${topBar('本局结果',room && ui.room ? 'room' : 'home')}
-      <section class="pc-result-hero is-${record.result}"><img src="${sprite(art)}" alt="" draggable="false"><div><span class="pc-kicker">${e(room ? `房间 ${record.room} · ${sideWord}` : sideWord)}</span><p class="pc-result-title">${headline}</p>
-        <p class="pc-result-score">${icon('cuffs')}抓到 <b>${record.score.catch}</b><i>:</i><b>${record.score.taunt}</b> 嘲笑${icon('taunt')}</p>${record.xp ? `<p class="pc-result-xp">+${record.xp} XP</p>` : ''}</div></section>
-      <section class="pc-panel"><div class="pc-tiles is-four">${stat('速度',`${me.rate}/min`)}${stat('正确率',`${me.accuracy}%`)}${stat('打了',`${me.words} 个词`)}${stat('最高',VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div></section>
-      <section class="pc-panel"><div class="pc-section-head"><h3>本局选手</h3></div><ul class="pc-players">${record.players.map(player => `<li class="${player.me ? 'is-me' : ''}">${avatar(player.name,player.side,'',Boolean(player.level))}<span class="pc-player-name">${e(player.name)}${player.level ? `<small>电脑 · ${LEVELS[player.level]?.name || ''}</small>` : player.result === 'left' ? '<small>中途离开</small>' : ''}</span><span class="pc-player-side">${SIDES[player.side].name}${player.side !== player.startSide ? '<small>换过阵营</small>' : ''}</span><span class="pc-player-rate"><b>${player.rate}</b>/min</span><span class="pc-player-score">${[player.catches ? `抓到 ${player.catches}` : '',player.taunts ? `嘲笑 ${player.taunts}` : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul></section>
-      ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head">${record.sentences[0].section === 'words' ? '<h3>打过的词语</h3><small class="pc-hint">点播放键听读音</small>' : '<h3>打过的句子</h3><small class="pc-hint">点播放键听原书录音</small>'}</div>${sentenceList(record.sentences,record.id)}</section>` : ''}
-      ${room ? `<div class="pc-actions">${ui.room ? button('go','<span>回到房间</span>','pc-primary pc-wide','data-view="room"') : ''}<div class="pc-actions-row">${button('go',ui.room ? '离开房间' : '返回','pc-quiet','data-view="home"')}</div></div>`
-        : `<div class="pc-actions">${button('again','<span>再来一局</span>','pc-primary pc-wide')}<div class="pc-actions-row">${button('go','换个设置','pc-ghost','data-view="setup"')}${button('go','返回','pc-quiet','data-view="home"')}</div></div>`}`;
+    return `${topBar(tx('本局结果'),room && ui.room ? 'room' : 'home')}
+      <section class="pc-result-hero is-${record.result}"><img src="${sprite(art)}" alt="" draggable="false"><div><span class="pc-kicker">${e(room ? `${tx('房间 {code}',{code:record.room})} · ${sideWord}` : sideWord)}</span><p class="pc-result-title">${headline}</p>
+        <p class="pc-result-score">${icon('cuffs')}${tx('抓到')} <b>${record.score.catch}</b><i>:</i><b>${record.score.taunt}</b> ${tx('嘲笑')}${icon('taunt')}</p>${record.xp ? `<p class="pc-result-xp">+${record.xp} XP</p>` : ''}</div></section>
+      <section class="pc-panel"><div class="pc-tiles is-four">${stat(tx('速度'),`${me.rate}/min`)}${stat(tx('正确率'),`${me.accuracy}%`)}${stat(tx('打了'),tx('{n} 个词',{n:me.words}))}${stat(tx('最高'),VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div></section>
+      <section class="pc-panel"><div class="pc-section-head"><h3>${tx('本局选手')}</h3></div><ul class="pc-players">${record.players.map(player => `<li class="${player.me ? 'is-me' : ''}">${avatar(player.name,player.side,'',Boolean(player.level))}<span class="pc-player-name">${e(nameOf(player.name))}${player.level ? `<small>${tx('电脑')} · ${LEVELS[player.level]?.name || ''}</small>` : player.result === 'left' ? `<small>${tx('中途离开')}</small>` : ''}</span><span class="pc-player-side">${SIDES[player.side].name}${player.side !== player.startSide ? `<small>${tx('换过阵营')}</small>` : ''}</span><span class="pc-player-rate"><b>${player.rate}</b>/min</span><span class="pc-player-score">${[player.catches ? tx('抓到 {n}',{n:player.catches}) : '',player.taunts ? tx('嘲笑 {n}',{n:player.taunts}) : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul></section>
+      ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head">${record.sentences[0].section === 'words' ? `<h3>${tx('打过的词语')}</h3><small class="pc-hint">${tx('点播放键听读音')}</small>` : `<h3>${tx('打过的句子')}</h3><small class="pc-hint">${tx('点播放键听原书录音')}</small>`}</div>${sentenceList(record.sentences,record.id)}</section>` : ''}
+      ${room ? `<div class="pc-actions">${ui.room ? button('go',`<span>${tx('回到房间')}</span>`,'pc-primary pc-wide','data-view="room"') : ''}<div class="pc-actions-row">${button('go',ui.room ? tx('离开房间') : tx('返回'),'pc-quiet','data-view="home"')}</div></div>`
+        : `<div class="pc-actions">${button('again',`<span>${tx('再来一局')}</span>`,'pc-primary pc-wide')}<div class="pc-actions-row">${button('go',tx('换个设置'),'pc-ghost','data-view="setup"')}${button('go',tx('返回'),'pc-quiet','data-view="home"')}</div></div>`}`;
   }
 
   /* ---------- Original recordings on the results and history pages ---------- */
@@ -2441,7 +2511,7 @@
     ui.prefs.look = 'pixel';
     ui.prefs.lookPicked = true;
     savePrefs();
-    return `这台电脑的显卡画不动${look.name}画面，已换成像素画面`;
+    return tx('这台电脑的显卡画不动{look}画面，已换成像素画面',{look:look.name});
   }
   // Starts the picture over in the new look: a bot game begins again, a room game rejoins its round if it is still on.
   function pictureAgain(room,watch) {
@@ -2453,7 +2523,7 @@
     void startRoomGame(state,watch);
     return true;
   }
-  const PICTURE_FAILED = '画面没能建好，请关掉其他占显卡的网页或程序，刷新后再试。';
+  const PICTURE_FAILED = tx('画面没能建好，请关掉其他占显卡的网页或程序，刷新后再试。');
   function loadWorld() {
     ui.worldLoad ||= import(versioned('./chase-world.mjs')).catch(error => { ui.worldLoad = null; throw error; });
     return ui.worldLoad;
@@ -2503,9 +2573,9 @@
         ui.game = null;
         // Q版 or 3D was too much for the card: the game goes on at once in 像素 (a room game rejoins the round in play).
         const fallback = lighterLook();
-        if (fallback && pictureAgain(room,watch)) { notify(`${fallback}${room ? '，回到这一局' : '，重新开局'}。`,5000); return; }
+        if (fallback && pictureAgain(room,watch)) { notify(room ? tx('{fallback}，回到这一局。',{fallback}) : tx('{fallback}，重新开局。',{fallback}),5000); return; }
         show(room ? 'room' : 'setup');
-        notify(room ? '画面中断了，请回到房间重新加入下一局。' : '画面中断了，这一局没有记入战绩，请重新开始。');
+        notify(room ? tx('画面中断了，请回到房间重新加入下一局。') : tx('画面中断了，这一局没有记入战绩，请重新开始。'));
       }});
     if (!current() || !stageElement.isConnected) { world.dispose(); return; }
     // Real map data comes with its sources named in the corner (the short form; the full notice is its title).
@@ -2615,7 +2685,7 @@
       if (dot.key !== key) {
         dot.key = key;
         dot.element.className = `pc-plain-dot is-${player.side}${mine ? ' is-me' : ''}${flip ? ' is-below' : ''}${player.away ? ' is-away' : ''}`;
-        dot.element.children[1].textContent = mine ? '我' : player.name;
+        dot.element.children[1].textContent = mine ? ME : nameOf(player.name);
         dot.element.children[2].textContent = text;
       }
       // Round the far side a dot leaves one end and comes in at the other: it fades towards the ends and jumps across
@@ -2719,7 +2789,7 @@
         // Its width is measured when the wording grows or shrinks, so a long name stays inside the picture.
         const resize = marker.text.length !== text.length;
         marker.text = text;
-        marker.element.children[1].textContent = player.name;
+        marker.element.children[1].textContent = nameOf(player.name);
         marker.element.children[2].textContent = text;
         if (resize) marker.half = Math.max(40,marker.element.offsetWidth/2);
       }

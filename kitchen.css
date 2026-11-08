@@ -965,3 +965,8 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-item.is-held .kc-pic.is-item,.kc-tool.is-choice .kc-tool-pic{transform:none}
   img.kc-hero-art,img.kc-scene-banner{transition:none}
 }
+
+/* English (html[lang="en"], docs/i18n.md): longer words on the same narrow buttons. Chinese pages are untouched. */
+html[lang="en"] .kc-start-bar .kc-actions-row>.kc-button{padding-inline:12px}
+html[lang="en"] .kc-cab small{max-width:9.5em;overflow:hidden;text-overflow:ellipsis}
+html[lang="en"] .kc-section-head .kc-link{white-space:nowrap}

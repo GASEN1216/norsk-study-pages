@@ -1,0 +1,18 @@
+{
+ "id": "pa-vei-5.A",
+ "sentences": {
+  "A. Klokka": "A. The time",
+  "Klokka er tre. Den er tre.": "It's three o'clock. It's three.",
+  "Klokka er fem over tre.": "It's five past three.",
+  "Den er ti over tre.": "It's ten past three.",
+  "Den er kvart over tre.": "It's quarter past three.",
+  "Den er ti på halv fire.": "It's twenty past three.",
+  "Den er fem på halv fire.": "It's twenty-five past three.",
+  "Den er halv fire.": "It's half past three.",
+  "Den er fem over halv fire.": "It's twenty-five to four.",
+  "Den er ti over halv fire.": "It's twenty to four.",
+  "Den er kvart på fire.": "It's quarter to four.",
+  "Den er ti på fire.": "It's ten to four.",
+  "Den er fem på fire.": "It's five to four."
+ }
+}

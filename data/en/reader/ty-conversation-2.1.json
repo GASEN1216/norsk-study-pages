@@ -1,0 +1,18 @@
+{
+ "id": "ty-conversation-2.1",
+ "sentences": {
+  "Hallo!": "Hello!",
+  "Hei! Det er Olav.": "Hi! It's Olav.",
+  "Hei, Olav!": "Hi, Olav!",
+  "Jeg vil gjerne treffe deg.": "I'd like to meet you.",
+  "Ikke i dag.": "Not today.",
+  "Hvorfor ikke?": "Why not?",
+  "Det er fredag idag.": "It's Friday today.",
+  "Jeg jobber.": "I'm working.",
+  "Hva med i morgen?": "What about tomorrow?",
+  "Fint! Det er lørdag i morgen.": "Great! It's Saturday tomorrow.",
+  "Jeg jobber ikke.": "I'm not working.",
+  "Fint! Lunsj?": "Great! Lunch?",
+  "Ja. Jeg vil gjerne treffe deg.": "Yes. I'd like to meet you."
+ }
+}

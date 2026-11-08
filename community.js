@@ -2,6 +2,8 @@
 (() => {
   'use strict';
   if (window.NorskCommunity) return;
+  const L10N = window.NorskI18n || {lang:'zh',english:false,t:(text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text,gloss:item => String(item?.meaning ?? item?.zh ?? ''),data:() => Promise.resolve(null),name:nickname => String(nickname ?? ''),set() {}};
+  const tx = L10N.t;
 
   const DEVICE_KEY = 'norsk-community-device-v1';
   const QUEUE_PREFIX = 'norsk-community-results-v1:';
@@ -215,7 +217,7 @@
         const reply=await request('/results',{method:'POST',body:next,auth:true});
         if (reply.accepted !== true) throw issue('service_unavailable');
         const before=state.stats?.xp;
-        if (applyStats(reply.stats) && reply.duplicate !== true && whole(before) && levelInfo(state.stats.xp).level > levelInfo(before).level) announce(`升到 Lv.${levelInfo(state.stats.xp).level} 了`);
+        if (applyStats(reply.stats) && reply.duplicate !== true && whole(before) && levelInfo(state.stats.xp).level > levelInfo(before).level) announce(tx('升到 Lv.{n} 了',{n:levelInfo(state.stats.xp).level}));
         // A lost response or failed local write leaves this item safe to retry: the server keys it by sessionId.
         acknowledgeResult(next);
       }
@@ -240,10 +242,10 @@
     try { const ok=await flushQueue(); if (isVisible()) await loadBoard(); return ok; } catch { return false; }
   }
   function friendly(error,forName=false) {
-    if (error?.code === 'storage_unavailable') return '浏览器暂时无法记住你的身份，请允许保存网站数据后重试。';
-    if (error?.code === 'rate_limited') return '操作有点频繁，请稍等片刻再试。';
-    if (forName && ['nickname_invalid','invalid_request'].includes(error?.code)) return '请使用 1–20 个字符，去掉换行或特殊控制符后再保存。';
-    return forName ? '昵称暂时未能保存，请稍后重试。' : '排行榜暂时无法连接，稍后再来看看。';
+    if (error?.code === 'storage_unavailable') return tx('浏览器暂时无法记住你的身份，请允许保存网站数据后重试。');
+    if (error?.code === 'rate_limited') return tx('操作有点频繁，请稍等片刻再试。');
+    if (forName && ['nickname_invalid','invalid_request'].includes(error?.code)) return tx('请使用 1–20 个字符，去掉换行或特殊控制符后再保存。');
+    return forName ? tx('昵称暂时未能保存，请稍后重试。') : tx('排行榜暂时无法连接，稍后再来看看。');
   }
   // Level L starts at 100 * ((L + 1)^2 - 4) XP; 4 stars = moon, 4 moons = sun, 4 suns = crown.
   const threshold = level => 100*((level+1)**2-4);
@@ -350,24 +352,24 @@
   function button(action,text,style='',extra='') { return `<button type="button" class="nc-button ${style}" data-nc-action="${action}" ${extra}>${text}</button>`; }
   function row(entry,pinned=false) {
     const mine=entry.id === state.profile?.id;
-    return `<li class="nc-row${mine ? ' is-me' : ''}${pinned ? ' is-pinned' : ''}${entry.rank <= 3 ? ' is-top is-top-'+entry.rank : ''}"${mine ? ' aria-label="你的排名"' : ''}><span class="nc-rank">${escapeHTML(entry.rank)}</span><span class="nc-learner"><span class="nc-name">${escapeHTML(entry.nickname)}</span>${mine ? '<span class="nc-you">我</span>' : ''}</span>${entry.level ? `<span class="nc-level" title="等级 ${entry.level}">Lv.${escapeHTML(entry.level)}</span>` : '<span></span>'}<span class="nc-xp">${formatNumber(entry.xp)}</span></li>`;
+    return `<li class="nc-row${mine ? ' is-me' : ''}${pinned ? ' is-pinned' : ''}${entry.rank <= 3 ? ' is-top is-top-'+entry.rank : ''}"${mine ? ` aria-label="${tx('你的排名')}"` : ''}><span class="nc-rank">${escapeHTML(entry.rank)}</span><span class="nc-learner"><span class="nc-name">${escapeHTML(L10N.name(entry.nickname))}</span>${mine ? `<span class="nc-you">${tx('我')}</span>` : ''}</span>${entry.level ? `<span class="nc-level" title="${tx('等级 {n}',{n:entry.level})}">Lv.${escapeHTML(entry.level)}</span>` : '<span></span>'}<span class="nc-xp">${formatNumber(entry.xp)}</span></li>`;
   }
   function boardMarkup() {
-    if (state.status === 'error') return `<div class="nc-empty" role="status"><p>${escapeHTML(state.error)}</p>${button('retry','重新连接','nc-primary')}</div>`;
-    if (!state.board || state.board.period !== state.period) return `<ol class="nc-list nc-loading" aria-label="正在读取排行榜">${Array.from({length:5},() => '<li class="nc-skeleton"><i></i><span></span><b></b></li>').join('')}</ol>`;
+    if (state.status === 'error') return `<div class="nc-empty" role="status"><p>${escapeHTML(state.error)}</p>${button('retry',tx('重新连接'),'nc-primary')}</div>`;
+    if (!state.board || state.board.period !== state.period) return `<ol class="nc-list nc-loading" aria-label="${tx('正在读取排行榜')}">${Array.from({length:5},() => '<li class="nc-skeleton"><i></i><span></span><b></b></li>').join('')}</ol>`;
     const {entries,me}=state.board;
-    if (!entries.length) return `<div class="nc-empty"><p>${state.period === 'week' ? '本周还没有人上榜。开着网站或练一组，就能看到自己的名字。' : '本月还没有人上榜。开着网站或练一组，就能看到自己的名字。'}</p></div>`;
+    if (!entries.length) return `<div class="nc-empty"><p>${state.period === 'week' ? tx('本周还没有人上榜。开着网站或练一组，就能看到自己的名字。') : tx('本月还没有人上榜。开着网站或练一组，就能看到自己的名字。')}</p></div>`;
     const shown=state.expanded ? entries : entries.slice(0,10);
     const pinned=me && !shown.some(entry => entry.id === me.id);
-    return `<ol class="nc-list" aria-label="${state.period === 'week' ? '本周' : '本月'}排行榜">${shown.map(entry => row(entry)).join('')}${pinned ? row(me,true) : ''}</ol>${entries.length > 10 ? button('more',state.expanded ? '收起' : `查看前 ${formatNumber(entries.length)} 名`,'nc-quiet nc-more') : ''}`;
+    return `<ol class="nc-list" aria-label="${state.period === 'week' ? tx('本周排行榜') : tx('本月排行榜')}">${shown.map(entry => row(entry)).join('')}${pinned ? row(me,true) : ''}</ol>${entries.length > 10 ? button('more',state.expanded ? tx('收起') : tx('查看前 {n} 名',{n:formatNumber(entries.length)}),'nc-quiet nc-more') : ''}`;
   }
   function meMarkup() {
     const name=state.profile?.nickname || state.identity?.nickname;
     const stats=state.stats, info=levelInfo(stats?.xp || 0), me=state.status === 'ready' ? state.board?.me : null;
     const percent=Math.round(Math.min(1,Math.max(0,info.progress))*100);
-    const confirm=state.confirmName ? `<div class="nc-confirm" role="alertdialog" aria-labelledby="nc-confirm-text"><p id="nc-confirm-text">已有学习者叫「${escapeHTML(state.confirmName)}」。同名会视为同一个人，经验和排名合并计算。这是你吗？</p><div>${button('confirm-name','是我，使用这个名字','nc-primary')}${button('cancel-confirm','换个名字','nc-quiet')}</div></div>` : '';
-    const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">昵称</label><input id="nc-nickname" name="nickname" type="text" enterkeyhint="done" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? '保存中…' : '保存'}</button>${button('cancel-edit','取消','nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
-    return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="等级 ${info.level}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name || '连接中…')}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="修改昵称" title="修改昵称"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="距离下一级" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>距 Lv.${info.level+1} 还差 ${formatNumber(info.next-info.xp)}</span></div><div class="nc-me-today"><span>今日 <b>+${formatNumber(stats?.today || 0)}</b></span><span>在线 <b>${formatNumber(stats?.onlineToday || 0)}</b>/${formatNumber(stats?.onlineLimit || 240)}</span><span>${me ? `${state.period === 'week' ? '本周' : '本月'}第 <b>${formatNumber(me.rank)}</b> 名` : '尚未上榜'}</span></div></div>`;
+    const confirm=state.confirmName ? `<div class="nc-confirm" role="alertdialog" aria-labelledby="nc-confirm-text"><p id="nc-confirm-text">${tx('已有学习者叫「{name}」。同名会视为同一个人，经验和排名合并计算。这是你吗？',{name:escapeHTML(L10N.name(state.confirmName))})}</p><div>${button('confirm-name',tx('是我，使用这个名字'),'nc-primary')}${button('cancel-confirm',tx('换个名字'),'nc-quiet')}</div></div>` : '';
+    const editing=state.editing ? `<form id="nc-name-form" class="nc-name-form" aria-busy="${state.saving}"><label class="nc-sr" for="nc-nickname">${tx('昵称')}</label><input id="nc-nickname" name="nickname" type="text" enterkeyhint="done" maxlength="40" value="${escapeHTML(state.draft)}" autocomplete="off" autocapitalize="off" spellcheck="false"${state.nameError ? ' aria-invalid="true" aria-describedby="nc-name-error"' : ''}${state.saving ? ' readonly' : ''}><span id="nc-name-count">${count(state.draft)}/20</span><button type="submit" class="nc-button nc-primary"${state.saving ? ' disabled' : ''}>${state.saving ? tx('保存中…') : tx('保存')}</button>${button('cancel-edit',tx('取消'),'nc-quiet',state.saving ? 'disabled' : '')}</form>${confirm}${state.nameError ? `<p class="nc-name-error" id="nc-name-error" role="alert">${escapeHTML(state.nameError)}</p>` : ''}` : '';
+    return `<div class="nc-me"><div class="nc-me-line"><span class="nc-badge" title="${tx('等级 {n}',{n:info.level})}"><b>Lv.${info.level}</b><span class="nc-badge-icons">${levelIcons(info.level)}</span></span><strong class="nc-me-name">${escapeHTML(name ? L10N.name(name) : tx('连接中…'))}</strong>${state.editing ? '' : button('edit',icon('edit'),'nc-icon-button',`${!name ? 'disabled' : ''} aria-label="${tx('修改昵称')}" title="${tx('修改昵称')}"`)}</div>${editing}${state.nameMessage ? `<p class="nc-name-message" role="status">${escapeHTML(state.nameMessage)}</p>` : ''}<div class="nc-level-bar" role="progressbar" aria-label="${tx('距离下一级')}" aria-valuemin="${info.start}" aria-valuemax="${info.next}" aria-valuenow="${info.xp}"><span style="width:${percent}%"></span></div><div class="nc-me-meta"><span>${stats ? formatNumber(info.xp)+' XP' : '— XP'}</span><span>${tx('距 Lv.{level} 还差 {n}',{level:info.level+1,n:formatNumber(info.next-info.xp)})}</span></div><div class="nc-me-today"><span>${tx('今日 <b>+{n}</b>',{n:formatNumber(stats?.today || 0)})}</span><span>${tx('在线 <b>{n}</b>/{limit}',{n:formatNumber(stats?.onlineToday || 0),limit:formatNumber(stats?.onlineLimit || 240)})}</span><span>${me ? (state.period === 'week' ? tx('本周第 <b>{n}</b> 名',{n:formatNumber(me.rank)}) : tx('本月第 <b>{n}</b> 名',{n:formatNumber(me.rank)})) : tx('尚未上榜')}</span></div></div>`;
   }
   function render() {
     const container=state.container;
@@ -375,7 +377,7 @@
     const focused=document.activeElement;
     const focusId=container.contains?.(focused) ? focused?.id : null;
     const selection=focusId === 'nc-nickname' ? [focused.selectionStart,focused.selectionEnd] : null;
-    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">排行榜</h3><div class="nc-tabs" role="tablist" aria-label="排行榜时段">${['week','month'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? '周榜' : '月榜'}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${formatNumber(state.pending)} 次练习待上传，联网后自动补上。</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">经验与等级怎么算</summary><ul><li>网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。</li><li>所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。联机翻翻乐每抢到一对 +10 XP。练习每天最多 5,000 XP。</li><li>昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。</li><li>等级：4 ${icon('star')} = 1 ${icon('moon')}，4 ${icon('moon')} = 1 ${icon('sun')}，4 ${icon('sun')} = 1 ${icon('crown')}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。</li></ul></details></section>`;
+    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">${tx('排行榜')}</h3><div class="nc-tabs" role="tablist" aria-label="${tx('排行榜时段')}">${['week','month'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? tx('周榜') : tx('月榜')}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${tx('{n} 次练习待上传，联网后自动补上。',{n:formatNumber(state.pending)})}</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">${tx('经验与等级怎么算')}</summary><ul><li>${tx('网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。')}</li><li>${tx('所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。联机翻翻乐每抢到一对 +10 XP。练习每天最多 5,000 XP。')}</li><li>${tx('昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。')}</li><li>${tx('等级：4 {star} = 1 {moon}，4 {moon} = 1 {sun}，4 {sun} = 1 {crown}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。',{star:icon('star'),moon:icon('moon'),sun:icon('sun'),crown:icon('crown')})}</li></ul></details></section>`;
     if (focusId) {
       const next=container.querySelector?.('#'+focusId);
       next?.focus?.({preventScroll:true});
@@ -428,14 +430,14 @@
     const nickname=confirm ? state.confirmName : state.draft.trim();
     state.nameMessage=''; state.nameError=''; state.confirmName='';
     if (!nickname || count(nickname) > 20 || CONTROL.test(nickname)) {
-      state.nameError='请输入 1–20 个字符，不要包含换行或特殊控制符。'; render(); state.container?.querySelector?.('#nc-nickname')?.focus?.(); return false;
+      state.nameError=tx('请输入 1–20 个字符，不要包含换行或特殊控制符。'); render(); state.container?.querySelector?.('#nc-nickname')?.focus?.(); return false;
     }
     state.saving=true; render();
     try {
       await ensureRegistered();
       const response=await request('/profile',{method:'PATCH',body:confirm ? {nickname,confirm:true} : {nickname},auth:true});
       applyProfile(response.profile);
-      state.editing=false; state.nameMessage=response.shared ? '已和同名的你合并。' : '昵称已更新。'; state.saving=false;
+      state.editing=false; state.nameMessage=response.shared ? tx('已和同名的你合并。') : tx('昵称已更新。'); state.saving=false;
       announce(state.nameMessage);
       await loadBoard(); return true;
     } catch (error) {
@@ -493,7 +495,7 @@
       if (isVisible()) await loadBoard();
       return ok;
     } catch (error) {
-      if (error?.code === 'storage_unavailable') announce('排行榜记录暂时无法保存，练习已完成。');
+      if (error?.code === 'storage_unavailable') announce(tx('排行榜记录暂时无法保存，练习已完成。'));
       return false;
     }
   }

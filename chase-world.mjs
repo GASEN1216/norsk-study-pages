@@ -15,6 +15,12 @@ const ROAD = 9, SAMPLES = 2048, WATER = -.8, SHORE = 51;
 // Where the verge starts, just past the gravel shoulder.
 const EDGE = ROAD/2+1.3;
 const UP = new Vector3(0,1,0);
+// Name tags in the interface language (docs/i18n.md). This module has its own `tx` (a tangent), so the lookup goes by
+// `words.tx`; the wording is looked up once here, never per frame.
+const L10N = globalThis.NorskI18n || null;
+const words = {tx:(text,vars) => L10N ? L10N.t(text,vars) : text};
+const TAG = {me:words.tx('我'),away:words.tx(' · 掉线中')};
+const tagName = name => L10N?.name ? L10N.name(name) : String(name ?? '');
 // Sizes in metres. Every map is at true scale and the people and vehicles on it are drawn about two and a half times
 // life size, so they read clearly from the game camera (a convention of top-down games).
 const SIZE = {run:{h:4.6},pose:{h:4.6},bike:{h:5},skate:{h:4.9},moto:{w:6},car:{w:8.5},heli:{w:11.5}};
@@ -993,7 +999,7 @@ export async function createWorld({canvas,overlay,images,manifest,small=false,to
     group.add(shadow,ring,body,...lights,glint);
     scene.add(group);
     const tag = document.createElement('div');
-    tag.textContent = player.me ? '我' : player.name;
+    tag.textContent = player.me ? TAG.me : tagName(player.name);
     // Hidden until it has a place under the runner's feet (it would otherwise flash in the corner).
     tag.style.opacity = '0';
     overlay.append(tag);
@@ -1192,12 +1198,12 @@ export async function createWorld({canvas,overlay,images,manifest,small=false,to
       if (item.side !== player.side) { item.side = player.side; item.tag.className = `pc-tag is-${player.side}${player.me ? ' is-me' : ''}${player.away ? ' is-away' : ''}`; }
       // Someone whose connection dropped in a room stands faded with 掉线中 under their name until they are back. A long
       // name is cut short (the style sheet does it), never the 掉线中.
-      const label = player.me ? '我' : player.away ? `${player.name} · 掉线中` : player.name;
+      const label = player.me ? TAG.me : player.away ? `${player.name}${TAG.away}` : player.name;
       if (item.label !== label) {
         item.label = label;
         const name = document.createElement('span');
-        name.textContent = player.me ? '我' : player.name;
-        item.tag.replaceChildren(name,...(player.away && !player.me ? [Object.assign(document.createElement('small'),{textContent:' · 掉线中'})] : []));
+        name.textContent = player.me ? TAG.me : tagName(player.name);
+        item.tag.replaceChildren(name,...(player.away && !player.me ? [Object.assign(document.createElement('small'),{textContent:TAG.away})] : []));
         item.tag.classList.toggle('is-away',Boolean(player.away));
       }
       trackAt(player.u/lap,point);

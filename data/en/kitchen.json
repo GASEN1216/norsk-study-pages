@@ -1,0 +1,245 @@
+{
+ "version": 1,
+ "scenes": {
+  "frokost": {
+   "name": "Breakfast",
+   "note": "A Norwegian breakfast table usually has sliced bread. Cheese, jam and everything else put on bread is called pålegg."
+  },
+  "kiosken": {
+   "name": "Kiosk and petrol station",
+   "note": "At a Norwegian kiosk a sausage comes in a bun (brød) or rolled in a thin potato flatbread (lompe). Drinks marked pant carry a bottle deposit, paid when you buy them."
+  },
+  "butikken": {
+   "name": "Supermarket",
+   "note": "Empty bottles and cans go into the supermarket's return machine (panteautomat). It prints a deposit slip you can use at the till."
+  },
+  "matpakke": {
+   "name": "Packed lunch",
+   "note": "For school or work many people pack slices of bread with toppings in a lunch box, with a sheet of baking paper between them."
+  },
+  "torget": {
+   "name": "Market",
+   "note": "In summer and autumn the market sells local berries; multer are cloudberries, golden yellow when ripe."
+  },
+  "kafe": {
+   "name": "Café",
+   "note": "In a Norwegian café a waffle often breaks into small heart-shaped pieces; you can have it with jam or sour cream."
+  },
+  "17-mai": {
+   "name": "Constitution Day",
+   "note": "On 17 May people watch the children's parade and eat hot dogs and ice cream. A festive cake with strawberries, blueberries and cream is common too."
+  },
+  "middag": {
+   "name": "Dinner at home",
+   "note": "Kokte poteter at a home dinner are boiled potatoes. Fish cakes and meatballs usually come with potatoes and vegetables."
+  },
+  "bursdag": {
+   "name": "Birthday party",
+   "note": "A birthday table has cake and drinks. When the cake comes out, the guests say Gratulerer med dagen! (Happy birthday!)"
+  },
+  "hyttetur": {
+   "name": "Cabin and hiking",
+   "note": "Before a hike from the cabin people fill a thermos with hot cocoa and bring oranges and chocolate; back at the cabin there is a bowl of hot soup."
+  },
+  "grillfest": {
+   "name": "Barbecue party",
+   "note": "In summer Norwegians move the grill outdoors. Corn, fish and vegetables are grilled along with the meat, and potato salad is a usual side."
+  },
+  "bakedag": {
+   "name": "Baking day",
+   "note": "Norwegian recipes measure volume in dl (decilitres) and l (litres) and weight in g (grams). ss is a tablespoon and ts a teaspoon, the standard measuring spoons in recipes."
+  },
+  "fredagstaco": {
+   "name": "Friday taco",
+   "note": "Many Norwegian families have tacos on Friday: bowls of fillings go on the table and everyone builds their own."
+  },
+  "verden": {
+   "name": "The world on a plate",
+   "note": "Norwegian menus often have dishes from other food traditions, such as sushi, lasagne, kebab and curry. Recognising the ingredients on the menu makes ordering much easier."
+  },
+  "julebord": {
+   "name": "Christmas dinner",
+   "note": "Many families eat crispy pork ribs (ribbe) or cured lamb ribs (pinnekjøtt) at Christmas; the sides vary by family and region. The rice pudding riskrem usually comes with red berry sauce."
+  },
+  "restaurant": {
+   "name": "Three-course restaurant",
+   "note": "At a restaurant forrett is the starter, hovedrett the main course and dessert the dessert. You can mention allergies when ordering, for example \"Jeg er allergisk mot nøtter.\" (I'm allergic to nuts.)"
+  }
+ },
+ "cabinets": {
+  "bakeri": "Bread",
+  "kjoleskap": "Fridge",
+  "drikke": "Drinks",
+  "torrvarer": "Dry goods",
+  "servise": "Tableware",
+  "gront": "Fruit & veg",
+  "ferskvare": "Meat & fish",
+  "maal": "Measures"
+ },
+ "categories": {
+  "fruit": "Fruit",
+  "berry": "Berries",
+  "vegetable": "Vegetables and herbs",
+  "meat": "Meat and poultry",
+  "fish": "Fish and seafood",
+  "dairy": "Dairy and eggs",
+  "grain": "Grains and bread",
+  "snack": "Sweets and snacks",
+  "drink": "Drinks",
+  "seasoning": "Seasonings and sauces",
+  "pantry": "Dry goods and groceries",
+  "dish": "Dishes",
+  "utensil": "Tableware and kitchenware",
+  "action": "Actions",
+  "taste": "Taste and texture",
+  "situation": "Phrases",
+  "culture": "Shopping and food culture",
+  "measure": "Recipe measures"
+ },
+ "entries": {
+  "k-blaaskjell": {
+   "note": "The dictionary gives the articles ei, en, et; the forms shown are those with en."
+  },
+  "k-brunost": {
+   "game": "brown cheese"
+  },
+  "k-bygg": {
+   "note": "The dictionary gives the articles en, et; the forms shown are those with en."
+  },
+  "k-drops": {
+   "note": "The dictionary gives the articles en, et; the forms shown are those with en."
+  },
+  "k-er-det-pant-paa-denne-flaska": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Is there a deposit on this bottle?"
+  },
+  "k-er-kaffen-paa-tilbud": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Is the coffee on special offer?"
+  },
+  "k-fisketaco": {
+   "note": "The whole compound has no entry of its own; its forms follow the Bokmålsordboka entry for its last part."
+  },
+  "k-glogg": {
+   "game": "mulled drink"
+  },
+  "k-hva-vil-du-ha-i-tacoen-din": {
+   "note": "Study example (not from the textbook).",
+   "ex": "What would you like in your taco?"
+  },
+  "k-hva-vil-du-ha-paa-brodskiva": {
+   "note": "Study example (not from the textbook).",
+   "ex": "What would you like on your bread?"
+  },
+  "k-hvor-er-panteautomaten": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Where is the bottle return machine?"
+  },
+  "k-hvor-mye-koster-baerene": {
+   "note": "Study example (not from the textbook).",
+   "ex": "How much do the berries cost?"
+  },
+  "k-is": {
+   "game": "ice cream"
+  },
+  "k-jeg-har-med-matpakke-i-dag": {
+   "note": "Study example (not from the textbook).",
+   "ex": "I brought a packed lunch today."
+  },
+  "k-kamskjell": {
+   "note": "The dictionary gives the articles ei, en, et; the forms shown are those with en."
+  },
+  "k-kan-du-sende-meg-potetene": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Could you pass me the potatoes?"
+  },
+  "k-kan-du-sende-meg-salsaen": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Could you pass me the salsa?"
+  },
+  "k-kan-jeg-faa-en-kopp-kaffe-til": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Could I have another cup of coffee?"
+  },
+  "k-kan-jeg-faa-en-kurv-med-jordbaer": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Could I have a basket of strawberries?"
+  },
+  "k-kjevle": {
+   "note": "The dictionary gives the articles ei, en, et; the forms shown are those with en."
+  },
+  "k-kuleis": {
+   "note": "The whole compound has no entry of its own; its forms follow the Bokmålsordboka entry for its last part."
+  },
+  "k-kyllingfilet": {
+   "game": "chicken breast"
+  },
+  "k-laktosefri": {
+   "note": "The whole compound has no entry of its own; its forms follow the Bokmålsordboka entry for its last part."
+  },
+  "k-lompe": {
+   "game": "potato flatbread"
+  },
+  "k-lordagsgodt": {
+   "note": "The whole compound has no entry of its own; its forms follow the Bokmålsordboka entry for its last part."
+  },
+  "k-lutefisk": {
+   "game": "lye-cured fish"
+  },
+  "k-maalebeger": {
+   "note": "The whole compound has no entry of its own; its forms follow the Bokmålsordboka entry for its last part."
+  },
+  "k-medisterkake": {
+   "game": "pork patty"
+  },
+  "k-nachos": {
+   "game": "tortilla chips"
+  },
+  "k-pinnekjott": {
+   "game": "cured lamb ribs"
+  },
+  "k-salat": {
+   "game": "lettuce"
+  },
+  "k-skal-jeg-skjaere-opp-frukten": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Shall I cut up the fruit?"
+  },
+  "k-skjaerebrett": {
+   "note": "The whole compound has no entry of its own; its forms follow the Bokmålsordboka entry for its last part."
+  },
+  "k-spise-her-eller-ta-med": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Eat here or take away?"
+  },
+  "k-sprostekt-lok": {
+   "game": "crispy onions"
+  },
+  "k-surkaal": {
+   "game": "sweet-sour cabbage"
+  },
+  "k-takk-for-maten": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Thank you for the meal!"
+  },
+  "k-trenger-du-pose": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Do you need a bag?"
+  },
+  "k-tynnribbe": {
+   "game": "pork belly ribs"
+  },
+  "k-vil-du-ha-ketchup-eller-sennep": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Would you like ketchup or mustard?"
+  },
+  "k-vil-du-ha-kvittering": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Would you like a receipt?"
+  },
+  "k-vil-du-ha-melk-i-kaffen": {
+   "note": "Study example (not from the textbook).",
+   "ex": "Would you like milk in your coffee?"
+  }
+ }
+}

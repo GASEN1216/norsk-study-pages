@@ -6,6 +6,12 @@
 (() => {
   'use strict';
   if (window.NorskKitchen) return;
+  // Interface language (docs/i18n.md): tx() gives the Chinese back unchanged on Chinese devices. English devices also
+  // load data/en/kitchen.json (made by scripts/build_kitchen_en.py) for what kitchen.json and the lexicon hold only in
+  // Chinese: {scenes:{id:{name,note}}, cabinets:{id:name}, categories:{id:name}, entries:{id:{game?,note?,ex?}}}.
+  // An entry's own meaning in English is the lexicon's `en`.
+  const L10N = window.NorskI18n || {lang:'zh',english:false,t:(text,vars) => vars ? text.replace(/\{(\w+)\}/g,(match,key) => key in vars ? String(vars[key]) : match) : text,gloss:item => String(item?.meaning ?? item?.zh ?? ''),data:() => Promise.resolve(null),name:nickname => String(nickname ?? ''),set() {}};
+  const tx = L10N.t;
 
   /* ---------- Rules and tuning (community_api.py's KC_* constants hold the same values) ---------- */
   const PREFS_KEY = 'norsk-kitchen-v1', PENDING_KEY = 'norsk-kitchen-pending-v1';
@@ -743,14 +749,17 @@
   const button = (action,text,kind = '',extra = '') => `<button type="button" class="kc-button ${kind}" data-kc="${action}" ${extra}>${text}</button>`;
   const CATEGORY_MARK = {fruit:'fruit',berry:'berry',vegetable:'vegetable',meat:'meat',fish:'fish',dairy:'dairy',grain:'grain',bread:'grain',snack:'snack',sweet:'snack',
     drink:'drink',seasoning:'seasoning',spice:'seasoning',pantry:'pantry',dish:'dish',utensil:'utensil',tool:'utensil'};
-  const KIND_NAMES = {skjaere:'切',koke:'煮',steke:'煎',bake:'烤',grille:'烧烤'};
+  const KIND_NAMES = {skjaere:tx('切'),koke:tx('煮'),steke:tx('煎'),bake:tx('烤'),grille:tx('烧烤')};
   // What each tier shows, in the words of the two-room game (the rules' own TIERS keep their names and XP).
-  const TIER_HINTS = {novice:'挪中对照',standard:'看图认词',expert:'只听声音'};
+  const TIER_HINTS = {novice:tx('挪中对照'),standard:tx('看图认词'),expert:tx('只听声音')};
+  // The tiers' names as shown (the rules' TIERS keep the Chinese ones).
+  const TIER_NAMES = {novice:tx('新手'),standard:tx('标准'),expert:tx('高手')};
+  const tierName = id => TIER_NAMES[id] || '';
   const WHY = {
-    taken:name => `${name || '同学'} 已经接了这单`,noplate:() => '托盘都在用，先把做好的菜端出去',busy:() => '这样灶具都在用，稍等一下',
-    cook:() => '这样要先在灶台上做',raw:() => '这样不用做，直接放上托盘',full:() => '这样已经放够了',nowhere:() => '没有订单要它了，已经倒掉',
-    burnt:() => '糊了！点一下倒掉重做',cooking:() => '还没好',notmine:() => '这样在同学的柜子里，在订单上点这一样向同学要',naming:() => '先在菜单上点这一道的菜名',
-    incomplete:() => '还没配齐',gone:() => '这位客人已经走了',mine:() => '这样就在你的柜子里',noorder:() => '先接单',empty:() => '这个工位是空的',
+    taken:name => name ? tx('{name} 已经接了这单',{name}) : tx('同学 已经接了这单'),noplate:() => tx('托盘都在用，先把做好的菜端出去'),busy:() => tx('这样灶具都在用，稍等一下'),
+    cook:() => tx('这样要先在灶台上做'),raw:() => tx('这样不用做，直接放上托盘'),full:() => tx('这样已经放够了'),nowhere:() => tx('没有订单要它了，已经倒掉'),
+    burnt:() => tx('糊了！点一下倒掉重做'),cooking:() => tx('还没好'),notmine:() => tx('这样在同学的柜子里，在订单上点这一样向同学要'),naming:() => tx('先在菜单上点这一道的菜名'),
+    incomplete:() => tx('还没配齐'),gone:() => tx('这位客人已经走了'),mine:() => tx('这样就在你的柜子里'),noorder:() => tx('先接单'),empty:() => tx('这个工位是空的'),
   };
 
   function readJSON(key,fallback) {
@@ -776,8 +785,11 @@
   }
   // The scenes, the words and the list of finished illustrations are fetched once per page.
   function loadData() {
-    ui.dataLoad ||= Promise.all([fetchJSON('data/kitchen.json'),fetchJSON('data/kitchen-lexicon.json'),fetchJSON('assets/kitchen/manifest.json').catch(() => ({images:{}}))])
-      .then(([data,lexicon,manifest]) => {
+    // (English devices also wait for the English names; Chinese devices get null at once, with no request.)
+    ui.dataLoad ||= Promise.all([fetchJSON('data/kitchen.json'),fetchJSON('data/kitchen-lexicon.json'),fetchJSON('assets/kitchen/manifest.json').catch(() => ({images:{}})),
+      Promise.resolve(L10N.english ? L10N.data('kitchen') : null).catch(() => null)])
+      .then(([data,lexicon,manifest,english]) => {
+        ui.en = english && typeof english === 'object' ? english : null;
         ui.data = data;
         ui.lexicon = new Map((lexicon.entries || []).map(item => [item.id,item]));
         ui.categories = lexicon.categories || [];
@@ -802,8 +814,17 @@
   }
   // The short meaning the game's hints show: the first sense without its bracket, which may spell out the Norwegian
   // ("分升（100 毫升；desiliter 的缩写）" → "分升").
-  const gameSense = id => entry(id)?.gameZh || firstSense(entry(id)?.zh);
+  // (In English: data/en/kitchen.json's `game`, else the first sense of the lexicon's `en`.)
+  const gameSense = id => L10N.english ? ui.en?.entries?.[id]?.game || firstSense(entry(id)?.en || entry(id)?.zh) : entry(id)?.gameZh || firstSense(entry(id)?.zh);
   const zh1 = id => { const sense = gameSense(id); return sense.replace(/[（(][^）)]*[）)]/g,'').trim() || sense; };
+  // What kitchen.json and the lexicon hold only in Chinese, as this device shows it (Chinese devices: the Chinese).
+  const sceneZh = scene => !scene ? '' : scene.id === 'daily' ? tx('今日菜单') : L10N.english ? ui.en?.scenes?.[scene.id]?.name || scene.zh || '' : scene.zh || '';
+  const sceneNote = scene => L10N.english ? ui.en?.scenes?.[scene?.id]?.note || '' : scene?.note || '';
+  const cabinetZh = cabinet => L10N.english ? ui.en?.cabinets?.[cabinet.id] || cabinet.zh || '' : cabinet.zh || '';
+  const categoryZh = category => L10N.english ? ui.en?.categories?.[category.id] || category.zh || '' : category.zh || '';
+  const meaningOf = item => L10N.gloss(item);
+  const noteOf = item => L10N.english ? ui.en?.entries?.[item.id]?.note || '' : item.note || '';
+  const exampleZh = item => L10N.english ? ui.en?.entries?.[item.id]?.ex || '' : item.exZh || '';
   const scenes = () => [...(ui.data?.scenes || [])].sort((a,b) => a.order-b.order);
   const sceneById = id => id === 'daily' ? ui.daily?.scene || null : (ui.data?.scenes || []).find(scene => scene.id === id) || null;
   // A word as the shelves show it: Norwegian only, a noun's article and a verb's å small and grey.
@@ -853,7 +874,7 @@
     const saved = progressOf(scene.id);
     return stars(Number.isInteger(saved?.passed) ? saved.passed : saved?.star1 ? 1 : 0);
   }
-  const starRow = (count,cls = '') => `<span class="kc-stars ${cls}" aria-label="${count} 星">${[0,1,2].map(index => `<i class="${index < count ? 'is-on' : ''}">${icon('star')}</i>`).join('')}</span>`;
+  const starRow = (count,cls = '') => `<span class="kc-stars ${cls}" aria-label="${tx('{n} 星',{n:count})}">${[0,1,2].map(index => `<i class="${index < count ? 'is-on' : ''}">${icon('star')}</i>`).join('')}</span>`;
   async function community() {
     const api = await ui.opts.community?.();
     if (!api?.request) throw Object.assign(new Error('offline'),{code:'service_unavailable'});
@@ -998,7 +1019,7 @@
     root.className = 'kc-root';
     root.setAttribute('role','dialog');
     root.setAttribute('aria-modal','true');
-    root.setAttribute('aria-label','开饭啦');
+    root.setAttribute('aria-label',tx('开饭啦'));
     ui.root = root;
     // Page redraws replace only this container. The leave dialog stays mounted above it.
     ui.content = document.createElement('div');
@@ -1149,11 +1170,11 @@
     ui.content.inert = true;
     pauseGame();
     const host = ui.room && ui.room.hostId === ui.room.me;
-    const text = kind === 'room' ? `离开这个房间吗？${host ? '房主会交给下一位同学。' : '之后可以用房间号再回来。'}`
-      : ui.room ? '离开这一局吗？你会退出这个房间。' : '离开这一局吗？这一局不会记入成绩。';
+    const text = kind === 'room' ? (host ? tx('离开这个房间吗？房主会交给下一位同学。') : tx('离开这个房间吗？之后可以用房间号再回来。'))
+      : ui.room ? tx('离开这一局吗？你会退出这个房间。') : tx('离开这一局吗？这一局不会记入成绩。');
     const layer = document.createElement('div');
     layer.className = 'kc-confirm-layer';
-    layer.innerHTML = `<div class="kc-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kc-confirm-text"><p id="kc-confirm-text">${text}</p><div class="kc-confirm-actions">${button('confirm-stay',kind === 'room' ? '留下' : '继续','kc-primary')}${button('confirm-leave',kind === 'room' ? '离开房间' : '离开','kc-quiet')}</div></div>`;
+    layer.innerHTML = `<div class="kc-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kc-confirm-text"><p id="kc-confirm-text">${text}</p><div class="kc-confirm-actions">${button('confirm-stay',kind === 'room' ? tx('留下') : tx('继续'),'kc-primary')}${button('confirm-leave',kind === 'room' ? tx('离开房间') : tx('离开'),'kc-quiet')}</div></div>`;
     ui.root.append(layer);
     layer.querySelector('[data-kc="confirm-stay"]')?.focus();
   }
@@ -1225,41 +1246,43 @@
     const match = [...ui.root.querySelectorAll(`[data-kc="${CSS.escape(keep.kc)}"]`)].find(node => (node.dataset.value || node.dataset.id || node.dataset.word || node.dataset.n || node.dataset.x || '') === keep.value);
     match?.focus?.({preventScroll:true});
   }
-  const topBar = (title,back = 'home',extra = '') => `<header class="kc-top">${back ? `<button type="button" class="kc-icon-button" data-kc="go" data-value="${back}" aria-label="返回">${icon('back')}</button>` : ''}<h2 tabindex="-1">${title}</h2>${extra}<button type="button" class="kc-icon-button" data-kc="close" aria-label="离开开饭啦" title="离开">${icon('close')}</button></header>`;
+  const topBar = (title,back = 'home',extra = '') => `<header class="kc-top">${back ? `<button type="button" class="kc-icon-button" data-kc="go" data-value="${back}" aria-label="${tx('返回')}">${icon('back')}</button>` : ''}<h2 tabindex="-1">${title}</h2>${extra}<button type="button" class="kc-icon-button" data-kc="close" aria-label="${tx('离开开饭啦')}" title="${tx('离开')}">${icon('close')}</button></header>`;
   const option = (group,value,label,current,hint = '') => `<button type="button" class="kc-option" role="radio" aria-checked="${current === value}" data-kc="set" data-key="${group}" data-value="${value}"><span>${label}</span>${hint ? `<small>${hint}</small>` : ''}</button>`;
-  const loadingNote = () => ui.loadFailed ? `<p class="kc-empty">菜单没有载入，请检查网络后重试。${button('reload','重试','kc-ghost')}</p>` : '<p class="kc-empty">正在摆桌子…</p>';
+  // 玩法 means a game mode in 联机翻翻乐; here it names the rules page, which has its own English.
+  const howToPlay = () => L10N.english ? tx('开饭啦玩法') : tx('玩法');
+  const loadingNote = () => ui.loadFailed ? `<p class="kc-empty">${tx('菜单没有载入，请检查网络后重试。')}${button('reload',tx('重试'),'kc-ghost')}</p>` : `<p class="kc-empty">${tx('正在摆桌子…')}</p>`;
   function homePage() {
     const list = scenes(), open = list.filter(scene => unlocked(scene.id)).length;
     // The newest scene I have opened, one tap away from the top of the page.
     const current = [...list].reverse().find(scene => unlocked(scene.id)) || null;
     const started = current && (progressOf(current.id)?.best || sceneStars(current));
     const resume = ui.data && current ? `<button type="button" class="kc-continue" data-kc="scene" data-id="${e(current.id)}">
-        <span class="kc-continue-text"><small>${started ? '继续' : '从这里开始'} · 第 ${list.indexOf(current)+1} 个场景</small><span><strong lang="nb">${e(current.no)}</strong> ${e(current.zh)}</span></span>
+        <span class="kc-continue-text"><small>${started ? tx('继续') : tx('从这里开始')} · ${tx('第 {n} 个场景',{n:list.indexOf(current)+1})}</small><span><strong lang="nb">${e(current.no)}</strong> ${e(sceneZh(current))}</span></span>
         ${starRow(sceneStars(current))}<span class="kc-continue-go">${icon('next')}</span></button>` : '';
     const hero = `<section class="kc-hero">${ui.cardArt ? `<img class="kc-hero-art" src="${e(versioned('assets/online/kitchen.webp'))}" alt="" decoding="async" draggable="false">` : '<div class="kc-hero-art is-blank" aria-hidden="true"><span lang="nb">Vær så god</span></div>'}
-      <div class="kc-hero-text"><p class="kc-hero-title">听懂点单，端上挪威饭菜</p>
-      <p class="kc-hero-note">听挪威语点单，挑对食材端上桌；每过一关得一颗星，拿到 ★★ 开下一个场景。</p>${resume}</div></section>`;
-    if (!ui.data) return `${topBar('开饭啦','')}${hero}${loadingNote()}`;
+      <div class="kc-hero-text"><p class="kc-hero-title">${tx('听懂点单，端上挪威饭菜')}</p>
+      <p class="kc-hero-note">${tx('听挪威语点单，挑对食材端上桌；每过一关得一颗星，拿到 ★★ 开下一个场景。')}</p>${resume}</div></section>`;
+    if (!ui.data) return `${topBar(tx('开饭啦'),'')}${hero}${loadingNote()}`;
     const daily = ui.daily;
-    const dailyCard = `<section class="kc-daily"><div class="kc-daily-head"><div class="kc-daily-text"><span class="kc-kicker">Dagens meny</span><p class="kc-daily-title">今日菜单</p></div>
-          ${daily ? `<button type="button" class="kc-link" data-kc="daily-open">今日榜${icon('next')}</button>` : '<span class="kc-hint">载入中…</span>'}</div>
-        <p class="kc-hint">${daily ? `${e(daily.day)} · ` : ''}全服同一桌菜，北京时间 0 点换；不用解锁。</p>
-        ${daily ? `<button type="button" class="kc-daily-dishes" data-kc="daily-open" aria-label="打开今日菜单">${daily.scene.dishes.slice(0,6).map(dish => pic(dish.word,'is-round')).join('')}</button>` : ''}</section>`;
+    const dailyCard = `<section class="kc-daily"><div class="kc-daily-head"><div class="kc-daily-text"><span class="kc-kicker">Dagens meny</span><p class="kc-daily-title">${tx('今日菜单')}</p></div>
+          ${daily ? `<button type="button" class="kc-link" data-kc="daily-open">${tx('今日榜')}${icon('next')}</button>` : `<span class="kc-hint">${tx('载入中…')}</span>`}</div>
+        <p class="kc-hint">${daily ? `${e(daily.day)} · ` : ''}${tx('全服同一桌菜，北京时间 0 点换；不用解锁。')}</p>
+        ${daily ? `<button type="button" class="kc-daily-dishes" data-kc="daily-open" aria-label="${tx('打开今日菜单')}">${daily.scene.dishes.slice(0,6).map(dish => pic(dish.word,'is-round')).join('')}</button>` : ''}</section>`;
     // Playing together and the reference pages sit right under the menus, not after sixteen scenes.
-    const actions = `<div class="kc-actions">${ui.joining ? `<form class="kc-join" novalidate><label for="kc-join-code">房间号</label><input id="kc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 位数字" value="${e(ui.joinCode)}">
-          <button type="submit" class="kc-button kc-primary" data-kc="join-submit" ${ui.busy ? 'disabled' : ''}>${ui.busy ? '正在加入…' : '加入'}</button>${button('join-cancel','取消','kc-quiet')}</form>`
-        : `<div class="kc-actions-row">${button('room-create-latest',`${icon('people')}<span>${ui.busy ? '正在开房间…' : '开房间'}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}${button('join-open',`${icon('link')}<span>加入房间</span>`,'kc-ghost')}</div>
-          <div class="kc-actions-row is-quiet">${button('go',`${icon('book')}<span>食物图鉴</span>`,'kc-quiet','data-value="words"')}${button('go',`${icon('help')}<span>玩法</span>`,'kc-quiet','data-value="help"')}</div>`}</div>`;
-    return `${topBar('开饭啦','')}${hero}${dailyCard}${actions}
-      <section class="kc-panel"><div class="kc-section-head"><h3>场景</h3><span class="kc-hint">已开放 ${open} / ${list.length}</span></div>
+    const actions = `<div class="kc-actions">${ui.joining ? `<form class="kc-join" novalidate><label for="kc-join-code">${tx('房间号')}</label><input id="kc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${tx('4 位数字')}" value="${e(ui.joinCode)}">
+          <button type="submit" class="kc-button kc-primary" data-kc="join-submit" ${ui.busy ? 'disabled' : ''}>${ui.busy ? tx('正在加入…') : tx('加入')}</button>${button('join-cancel',tx('取消'),'kc-quiet')}</form>`
+        : `<div class="kc-actions-row">${button('room-create-latest',`${icon('people')}<span>${ui.busy ? tx('正在开房间…') : tx('开房间')}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}${button('join-open',`${icon('link')}<span>${tx('加入房间')}</span>`,'kc-ghost')}</div>
+          <div class="kc-actions-row is-quiet">${button('go',`${icon('book')}<span>${tx('食物图鉴')}</span>`,'kc-quiet','data-value="words"')}${button('go',`${icon('help')}<span>${howToPlay()}</span>`,'kc-quiet','data-value="help"')}</div>`}</div>`;
+    return `${topBar(tx('开饭啦'),'')}${hero}${dailyCard}${actions}
+      <section class="kc-panel"><div class="kc-section-head"><h3>${tx('场景')}</h3><span class="kc-hint">${tx('已开放 {open} / {total}',{open,total:list.length})}</span></div>
         <ol class="kc-scenes">${list.map((scene,index) => sceneCard(scene,index)).join('')}</ol></section>`;
   }
   function sceneCard(scene,index) {
     const open = unlocked(scene.id), count = sceneStars(scene);
     // The next scene to open says so; the ones after it stay quiet.
     const next = !open && scenes().slice(0,index).every(item => unlocked(item.id));
-    return `<li><button type="button" class="kc-scene${open ? '' : ' is-locked'}${next ? ' is-next' : ''}" data-kc="scene" data-id="${e(scene.id)}" aria-label="${e(`${scene.no} ${scene.zh}${open ? `，${count} 星` : '，未开放'}`)}">
-      <span class="kc-scene-n">${String(index+1).padStart(2,'0')}</span><span class="kc-scene-text"><strong lang="nb">${e(scene.no)}</strong><small>${e(scene.zh)}${next ? '<em>上一个场景 ★★ 后开放</em>' : ''}</small></span>
+    return `<li><button type="button" class="kc-scene${open ? '' : ' is-locked'}${next ? ' is-next' : ''}" data-kc="scene" data-id="${e(scene.id)}" aria-label="${e(`${scene.no} ${sceneZh(scene)}${open ? tx('，{n} 星',{n:count}) : tx('，未开放')}`)}">
+      <span class="kc-scene-n">${String(index+1).padStart(2,'0')}</span><span class="kc-scene-text"><strong lang="nb">${e(scene.no)}</strong><small>${e(sceneZh(scene))}${next ? `<em>${tx('上一个场景 ★★ 后开放')}</em>` : ''}</small></span>
       ${open ? starRow(count) : `<span class="kc-scene-lock">${icon('lock')}</span>`}</button></li>`;
   }
   function wordChip(id) {
@@ -1274,36 +1297,36 @@
     const level = (id,index) => {
       const open = count < 0 || tierOpen(count,id), passed = count > index;
       const target = scene && scene.id !== 'daily' ? targetFor(scene,ui.prefs.minutes,id) : 0;
-      const state = count < 0 ? '' : passed ? `<em class="kc-level-state is-passed">${icon('check')}已过</em>` : open ? '' : `<em class="kc-level-state is-locked">${icon('lock')}拿到 ${'★'.repeat(index)} 后开放</em>`;
+      const state = count < 0 ? '' : passed ? `<em class="kc-level-state is-passed">${icon('check')}${tx('已过')}</em>` : open ? '' : `<em class="kc-level-state is-locked">${icon('lock')}${tx('拿到 {stars} 后开放',{stars:'★'.repeat(index)})}</em>`;
       return `<button type="button" class="kc-option kc-level${passed ? ' is-passed' : ''}${open ? '' : ' is-locked'}" role="radio" aria-checked="${current === id}" data-kc="set" data-key="tier" data-value="${id}"${open ? '' : ' aria-disabled="true"'}>
-        <span class="kc-level-head"><i class="kc-level-stars" aria-hidden="true">${'★'.repeat(index+1)}</i><span>${TIERS[id].name}${count < 0 ? '' : '关'}</span></span><small>${TIER_HINTS[id]}${target ? ` · 目标 ${target}` : ''}</small>${state}</button>`;
+        <span class="kc-level-head"><i class="kc-level-stars" aria-hidden="true">${'★'.repeat(index+1)}</i><span>${count < 0 || L10N.english ? tierName(id) : tx('{tier}关',{tier:tierName(id)})}</span></span><small>${TIER_HINTS[id]}${target ? `${L10N.english ? '<br>' : ' · '}${tx('目标 {n}',{n:target})}` : ''}</small>${state}</button>`;
     };
-    return `<div class="kc-field kc-levels-field"><span class="kc-field-label">${count < 0 ? '难度' : '三关'}</span><div class="kc-options kc-levels" role="radiogroup" aria-label="难度">${TIER_IDS.map(level).join('')}</div></div>`;
+    return `<div class="kc-field kc-levels-field"><span class="kc-field-label">${count < 0 ? tx('难度') : tx('三关')}</span><div class="kc-options kc-levels" role="radiogroup" aria-label="${tx('难度')}">${TIER_IDS.map(level).join('')}</div></div>`;
   }
   function minutesField() {
-    return `<div class="kc-field"><span class="kc-field-label">时长</span><div class="kc-options is-compact" role="radiogroup" aria-label="时长">${MINUTES.map(value => option('minutes',String(value),`${value} 分钟`,String(ui.prefs.minutes))).join('')}</div></div>`;
+    return `<div class="kc-field"><span class="kc-field-label">${tx('时长')}</span><div class="kc-options is-compact" role="radiogroup" aria-label="${tx('时长')}">${MINUTES.map(value => option('minutes',String(value),tx('{n} 分钟',{n:value}),String(ui.prefs.minutes))).join('')}</div></div>`;
   }
   function scenePage() {
     const scene = sceneById(ui.sceneId);
-    if (!scene) return `${topBar('场景')}${loadingNote()}`;
+    if (!scene) return `${topBar(tx('场景'))}${loadingNote()}`;
     const saved = progressOf(scene.id), count = sceneStars(scene);
     const known = scene.words.filter(isMastered).length, index = scenes().indexOf(scene);
-    return `${topBar(e(scene.zh))}
-      <section class="kc-scene-hero${hasBanner(scene) ? ' has-banner' : ''}">${banner(scene)}<span class="kc-kicker">第 ${index+1} 个场景</span><p class="kc-scene-title" lang="nb">${e(scene.no)}</p>
-        ${starRow(count,'is-large')}<p class="kc-scene-note">${e(scene.note || '')}</p>
-        <dl class="kc-facts"><div><dt>熟练的词</dt><dd>${known} / ${scene.words.length}</dd></div><div><dt>最高</dt><dd>${saved?.best ? `${saved.best} 分` : '—'}</dd></div></dl>
-        <p class="kc-hint">每过一关得一颗星，星不会掉；拿到 ★★ 开下一个场景</p></section>
+    return `${topBar(e(sceneZh(scene)))}
+      <section class="kc-scene-hero${hasBanner(scene) ? ' has-banner' : ''}">${banner(scene)}<span class="kc-kicker">${tx('第 {n} 个场景',{n:index+1})}</span><p class="kc-scene-title" lang="nb">${e(scene.no)}</p>
+        ${starRow(count,'is-large')}<p class="kc-scene-note">${e(sceneNote(scene))}</p>
+        <dl class="kc-facts"><div><dt>${tx('熟练的词')}</dt><dd>${known} / ${scene.words.length}</dd></div><div><dt>${tx('最高')}</dt><dd>${saved?.best ? tx('{n} 分',{n:saved.best}) : '—'}</dd></div></dl>
+        <p class="kc-hint">${tx('每过一关得一颗星，星不会掉；拿到 ★★ 开下一个场景')}</p></section>
       <section class="kc-panel kc-choices">${tierField(scene)}${minutesField()}</section>
-      <section class="kc-panel"><div class="kc-section-head"><h3>这一关的词</h3><span class="kc-hint">点一下听读音</span></div><ul class="kc-chips">${scene.words.map(wordChip).join('')}</ul></section>
+      <section class="kc-panel"><div class="kc-section-head"><h3>${tx('这一关的词')}</h3><span class="kc-hint">${tx('点一下听读音')}</span></div><ul class="kc-chips">${scene.words.map(wordChip).join('')}</ul></section>
       ${situationsPanel(scene)}
-      <div class="kc-start-bar"><div class="kc-actions-row">${button('solo',`${icon('plate')}<span>一个人开张</span>`,'kc-primary')}${button('room-create',`${icon('people')}<span>${ui.busy ? '正在开房间…' : '开房间'}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}</div></div>`;
+      <div class="kc-start-bar"><div class="kc-actions-row">${button('solo',`${icon('plate')}<span>${tx('一个人开张')}</span>`,'kc-primary')}${button('room-create',`${icon('people')}<span>${ui.busy ? tx('正在开房间…') : tx('开房间')}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}</div></div>`;
   }
   // Things people say at this table, in both customers' voices (tapping again switches voice).
   function situationsPanel(scene) {
     const list = (scene.situations || []).map(entry).filter(Boolean);
     if (!list.length) return '';
-    return `<section class="kc-panel"><div class="kc-section-head"><h3>情景句</h3><span class="kc-hint">学习例句 · 点一下听</span></div><ul class="kc-entries">${list.map(item => `<li class="kc-entry"><div class="kc-entry-text"><p><span class="kc-no" lang="nb">${e(item.word)}</span></p><p class="kc-entry-zh">${e(item.zh || '')}</p></div>
-      <button type="button" class="kc-icon-button is-small" data-kc="say-line" data-word="${e(item.id)}" aria-label="听这一句">${icon('speaker')}</button></li>`).join('')}</ul></section>`;
+    return `<section class="kc-panel"><div class="kc-section-head"><h3>${tx('情景句')}</h3><span class="kc-hint">${tx('学习例句 · 点一下听')}</span></div><ul class="kc-entries">${list.map(item => `<li class="kc-entry"><div class="kc-entry-text"><p><span class="kc-no" lang="nb">${e(item.word)}</span></p><p class="kc-entry-zh">${e(meaningOf(item))}</p></div>
+      <button type="button" class="kc-icon-button is-small" data-kc="say-line" data-word="${e(item.id)}" aria-label="${tx('听这一句')}">${icon('speaker')}</button></li>`).join('')}</ul></section>`;
   }
   function sayLineOf(id) {
     const item = entry(id), set = ui.data?.lines?.situation?.[id] || (item?.voices ? {f:{text:item.word,audio:item.voices.f},m:{text:item.word,audio:item.voices.m}} : null);
@@ -1312,59 +1335,59 @@
     if (line?.audio) say(line.text || item?.word,line.audio); else if (item) say(item.word,item.clip);
   }
   function wordsPage() {
-    if (!ui.data) return `${topBar('食物图鉴')}${loadingNote()}`;
+    if (!ui.data) return `${topBar(tx('食物图鉴'))}${loadingNote()}`;
     const all = [...ui.lexicon.values()];
     const known = all.filter(item => isMastered(item.id)).length;
-    const tabs = [['all','全部'],['ingredient','食材'],['dish','菜'],['tool','餐具'],['verb','动作'],['taste','口味'],['situation','情景句']];
+    const tabs = [['all',tx('全部')],['ingredient',tx('食材')],['dish',tx('菜')],['tool',tx('餐具')],['verb',tx('动作')],['taste',tx('口味')],['situation',tx('情景句')]];
     const query = ui.wordsQuery.trim().toLocaleLowerCase('nb');
     const shown = all.filter(item => (ui.wordsTab === 'all' || item.kind === ui.wordsTab || (ui.wordsTab === 'taste' && item.kind === 'word'))
       && (!query || `${item.word} ${item.zh} ${item.en}`.toLocaleLowerCase('nb').includes(query)));
     const groups = (ui.categories || []).map(category => ({category,items:shown.filter(item => item.cat === category.id)})).filter(group => group.items.length);
     const leftover = shown.filter(item => !(ui.categories || []).some(category => category.id === item.cat));
-    if (leftover.length) groups.push({category:{id:'other',zh:'其他',no:''},items:leftover});
-    return `${topBar('食物图鉴')}
-      <section class="kc-glossary-head"><p class="kc-big-count"><b>${known}</b> / ${all.length}</p><p class="kc-hint">已熟练的词（在游戏里答对 3 次、分在 2 天、最近一次答对）</p></section>
+    if (leftover.length) groups.push({category:{id:'other',zh:tx('其他'),no:''},items:leftover});
+    return `${topBar(tx('食物图鉴'))}
+      <section class="kc-glossary-head"><p class="kc-big-count"><b>${known}</b> / ${all.length}</p><p class="kc-hint">${tx('已熟练的词（在游戏里答对 3 次、分在 2 天、最近一次答对）')}</p></section>
       <div class="kc-tabs" role="tablist">${tabs.map(([id,name]) => `<button type="button" role="tab" class="kc-tab" aria-selected="${ui.wordsTab === id}" data-kc="words-tab" data-value="${id}">${name}</button>`).join('')}</div>
-      <input type="search" class="kc-search" id="kc-words-search" placeholder="搜索挪威语或中文" aria-label="搜索图鉴" value="${e(ui.wordsQuery)}">
-      ${groups.length ? groups.map(({category,items}) => `<section class="kc-panel kc-glossary"><div class="kc-section-head"><h3>${e(category.zh)} <small lang="nb">${e(category.no || '')}</small></h3><span class="kc-hint">${items.length}</span></div>
-        <ul class="kc-entries">${items.map(glossaryRow).join('')}</ul></section>`).join('') : '<p class="kc-empty">没有找到这个词。</p>'}`;
+      <input type="search" class="kc-search" id="kc-words-search" placeholder="${tx('搜索挪威语或中文')}" aria-label="${tx('搜索图鉴')}" value="${e(ui.wordsQuery)}">
+      ${groups.length ? groups.map(({category,items}) => `<section class="kc-panel kc-glossary"><div class="kc-section-head"><h3>${e(categoryZh(category))} <small lang="nb">${e(category.no || '')}</small></h3><span class="kc-hint">${items.length}</span></div>
+        <ul class="kc-entries">${items.map(glossaryRow).join('')}</ul></section>`).join('') : `<p class="kc-empty">${tx('没有找到这个词。')}</p>`}`;
   }
   function glossaryRow(item) {
     const state = isMastered(item.id) ? 'is-known' : ui.progress?.words?.[item.id] ? 'is-learning' : '';
     const forms = (item.forms || []).filter(Boolean).join(' · ');
     return `<li class="kc-entry ${state}">${item.kind === 'situation' ? '' : pic(item.id,'is-small')}<div class="kc-entry-text"><p>${wordHTML(item.id)}${forms ? `<span class="kc-forms" lang="nb">${e(forms)}</span>` : ''}</p>
-      <p class="kc-entry-zh">${e(item.zh || '')}</p>${item.note ? `<p class="kc-entry-note">${e(item.note)}</p>` : ''}${item.ex ? `<p class="kc-entry-ex"><span lang="nb">${e(item.ex)}</span>${item.exZh ? ` <span>${e(item.exZh)}</span>` : ''}<small>学习例句</small></p>` : ''}</div>
-      <button type="button" class="kc-icon-button is-small" data-kc="${item.kind === 'situation' && (item.voices || ui.data?.lines?.situation?.[item.id]) ? 'say-line' : 'hear'}" data-word="${e(item.id)}" aria-label="听 ${e(item.word)}">${icon('speaker')}</button><i class="kc-dot" aria-hidden="true"></i></li>`;
+      <p class="kc-entry-zh">${e(meaningOf(item))}</p>${noteOf(item) ? `<p class="kc-entry-note">${e(noteOf(item))}</p>` : ''}${item.ex ? `<p class="kc-entry-ex"><span lang="nb">${e(item.ex)}</span>${exampleZh(item) ? ` <span>${e(exampleZh(item))}</span>` : ''}<small>${tx('学习例句')}</small></p>` : ''}</div>
+      <button type="button" class="kc-icon-button is-small" data-kc="${item.kind === 'situation' && (item.voices || ui.data?.lines?.situation?.[item.id]) ? 'say-line' : 'hear'}" data-word="${e(item.id)}" aria-label="${tx('听 {word}',{word:e(item.word)})}">${icon('speaker')}</button><i class="kc-dot" aria-hidden="true"></i></li>`;
   }
   function helpPage() {
     const steps = [
-      ['前台接单','前台（Disken）左边是点单处：轮到的客人说要什么，点菜单板上对应的挪威语菜名，订单就送进后厨，客人走到右边取餐处等。'],
-      ['后厨拿东西','后厨（Kjøkkenet）的订单是挪威语写的。去冰箱、架子上点那样东西，它会自己放到要它的托盘上。'],
-      ['做菜','订单上写着 koke、steke、bake、skjære 的东西，点了会拿在手上，再点灶台上对应的锅、平底锅、烤箱或砧板。好了点一下回托盘；放太久会糊（brent!），点一下倒掉重做。'],
-      ['上菜','托盘齐了会自己送到前台，出现在客人面前，点 Vær så god! 端给他。越快小费越多。底部两个标签切换前台和后厨。'],
-      ['合作','联机时每样东西只在一位同学的柜子里。点订单上缺的那一样，选对挪威语就会向那位同学喊话。'],
-      ['提示','新手：都有中文，东西上贴着价签；标准：前台只看图、后厨只看挪威语；高手：只听声音。'],
-      ['三颗星','每个场景三关：★ 新手关、★★ 标准关、★★★ 高手关。打到这一关的目标分就过关，星拿到不会掉；拿到 ★★ 开下一个场景。联机时还要自己答对 80% 以上（至少答 5 题）。'],
-      ['熟练','同一个词答对 3 次、分在 2 天、最近一次答对就算熟练；答错要再连对 2 次。熟练的词在图鉴里打勾，没熟练的词出得更多。'],
+      [tx('前台接单'),tx('前台（Disken）左边是点单处：轮到的客人说要什么，点菜单板上对应的挪威语菜名，订单就送进后厨，客人走到右边取餐处等。')],
+      [tx('后厨拿东西'),tx('后厨（Kjøkkenet）的订单是挪威语写的。去冰箱、架子上点那样东西，它会自己放到要它的托盘上。')],
+      [tx('做菜'),tx('订单上写着 koke、steke、bake、skjære 的东西，点了会拿在手上，再点灶台上对应的锅、平底锅、烤箱或砧板。好了点一下回托盘；放太久会糊（brent!），点一下倒掉重做。')],
+      [tx('上菜'),tx('托盘齐了会自己送到前台，出现在客人面前，点 Vær så god! 端给他。越快小费越多。底部两个标签切换前台和后厨。')],
+      [tx('合作'),tx('联机时每样东西只在一位同学的柜子里。点订单上缺的那一样，选对挪威语就会向那位同学喊话。')],
+      [tx('提示'),tx('新手：都有中文，东西上贴着价签；标准：前台只看图、后厨只看挪威语；高手：只听声音。')],
+      [tx('三颗星'),tx('每个场景三关：★ 新手关、★★ 标准关、★★★ 高手关。打到这一关的目标分就过关，星拿到不会掉；拿到 ★★ 开下一个场景。联机时还要自己答对 80% 以上（至少答 5 题）。')],
+      [tx('熟练'),tx('同一个词答对 3 次、分在 2 天、最近一次答对就算熟练；答错要再连对 2 次。熟练的词在图鉴里打勾，没熟练的词出得更多。')],
     ];
-    return `${topBar('玩法')}<ol class="kc-help">${steps.map(([title,text],index) => `<li><span class="kc-help-n">${index+1}</span><div><h3>${title}</h3><p>${text}</p></div></li>`).join('')}</ol>`;
+    return `${topBar(howToPlay())}<ol class="kc-help">${steps.map(([title,text],index) => `<li><span class="kc-help-n">${index+1}</span><div><h3>${title}</h3><p>${text}</p></div></li>`).join('')}</ol>`;
   }
   function dailyPage() {
     const daily = ui.daily;
-    if (!daily) return `${topBar('今日菜单')}<p class="kc-empty">今日菜单需要联网，请稍后再试。</p>`;
+    if (!daily) return `${topBar(tx('今日菜单'))}<p class="kc-empty">${tx('今日菜单需要联网，请稍后再试。')}</p>`;
     const rows = ui.dailyTab === 'team' ? daily.team || [] : daily.solo || [];
-    return `${topBar('今日菜单')}
-      <section class="kc-scene-hero"><span class="kc-kicker">Dagens meny · ${e(daily.day)}</span><p class="kc-scene-title">今日菜单</p>
+    return `${topBar(tx('今日菜单'))}
+      <section class="kc-scene-hero"><span class="kc-kicker">Dagens meny · ${e(daily.day)}</span><p class="kc-scene-title">${tx('今日菜单')}</p>
         <div class="kc-daily-dishes is-wide">${daily.scene.dishes.map(dish => `<span class="kc-daily-dish">${pic(dish.word,'is-round')}${ui.prefs.tier === 'novice' ? `<small>${e(zh1(dish.word))}</small>` : ''}</span>`).join('')}</div>
-        <p class="kc-hint">每个人当天看到的是同一桌菜，不用解锁。单人和合作各有一张榜。</p></section>
+        <p class="kc-hint">${tx('每个人当天看到的是同一桌菜，不用解锁。单人和合作各有一张榜。')}</p></section>
       <section class="kc-panel kc-choices">${tierField()}${minutesField()}</section>
-      <div class="kc-start-bar"><div class="kc-actions-row">${button('solo-daily',`${icon('plate')}<span>一个人开张</span>`,'kc-primary')}${button('room-create-daily',`${icon('people')}<span>开房间</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}</div></div>
-      <section class="kc-panel"><div class="kc-tabs" role="tablist">${[['solo','单人榜'],['team','合作榜']].map(([id,name]) => `<button type="button" role="tab" class="kc-tab" aria-selected="${ui.dailyTab === id}" data-kc="daily-tab" data-value="${id}">${name}</button>`).join('')}</div>
+      <div class="kc-start-bar"><div class="kc-actions-row">${button('solo-daily',`${icon('plate')}<span>${tx('一个人开张')}</span>`,'kc-primary')}${button('room-create-daily',`${icon('people')}<span>${tx('开房间')}</span>`,'kc-ghost',ui.busy ? 'disabled' : '')}</div></div>
+      <section class="kc-panel"><div class="kc-tabs" role="tablist">${[['solo',tx('单人榜')],['team',tx('合作榜')]].map(([id,name]) => `<button type="button" role="tab" class="kc-tab" aria-selected="${ui.dailyTab === id}" data-kc="daily-tab" data-value="${id}">${name}</button>`).join('')}</div>
         ${rows.length ? `<ol class="kc-ranking${ui.dailyTab === 'team' ? ' is-team' : ''}">${rows.map((row,index) => {
           // A team row names everyone (two lines at most) and says how many cooked together.
-          const names = ui.dailyTab === 'team' ? row.names || [] : [row.name];
-          return `<li class="${row.me ? 'is-me' : ''}"><span class="kc-rank">${index+1}</span><span class="kc-ranking-name">${e(names.join(' · '))}</span>${names.length > 2 ? `<small class="kc-ranking-count">${names.length} 人</small>` : ''}<b>${row.score}</b></li>`;
-        }).join('')}</ol>` : '<p class="kc-empty">今天还没有人上榜，来做第一桌吧。</p>'}</section>`;
+          const names = (ui.dailyTab === 'team' ? row.names || [] : [row.name]).map(L10N.name);
+          return `<li class="${row.me ? 'is-me' : ''}"><span class="kc-rank">${index+1}</span><span class="kc-ranking-name">${e(names.join(' · '))}</span>${names.length > 2 ? `<small class="kc-ranking-count">${tx('{n} 人',{n:names.length})}</small>` : ''}<b>${row.score}</b></li>`;
+        }).join('')}</ol>` : `<p class="kc-empty">${tx('今天还没有人上榜，来做第一桌吧。')}</p>`}</section>`;
   }
 
   /* ---------- Clicks and keys ---------- */
@@ -1379,14 +1402,14 @@
       case 'reload': ui.loadFailed = false; render(); void loadData().then(() => { if (ui.open) render(); }).catch(() => { if (ui.open) { ui.loadFailed = true; render(); } }); break;
       case 'scene': {
         const id = target.dataset.id;
-        if (!unlocked(id)) { notify('上一个场景拿到 ★★ 后开放'); break; }
+        if (!unlocked(id)) { notify(tx('上一个场景拿到 ★★ 后开放')); break; }
         show('scene',{scene:id});
         break;
       }
       case 'set': {
         const key = target.dataset.key;
         if (key === 'tier' && TIERS[value]) {
-          if (target.getAttribute('aria-disabled') === 'true') { notify(value === 'expert' ? '拿到 ★★（过了标准关）后开放高手关' : '拿到 ★（过了新手关）后开放标准关',2200); break; }
+          if (target.getAttribute('aria-disabled') === 'true') { notify(value === 'expert' ? tx('拿到 ★★（过了标准关）后开放高手关') : tx('拿到 ★（过了新手关）后开放标准关'),2200); break; }
           ui.prefs.tier = value;
         }
         if (key === 'minutes' && MINUTES.includes(Number(value))) ui.prefs.minutes = Number(value);
@@ -1435,7 +1458,7 @@
     if (!event.target.closest('.kc-join')) return;
     event.preventDefault();
     const code = String($('#kc-join-code')?.value || '').trim();
-    if (!/^\d{4}$/.test(code)) { notify('房间号是 4 位数字'); return; }
+    if (!/^\d{4}$/.test(code)) { notify(tx('房间号是 4 位数字')); return; }
     void joinRoom(code);
   }
   function onInput(event) {
@@ -1486,11 +1509,11 @@
       try { await loadDaily(); } finally { ui.loadingSoloDaily = false; }
       if (!ui.open || overlay !== ui.historyToken || view !== ui.view) return;
       menuAt = Date.now();
-      if (ui.daily?.day !== beijingDay(menuAt)) { notify('今天的菜单还未载入，请联网后再试。'); return; }
+      if (ui.daily?.day !== beijingDay(menuAt)) { notify(tx('今天的菜单还未载入，请联网后再试。')); return; }
     }
-    if (sceneId !== 'daily' && !unlocked(sceneId)) { notify('这个场景还没有开放'); return; }
+    if (sceneId !== 'daily' && !unlocked(sceneId)) { notify(tx('这个场景还没有开放')); return; }
     const found = rulesFor(sceneId);
-    if (!found) { notify(sceneId === 'daily' ? '今日菜单需要联网，请稍后再试' : '找不到这个场景'); return; }
+    if (!found) { notify(sceneId === 'daily' ? tx('今日菜单需要联网，请稍后再试') : tx('找不到这个场景')); return; }
     const {scene,rules} = found, daily = sceneId === 'daily';
     // The daily menu is the same game for everyone; a scene leans towards the words I have not mastered yet.
     const weak = daily ? [] : rules.words.filter(word => !isMastered(word));
@@ -1514,7 +1537,7 @@
   }
   function previewPage() {
     const game = ui.game;
-    if (!game) return `${topBar('菜单预习')}<p class="kc-empty">这一局已经结束。</p>`;
+    if (!game) return `${topBar(tx('菜单预习'))}<p class="kc-empty">${tx('这一局已经结束。')}</p>`;
     const novice = game.state.tier === 'novice', shop = game.scene.take === 'first';
     const room = game.room ? ui.room : null, match = room?.match;
     const tier = game.state.tier;
@@ -1533,13 +1556,15 @@
     // While everyone's pictures load the menu can already be read; 准备好了 comes with the preview.
     const loading = room?.status === 'loading';
     const left = match?.previewEndsAt ? Math.max(0,Math.ceil((match.previewEndsAt-serverNow())/1000)) : 0;
-    return `${topBar('菜单预习',game.room ? '' : game.sceneId === 'daily' ? 'daily' : 'scene')}
-      <section class="kc-preview-head" ${sceneArt(game.sceneData)}><span class="kc-kicker" lang="nb">${e(game.sceneData.no)}</span><p class="kc-scene-title">这一局的菜</p>
-        <p class="kc-hint">先点一点、听一听。${novice ? '开始后菜单、订单和东西上都有中文。' : tier === 'standard' ? '开始后前台客人只给你看图，后厨订单只写挪威语，东西上没有价签。' : '开始后客人只说话，后厨订单要点开听。'}</p></section>
+    return `${topBar(tx('菜单预习'),game.room ? '' : game.sceneId === 'daily' ? 'daily' : 'scene')}
+      <section class="kc-preview-head" ${sceneArt(game.sceneData)}><span class="kc-kicker" lang="nb">${e(game.sceneData.no)}</span><p class="kc-scene-title">${tx('这一局的菜')}</p>
+        <p class="kc-hint">${tx('先点一点、听一听。')}${novice ? tx('开始后菜单、订单和东西上都有中文。') : tier === 'standard' ? tx('开始后前台客人只给你看图，后厨订单只写挪威语，东西上没有价签。') : tx('开始后客人只说话，后厨订单要点开听。')}</p></section>
       <ul class="kc-preview">${cards}</ul>
-      <div class="kc-start-bar">${game.watch ? '<p class="kc-hint kc-center">这一局你在观战，下一局一起做。</p>' : `<div class="kc-actions-row">${button('ready-play',loading ? '正在摆桌子…' : mine ? '等同学…' : '准备好了','kc-primary kc-wide',mine || loading ? 'disabled' : '')}</div>`}
-        ${match ? `<p class="kc-hint kc-center" id="kc-preview-wait">${prepared} / ${people} 人准备好了${left ? ` · ${left} 秒后开始` : ''}</p>` : ''}</div>`;
+      <div class="kc-start-bar">${game.watch ? `<p class="kc-hint kc-center">${tx('这一局你在观战，下一局一起做。')}</p>` : `<div class="kc-actions-row">${button('ready-play',loading ? tx('正在摆桌子…') : mine ? tx('等同学…') : tx('准备好了'),'kc-primary kc-wide',mine || loading ? 'disabled' : '')}</div>`}
+        ${match ? `<p class="kc-hint kc-center" id="kc-preview-wait">${readyLine(prepared,people,left)}</p>` : ''}</div>`;
   }
+  // "2 / 3 人准备好了 · 12 秒后开始" under the menu preview of a room.
+  const readyLine = (ready,people,left) => `${tx('{ready} / {n} 人准备好了',{ready,n:people})}${left ? ` · ${tx('{n} 秒后开始',{n:left})}` : ''}`;
   function readyToPlay() {
     const game = ui.game;
     if (!game || game.watch) return;
@@ -1664,7 +1689,7 @@
       const event = result.events.find(item => item.e === 'wrong');
       // A wrong dish shows the dish asked for; a wrong word on a plate or a station shows what the word means.
       const asked = action.t === 'take' ? event?.word : action.t === 'miss' || action.t === 'call' ? action.i || event?.word : event?.chosen || wrong[0][0];
-      const label = action.t === 'take' ? '这位要的是' : action.t === 'miss' || action.t === 'call' ? '你选的是' : action.t === 'place' ? '你拿的是' : action.t === 'cook' ? '你点的是' : '这个词是';
+      const label = action.t === 'take' ? tx('这位要的是') : action.t === 'miss' || action.t === 'call' ? tx('你选的是') : action.t === 'place' ? tx('你拿的是') : action.t === 'cook' ? tx('你点的是') : tx('这个词是');
       if (asked) {
         game.note = {kind:'fix',html:`<span class="kc-note-label">${label}</span><span class="kc-note-main">${wordHTML(asked)}<span class="kc-note-zh">${e(zh1(asked))}</span></span>${icon('speaker')}`,word:asked,until:Date.now()+3000};
         sayWord(asked);
@@ -1677,7 +1702,8 @@
   function takerName(game,action) {
     const order = Number.isInteger(action.c) ? game.state.orders[action.c] : null;
     const id = order?.takenBy;
-    return id === game.me ? '你' : (ui.room?.players || []).find(player => player.id === id)?.name || '同学';
+    const name = (ui.room?.players || []).find(player => player.id === id)?.name;
+    return id === game.me ? tx('你') : name ? L10N.name(name) : tx('同学');
   }
   // What my own tap looks like: the picture flies from where I tapped to where it went; a wrong answer warms the
   // thing tapped for a moment (the correction itself is the note at the top).
@@ -1785,21 +1811,21 @@
     const tip = (key,text) => {
       if (game.coached.has(key)) return false;
       game.coached.add(key);
-      game.note = {kind:'coach',html:`<span class="kc-note-label">小提示</span><span class="kc-note-main"><span class="kc-note-text">${text}</span></span>`,until:Date.now()+4800};
+      game.note = {kind:'coach',html:`<span class="kc-note-label">${tx('小提示')}</span><span class="kc-note-main"><span class="kc-note-text">${text}</span></span>`,until:Date.now()+4800};
       drawGame();
       return true;
     };
     const front = game.screen !== 'kitchen', {ordering,cooking,ready} = groups(game), now = gameNow(game);
     const kitchen = shop ? '<b lang="nb">Lageret</b>' : '<b lang="nb">Kjøkkenet</b>';
-    if (ready.length && front && tip('serve','菜做好了，就在客人面前：点 <b lang="nb">Vær så god!</b> 端给他')) return;
-    if (ready.length && !front && tip('go-serve','做好的菜已经送去前台了，点下面的 <b lang="nb">Disken</b> 去上菜')) return;
-    if (ordering.some(order => order.naming) && front && tip('naming','客人要点下一道菜了，在 <i lang="nb">Meny</i> 上点它的名字')) return;
-    if (!front && state.stations.some(station => stationState(station,now) === 'burnt') && tip('burnt','糊了！点一下那口锅就倒掉，重新做')) return;
-    if (!front && state.stations.some(station => stationState(station,now) === 'ready') && tip('transfer','锅里的好了，点一下，它就回到托盘上')) return;
-    if (!front && game.hand && tip('hand','订单上写着 <i lang="nb">koke</i>、<i lang="nb">steke</i>… 的要先做：点灶台上对应的锅、平底锅或烤箱')) return;
-    if (!front && cooking.length && tip('place','看订单上的挪威语，去冰箱和架子上点那样东西，它会自己放上托盘')) return;
-    if (front && cooking.length && !ordering.length && tip('go-kitchen',`单接好了，点下面的 ${kitchen} 去做`)) return;
-    if (front && ordering.length) tip('take',shop ? '听客人的清单，在 <i lang="nb">Hylla</i> 上点清单上的第一样' : '轮到的客人在说要什么，点菜单上这道菜的挪威语名字');
+    if (ready.length && front && tip('serve',tx('菜做好了，就在客人面前：点 <b lang="nb">Vær så god!</b> 端给他'))) return;
+    if (ready.length && !front && tip('go-serve',tx('做好的菜已经送去前台了，点下面的 <b lang="nb">Disken</b> 去上菜'))) return;
+    if (ordering.some(order => order.naming) && front && tip('naming',tx('客人要点下一道菜了，在 <i lang="nb">Meny</i> 上点它的名字'))) return;
+    if (!front && state.stations.some(station => stationState(station,now) === 'burnt') && tip('burnt',tx('糊了！点一下那口锅就倒掉，重新做'))) return;
+    if (!front && state.stations.some(station => stationState(station,now) === 'ready') && tip('transfer',tx('锅里的好了，点一下，它就回到托盘上'))) return;
+    if (!front && game.hand && tip('hand',tx('订单上写着 <i lang="nb">koke</i>、<i lang="nb">steke</i>… 的要先做：点灶台上对应的锅、平底锅或烤箱'))) return;
+    if (!front && cooking.length && tip('place',tx('看订单上的挪威语，去冰箱和架子上点那样东西，它会自己放上托盘'))) return;
+    if (front && cooking.length && !ordering.length && tip('go-kitchen',tx('单接好了，点下面的 {kitchen} 去做',{kitchen}))) return;
+    if (front && ordering.length) tip('take',shop ? tx('听客人的清单，在 <i lang="nb">Hylla</i> 上点清单上的第一样') : tx('轮到的客人在说要什么，点菜单上这道菜的挪威语名字'));
   }
   // Sounds, voices and notices for what happened. My own taps were judged already; others' come from the server.
   function react(events,game) {
@@ -1826,7 +1852,7 @@
         case 'burn':
           play('burn');
           game.fresh.set(`station:${event.x}`,Date.now());
-          if (!game.note || game.note.until < Date.now() || game.note.kind === 'coach') game.note = {kind:'burn',html:`<span class="kc-note-label">${game.screen === 'kitchen' ? '灶台上' : '后厨'}</span><span class="kc-note-main"><b lang="nb">brent!</b><span class="kc-note-zh">糊了，${game.screen === 'kitchen' ? '点那口锅倒掉重做' : '快去后厨倒掉重做'}</span></span>`,until:Date.now()+2800};
+          if (!game.note || game.note.until < Date.now() || game.note.kind === 'coach') game.note = {kind:'burn',html:`<span class="kc-note-label">${game.screen === 'kitchen' ? tx('灶台上') : tx('后厨')}</span><span class="kc-note-main"><b lang="nb">brent!</b><span class="kc-note-zh">${game.screen === 'kitchen' ? tx('糊了，点那口锅倒掉重做') : tx('糊了，快去后厨倒掉重做')}</span></span>`,until:Date.now()+2800};
           break;
         case 'cook': play(event.k === 'skjaere' ? 'chop' : 'sizzle'); game.fresh.set(`station:${event.x}`,Date.now()); break;
         case 'take': play('take'); game.fresh.set(`plate:${event.n}`,Date.now()); break;
@@ -1863,7 +1889,7 @@
             // The cabinet with the word asked for opens (on a phone, where one is open at a time).
             if (!game.hand) { const cabinet = game.scene.cabinetOf[event.i]; if (cabinet) game.cabOpen = cabinet; }
             const line = ui.data?.lines?.need?.[event.i];
-            notify(`${nameOf(event.by)}：${line?.text || `Jeg trenger ${plainWord(event.i)}!`}`,3200);
+            notify(tx('{name}：{line}',{name:nameOf(event.by),line:line?.text || `Jeg trenger ${plainWord(event.i)}!`}),3200);
             if (line) sayLine(line);
           }
           break;
@@ -1873,16 +1899,18 @@
           if (event.by !== game.me && line) sayLine(line);
           break;
         }
-        case 'away': if (event.by !== game.me) notify(`${nameOf(event.by)} 掉线了，柜子先交给同学`,2600); break;
+        case 'away': if (event.by !== game.me) notify(tx('{name} 掉线了，柜子先交给同学',{name:nameOf(event.by)}),2600); break;
         case 'end': play('finish'); break;
         default: break;
       }
     }
   }
-  const nameOf = id => (ui.room?.players || []).find(player => player.id === id)?.name || '同学';
+  // A cook's name as shown ("Learner 1234" for a default name on English devices); initial() reads the raw name.
+  const rawNameOf = id => (ui.room?.players || []).find(player => player.id === id)?.name || '';
+  const nameOf = id => { const name = rawNameOf(id); return name ? L10N.name(name) : tx('同学'); };
   // The mark on an avatar: a name's first character, or the last two digits of a default name (学习者1938 → 38), as a
   // class of 学习者 would otherwise all show 学.
-  const initial = name => { const text = String(name || '').trim(); return /^学习者\d{2,}$/.test(text) ? text.slice(-2) : [...text][0] || '?'; };
+  const initial = name => { const text = String(name || '').trim(); return /^(?:学习者|Learner )\d{2,}$/.test(text) ? text.slice(-2) : [...text][0] || '?'; };
 
   /* The game screen: two rooms, switched at the bottom. Disken (the front): customers order at the till under the
      menu board and wait at the pickup counter, where their finished dish lands in front of them. Kjøkkenet (the
@@ -1919,7 +1947,7 @@
       game.goal = true;
       game.goalAt = Date.now();
       play('goal');
-      notify(game.room ? `全队达到目标 ${target} 分` : `达到${TIERS[game.state.tier]?.name || ''}关目标 ${target} 分`,2400);
+      notify(game.room ? tx('全队达到目标 {n} 分',{n:target}) : tx('达到{tier}关目标 {n} 分',{tier:tierName(game.state.tier),n:target}),2400);
     }
     tweenScore(game);
     runFlights(game);
@@ -2079,9 +2107,9 @@
     const noteOn = game.note && game.note.until > Date.now();
     if (game.note && !game.note.at) game.note.at = Date.now();
     const note = `<button type="button" class="kc-note is-${game.note?.kind || 'fix'}${noteOn ? ' is-on' : ''}" id="kc-note" data-kc="hear" data-word="${e(game.note?.word || '')}" ${noteOn && game.note.word ? '' : 'tabindex="-1"'} ${noteOn ? `style="--kc-fx:-${Date.now()-game.note.at}ms"` : ''}>${game.note?.html || ''}</button>`;
-    const count = game.phase === 'countdown' ? `<div class="kc-count" aria-live="assertive"><span id="kc-count-n"><b class="kc-digit">${Math.max(1,Math.ceil((game.countEnds-(game.room ? serverNow() : Date.now()))/1000))}</b></span><small>准备开张</small></div>` : '';
-    const over = state.over && (game.room || game.closing) ? `<div class="kc-count is-end"><span lang="nb">Stengt!</span><small>${game.room ? '本局结束，正在算分…' : '打烊了，正在算分…'}</small></div>` : '';
-    const watch = game.watch ? '<p class="kc-watch">观战中 · 下一局一起做</p>' : '';
+    const count = game.phase === 'countdown' ? `<div class="kc-count" aria-live="assertive"><span id="kc-count-n"><b class="kc-digit">${Math.max(1,Math.ceil((game.countEnds-(game.room ? serverNow() : Date.now()))/1000))}</b></span><small>${tx('准备开张')}</small></div>` : '';
+    const over = state.over && (game.room || game.closing) ? `<div class="kc-count is-end"><span lang="nb">Stengt!</span><small>${game.room ? tx('本局结束，正在算分…') : tx('打烊了，正在算分…')}</small></div>` : '';
+    const watch = game.watch ? `<p class="kc-watch">${tx('观战中 · 下一局一起做')}</p>` : '';
     const chat = game.chatOpen ? `<div class="kc-chat-menu" style="--kc-fx:${since(game,'chat',400) || '-400ms'}">${CHATS.map(id => `<button type="button" class="kc-button kc-ghost" data-kc="chat" data-value="${id}" lang="nb">${e(ui.data?.lines?.chat?.[id]?.text || id)}</button>`).join('')}</div>` : '';
     // Looping motion (steam, a glowing button) runs on the clock, so a redraw picks it up where it was.
     const layout = `--kc-phase:-${Date.now()%3600000}ms`;
@@ -2096,36 +2124,36 @@
     const shown = state.players.length <= 4 ? state.players : [...new Set([...state.players.filter(player => player.id === game.me),
       ...state.players.filter(player => talking(player.id)).sort((a,b) => game.chats[b.id].until-game.chats[a.id].until),...state.players])].slice(0,3);
     const more = state.players.length-shown.length;
-    const crew = room ? `<div class="kc-crew" aria-label="厨师">${shown.map(player => {
+    const crew = room ? `<div class="kc-crew" aria-label="${tx('厨师')}">${shown.map(player => {
       const name = nameOf(player.id), chat = game.chats?.[player.id];
       return `<span class="kc-cook${player.id === game.me ? ' is-me' : ''}${player.away ? ' is-away' : ''}" title="${e(name)}"><span class="kc-avatar">${e(initial(name))}</span>${chat && chat.until > Date.now() ? `<span class="kc-chat-bubble" lang="nb">${e(chat.text)}</span>` : ''}</span>`;
-    }).join('')}${more ? `<span class="kc-cook is-more" title="${e(`一共 ${state.players.length} 位厨师`)}"><span class="kc-avatar">+${more}</span></span>` : ''}</div>` : '';
+    }).join('')}${more ? `<span class="kc-cook is-more" title="${e(tx('一共 {n} 位厨师',{n:state.players.length}))}"><span class="kc-avatar">+${more}</span></span>` : ''}</div>` : '';
     const target = targetFor(game.sceneData,state.minutes,state.tier), left = state.duration-now;
     const goalAge = game.goalAt ? Date.now()-game.goalAt : Infinity;
-    return `<header class="kc-bar"><button type="button" class="kc-icon-button" data-kc="close" aria-label="离开这一局">${icon('close')}</button>
-      <div class="kc-bar-title"><span lang="nb">${e(game.sceneData.no)}${state.tier === 'novice' && game.sceneData.zh ? `<small>${e(game.sceneData.zh)}</small>` : ''}</span><span class="kc-clock${game.phase === 'play' && left <= 30000 ? ' is-late' : ''}" id="kc-clock">${clockText(left)}</span></div>${crew}
+    return `<header class="kc-bar"><button type="button" class="kc-icon-button" data-kc="close" aria-label="${tx('离开这一局')}">${icon('close')}</button>
+      <div class="kc-bar-title"><span lang="nb">${e(game.sceneData.no)}${state.tier === 'novice' && sceneZh(game.sceneData) ? `<small>${e(sceneZh(game.sceneData))}</small>` : ''}</span><span class="kc-clock${game.phase === 'play' && left <= 30000 ? ' is-late' : ''}" id="kc-clock">${clockText(left)}</span></div>${crew}
       <div class="kc-scoreboard${game.goal ? ' is-reached' : ''}${goalAge < 1800 ? ' is-new' : ''}" ${goalAge < 1800 ? `style="--kc-fx:-${goalAge}ms"` : ''}><b id="kc-score">${Math.round(game.shown)}</b>
         <small>★ ${target}</small><span class="kc-goal" aria-hidden="true"><i id="kc-goal" style="transform:scaleX(${Math.min(1,game.shown/Math.max(1,target)).toFixed(3)})"></i></span></div>
-      ${room && !game.watch ? `<button type="button" class="kc-icon-button" data-kc="chat-open" aria-label="快捷短语" aria-expanded="${game.chatOpen}">${icon('chat')}</button>` : ''}
-      <button type="button" class="kc-icon-button" data-kc="sound" aria-label="${ui.prefs.sound ? '关闭声音' : '打开声音'}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>`;
+      ${room && !game.watch ? `<button type="button" class="kc-icon-button" data-kc="chat-open" aria-label="${tx('快捷短语')}" aria-expanded="${game.chatOpen}">${icon('chat')}</button>` : ''}
+      <button type="button" class="kc-icon-button" data-kc="sound" aria-label="${ui.prefs.sound ? tx('关闭声音') : tx('打开声音')}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>`;
   }
   // The two rooms at the bottom, each saying in words what waits there.
   function tabsMarkup(game,now) {
     const {ordering,cooking,ready} = groups(game), novice = game.state.tier === 'novice', shop = shopScene(game);
     const front = game.screen !== 'kitchen';
-    const pot = game.state.stations.some(station => stationState(station,now) === 'burnt') ? '糊了！' : game.state.stations.some(station => stationState(station,now) === 'ready') ? '锅里好了' : '';
-    const frontNote = [ordering.length ? `${ordering.length} 人点单` : '',ready.length ? `${ready.length} 份待上菜` : ''].filter(Boolean).join(' · ');
-    const kitchenNote = [cooking.length ? `${cooking.length} 单在做` : '',pot].filter(Boolean).join(' · ');
+    const pot = game.state.stations.some(station => stationState(station,now) === 'burnt') ? tx('糊了！') : game.state.stations.some(station => stationState(station,now) === 'ready') ? tx('锅里好了') : '';
+    const frontNote = [ordering.length ? tx('{n} 人点单',{n:ordering.length}) : '',ready.length ? tx('{n} 份待上菜',{n:ready.length}) : ''].filter(Boolean).join(' · ');
+    const kitchenNote = [cooking.length ? tx('{n} 单在做',{n:cooking.length}) : '',pot].filter(Boolean).join(' · ');
     const tab = (value,on,calling,mark,no,zh,note) => `<button type="button" role="tab" class="kc-room${on ? ' is-on' : ''}${calling ? ' is-calling' : ''}" data-kc="screen" data-value="${value}" aria-selected="${on}">${icon(mark)}<span class="kc-room-text"><span class="kc-room-name"><b lang="nb">${no}</b>${novice ? `<small>${zh}</small>` : ''}</span>${note ? `<small class="kc-room-note">${e(note)}</small>` : ''}</span></button>`;
-    return `<nav class="kc-switch" role="tablist" aria-label="前台和后厨">${tab('front',front,!front && (ordering.length > 0 || ready.length > 0),'bell','Disken','前台',frontNote)}${tab('kitchen',!front,front && Boolean(pot),shop ? 'pantry' : 'koke',shop ? 'Lageret' : 'Kjøkkenet',shop ? '仓库' : '后厨',kitchenNote)}</nav>`;
+    return `<nav class="kc-switch" role="tablist" aria-label="${tx('前台和后厨')}">${tab('front',front,!front && (ordering.length > 0 || ready.length > 0),'bell','Disken',tx('前台'),frontNote)}${tab('kitchen',!front,front && Boolean(pot),shop ? 'pantry' : 'koke',shop ? 'Lageret' : 'Kjøkkenet',shop ? tx('仓库') : tx('后厨'),kitchenNote)}</nav>`;
   }
 
   /* Disken: the till and the pickup counter */
   function frontMarkup(game,now) {
     const {ordering,making,asker} = groups(game), tier = game.state.tier, novice = tier === 'novice', shop = shopScene(game);
     const menu = menuWords(game.scene);
-    const board = `<section class="kc-board${menu.length > 8 ? ' is-long' : ''}" aria-label="${shop ? '货架' : '菜单'}">
-      <header class="kc-board-head"><span class="kc-board-title" lang="nb">${shop ? 'Hylla' : 'Meny'}</span><span class="kc-board-sign"><b lang="nb">Bestill her</b>${novice ? '<small>在这里点单</small>' : ''}</span></header>
+    const board = `<section class="kc-board${menu.length > 8 ? ' is-long' : ''}" aria-label="${shop ? tx('货架') : tx('菜单')}">
+      <header class="kc-board-head"><span class="kc-board-title" lang="nb">${shop ? 'Hylla' : 'Meny'}</span><span class="kc-board-sign"><b lang="nb">Bestill her</b>${novice ? `<small>${tx('在这里点单')}</small>` : ''}</span></header>
       <div class="kc-board-list" data-scroll="menu">${menu.map(word => {
         const wrong = since(game,`bad:dish:${word}`);
         return `<button type="button" class="kc-dish${wrong ? ' is-wrong' : ''}" data-kc="dish" data-word="${e(word)}" ${wrong ? `style="--kc-fx:${wrong}"` : ''}>${wordHTML(word,{article:false})}${novice ? `<small>${e(zh1(word))}</small>` : ''}</button>`;
@@ -2133,23 +2161,23 @@
     const queue = ordering.filter(order => order !== asker);
     const later = game.state.next < game.state.orders.length;
     const till = asker ? `${askBubble(game,asker,now)}${personHTML(game,asker,now,'is-asker')}
-        <div class="kc-queue" aria-label="排队">${queue.slice(0,3).map(order => personHTML(game,order,now,'is-queued')).join('')}${queue.length > 3 ? `<span class="kc-queue-more">+${queue.length-3}</span>` : ''}</div>`
-      : `<p class="kc-quiet-note">${later ? '下一位客人马上就到' : '今天的客人都来过了'}</p>`;
+        <div class="kc-queue" aria-label="${tx('排队')}">${queue.slice(0,3).map(order => personHTML(game,order,now,'is-queued')).join('')}${queue.length > 3 ? `<span class="kc-queue-more">+${queue.length-3}</span>` : ''}</div>`
+      : `<p class="kc-quiet-note">${later ? tx('下一位客人马上就到') : tx('今天的客人都来过了')}</p>`;
     const leaving = exitsIn(game,'order');
     const pickup = making.map(order => pickupSpot(game,order,now)).join('')+exitsIn(game,'pickup');
     const looks = [hasBanner(game.sceneData) ? `--kc-art:url('${e(imageURL(game.sceneData.bg,false))}')` : '',artURL('kitchen/skilt') ? `--kc-sign-art:url('${e(artURL('kitchen/skilt'))}')` : ''].filter(Boolean).join(';');
     return `<div class="kc-front${artURL('kitchen/skilt') ? ' is-painted' : ''}" ${looks ? `style="${looks}"` : ''}>
-      <section class="kc-zone is-order" aria-label="点单"><div class="kc-zone-art" aria-hidden="true"></div>${board}<div class="kc-till">${till}${leaving ? `<div class="kc-leaving">${leaving}</div>` : ''}</div></section>
-      <section class="kc-zone is-pickup" aria-label="取餐" style="--kc-spots:${Math.max(3,making.length+game.exits.filter(exit => exit.zone === 'pickup').length)}"><div class="kc-zone-art" aria-hidden="true"></div>
-        <header class="kc-sign"><b lang="nb">Hent her</b>${novice ? '<small>在这里取餐</small>' : ''}</header>
-        <div class="kc-spots">${pickup || `<p class="kc-quiet-note">${novice ? '接了单的客人在这里等菜' : ''}</p>`}</div></section></div>`;
+      <section class="kc-zone is-order" aria-label="${tx('点单')}"><div class="kc-zone-art" aria-hidden="true"></div>${board}<div class="kc-till">${till}${leaving ? `<div class="kc-leaving">${leaving}</div>` : ''}</div></section>
+      <section class="kc-zone is-pickup" aria-label="${tx('取餐')}" style="--kc-spots:${Math.max(3,making.length+game.exits.filter(exit => exit.zone === 'pickup').length)}"><div class="kc-zone-art" aria-hidden="true"></div>
+        <header class="kc-sign"><b lang="nb">Hent her</b>${novice ? `<small>${tx('在这里取餐')}</small>` : ''}</header>
+        <div class="kc-spots">${pickup || `<p class="kc-quiet-note">${novice ? tx('接了单的客人在这里等菜') : ''}</p>`}</div></section></div>`;
   }
   // A customer standing at the counter: the figure (its mood follows their patience) and a slim bar of patience.
   function personHTML(game,order,now,cls = '') {
     const elapsed = Math.max(0,now-order.arrivedAt), hurry = order.leavesAt-now < order.patience*.3;
     const wrong = since(game,`bad:guest:${order.n}`);
     const float = game.floats.find(item => item.n === order.n && item.until > Date.now());
-    const label = cls.includes('is-queued') ? '排队的客人，点一下让他先点' : '客人，点一下再听一遍';
+    const label = cls.includes('is-queued') ? tx('排队的客人，点一下让他先点') : tx('客人，点一下再听一遍');
     return `<button type="button" class="kc-person ${cls}${hurry ? ' is-hurry' : ''}${elapsed < 700 ? ' is-arriving' : ''}${wrong ? ' is-wrong' : ''}" data-kc="guest" data-n="${order.n}" aria-label="${label}"
       style="--kc-patience:${order.patience}ms;--kc-elapsed:-${elapsed}ms${wrong ? `;--kc-fx:${wrong}` : ''}">${faceHTML(order.customer,mood(order,now),'is-figure')}<i class="kc-patience" aria-hidden="true"><i></i></i>${float ? floatHTML(float) : ''}</button>`;
   }
@@ -2163,12 +2191,12 @@
     if (shop && !order.naming) {
       const items = dish.slots.slice(0,4).map(([item]) => item);
       pics = `<span class="kc-ask-list">${items.map(item => pic(item,'is-list')).join('')}</span>`;
-      zh = items.map(zh1).join('、');
+      zh = items.map(zh1).join(tx('、'));
     } else { pics = pic(order.word,'is-bubble'); zh = zh1(order.word); }
     const without = order.without.length && !order.naming ? order.without[0] : '';
     const showText = novice || (tier === 'standard' && !hasPicture(order.word));
-    const body = tier === 'expert' ? `<span class="kc-ask-ear">${icon('speaker')}</span><span class="kc-ask-text"><span class="kc-ask-hint">${order.naming ? '要点下一道了，' : ''}点客人再听一遍</span></span>`
-      : `${pics}<span class="kc-ask-text">${novice && line?.text ? `<span class="kc-ask-line" lang="nb">${e(line.text)}</span>` : ''}${showText ? `<span class="kc-ask-zh">${e(order.naming ? `下一道：${zh}` : shop ? `清单：${zh}` : zh)}</span>` : ''}${without && novice ? `<span class="kc-ask-without">不要${e(zh1(without))}</span>` : ''}</span>${without ? `<span class="kc-without">${pic(without,'is-tiny')}</span>` : ''}`;
+    const body = tier === 'expert' ? `<span class="kc-ask-ear">${icon('speaker')}</span><span class="kc-ask-text"><span class="kc-ask-hint">${order.naming ? tx('要点下一道了，点客人再听一遍') : tx('点客人再听一遍')}</span></span>`
+      : `${pics}<span class="kc-ask-text">${novice && line?.text ? `<span class="kc-ask-line" lang="nb">${e(line.text)}</span>` : ''}${showText ? `<span class="kc-ask-zh">${e(order.naming ? tx('下一道：{dish}',{dish:zh}) : shop ? tx('清单：{list}',{list:zh}) : zh)}</span>` : ''}${without && novice ? `<span class="kc-ask-without">${tx('不要{item}',{item:e(zh1(without))})}</span>` : ''}</span>${without ? `<span class="kc-without">${pic(without,'is-tiny')}</span>` : ''}`;
     return `<div class="kc-ask${order.naming ? ' is-naming' : ''}" aria-live="polite">${body}<span class="kc-ask-q" aria-hidden="true">?</span><i class="kc-patience" aria-hidden="true" style="--kc-patience:${order.patience}ms;--kc-elapsed:-${Math.max(0,now-order.arrivedAt)}ms"><i></i></i></div>`;
   }
   // What a finished order looks like: the dish (in the shop, the shopping list's picture).
@@ -2180,7 +2208,7 @@
     const ready = since(game,`done:${order.n}`,1200), novice = game.state.tier === 'novice';
     const courses = order.next.length || order.course ? `<span class="kc-courses">${Array.from({length:order.course+1+order.next.length},(_,i) => `<i class="${i < order.course ? 'is-done' : i === order.course ? 'is-now' : ''}"></i>`).join('')}</span>` : '';
     const counter = done ? `<button type="button" class="kc-ready${ready ? ' is-fresh' : ''}${game.pending.has(`plate:${order.n}`) ? ' is-pending' : ''}" data-kc="serve" data-n="${order.n}" ${ready ? `style="--kc-fx:${ready}"` : ''}>${pic(finishedWord(game,order),'is-dish',false)}<span class="kc-ready-label" lang="nb">Vær så god!</span></button>`
-      : `<span class="kc-stub">${pic(finishedWord(game,order),'is-tiny')}<span class="kc-stub-text"><span class="kc-stub-dots" aria-label="${filled} / ${all.length}">${all.map((slot,i) => `<i class="${i < filled ? 'is-on' : ''}"></i>`).join('')}</span>${novice ? '<small>后厨在做</small>' : ''}</span>${courses}</span>`;
+      : `<span class="kc-stub">${pic(finishedWord(game,order),'is-tiny')}<span class="kc-stub-text"><span class="kc-stub-dots" aria-label="${filled} / ${all.length}">${all.map((slot,i) => `<i class="${i < filled ? 'is-on' : ''}"></i>`).join('')}</span>${novice ? `<small>${tx('后厨在做')}</small>` : ''}</span>${courses}</span>`;
     return `<div class="kc-spot${done ? ' is-ready' : ''}" data-n="${order.n}">${personHTML(game,order,now,'is-waiting')}<div class="kc-spot-counter">${counter}</div></div>`;
   }
   // Customers on their way out: thanked and happy, or tired of waiting.
@@ -2218,17 +2246,17 @@
     // A kitchen with many cabinets draws its painted furniture smaller, so a computer's wall holds it all.
     const pieces = cabinets.reduce((sum,cabinet) => { const look = PAINTED[FURNITURE[cabinet.id] || 'shelf']; return sum+(look ? Math.ceil(cabinet.items.length/(look.cols*look.rows.length)) : 1); },0);
     const scale = Math.min(1,5.2/Math.max(5.2,cabinets.length+(pieces-cabinets.length)*.5)).toFixed(3);
-    const wall = `<section class="kc-wall" aria-label="柜子" data-scroll="wall-${e(game.cabOpen)}" style="--kc-scale:${scale}">${cabinets.map(cabinet => furniture(game,cabinet,now)).join('')}</section>`;
-    const cabs = `<nav class="kc-cabs" aria-label="打开哪个柜子" data-scroll="cabs">${cabinets.map(cabinet => {
+    const wall = `<section class="kc-wall" aria-label="${tx('柜子')}" data-scroll="wall-${e(game.cabOpen)}" style="--kc-scale:${scale}">${cabinets.map(cabinet => furniture(game,cabinet,now)).join('')}</section>`;
+    const cabs = `<nav class="kc-cabs" aria-label="${tx('打开哪个柜子')}" data-scroll="cabs">${cabinets.map(cabinet => {
       const theirs = game.room && !holds(state,cabinet.id,game.me);
-      return `<button type="button" class="kc-cab${game.cabOpen === cabinet.id ? ' is-on' : ''}${theirs ? ' is-theirs' : ''}" data-kc="cab" data-value="${e(cabinet.id)}" aria-pressed="${game.cabOpen === cabinet.id}">${pic(cabinet.items[0],'is-tiny')}<b lang="nb">${e(cabinet.no)}</b>${novice ? `<small>${e(cabinet.zh)}</small>` : ''}</button>`;
+      return `<button type="button" class="kc-cab${game.cabOpen === cabinet.id ? ' is-on' : ''}${theirs ? ' is-theirs' : ''}" data-kc="cab" data-value="${e(cabinet.id)}" aria-pressed="${game.cabOpen === cabinet.id}">${pic(cabinet.items[0],'is-tiny')}<b lang="nb">${e(cabinet.no)}</b>${novice ? `<small>${e(cabinetZh(cabinet))}</small>` : ''}</button>`;
     }).join('')}</nav>`;
     const hob = painted() && artURL('kitchen/komfyr') ? state.stations.map((station,x) => ['koke','steke'].includes(station.kind) ? x : -1).filter(x => x >= 0).slice(0,2) : [];
     const rings = hob.length ? `<div class="kc-hob">${hob.map((x,ring) => toolHTML(game,state.stations[x],x,now,`is-on-ring is-ring-${hob.length === 1 ? 'mid' : ring ? 'right' : 'left'}`)).join('')}</div>` : '';
-    const stove = game.scene.stations.length ? `<section class="kc-stove" aria-label="灶台"><span class="kc-hood" aria-hidden="true"></span><div class="kc-tools">${rings}${state.stations.map((station,x) => hob.includes(x) ? '' : toolHTML(game,station,x,now)).join('')}</div></section>` : '';
+    const stove = game.scene.stations.length ? `<section class="kc-stove" aria-label="${tx('灶台')}"><span class="kc-hood" aria-hidden="true"></span><div class="kc-tools">${rings}${state.stations.map((station,x) => hob.includes(x) ? '' : toolHTML(game,station,x,now)).join('')}</div></section>` : '';
     const free = state.plates.filter(plate => plate < 0).length;
-    const spare = Array.from({length:free},() => '<div class="kc-col is-spare" aria-hidden="true"><div class="kc-tray is-spare"><small>空托盘</small></div></div>').join('');
-    const rail = `<section class="kc-rail" aria-label="订单" data-scroll="rail">${cooking.length ? cooking.map(order => orderColumn(game,order,now)).join('')+spare : `<p class="kc-quiet-note">${ready.length ? '做好的都送到前台了，去前台上菜' : '去前台接单，订单会出现在这里'}</p>`}</section>`;
+    const spare = Array.from({length:free},() => `<div class="kc-col is-spare" aria-hidden="true"><div class="kc-tray is-spare"><small>${tx('空托盘')}</small></div></div>`).join('');
+    const rail = `<section class="kc-rail" aria-label="${tx('订单')}" data-scroll="rail">${cooking.length ? cooking.map(order => orderColumn(game,order,now)).join('')+spare : `<p class="kc-quiet-note">${ready.length ? tx('做好的都送到前台了，去前台上菜') : tx('去前台接单，订单会出现在这里')}</p>`}</section>`;
     // No pass on the kitchen side (user 2026-11-08: nobody used it): a finished tray flies to the 前台 tab, which says
     // how many dishes wait there.
     const art = painted() ? [['--kc-kitchen-art',OUTDOOR.has(data.id) || OUTDOOR.has(game.sceneId) ? 'scene/utekjokken' : 'scene/kjokken'],['--kc-tray-art','kitchen/brett'],
@@ -2244,9 +2272,9 @@
     const helpers = (state.share?.[cabinet.id] || []).filter(id => id !== owner);
     const others = [owner,...helpers].filter(id => id !== game.me);
     const whose = !game.room ? '' : theirs ? `<span class="kc-whose"><span class="kc-avatar">${e(initial(nameOf(owner)))}</span>${e(nameOf(owner))}${helpers.length ? `<small>+${helpers.length}</small>` : ''}</span>`
-      : others.length ? `<span class="kc-whose is-shared" title="${e(others.map(nameOf).join('、'))}">${others.slice(0,3).map(id => `<span class="kc-avatar">${e(initial(nameOf(id)))}</span>`).join('')}${others.length > 3 ? `<small>+${others.length-3}</small>` : ''}<small>一起用</small></span>` : '';
+      : others.length ? `<span class="kc-whose is-shared" title="${e(others.map(nameOf).join(tx('、')))}">${others.slice(0,3).map(id => `<span class="kc-avatar">${e(initial(nameOf(id)))}</span>`).join('')}${others.length > 3 ? `<small>+${others.length-3}</small>` : ''}<small>${tx('一起用')}</small></span>` : '';
     const cols = Math.min(cabinet.items.length,FURNITURE_COLS[type]);
-    const name = `<p class="kc-furn-name"><span lang="nb">${e(cabinet.no)}</span>${novice ? `<small>${e(cabinet.zh)}</small>` : ''}${whose}</p>`;
+    const name = `<p class="kc-furn-name"><span lang="nb">${e(cabinet.no)}</span>${novice ? `<small>${e(cabinetZh(cabinet))}</small>` : ''}${whose}</p>`;
     const look = PAINTED[type];
     if (painted() && look && artURL(look.img)) {
       const room = look.cols*look.rows.length, count = Math.ceil(cabinet.items.length/room);
@@ -2288,7 +2316,7 @@
     const flag = status === 'burnt' ? '<b class="kc-flag is-burnt" lang="nb">brent!</b>' : status === 'ready' ? `<b class="kc-flag is-ready">${icon('check')}</b>` : '';
     const steam = station.item && HOT.has(station.kind) ? '<span class="kc-steam" aria-hidden="true"><i></i><i></i><i></i></span>' : '';
     const owner = station.item && station.order >= 0 ? game.state.orders[station.order] : null;
-    const label = status === 'burnt' ? '糊了，点一下倒掉' : status === 'ready' ? '好了，点一下放回托盘' : status === 'cooking' ? '正在做' : KIND_NAMES[station.kind];
+    const label = status === 'burnt' ? tx('糊了，点一下倒掉') : status === 'ready' ? tx('好了，点一下放回托盘') : status === 'cooking' ? tx('正在做') : KIND_NAMES[station.kind];
     return `<button type="button" class="kc-tool ${where} is-${station.kind} is-${status}${choice ? ' is-choice' : ''}${game.pending.has(`station:${x}`) ? ' is-pending' : ''}${undoing(game,`station:${x}`) ? ' is-undo' : ''}${fx ? ' is-new' : ''}${wrong ? ' is-wrong' : ''}" data-kc="station" data-x="${x}" aria-label="${e(label)}" ${vars ? `style="${vars}"` : ''}>
       ${steam}${toolPicture(station.kind)}${station.item ? `<span class="kc-tool-food">${pic(station.item,'is-tiny')}</span>` : ''}${owner ? `<span class="kc-tool-whose">${faceHTML(owner.customer,'neutral','is-mini')}</span>` : ''}${flag}<i class="kc-meter"><i></i></i>${novice && verb ? `<span class="kc-tool-label">${wordHTML(verb)}<small>${e(KIND_NAMES[station.kind] || '')}</small></span>` : ''}</button>`;
   }
@@ -2296,7 +2324,7 @@
   function handMarkup(game) {
     if (!game.hand || game.screen !== 'kitchen') return '';
     const tier = game.state.tier, item = game.hand.item;
-    return `<div class="kc-hand" role="status"><span class="kc-hand-pic">${pic(item,'is-tiny')}</span><span class="kc-hand-text"><span>拿着 ${wordHTML(item)}${tier === 'novice' ? `<small>${e(zh1(item))}</small>` : ''}</span><small>点灶台上要用的那一样</small></span><button type="button" class="kc-hand-x" data-kc="drop" aria-label="放回去">${icon('close')}</button></div>`;
+    return `<div class="kc-hand" role="status"><span class="kc-hand-pic">${pic(item,'is-tiny')}</span><span class="kc-hand-text"><span>${tx('拿着 {word}',{word:wordHTML(item)})}${tier === 'novice' ? `<small>${e(zh1(item))}</small>` : ''}</span><small>${tx('点灶台上要用的那一样')}</small></span><button type="button" class="kc-hand-x" data-kc="drop" aria-label="${tx('放回去')}">${icon('close')}</button></div>`;
   }
   // An order: its slip written in Norwegian (新手 adds the picture and Chinese; 高手 has a speaker for each line) and,
   // under it, its tray with what is on it so far.
@@ -2322,14 +2350,14 @@
     const away = game.room && state === 'open' && !holds(game.state,game.scene.cabinetOf[item],game.me);
     const measure = measureOf(game,order,slot);
     const word = measure ? `<span class="kc-no" lang="nb">${e(String(measure.amount))} ${e(plainWord(item))}<i class="kc-art"> ${e(plainWord(measure.item))}</i></span>` : wordHTML(item);
-    const zh = measure ? `${measure.amount} ${zh1(item)}${zh1(measure.item)}` : zh1(item);
+    const zh = measure ? tx('{amount} {unit}{item}',{amount:measure.amount,unit:zh1(item),item:zh1(measure.item)}) : zh1(item);
     const verb = slot.k ? `<span class="kc-line-verb">${tier === 'expert' && state === 'open' ? icon('speaker') : `<span lang="nb">${e(plainWord(game.scene.verbs[slot.k]).replace(/^å\s+/,''))}</span>`}${tier === 'novice' ? `<small>${e(KIND_NAMES[slot.k] || '')}</small>` : ''}</span>` : '';
     let body;
     if (state !== 'open') body = `${pic(item,'is-line')}<span class="kc-line-word">${word}</span>${state === 'cooking' ? `<span class="kc-line-state">${icon(slot.k || 'koke')}</span>` : `<i class="kc-tick">${icon('check')}</i>`}`;
-    else if (tier === 'expert') body = `<span class="kc-line-ear">${icon('speaker')}</span><span class="kc-line-word is-hidden">听一听</span>${verb}`;
+    else if (tier === 'expert') body = `<span class="kc-line-ear">${icon('speaker')}</span><span class="kc-line-word is-hidden">${tx('听一听')}</span>${verb}`;
     else body = `${tier === 'novice' || !hasPicture(item) ? pic(item,'is-line') : ''}<span class="kc-line-word">${word}${tier === 'novice' || !hasPicture(item) ? `<small>${e(zh)}</small>` : ''}</span>${verb}`;
     const fresh = since(game,key), wrong = since(game,`bad:line:${order.n}:${slot.index}`);
-    const label = state === 'done' ? '已放好' : state === 'cooking' ? '正在做' : away ? '在同学的柜子里，点一下向同学要' : tier === 'novice' ? zh : '听这一样';
+    const label = state === 'done' ? tx('已放好') : state === 'cooking' ? tx('正在做') : away ? tx('在同学的柜子里，点一下向同学要') : tier === 'novice' ? zh : tx('听这一样');
     return `<button type="button" class="kc-line is-${state}${away ? ' is-away' : ''}${game.pending.has(key) ? ' is-pending' : ''}${undoing(game,key) ? ' is-undo' : ''}${fresh ? ' is-fresh' : ''}${wrong ? ' is-wrong' : ''}" data-kc="line" data-n="${order.n}" data-x="${slot.index}" aria-label="${e(label)}" ${fresh || wrong ? `style="--kc-fx:${fresh || wrong}"` : ''}>${body}${away ? `<span class="kc-line-away">${icon('people')}</span>` : ''}</button>`;
   }
   // Where the things already on a tray lie (one in the middle, more in a ring).
@@ -2342,8 +2370,8 @@
     const picking = ui.picking;
     if (!picking || picking.game !== game) return '';
     const age = `--kc-fx:-${Math.min(1000,Date.now()-(picking.at || 0))}ms`;
-    return `<div class="kc-sheet-layer" style="${age}"><div class="kc-sheet" style="${age}" role="dialog" aria-modal="true" aria-labelledby="kc-sheet-title"><p id="kc-sheet-title">${e(picking.title || '向同学要哪一样？')}</p>
-      <div class="kc-picks${picking.options.length > 4 ? ' is-many' : ''}">${picking.options.map(word => `<button type="button" class="kc-pick" data-kc="pick" data-word="${e(word)}">${wordHTML(word)}</button>`).join('')}</div>${button('pick-cancel','取消','kc-quiet')}</div></div>`;
+    return `<div class="kc-sheet-layer" style="${age}"><div class="kc-sheet" style="${age}" role="dialog" aria-modal="true" aria-labelledby="kc-sheet-title"><p id="kc-sheet-title">${e(picking.title || tx('向同学要哪一样？'))}</p>
+      <div class="kc-picks${picking.options.length > 4 ? ' is-many' : ''}">${picking.options.map(word => `<button type="button" class="kc-pick" data-kc="pick" data-word="${e(word)}">${wordHTML(word)}</button>`).join('')}</div>${button('pick-cancel',tx('取消'),'kc-quiet')}</div></div>`;
   }
   function closePicker() { ui.picking = null; drawGame(); }
   function setScreen(game,screen) {
@@ -2387,7 +2415,7 @@
       case 'dish': {
         if (game.watch) return true;
         const {asker,making} = groups(game);
-        if (!asker) { notify(making.length ? '现在没有人在等点单' : '还没有客人在等',1800); return true; }
+        if (!asker) { notify(making.length ? tx('现在没有人在等点单') : tx('还没有客人在等'),1800); return true; }
         act({t:'take',c:asker.n,d:word},target.getBoundingClientRect());
         return true;
       }
@@ -2406,11 +2434,11 @@
   function pickItem(game,item,from) {
     if (game.watch || !item) return;
     const state = game.state, scene = game.scene, holder = state.owner[scene.cabinetOf[item]];
-    if (game.room && !holds(state,scene.cabinetOf[item],game.me)) { notify(`这样在${nameOf(holder)}的柜子里：在订单上点这一样，用挪威语喊人要`,2600); return; }
+    if (game.room && !holds(state,scene.cabinetOf[item],game.me)) { notify(tx('这样在{name}的柜子里：在订单上点这一样，用挪威语喊人要',{name:nameOf(holder)}),2600); return; }
     if (game.hand?.item === item) { game.hand = null; drawGame(); return; }
     const making = state.orders.filter(order => order.status === 'taken' && !order.naming && !complete(order))
       .sort((a,b) => (b.n === game.focus)-(a.n === game.focus) || a.takenAt-b.takenAt || a.n-b.n);
-    if (!making.length) { notify(state.orders.some(order => order.status === 'taken') ? '这几单都配齐了，去前台上菜' : '还没有订单：先去前台接单',2000); return; }
+    if (!making.length) { notify(state.orders.some(order => order.status === 'taken') ? tx('这几单都配齐了，去前台上菜') : tx('还没有订单：先去前台接单'),2000); return; }
     for (const order of making) {
       const raw = order.slots.some(slot => slot.i === item && !slot.k && slot.s === 'open') || order.tools.some(tool => tool.i === item && tool.s === 'open');
       if (raw) { game.hand = null; game.focus = order.n; act({t:'place',c:order.n,i:item},from); return; }
@@ -2443,7 +2471,7 @@
     }
     if (status === 'burnt') { act({t:'trash',x},from); return; }
     if (status === 'cooking') { notify(game.hand ? WHY.busy() : WHY.cooking(),1200); return; }
-    if (!game.hand) { notify('先从柜子里拿要做的那样东西',1800); return; }
+    if (!game.hand) { notify(tx('先从柜子里拿要做的那样东西'),1800); return; }
     const held = game.hand, origin = $('.kc-hand-pic')?.getBoundingClientRect() || held.from;
     game.hand = null;
     const result = act({t:'cook',i:held.item,k:station.kind,c:held.order},origin);
@@ -2459,7 +2487,7 @@
     if (!slot) { drawGame(); return; }
     if (slot.s === 'open' && !game.watch && game.room && !holds(state,game.scene.cabinetOf[slot.i],game.me) && !order.naming) {
       const shelf = Object.keys(game.scene.cabinetOf).filter(item => holds(state,game.scene.cabinetOf[item],game.me));
-      ui.picking = {at:Date.now(),game,n,slot:x,mode:'call',title:'向同学要哪一样？',options:distractors(game.scene,slot.i,shelf,state.seed ^ (n*131+x),ui.categoryOf || {})};
+      ui.picking = {at:Date.now(),game,n,slot:x,mode:'call',title:tx('向同学要哪一样？'),options:distractors(game.scene,slot.i,shelf,state.seed ^ (n*131+x),ui.categoryOf || {})};
       drawGame();
       $('.kc-sheet [data-kc="pick"]')?.focus();
       return;
@@ -2480,7 +2508,7 @@
     if (game.owner) record.owner = game.owner;
     rememberResult(record,game.ownerDevice);
     ui.resultsFor = {sessionId:record.sessionId,sceneId:game.sceneId,room:false,tier:state.tier,score:state.score,target:targetFor(scene,state.minutes,state.tier),served:state.served,gone:state.gone,
-      minutes:state.minutes,players:[{id:'me',name:ui.nickname || '我',correct:me.correct,wrong:me.wrong,served:me.served,dishes:me.dishes,me:true}],
+      minutes:state.minutes,players:[{id:'me',name:ui.nickname || tx('我'),correct:me.correct,wrong:me.wrong,served:me.served,dishes:me.dishes,me:true}],
       learn:me.learn,starsBefore:daily ? null : sceneStars(scene),openBefore:daily || tierOpen(sceneStars(scene),state.tier),starsAfter:null,xp:null,upload:'sending'};
     ui.game = null;
     show('results');
@@ -2587,50 +2615,51 @@
   }
   function resultsPage() {
     const r = ui.resultsFor;
-    if (!r) return `${topBar('本局结束')}<p class="kc-empty">没有这一局的记录。</p>`;
+    if (!r) return `${topBar(tx('本局结束'))}<p class="kc-empty">${tx('没有这一局的记录。')}</p>`;
     const scene = sceneById(r.sceneId) || (r.sceneId === 'daily' ? null : null);
     const reached = r.score >= r.target;
     const mine = r.players.find(player => player.me) || r.players[0] || {correct:0,wrong:0,served:0};
-    const level = `${TIERS[r.tier]?.name || ''}关`;
-    const verdict = r.sceneId === 'daily' ? `目标 ${r.target} 分`
-      : !reached ? `${level}目标 ${r.target} 分`
-      : r.openBefore === false ? `${level}还没开放，这局不算过关`
-      : passes(r.score,r.target,mine.correct,mine.wrong,r.room) ? `${level}过了（目标 ${r.target} 分）`
-      : `全队到了${level}目标，自己答对 80% 才算过`;
+    const level = tx('{tier}关',{tier:tierName(r.tier)});
+    const verdict = r.sceneId === 'daily' ? tx('目标 {n} 分',{n:r.target})
+      : !reached ? tx('{level}目标 {n} 分',{level,n:r.target})
+      : r.openBefore === false ? tx('{level}还没开放，这局不算过关',{level})
+      : passes(r.score,r.target,mine.correct,mine.wrong,r.room) ? tx('{level}过了（目标 {n} 分）',{level,n:r.target})
+      : tx('全队到了{level}目标，自己答对 80% 才算过',{level});
     const rows = summary(r.learn);
-    const upload = r.room ? (r.xpPending ? '经验结算中…' : '') : ({
-      sending:'正在上传成绩…', offline:'成绩已存在这台设备上，联网后自动补传。',
-      unsaved:'设备未能保存成绩。请保持此页打开，恢复联网后会再次上传。',
-      identity:'这局需要原来的学习身份及场景资格；符合条件时会补传。',
-      version:'成绩还在，游戏规则版本不匹配，请刷新后重试。',
-      expired:'这局已超过三天补传期限，未计入成绩。',invalid:'服务器未接受这局记录，未计入成绩。'
+    const upload = r.room ? (r.xpPending ? tx('经验结算中…') : '') : ({
+      sending:tx('正在上传成绩…'), offline:tx('成绩已存在这台设备上，联网后自动补传。'),
+      unsaved:tx('设备未能保存成绩。请保持此页打开，恢复联网后会再次上传。'),
+      identity:tx('这局需要原来的学习身份及场景资格；符合条件时会补传。'),
+      version:tx('成绩还在，游戏规则版本不匹配，请刷新后重试。'),
+      expired:tx('这局已超过三天补传期限，未计入成绩。'),invalid:tx('服务器未接受这局记录，未计入成绩。')
     }[r.upload] || '');
     // A star won in this game lights up on its own, a moment after the page opens.
     const after = r.starsAfter ?? r.starsBefore, gained = r.starsAfter != null && r.starsAfter > r.starsBefore;
-    const starLine = r.starsBefore == null ? '' : `<div class="kc-result-stars"><span class="kc-stars is-large" aria-label="${after} 星">${[0,1,2].map(index => `<i class="${index < after ? 'is-on' : ''}${gained && index >= r.starsBefore && index < after ? ' is-new' : ''}">${icon('star')}</i>`).join('')}</span>${gained ? `<span class="kc-hint kc-new-star">新的${after-r.starsBefore > 1 ? ` ${after-r.starsBefore} ` : '一'}颗星</span>` : ''}</div>`;
+    const starLine = r.starsBefore == null ? '' : `<div class="kc-result-stars"><span class="kc-stars is-large" aria-label="${tx('{n} 星',{n:after})}">${[0,1,2].map(index => `<i class="${index < after ? 'is-on' : ''}${gained && index >= r.starsBefore && index < after ? ' is-new' : ''}">${icon('star')}</i>`).join('')}</span>${gained ? `<span class="kc-hint kc-new-star">${after-r.starsBefore > 1 ? tx('新的 {n} 颗星',{n:after-r.starsBefore}) : tx('新的一颗星')}</span>` : ''}</div>`;
     const unlocks = (r.unlocked || []).map(id => sceneById(id)).filter(Boolean);
-    const people = r.players.length > 1 ? `<section class="kc-panel"><div class="kc-section-head"><h3>厨师们</h3></div><ul class="kc-crew-list">${r.players.map(player => `<li class="${player.me ? 'is-me' : ''}"><span class="kc-avatar">${e(initial(player.name))}</span><span class="kc-crew-name">${e(player.name)}</span><span class="kc-hint">答对 ${player.correct} · 答错 ${player.wrong} · 上菜 ${player.served}${Number.isFinite(player.xp) ? ` · +${player.xp} XP` : ''}</span></li>`).join('')}</ul></section>` : '';
-    return `${topBar('本局结束',r.room ? 'room' : r.sceneId === 'daily' ? 'daily' : 'scene')}
+    const people = r.players.length > 1 ? `<section class="kc-panel"><div class="kc-section-head"><h3>${tx('厨师们')}</h3></div><ul class="kc-crew-list">${r.players.map(player => `<li class="${player.me ? 'is-me' : ''}"><span class="kc-avatar">${e(initial(player.name))}</span><span class="kc-crew-name">${e(L10N.name(player.name))}</span><span class="kc-hint">${tx('答对 {right} · 答错 {wrong} · 上菜 {served}',{right:player.correct,wrong:player.wrong,served:player.served})}${Number.isFinite(player.xp) ? ` · +${player.xp} XP` : ''}</span></li>`).join('')}</ul></section>` : '';
+    return `${topBar(tx('本局结束'),r.room ? 'room' : r.sceneId === 'daily' ? 'daily' : 'scene')}
       <section class="kc-result-hero${reached ? ' is-reached' : ''}" ${scene ? sceneArt(scene) : ''}><span class="kc-kicker" lang="nb">${e(scene?.no || 'Dagens meny')}</span>
-        <p class="kc-result-score"><b>${r.shownScore ?? r.score}</b><small>分</small></p><p class="kc-hint">${verdict} · 上菜 ${r.served} 道${r.gone ? ` · 走掉 ${r.gone} 位客人` : ''}</p>
-        ${starLine}${unlocks.length ? `<p class="kc-unlock">新场景开放：<strong lang="nb">${e(unlocks[0].no)}</strong> ${e(unlocks[0].zh)}</p>` : ''}
-        <dl class="kc-facts"><div><dt>答对</dt><dd>${mine.correct}</dd></div><div><dt>答错</dt><dd>${mine.wrong}</dd></div><div><dt>我上的菜</dt><dd>${mine.served}</dd></div>${Number.isFinite(r.xp) ? `<div><dt>经验</dt><dd>+${r.xp}</dd></div>` : ''}</dl>
+        <p class="kc-result-score"><b>${r.shownScore ?? r.score}</b><small>${tx('分')}</small></p><p class="kc-hint">${verdict} · ${tx('上菜 {n} 道',{n:r.served})}${r.gone ? ` · ${tx('走掉 {n} 位客人',{n:r.gone})}` : ''}</p>
+        ${starLine}${unlocks.length ? `<p class="kc-unlock">${tx('新场景开放：')}<strong lang="nb">${e(unlocks[0].no)}</strong> ${e(sceneZh(unlocks[0]))}</p>` : ''}
+        <dl class="kc-facts"><div><dt>${tx('答对')}</dt><dd>${mine.correct}</dd></div><div><dt>${tx('答错')}</dt><dd>${mine.wrong}</dd></div><div><dt>${tx('我上的菜')}</dt><dd>${mine.served}</dd></div>${Number.isFinite(r.xp) ? `<div><dt>${tx('经验')}</dt><dd>+${r.xp}</dd></div>` : ''}</dl>
         ${upload ? `<p class="kc-hint">${upload}</p>` : ''}</section>
       ${people}
-      <section class="kc-panel"><div class="kc-section-head"><h3>这一局遇到的词</h3>${rows.length ? button('wordbook',`${icon('plus')}<span>全部加入词本</span>`,'kc-link') : ''}</div>
+      <section class="kc-panel"><div class="kc-section-head"><h3>${tx('这一局遇到的词')}</h3>${rows.length ? button('wordbook',`${icon('plus')}<span>${tx('全部加入词本')}</span>`,'kc-link') : ''}</div>
         ${rows.length ? `<ul class="kc-entries is-summary">${rows.map(row => `<li class="kc-entry${row.wrong ? ' is-missed' : ''}">${pic(row.word,'is-small')}<div class="kc-entry-text"><p>${wordHTML(row.word)}</p><p class="kc-entry-zh">${e(gameSense(row.word))}</p></div>
-          <span class="kc-tally">${row.right ? `<b class="is-right">✓ ${row.right}</b>` : ''}${row.wrong ? `<b class="is-wrong">✗ ${row.wrong}</b>` : ''}</span><button type="button" class="kc-icon-button is-small" data-kc="hear" data-word="${e(row.word)}" aria-label="听 ${e(plainWord(row.word))}">${icon('speaker')}</button></li>`).join('')}</ul>` : '<p class="kc-empty">这一局还没有作答。</p>'}</section>
-      <div class="kc-start-bar"><div class="kc-actions-row">${r.room ? button('to-room','回到房间','kc-primary') : `${button('again','再来一局','kc-primary')}${button('to-scene',r.sceneId === 'daily' ? '回到今日菜单' : '回到场景','kc-ghost')}`}</div></div>`;
+          <span class="kc-tally">${row.right ? `<b class="is-right">✓ ${row.right}</b>` : ''}${row.wrong ? `<b class="is-wrong">✗ ${row.wrong}</b>` : ''}</span><button type="button" class="kc-icon-button is-small" data-kc="hear" data-word="${e(row.word)}" aria-label="${tx('听 {word}',{word:e(plainWord(row.word))})}">${icon('speaker')}</button></li>`).join('')}</ul>` : `<p class="kc-empty">${tx('这一局还没有作答。')}</p>`}</section>
+      <div class="kc-start-bar"><div class="kc-actions-row">${r.room ? button('to-room',tx('回到房间'),'kc-primary') : `${button('again',tx('再来一局'),'kc-primary')}${button('to-scene',r.sceneId === 'daily' ? tx('回到今日菜单') : tx('回到场景'),'kc-ghost')}`}</div></div>`;
   }
-  // 局后小结 → 我的词本: every word of the game goes into the 开饭啦 folder, with its meaning.
+  // 局后小结 → 我的词本: every word of the game goes into the 开饭啦 folder, with its meaning (on an English device the
+  // English one). The folder's name and the part of speech are the wordbook's own data, so they stay as they are.
   function addSummaryToWordbook() {
     const rows = summary(ui.resultsFor?.learn);
-    const list = rows.map(row => entry(row.word)).filter(Boolean).map(item => ({word:item.word,meaning:item.zh || '',example:item.ex || '',exampleZh:item.exZh || '',pos:item.pos === 'phrase' ? '短语' : '',audio:item.clip}));
+    const list = rows.map(row => entry(row.word)).filter(Boolean).map(item => ({word:item.word,meaning:L10N.english ? item.en || item.zh || '' : item.zh || '',example:item.ex || '',exampleZh:exampleZh(item),pos:item.pos === 'phrase' ? '短语' : '',audio:item.clip}));
     if (!list.length) return;
     try {
       const added = ui.opts.addWords?.(list,'开饭啦',{quiet:true});
-      notify(added ? `已把 ${added} 个词加入词本「开饭啦」` : '这些词都已经在词本里了');
-    } catch (error) { notify(error?.message || '没有加进词本，请重试。'); }
+      notify(added ? tx('已把 {n} 个词加入词本「开饭啦」',{n:added}) : tx('这些词都已经在词本里了'));
+    } catch (error) { notify(L10N.english ? tx('没有加进词本，请重试。') : error?.message || tx('没有加进词本，请重试。')); }
   }
 
   /* ---------- Rooms ---------- */
@@ -2643,10 +2672,11 @@
     // Samples with quick round trips are trusted most.
     ui.clock = !clock || rtt <= clock.rtt*1.25+30 || clock.age >= 20 ? {offset,rtt,age:0} : {...clock,rtt:clock.rtt*1.05,age:clock.age+1};
   }
-  const roomError = error => ({room_not_found:'房间不存在或已过期，请核对房间号。',room_full:'这个房间已经满了。',not_in_room:'你已不在这个房间。',
-    rate_limited:'操作有点频繁，请稍等片刻。',not_host:'只有房主可以这样做。',room_busy:'这一局正在进行，等它结束再改。',scene_locked:'当前房主尚未解锁这个场景，请换一个场景。',
-    update_required:'开饭啦有新版本，请刷新页面后再进房间。',timeout:'网络有点慢，请再试一次。',too_many_rooms:'现在开着的房间太多了，请稍后再试。',
-    unauthorized:'联机身份失效了，请刷新页面后再试。',not_found:'联机服务还没有准备好，请稍后再试。'}[error?.code] || '联机暂时连不上，请检查网络后重试。');
+  // By the error's code: the server's own message is Chinese.
+  const roomError = error => ({room_not_found:tx('房间不存在或已过期，请核对房间号。'),room_full:tx('这个房间已经满了。'),not_in_room:tx('你已不在这个房间。'),
+    rate_limited:tx('操作有点频繁，请稍等片刻。'),not_host:tx('只有房主可以这样做。'),room_busy:tx('这一局正在进行，等它结束再改。'),scene_locked:tx('当前房主尚未解锁这个场景，请换一个场景。'),
+    update_required:tx('开饭啦有新版本，请刷新页面后再进房间。'),timeout:tx('网络有点慢，请再试一次。'),too_many_rooms:tx('现在开着的房间太多了，请稍后再试。'),
+    unauthorized:tx('联机身份失效了，请刷新页面后再试。'),not_found:tx('联机服务还没有准备好，请稍后再试。')}[error?.code] || tx('联机暂时连不上，请检查网络后重试。'));
   async function call(path,body,options = {}) {
     const api = await community();
     const sentAt = Date.now();
@@ -2665,7 +2695,7 @@
   }
   async function createRoom(sceneId) {
     if (ui.busy || !ui.data) return;
-    if (sceneId !== 'daily' && !unlocked(sceneId)) { notify('这个场景还没有开放'); return; }
+    if (sceneId !== 'daily' && !unlocked(sceneId)) { notify(tx('这个场景还没有开放')); return; }
     ui.busy = true;
     render();
     try {
@@ -2729,7 +2759,7 @@
       const data = await call(`/rooms/${room.code}`,undefined,{poll:`${room.version}/${room.match ? room.match.number : '-'}`,timeout:POLL_TIMEOUT_MS});
       if (ui.roomSession !== session) return;
       // Back after a dropped connection: the notice that stayed up is replaced.
-      if (ui.failures >= 2) notify('又连上了',1400);
+      if (ui.failures >= 2) notify(tx('又连上了'),1400);
       ui.failures = 0;
       if (!data.unchanged) applyRoom(data);
       schedulePoll(document.hidden ? POLL_HIDDEN_MS : Number.isFinite(data.heldMs) ? POLL_GAP_MS : 900);
@@ -2737,7 +2767,7 @@
       if (ui.roomSession !== session) return;
       if (['room_not_found','not_in_room'].includes(error?.code)) { lostRoom(roomError(error)); return; }
       ui.failures = (ui.failures || 0)+1;
-      if (ui.failures === 2) notify('网络断了，正在重新连接…',0);
+      if (ui.failures === 2) notify(tx('网络断了，正在重新连接…'),0);
       schedulePoll(error?.code === 'rate_limited' ? 4000 : Math.min(8000,800*2**Math.min(ui.failures-1,3)));
     } finally { session.polling = false; }
   }
@@ -2747,7 +2777,7 @@
     const current = ui.room;
     if (current && (current.code !== state.code || state.version < current.version ||
         (state.version === current.version && state.serverTime < current.serverTime))) return;
-    if (ui.failures >= 2) { ui.failures = 0; notify('又连上了',1400); }
+    if (ui.failures >= 2) { ui.failures = 0; notify(tx('又连上了'),1400); }
     ui.room = state;
     const match = state.match, me = state.me;
     const taking = match && (match.participants || []).includes(me);
@@ -2814,7 +2844,7 @@
       const node = $('#kc-preview-wait'), match = ui.room?.match;
       if (node && match) {
         const left = Math.max(0,Math.ceil((match.previewEndsAt-serverNow())/1000));
-        node.textContent = `${(match.prepared || []).length} / ${(match.participants || []).length} 人准备好了${left ? ` · ${left} 秒后开始` : ''}`;
+        node.textContent = readyLine((match.prepared || []).length,(match.participants || []).length,left);
       }
       schedulePreviewTimer();
     },500);
@@ -2889,7 +2919,7 @@
       for (const res of data.res || []) {
         const sent = batch.find(item => item.s === res.s);
         if (sent && sent.predicted && !res.ok) {
-          notify(WHY[res.why]?.(takerName(game,sent.action)) || '这一下没有成功',2200);
+          notify(WHY[res.why]?.(takerName(game,sent.action)) || tx('这一下没有成功'),2200);
           game.undo = {keys:new Set(sent.keys),until:Date.now()+700};
         }
       }
@@ -2937,33 +2967,33 @@
     const code = ui.room?.code;
     if (!code) return;
     const url = `${location.origin}${location.pathname}?kitchen=${code}#practice`;
-    const text = `来「开饭啦」一起做饭，房间号 ${code}：${url}`;
+    const text = tx('来「开饭啦」一起做饭，房间号 {code}：{url}',{code,url});
     try {
-      if (navigator.share && navigator.maxTouchPoints > 0) { await navigator.share({title:'开饭啦',text,url}); return; }
+      if (navigator.share && navigator.maxTouchPoints > 0) { await navigator.share({title:tx('开饭啦'),text,url}); return; }
       await navigator.clipboard.writeText(text);
-      notify('邀请链接已复制');
-    } catch { notify(`房间号 ${code}`); }
+      notify(tx('邀请链接已复制'));
+    } catch { notify(tx('房间号 {code}',{code})); }
   }
   function roomPage() {
     const room = ui.room;
-    if (!room) return `${topBar('房间')}<p class="kc-empty">正在进房间…</p>`;
+    if (!room) return `${topBar(tx('房间'))}<p class="kc-empty">${tx('正在进房间…')}</p>`;
     const host = room.hostId === room.me, me = (room.players || []).find(player => player.id === room.me);
     const settings = room.settings || {}, scene = settings.scene === 'daily' ? ui.daily?.scene : sceneById(settings.scene);
-    const sceneName = settings.scene === 'daily' ? '今日菜单 Dagens meny' : scene ? `${scene.no} · ${scene.zh}` : settings.scene || '';
+    const sceneName = settings.scene === 'daily' ? tx('今日菜单 Dagens meny') : scene ? `${scene.no} · ${sceneZh(scene)}` : settings.scene || '';
     const between = ['lobby','finished'].includes(room.status);
-    const editor = host && ui.roomEdit ? `<div class="kc-room-editor"><div class="kc-field"><span class="kc-field-label">场景</span><div class="kc-options is-scenes" role="radiogroup">
-        ${[...scenes().filter(item => unlocked(item.id)).map(item => ({id:item.id,label:`<span lang="nb">${e(item.no)}</span>`,hint:e(item.zh)})),{id:'daily',label:'今日菜单',hint:'Dagens meny'}]
+    const editor = host && ui.roomEdit ? `<div class="kc-room-editor"><div class="kc-field"><span class="kc-field-label">${tx('场景')}</span><div class="kc-options is-scenes" role="radiogroup">
+        ${[...scenes().filter(item => unlocked(item.id)).map(item => ({id:item.id,label:`<span lang="nb">${e(item.no)}</span>`,hint:e(sceneZh(item))})),{id:'daily',label:tx('今日菜单'),hint:'Dagens meny'}]
           .map(item => `<button type="button" class="kc-option" role="radio" aria-checked="${settings.scene === item.id}" data-kc="room-scene" data-value="${e(item.id)}"><span>${item.label}</span><small>${item.hint}</small></button>`).join('')}</div></div>
         ${tierField(sceneById(settings.scene))}${minutesField()}</div>` : '';
     const players = (room.players || []).map(player => `<li class="${player.id === room.me ? 'is-me' : ''}${player.online === false ? ' is-offline' : ''}"><span class="kc-avatar">${e(initial(player.name))}</span>
-      <span class="kc-crew-name">${e(player.name)}${player.host ? '<small>房主</small>' : ''}</span><span class="kc-crew-state">${player.online === false ? '离线' : player.playing ? '在做菜' : player.ready ? `${icon('check')}准备好了` : '还没准备'}</span></li>`).join('');
-    const status = !between ? '这一局正在进行，你在观战' : room.readyCount && room.readyCount === room.here ? '都准备好了，马上开始' : host ? '大家都准备好会自动开始；也可以先开始' : '准备好后等房主开始';
-    return `${topBar('房间','home')}
-      <section class="kc-panel kc-room-head"><div><span class="kc-kicker">房间号</span><p class="kc-code">${e(room.code)}</p></div>${button('invite',`${icon('link')}<span>邀请同学</span>`,'kc-ghost')}</section>
-      <section class="kc-panel"><div class="kc-section-head"><h3>下一局</h3>${host && between ? `<button type="button" class="kc-link" data-kc="room-edit">${ui.roomEdit ? '收起' : '修改'}</button>` : ''}</div>
-        <p class="kc-room-setting"><strong>${e(sceneName)}</strong><span>${e(TIERS[settings.tier]?.name || '')} · ${settings.minutes || DEFAULT_MINUTES} 分钟</span></p>${editor}</section>
-      <section class="kc-panel"><div class="kc-section-head"><h3>厨师</h3><span class="kc-hint">${(room.players || []).length} 人</span></div><ul class="kc-crew-list">${players}</ul></section>
-      ${between ? `<div class="kc-start-bar"><div class="kc-actions-row">${button('room-ready',me?.ready ? '取消准备' : '准备好了',me?.ready ? 'kc-ghost' : 'kc-primary')}${host ? button('room-start','开始','kc-ghost') : ''}</div><p class="kc-hint kc-center">${status}</p></div>`
+      <span class="kc-crew-name">${e(L10N.name(player.name))}${player.host ? `<small>${tx('房主')}</small>` : ''}</span><span class="kc-crew-state">${player.online === false ? tx('离线') : player.playing ? tx('在做菜') : player.ready ? `${icon('check')}${tx('准备好了')}` : tx('还没准备')}</span></li>`).join('');
+    const status = !between ? tx('这一局正在进行，你在观战') : room.readyCount && room.readyCount === room.here ? tx('都准备好了，马上开始') : host ? tx('大家都准备好会自动开始；也可以先开始') : tx('准备好后等房主开始');
+    return `${topBar(tx('房间'),'home')}
+      <section class="kc-panel kc-room-head"><div><span class="kc-kicker">${tx('房间号')}</span><p class="kc-code">${e(room.code)}</p></div>${button('invite',`${icon('link')}<span>${tx('邀请同学')}</span>`,'kc-ghost')}</section>
+      <section class="kc-panel"><div class="kc-section-head"><h3>${tx('下一局')}</h3>${host && between ? `<button type="button" class="kc-link" data-kc="room-edit">${ui.roomEdit ? tx('收起') : tx('修改')}</button>` : ''}</div>
+        <p class="kc-room-setting"><strong>${e(sceneName)}</strong><span>${e(tierName(settings.tier))} · ${tx('{n} 分钟',{n:settings.minutes || DEFAULT_MINUTES})}</span></p>${editor}</section>
+      <section class="kc-panel"><div class="kc-section-head"><h3>${tx('厨师')}</h3><span class="kc-hint">${tx('{n} 人',{n:(room.players || []).length})}</span></div><ul class="kc-crew-list">${players}</ul></section>
+      ${between ? `<div class="kc-start-bar"><div class="kc-actions-row">${button('room-ready',me?.ready ? tx('取消准备') : tx('准备好了'),me?.ready ? 'kc-ghost' : 'kc-primary')}${host ? button('room-start',tx('开始'),'kc-ghost') : ''}</div><p class="kc-hint kc-center">${status}</p></div>`
         : `<div class="kc-start-bar"><p class="kc-hint kc-center">${status}</p></div>`}`;
   }
   function onRoomClick(target,kc) {

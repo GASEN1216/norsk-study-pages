@@ -1,0 +1,14 @@
+{
+ "id": "ty-conversation-1.1",
+ "sentences": {
+  "Hei! Hva heter du?": "Hi! What's your name?",
+  "Kari. Hva heter du?": "Kari. What's your name?",
+  "Jeg heter Olav.": "My name is Olav.",
+  "Bor du i Oslo?": "Do you live in Oslo?",
+  "Nei, jeg bor i Bergen.": "No, I live in Bergen.",
+  "Er du på ferie her?": "Are you on holiday here?",
+  "Ja, jeg er på ferie her.": "Yes, I'm on holiday here.",
+  "Er du på ferie?": "Are you on holiday?",
+  "Nei, jeg bor her.": "No, I live here."
+ }
+}

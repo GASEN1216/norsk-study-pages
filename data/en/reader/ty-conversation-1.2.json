@@ -1,0 +1,17 @@
+{
+ "id": "ty-conversation-1.2",
+ "sentences": {
+  "Kommer du fra Bergen, Olav?": "Do you come from Bergen, Olav?",
+  "Ja, jeg kommer fra Bergen.": "Yes, I come from Bergen.",
+  "Jeg kommer fra Oslo.": "I come from Oslo.",
+  "Jeg bor i Oslo.": "I live in Oslo.",
+  "Bor du på hotell?": "Are you staying at a hotel?",
+  "Ja, jeg bor på hotell.": "Yes, I'm staying at a hotel.",
+  "Og du?": "And you?",
+  "Jeg bor ikke på hotell!": "I'm not staying at a hotel!",
+  "Har du bil?": "Do you have a car?",
+  "Nei, jeg har ikke bil.": "No, I don't have a car.",
+  "Ja, jeg har bil i Bergen.": "Yes, I have a car in Bergen.",
+  "Jeg har ikke bil i Oslo.": "I don't have a car in Oslo."
+ }
+}

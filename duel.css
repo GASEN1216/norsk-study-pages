@@ -495,3 +495,6 @@ body.nd-open{overflow:hidden}
 .nd-mini-rank small{display:none}
 }
 @media(prefers-reduced-motion:reduce){.nd-root,.nd-root *,.nd-root *::before,.nd-root *::after{animation:none!important;transition:none!important}.nd-fx{display:none}}
+/* English interface only: a long range label must not widen the editor, and in the claim line the meaning keeps its room before the claimer's name. */
+html[lang="en"] .nd-field{grid-template-columns:minmax(0,1fr)}
+html[lang="en"] .nd-ticker-who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:4}
