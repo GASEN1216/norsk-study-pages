@@ -172,6 +172,22 @@
     const label = date => L10N.english ? `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}` : `${date.getUTCMonth()+1}月${date.getUTCDate()}日`;
     return `${label(first)} – ${label(last)}`;
   }
+  // XP climbs to its final figure as each place is revealed; the real number is always set in the end.
+  function countTo(node,to,delay) {
+    const format = value => Math.round(value).toLocaleString('zh-CN');
+    if (!node || reduced() || typeof requestAnimationFrame !== 'function') return [];
+    node.textContent = format(0);
+    const run = () => {
+      const start = performance.now(), duration = 1400;
+      const tick = now => {
+        const t = Math.min(1,(now-start)/duration);
+        node.textContent = format(to*(1-(1-t)**4));
+        if (t < 1 && node.isConnected) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+    return [setTimeout(run,delay*1000),setTimeout(() => { node.textContent = format(to); },(delay+1.6)*1000)];
+  }
   let ceremonyOpen = false;
   function ceremony({entries=[],weekStart='',meId=''}={}) {
     const winners = entries.filter(entry => entry && entry.rank >= 1 && entry.rank <= 3).slice(0,3);
@@ -179,20 +195,29 @@
     ceremonyOpen = true;
     return new Promise(resolve => {
       const mine = winners.find(entry => entry.id === meId);
+      const golds = winners.filter(entry => entry.rank === 1);
       // Usually silver–gold–bronze; when the top places share gold (rank 1 twice), they stand side by side, then bronze.
-      const order = winners.filter(entry => entry.rank === 1).length > 1 ? winners
+      const order = golds.length > 1 ? winners
         : [2,1,3].map(rank => winners.find(entry => entry.rank === rank)).filter(Boolean);
-      const delays = {3:.7,2:1.3,1:2};
+      // Bronze, then silver, then gold, each under its own light; the gold places arrive together.
+      const delays = {3:1.5,2:2.3,1:3.1};
+      const finale = Math.max(...winners.map(entry => delays[entry.rank]));
       const labels = {1:tx('第一名'),2:tx('第二名'),3:tx('第三名')};
+      const partner = mine?.rank === 1 ? golds.find(entry => entry !== mine) : null;
+      const note = partner ? tx('你与 {name} 并列上周第一名。',{name:escapeHTML(L10N.name(partner.nickname))})
+        : mine ? tx('你是上周{place}。',{place:labels[mine.rank]}) : tx('新的一周已经开始。');
       const previousFocus = document.activeElement;
       const layer = document.createElement('div');
       layer.className = 'nk-ceremony';
+      layer.style.setProperty('--finale',`${finale}s`);
       layer.setAttribute('role','dialog'); layer.setAttribute('aria-modal','true'); layer.setAttribute('aria-labelledby','nk-ceremony-title');
-      layer.innerHTML = `<div class="nk-ceremony-light" aria-hidden="true"></div><div class="nk-ceremony-inner"><p class="nk-ceremony-kicker" lang="nb">Ukens mestere</p><h2 id="nk-ceremony-title">${tx('上周领奖台')}</h2><p class="nk-ceremony-dates">${escapeHTML(weekLabel(weekStart))}</p><ol class="nk-podium">${order.map(entry => `<li class="nk-place is-${entry.rank}${entry.id === meId ? ' is-me' : ''}" style="--delay:${delays[entry.rank]}s" aria-label="${tx('{place}：{name}，{xp} XP',{place:labels[entry.rank],name:escapeHTML(L10N.name(entry.nickname)),xp:Number(entry.xp) || 0})}"><div class="nk-place-award">${trophy(entry.rank)}</div><strong class="nk-place-name"><span class="nk-place-text">${escapeHTML(L10N.name(entry.nickname))}</span>${entry.id === meId ? `<span class="nk-place-me">${tx('我')}</span>` : ''}</strong><span class="nk-place-xp">${Number(entry.xp).toLocaleString('zh-CN')} XP</span><div class="nk-place-plinth"><span>${entry.rank}</span></div></li>`).join('')}</ol><p class="nk-ceremony-note">${mine ? tx('你是上周{place}。',{place:labels[mine.rank]}) : tx('新的一周已经开始。')}</p><button type="button" class="nk-ceremony-close">${mine ? tx('收下奖杯') : tx('继续')}</button></div>`;
+      const place = entry => `<li class="nk-place is-${entry.rank}${entry.id === meId ? ' is-me' : ''}" style="--delay:${delays[entry.rank]}s" aria-label="${tx('{place}：{name}，{xp} XP',{place:labels[entry.rank],name:escapeHTML(L10N.name(entry.nickname)),xp:Number(entry.xp) || 0})}"><div class="nk-place-beam" aria-hidden="true"></div><div class="nk-place-award"><div class="nk-place-rays" aria-hidden="true"></div>${trophy(entry.rank)}</div><strong class="nk-place-name"><span class="nk-place-text">${escapeHTML(L10N.name(entry.nickname))}</span>${entry.id === meId ? `<span class="nk-place-me">${tx('我')}</span>` : ''}</strong><span class="nk-place-xp"><b>${Number(entry.xp).toLocaleString('zh-CN')}</b> XP</span><div class="nk-place-plinth"><span>${entry.rank}</span></div></li>`;
+      layer.innerHTML = `<div class="nk-ceremony-light" aria-hidden="true"></div><div class="nk-ceremony-inner"><p class="nk-ceremony-kicker" lang="nb">Ukens mestere</p><h2 id="nk-ceremony-title">${tx('上周领奖台')}</h2><p class="nk-ceremony-dates">${escapeHTML(weekLabel(weekStart))}</p><span class="nk-ceremony-rule" aria-hidden="true"><i></i></span><ol class="nk-podium">${order.map(place).join('')}</ol><p class="nk-ceremony-note">${note}</p><button type="button" class="nk-ceremony-close">${mine ? tx('收下奖杯') : tx('继续')}</button></div>`;
       document.body.append(layer);
       document.body.classList.add('nk-ceremony-open');
       const timers = [];
       const later = (run,seconds) => timers.push(setTimeout(run,seconds*1000));
+      layer.querySelectorAll('.nk-place').forEach((node,index) => timers.push(...countTo(node.querySelector('.nk-place-xp b'),Number(order[index].xp) || 0,delays[order[index].rank]+.8)));
       const button = layer.querySelector('.nk-ceremony-close');
       let closing = false;
       const close = () => {
@@ -217,14 +242,27 @@
       let waiting = 0;
       const falling = {tick:dt => {
         waiting -= dt;
-        if (waiting <= 0 && fx.motes.length < 46) { waiting = rand(.08,.2); mote({x:rand(0,fx.width),y:-8,vy:rand(14,30),sway:rand(6,14),size:rand(.8,1.8),ttl:rand(7,11),alpha:rand(.35,.7)}); }
+        if (waiting <= 0 && fx.motes.length < 40) { waiting = rand(.1,.24); mote({x:rand(0,fx.width),y:-8,vy:rand(14,30),sway:rand(6,14),size:rand(.8,1.8),ttl:rand(7,11),alpha:rand(.35,.7)}); }
         return true;
       }};
       if (reduced()) { button.focus({preventScroll:true}); return; }
-      if (play() || fx.frame) fx.emitters.push(falling);
-      // The winner's halo arrives with one soft chord.
-      if (winners.some(entry => entry.rank === 1)) later(() => chord([261.63,392,523.25,659.25]),delays[1]+.5);
-      later(() => button.focus({preventScroll:true}),3.2);
+      // Each place arrives with its own soft tone, low to bright; gold gets the full chord and a ring of light.
+      if (winners.some(entry => entry.rank === 3)) later(() => chord([196,293.66],{spread:.09,length:1.4,volume:.016}),delays[3]+.5);
+      if (winners.some(entry => entry.rank === 2)) later(() => chord([261.63,392],{spread:.09,length:1.5,volume:.018}),delays[2]+.5);
+      if (golds.length) later(() => {
+        chord([261.63,392,523.25,659.25]);
+        layer.querySelectorAll('.nk-place.is-1 .nk-trophy').forEach(node => {
+          const box = rectOf(node);
+          if (!box || !play()) return;
+          const x = box.left+box.width/2, y = box.top+box.height*.32, radius = box.width*.42;
+          mote({ring:true,x,y,radius,grow:70,ttl:2.2,alpha:.55,color:'#d9b25f'});
+          mote({ring:true,x,y,radius,grow:44,ttl:2.2,alpha:.35,color:'#f4e6c4',life:-.3});
+          for (let i=0;i<18;i++) { const angle = rand(0,6.283), r = radius+rand(6,30); mote({x:x+Math.cos(angle)*r,y:y+Math.sin(angle)*r,vx:Math.cos(angle)*rand(4,10),vy:Math.sin(angle)*rand(4,10)-10,size:rand(.9,1.7),ttl:rand(2,3.2),life:-rand(.1,.6)}); }
+        });
+      },delays[1]+.9);
+      // Slow gold dust begins once every cup is out, and drifts for as long as the ceremony stays open.
+      later(() => { if (!closing && (play() || fx.frame)) fx.emitters.push(falling); },finale+1);
+      later(() => button.focus({preventScroll:true}),finale+1.7);
     });
   }
 
