@@ -322,6 +322,8 @@ body[data-view="practice"]:has(.pr-session-bar) .main-footer,body[data-view="pra
 body[data-view="practice"] .main{padding:24px 24px}
 .pr-mode-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .pr-home-columns{grid-template-columns:minmax(0,1fr)}
+/* Stacked into one column (phones): the leaderboard first, the practice history under it. */
+.pr-home-board{order:-1}
 }
 @media(max-width:640px){
 body[data-view="practice"] .main{padding:16px 16px 14px}
