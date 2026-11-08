@@ -459,7 +459,7 @@
   }
   function shell(content) {
     clearFeedbackVisual();
-    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog>`;
+    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog><dialog class="pr-dialog pr-quests-dialog" id="pr-quests" aria-labelledby="pr-quests-title"></dialog>`;
     $('#pr-confirm').addEventListener('cancel',event => { event.preventDefault(); state.pending = null; $('#pr-confirm').close(); if (state.screen === 'session') resume(); });
     syncBackLayer();
   }
@@ -503,7 +503,7 @@
     const value = c.done ? 100 : c.target ? Math.max(0,Math.min(100,Math.round(c.progress/c.target*100))) : 0;
     const title = challengeTitle(c);
     return `<button type="button" class="pr-goal is-week${c.done ? ' is-done' : ''}" data-practice-action="honors" aria-label="${tx('本周挑战：{title}，{state}',{title:e(title),state:c.done ? tx('已完成') : `${Math.min(c.progress,c.target)} / ${c.target}`})}"><img class="pr-goal-badge" src="assets/honors/week-${number}.webp" alt="" loading="lazy" decoding="async"><span class="pr-goal-label">${tx('本周挑战')} <span lang="nb">${e(c.theme || '')}</span></span><span class="pr-goal-sub">${e(title)}</span><span class="pr-goal-meter"><i style="width:${value}%"></i></span><b class="pr-goal-count">${c.done ? tx('完成') : `${Math.min(c.progress,c.target)}/${c.target}`}</b></button>
-      <button type="button" class="pr-goal is-quests" data-practice-action="honors" title="${e(quests.map(quest => `${quest.done ? '✓' : '·'} ${questTitle(quest)}`).join(SENSE))}" aria-label="${tx('今日任务，完成 {done} / {n}',{done,n:quests.length})}"><span class="pr-goal-label">${tx('今日任务')}</span><span class="pr-goal-dots" aria-hidden="true">${quests.map(quest => `<i class="${quest.done ? 'is-done' : ''}"></i>`).join('')}</span><b class="pr-goal-count">${done}/${quests.length}</b></button>${duel}`;
+      <button type="button" class="pr-goal is-quests" data-practice-action="quests" aria-haspopup="dialog" aria-controls="pr-quests" aria-label="${tx('今日任务，完成 {done} / {n}',{done,n:quests.length})}"><span class="pr-goal-label">${tx('今日任务')}</span><span class="pr-goal-dots" aria-hidden="true">${quests.map(quest => `<i class="${quest.done ? 'is-done' : ''}"></i>`).join('')}</span><b class="pr-goal-count">${done}/${quests.length}</b></button>${duel}`;
   }
   // The server names quests and the weekly challenge in Chinese; English devices word them from the goal and target.
   const CHALLENGE_TITLES = {
@@ -528,6 +528,61 @@
     dialog.querySelectorAll('.pr-online-art').forEach(image => image.addEventListener('error',() => { image.removeAttribute('src'); image.classList.add('is-missing'); },{once:true}));
     if (!dialog.open) dialog.showModal?.();
     $('#pr-online-title')?.focus?.();
+  }
+  // 今日任务: the day's three quests. A quest that can be done somewhere opens that place in one tap.
+  const GAME_TITLES = Object.fromEntries(ONLINE_GAMES.map(game => [game.action,game.title]));
+  const questMetric = quest => String(quest?.metric || {online:'minutes',duel:'duels'}[String(quest?.id || '').replace(/\d+$/,'')] || String(quest?.id || '').replace(/\d+$/,''));
+  function questPlace(quest) {
+    const metric = questMetric(quest);
+    if (ACTIVITIES[metric]) return {activity:metric};
+    if (metric === 'duels') return {game:'duel'};
+    if (metric === 'chase' || metric === 'kitchen') return {game:metric};
+    // Only objective answers count as 答对, and the quiz earns the most XP per word.
+    if (metric === 'correct' || metric === 'xp') return {activity:'quiz'};
+    if (metric === 'kinds') {
+      const today = new Date().toDateString();
+      const done = new Set(state.store.history.filter(result => new Date(result.finishedAt).toDateString() === today).map(result => activityOf(result)));
+      // Somewhere new today: the first practice mode not yet finished today on this device.
+      return {activity:Object.keys(ACTIVITIES).find(key => !done.has(key)) || state.activity};
+    }
+    if (metric === 'words' || metric === 'results') return {activity:state.activity};
+    return null;
+  }
+  function questsMarkup() {
+    const quests = state.honors?.today?.quests || [];
+    const arrow = '<svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>';
+    const row = (quest,index) => {
+      const target = Number(quest.target) || 0, progress = Math.min(Number(quest.progress) || 0,target);
+      const width = quest.done ? 100 : target ? Math.round(progress/target*100) : 0;
+      const place = quest.done ? null : questPlace(quest);
+      const where = place?.game ? GAME_TITLES[place.game] : place ? ACTIVITIES[place.activity].title : '';
+      const body = `<span class="pr-quest-mark" aria-hidden="true"></span><span class="pr-quest-text"><strong>${e(questTitle(quest))}</strong><span class="pr-quest-meter" aria-hidden="true"><i style="width:${width}%"></i></span></span><span class="pr-quest-side"><b class="pr-quest-count">${quest.done ? tx('完成') : `${progress}/${target}`}</b>${where ? `<span class="pr-quest-go">${e(where)}${arrow}</span>` : quest.done ? '' : `<span class="pr-quest-hint">${tx('网站开着就计时')}</span>`}</span>`;
+      return `<li>${where ? `<button type="button" class="pr-quest" data-practice-action="quest-go" data-pr-quest="${index}" aria-label="${e(tx('{title}，{progress}，去{place}',{title:questTitle(quest),progress:`${progress} / ${target}`,place:where}))}">${body}</button>` : `<div class="pr-quest${quest.done ? ' is-done' : ''}">${body}</div>`}</li>`;
+    };
+    return `<div class="pr-dialog-heading"><h2 id="pr-quests-title" tabindex="-1">${tx('今日任务')}</h2>${iconButton('quests-close','close',tx('关闭'))}</div><ol class="pr-quests">${quests.map(row).join('')}</ol><p class="pr-quests-foot"><span>${tx('每天北京时间零点更新')}</span><button type="button" class="pr-quests-link" data-practice-action="honors">${tx('荣誉与成就')}${arrow}</button></p>`;
+  }
+  function openQuests() {
+    const dialog = $('#pr-quests');
+    if (!dialog || !state.honors?.today?.quests?.length) return;
+    dialog.innerHTML = questsMarkup();
+    if (!dialog.open) dialog.showModal?.();
+    $('#pr-quests-title')?.focus?.();
+  }
+  function goQuest(index) {
+    const place = questPlace(state.honors?.today?.quests?.[index]);
+    if (!place) return;
+    if (place.activity && !canEdit()) { requireEditor(); return; }
+    $('#pr-quests')?.close();
+    if (place.game === 'duel') state.deps.openDuel?.();
+    else if (place.game === 'chase') state.deps.openChase?.();
+    else if (place.game === 'kitchen') state.deps.openKitchen?.();
+    else openActivity(place.activity);
+  }
+  // Opening a practice mode: its range dialog, as the mode cards do.
+  function openActivity(activity) {
+    state.activity=activity; state.scopeQuery='';
+    if (state.selected.size) state.scopeTab=scopeTabFor(state.selected);
+    draft(); renderScope();
   }
   function updateGoals() {
     const slot = state.visible && state.screen === 'setup' ? $('#pr-goals') : null;
@@ -1339,10 +1394,10 @@
   function onClick(event) {
     const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
     if (requested === 'takeover') { acquireEditor(true); return; }
-    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','series','wordbook-open','scope-tab','language'].includes(requested)) { requireEditor(); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','series','wordbook-open','scope-tab','language','quests','quests-close','quest-go'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
-    if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { state.activity=modeTarget.dataset.prActivity; state.scopeQuery=''; if (state.selected.size) state.scopeTab=scopeTabFor(state.selected); draft(); renderScope(); return; }
+    if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { openActivity(modeTarget.dataset.prActivity); return; }
     const target = event.target.closest('[data-practice-action]');
     if (!target || !state.initialized) return;
     const action = target.dataset.practiceAction;
@@ -1356,7 +1411,10 @@
       case 'duel': $('#pr-online')?.close(); state.deps.openDuel?.(); break;
       case 'chase': $('#pr-online')?.close(); state.deps.openChase?.(); break;
       case 'kitchen': $('#pr-online')?.close(); state.deps.openKitchen?.(); break;
-      case 'honors': state.deps.openHonors?.(); break;
+      case 'quests': openQuests(); break;
+      case 'quests-close': $('#pr-quests')?.close(); break;
+      case 'quest-go': goQuest(Number(target.dataset.prQuest)); break;
+      case 'honors': $('#pr-quests')?.close(); state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
       case 'weak': reviewKeys(weakKeys(),tx('薄弱词复习'),state.activity,state.quiz); break;
@@ -1677,6 +1735,7 @@
     syncBackLayer();
     // The 联机游戏 sheet does not stay open over another view.
     if ($('#pr-online')?.open) $('#pr-online').close();
+    if ($('#pr-quests')?.open) $('#pr-quests').close();
     if (state.prepareTimer != null) clearTimeout(state.prepareTimer);
     state.prepareTimer=null;
     if (currentSession()) pause(); else stopAudio();

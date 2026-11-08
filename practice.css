@@ -79,6 +79,35 @@ body[data-view="practice"]:has(.pr-session-bar) .main-footer,body[data-view="pra
 .pr-online-note{margin-top:14px;font-size:12.5px;color:var(--pr-muted);text-align:center}
 @media(max-width:560px){.pr-online-dialog{padding:16px 14px 14px}.pr-online-game{grid-template-columns:96px minmax(0,1fr) auto;gap:12px}.pr-online-art{width:96px;height:68px}.pr-online-text strong{font-size:16.5px}.pr-online-text span{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.pr-online-game{transition:none}}
+/* 今日任务: three quiet rows; a row that can be done somewhere is one tap away from it. */
+.pr-quests-dialog{width:460px;padding:20px 22px 16px}
+.pr-quests-dialog .pr-dialog-heading{margin-bottom:10px}
+.pr-quests{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.pr-quest{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:14px;width:100%;padding:14px 14px 14px 16px;border:1px solid var(--pr-line);border-radius:16px;background:var(--pr-paper);color:var(--pr-ink);font:inherit;text-align:left}
+button.pr-quest{cursor:pointer;transition:border-color .2s ease-out,background .2s ease-out,box-shadow .2s ease-out}
+button.pr-quest:hover{border-color:#cdd8c8;background:#fbfcf8;box-shadow:0 8px 20px -16px #24453a}
+button.pr-quest:focus-visible{outline:2px solid #5f8a77;outline-offset:2px}
+.pr-quest-mark{width:20px;height:20px;border-radius:50%;border:1.5px solid #cfd5c4}
+.pr-quest.is-done{background:#fdfaf1;border-color:#efe3c4}
+.pr-quest.is-done .pr-quest-mark{border-color:#c9a04a;background:#c9a04a url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m5.5 10.2 3 3 6-6.4' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+.pr-quest-text{display:grid;gap:7px;min-width:0}
+.pr-quest-text strong{font-size:15px;font-weight:600;line-height:1.35}
+.pr-quest-meter{display:block;height:4px;max-width:180px;border-radius:4px;background:#ebeee3;overflow:hidden}
+.pr-quest-meter i{display:block;height:100%;border-radius:inherit;background:var(--green)}
+.pr-quest.is-done .pr-quest-meter i{background:#c9a04a}
+.pr-quest-side{display:grid;justify-items:end;gap:3px;text-align:right}
+.pr-quest-count{font:500 15px var(--serif);color:var(--green);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr-quest.is-done .pr-quest-count{color:#b48d3c}
+.pr-quest-go{display:inline-flex;align-items:center;gap:2px;font-size:12.5px;color:var(--pr-muted);white-space:nowrap}
+button.pr-quest:hover .pr-quest-go{color:var(--green)}
+.pr-quest-go .pr-goal-arrow{width:13px;height:13px}
+.pr-quest-hint{font-size:12px;color:#9aa391;white-space:nowrap}
+.pr-quests-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;font-size:12.5px;color:var(--pr-muted)}
+.pr-quests-link{display:inline-flex;flex:none;align-items:center;gap:2px;white-space:nowrap;overflow-wrap:normal;padding:4px 0;border:0;background:none;font:inherit;color:var(--green);cursor:pointer}
+.pr-quests-link:hover{text-decoration:underline;text-underline-offset:3px}
+.pr-quests-link .pr-goal-arrow{width:13px;height:13px;color:currentColor}
+@media(max-width:560px){.pr-quests-dialog{padding:16px 14px 12px}.pr-quest{gap:12px;padding:13px 12px 13px 14px}}
+@media(prefers-reduced-motion:reduce){button.pr-quest{transition:none}}
 .pr-dialog-heading .pr-mode-icon{width:40px;height:40px;margin:0;border-radius:12px}.pr-dialog-heading .pr-mode-icon svg{width:22px;height:22px}
 .pr-dialog-heading h2{flex:1;font-size:21px}
 .pr-quick-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
