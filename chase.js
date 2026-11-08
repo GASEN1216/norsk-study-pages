@@ -1470,6 +1470,7 @@
     if (!room || !ui.open || room.polling) return;
     room.polling = true;
     let delay = -1, playing = false;
+    const sentAt = performance.now();
     try {
       const game = ui.game?.room && ui.game.code === room.code && !ui.game.over ? ui.game : null;
       const me = game && !game.watch ? game.players.find(player => player.me) : null;
@@ -1484,7 +1485,9 @@
       room.failures = 0;
       roomOffline(room,false);
       applyRoom(reply);
-      delay = pollDelay();
+      // Reports keep their beat from one send to the next, so the round trip is not added to every gap (a slow
+      // connection used to report every 0.4 s + its round trip); a short pause still follows a slow answer.
+      delay = Math.max(80,pollDelay()-(performance.now()-sentAt));
     } catch (error) {
       if (ui.room !== room) return;
       if (['room_not_found','not_in_room','unauthorized'].includes(error?.code)) { lostRoom(error.code === 'room_not_found' ? tx('房间已经关闭了。') : roomError(error)); return; }

@@ -457,12 +457,14 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-kitchen>.kc-quiet-note{grid-area:rail}
 
 /* The orders: a slip clipped above each tray (the rail scrolls sideways when they do not fit) */
-.kc-rail{grid-area:rail;display:flex;align-items:flex-start;gap:10px;min-width:0;padding:8px 2px 4px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none}
+.kc-rail{grid-area:rail;position:relative;display:flex;align-items:flex-start;gap:10px;min-width:0;padding:8px 2px 4px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none}
 .kc-rail::-webkit-scrollbar{display:none}
-.kc-rail>.kc-quiet-note{flex:1;margin:12px 0}
+.kc-rail>.kc-quiet-note{flex:1;align-self:center;margin:12px 0}
 .kc-col{--kc-col-w:178px;position:relative;flex:0 0 auto;display:grid;justify-items:center;gap:8px;width:var(--kc-col-w);scroll-snap-align:start}
 .kc-col.is-new{animation:kc-rise .5s var(--kc-ease) var(--kc-in,0s) both}
 .kc-col.is-spare{--kc-col-w:92px;align-self:flex-end}
+/* The longest slip of the game, unseen: the rail is held at its height (holdRail in kitchen.js) */
+.kc-col.is-ghost{position:absolute;top:0;left:0;visibility:hidden;pointer-events:none}
 .kc-ticket{position:relative;width:100%;padding:12px 6px 5px;border-radius:3px 3px 10px 10px;background:#fffdf6;box-shadow:0 0 0 1px #d6be8c99,0 12px 20px -14px #46300fa6;transition:box-shadow .3s ease-out}
 .kc-ticket.is-blank{align-self:stretch;min-height:40px;background:#fffdf626;box-shadow:inset 0 0 0 1.5px #a0783c33}
 .kc-ticket-clip{position:absolute;top:-6px;left:50%;width:34px;height:11px;border-radius:3px;background:linear-gradient(#e7c98a,#b18c48);transform:translateX(-50%);box-shadow:0 2px 3px #46280a4d}
@@ -720,7 +722,16 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 /* Computers, and tablets held sideways: the wall of storage at the top left, the stove at the top right, the orders
    and their trays below, the pass beside them */
 @media (min-width:960px) and (min-height:600px){
-  .kc-kitchen{grid-template-columns:minmax(0,1fr) minmax(240px,.3fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"wall stove" "rail rail";gap:12px;padding:12px 14px}
+  /* The stove stands the whole height on the right (a tall order slip used to push it up under the top bar); the
+     slips with their trays beside them lie along the table under the wall, one height for the whole game. */
+  .kc-kitchen{grid-template-columns:minmax(0,1fr) minmax(240px,.3fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"wall stove" "rail stove";gap:12px;padding:12px 14px}
+  .kc-col{--kc-slip:226px;--kc-tray-w:128px;--kc-col-w:auto;grid-template-columns:var(--kc-slip) var(--kc-tray-w);align-items:end;gap:8px}
+  /* slips wide enough that a verb (skjære 切) stays on its word's line, and lines a little closer: the wall gets the room */
+  .kc-line{min-height:28px}
+  .kc-line:has(.kc-line-verb) .kc-line-word{flex:0 1 auto}
+  .kc-col.is-spare{--kc-col-w:auto;grid-template-columns:auto}
+  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:var(--kc-tray-w)}
+  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:84px}
   .kc-kitchen.is-nostove{grid-template-columns:minmax(0,1fr);grid-template-areas:"wall" "rail"}
   .kc-cabs{display:none}
   .kc-wall{justify-content:center;align-content:center;gap:18px 22px;padding:8px}
@@ -741,7 +752,7 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 @media (min-width:1200px) and (min-height:760px){
   .kc-furn{--kc-item:66px}
   .kc-game{--kc-tool:100px}
-  .kc-col{--kc-col-w:210px}
+  .kc-col{--kc-slip:236px;--kc-tray-w:144px}
   .kc-game.is-novice .kc-furn{--kc-tagh:32px}
 }
 /* Phones held sideways: everything a size down; the kitchen in two columns, the wall on the right */
@@ -753,11 +764,16 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-dish{min-height:30px}
   .kc-dish .kc-no{font-size:14px}
   /* the orders along the top (each slip with its tray beside it), the stove and the pass under them, the wall on the right */
-  .kc-kitchen{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"rail rail wall" "stove stove wall";gap:6px;padding:6px}
-  .kc-kitchen.is-nostove{grid-template-areas:"rail rail wall" "rail rail wall"}
+  /* the wall shows one cabinet at a time, as in portrait, picked in the row of cabinets under it (all of them one
+     above another made a long scroll) */
+  .kc-kitchen{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:"rail rail wall" "stove stove wall" "stove stove cabs";gap:6px;padding:6px}
+  .kc-kitchen.is-nostove{grid-template-areas:"rail rail wall" "rail rail wall" "rail rail cabs"}
   .kc-pass{align-self:end}
-  .kc-cabs{display:none}
-  .kc-furn{--kc-item:42px;display:grid;width:auto;padding:6px 8px 8px}
+  .kc-cabs{align-self:end}
+  .kc-cab{grid-template-columns:auto auto;align-items:center;column-gap:5px;padding:4px 8px}
+  .kc-cab .kc-pic{grid-row:span 2;width:20px;height:20px}
+  .kc-cab b,.kc-cab small{justify-self:start}
+  .kc-furn{--kc-item:42px;width:auto;padding:6px 8px 8px}
   .kc-furn-body{grid-template-columns:repeat(var(--kc-cols,3),calc(var(--kc-item) + 22px))}
   .kc-game.is-novice .kc-furn{--kc-tagh:28px}
   .kc-col{--kc-col-w:auto;grid-template-columns:166px auto;align-items:center;gap:6px}
@@ -765,6 +781,9 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-tray,.kc-kitchen.is-painted .kc-tray{width:92px}
   .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:64px}
   .kc-line{min-height:26px}
+  /* a long slip sets its lines in two columns, so every line shows without scrolling the slip */
+  .kc-col:has(.kc-line:nth-child(5)){grid-template-columns:min(300px,calc(50vw - 120px)) auto}
+  .kc-lines:has(>.kc-line:nth-child(5)){grid-template-columns:repeat(2,minmax(0,1fr));column-gap:4px}
   .kc-tray{aspect-ratio:2.6}
   .kc-ticket-head{height:20px}
   .kc-ask{padding:6px 10px 10px 6px}
@@ -804,7 +823,7 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-furn-set .kc-item .kc-pic.is-item{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:0;object-fit:contain;object-position:50% 100%}
 .kc-furn-set .kc-tag{position:absolute;top:calc(100% + 2px);left:50%;z-index:2;width:max-content;max-width:120px;padding:1px 5px 2px;transform:translateX(-50%)}
 .kc-furn-set .kc-tag .kc-no{font-size:11px}
-.kc-furn-set .kc-tag small{font-size:8.5px}
+.kc-furn-set .kc-tag small{font-size:9.5px}
 /* In a crate, a cooler or on the dish rack the tags take turns above and below, so neighbours' words never cover each other. */
 .kc-furn.is-crate .kc-furn-set .kc-item:nth-child(even) .kc-tag,.kc-furn.is-cooler .kc-furn-set .kc-item:nth-child(even) .kc-tag,.kc-furn.is-rack .kc-furn-set .kc-item:nth-child(even) .kc-tag{top:auto;bottom:calc(100% + 2px)}
 /* A shelf with three things or more: every other tag hangs one tag lower, under the board, with room kept for it; a rack's raised tags get room above, clear of the cabinet's name */
@@ -826,6 +845,9 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-tool.is-on-ring .kc-tool-pic{width:calc(var(--kc-hob-w)*.36);height:calc(var(--kc-hob-w)*.36)}
 .kc-tool.is-on-ring .kc-meter{position:absolute;top:100%;left:14%;width:72%}
 .kc-tool.is-on-ring .kc-tool-label{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%)}
+/* the two rings' labels lean apart, so on a small hob they never cover each other */
+.kc-tool.is-ring-left .kc-tool-label{transform:translateX(-64%)}
+.kc-tool.is-ring-right .kc-tool-label{transform:translateX(-36%)}
 .kc-kitchen.is-painted .kc-tools{flex-wrap:wrap;align-items:flex-end;gap:14px 12px}
 /* The painted tray */
 .kc-kitchen.is-painted .kc-tray{aspect-ratio:1.6;border-radius:0;background:var(--kc-tray-art) 50% 64%/100% auto no-repeat;box-shadow:none;filter:drop-shadow(0 10px 8px #50320f38)}
@@ -854,19 +876,28 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 /* A short phone: tighter slips, a smaller tray and stove, and the wall keeps room for its furniture (the kitchen
    scrolls a little rather than squeezing the fridge away) */
 @media (max-width:719px) and (orientation:portrait){
-  .kc-kitchen{grid-template-rows:max-content max-content minmax(176px,1fr) max-content;overflow-y:auto;overscroll-behavior:contain}
+  .kc-kitchen{grid-template-rows:max-content max-content minmax(224px,1fr) max-content;overflow-y:auto;overscroll-behavior:contain}
   /* The stove has the whole width: rings, board and oven side by side with room for their labels (a big room's
      second set of tools wraps to a second row). The pass sits at the foot beside the cabinet tabs, on the way to the
      front; each order's slip stands beside its tray, so an order takes one short row */
   .kc-kitchen{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"rail rail" "stove stove" "wall wall" "cabs cabs"}
   .kc-kitchen.is-nostove{grid-template-areas:"rail rail" "wall wall" "wall wall" "cabs cabs"}
   .kc-kitchen.is-painted .kc-pass{align-self:end;width:100px}
-  .kc-col{--kc-col-w:auto;grid-template-columns:minmax(150px,176px) auto;align-items:center;gap:6px}
+  .kc-col{--kc-col-w:auto;grid-template-columns:minmax(160px,min(232px,calc(100vw - 158px))) auto;align-items:center;gap:6px}
+  /* the front: ordering gets the larger share (the menu is where the answer is tapped), so a long menu shows whole */
+  .kc-front{grid-template-rows:minmax(0,1.75fr) minmax(0,1fr)}
+  .kc-board-list{max-height:48cqh}
+  /* the row of cabinets stays at the foot of the screen however long the order slip is, so another cabinet is always one tap away */
+  .kc-cabs{position:sticky;bottom:-8px;z-index:4;margin:0 -8px -8px;padding:6px 10px 10px;background:linear-gradient(#e6c99300,#e6c993f2 30%)}
   .kc-col.is-spare{--kc-col-w:72px;grid-template-columns:auto}
   .kc-tray,.kc-kitchen.is-painted .kc-tray{width:100px}
   .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:64px}
   .kc-kitchen.is-painted .kc-tools{flex-wrap:wrap;justify-content:center;gap:6px 16px;padding:8px 6px 6px}
   .kc-hob{--kc-hob-w:136px}
+  /* five tools (the hob's two and three beside it) fit one row, a size smaller */
+  .kc-stove.is-many{--kc-tool:44px}
+  .kc-kitchen.is-painted .kc-stove.is-many .kc-tools{flex-wrap:nowrap;gap:6px 8px}
+  .kc-stove.is-many .kc-hob{--kc-hob-w:min(124px,32vw)}
   /* A cabinet with more things than one piece of furniture holds shows its pieces one above another, each scaled so
      all of them fit the space left (never smaller than 170 px wide; only then does the wall scroll) */
   .kc-kitchen.is-painted .kc-wall{container:kc-wall/size}
@@ -893,15 +924,19 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-kitchen.is-painted .kc-wall.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(#0000,#000 10%);mask-image:linear-gradient(#0000,#000 10%)}
 }
 @media (max-width:719px) and (max-height:760px) and (orientation:portrait){
-  .kc-kitchen{grid-template-rows:max-content max-content minmax(150px,1fr) max-content;gap:6px}
-  .kc-cabs{position:sticky;bottom:-8px;z-index:4;margin:0 -8px -8px;padding:6px 10px 10px;background:linear-gradient(#e6c99300,#e6c993f2 30%)}
+  .kc-kitchen{grid-template-rows:max-content max-content minmax(204px,1fr) max-content;gap:6px}
   .kc-cab{grid-template-columns:auto auto;align-items:center;column-gap:5px;padding:5px 9px}
   .kc-cab .kc-pic{grid-row:span 2;width:22px;height:22px}
   .kc-cab b,.kc-cab small{justify-self:start}
   /* the front: a shorter menu, so the waiting line stays clear of the order bubble */
-  .kc-board-list{max-height:32cqh}
+  .kc-board-list{max-height:50cqh}
+  .kc-dish{min-height:32px;padding:2px 5px}
+  .kc-dish .kc-no{font-size:13.5px;line-height:1.12}
+  .kc-dish small{font-size:10.5px}
   .kc-person.is-queued{width:30px;height:30px}
-  .kc-ask{bottom:10px}
+  .kc-ask{bottom:10px;max-width:calc(100% - 108px);padding:8px 12px 11px 8px}
+  .kc-ask .kc-pic.is-bubble{width:44px;height:44px}
+  .kc-ask-line{font-size:14px}
   .kc-rail{padding-top:6px}
   .kc-col{gap:4px}
   .kc-ticket{padding:10px 5px 4px}
@@ -913,7 +948,6 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-hob{--kc-hob-w:124px}
   .kc-kitchen.is-painted .kc-tools{padding:6px 4px 4px}
   .kc-kitchen.is-painted .kc-pass{width:92px}
-  .kc-cabs{position:static;margin:0;padding:2px 2px 4px;background:none}
 }
 /* A computer's wall: the fridge, then the shelves one above another, then the rack, crate and cooler, column by column */
 @media (min-width:960px) and (min-height:600px){
@@ -923,6 +957,10 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-furn.is-cooler .kc-furn-set{--kc-set-w:calc(240px*var(--kc-scale,1))}
   .kc-kitchen.is-painted .kc-wall{flex-direction:column;flex-wrap:wrap;align-content:flex-start;align-content:safe center;justify-content:flex-start;align-items:flex-start;gap:6px 30px;padding:6px 8px}
   .kc-kitchen.is-painted .kc-furn-sets{flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:6px}
+  /* …or in rows along the wall, standing on a common line, when that lets them be drawn larger (fitWall in kitchen.js) */
+  .kc-kitchen.is-painted .kc-wall[data-flow="row"]{flex-direction:row;flex-wrap:wrap;align-content:safe center;justify-content:safe center;align-items:flex-end;gap:12px 30px}
+  /* A cabinet in several pieces may stand them side by side (how many: fitWall in kitchen.js) */
+  .kc-kitchen.is-painted .kc-furn.is-multi .kc-furn-sets{display:grid;grid-template-columns:repeat(var(--kc-set-cols,1),max-content);align-items:end;gap:6px 14px}
 }
 @media (min-width:1200px) and (min-height:760px){
   .kc-furn.is-fridge .kc-furn-set{--kc-set-w:calc(240px*var(--kc-scale,1))}
@@ -934,11 +972,29 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-furn.is-fridge .kc-furn-set{--kc-set-w:150px}
   .kc-furn.is-shelf .kc-furn-set{--kc-set-w:240px}
   .kc-furn.is-rack .kc-furn-set,.kc-furn.is-crate .kc-furn-set,.kc-furn.is-cooler .kc-furn-set{--kc-set-w:200px}
-  .kc-hob{--kc-hob-w:96px}
+  .kc-hob{--kc-hob-w:104px}
+  .kc-tool.is-on-ring .kc-tool-label{padding:1px 5px 2px}
   .kc-kitchen.is-painted .kc-hood{display:none}
   .kc-front.is-painted .kc-sign{--kc-sign-w:112px}
+  /* the open cabinet as tall as the wall allows; a cabinet in several pieces stands them side by side in a strip
+     that swipes sideways, the next piece showing at the edge */
+  .kc-kitchen.is-painted .kc-wall{container:kc-wall/size;overflow:hidden;padding:0 2px}
+  .kc-kitchen.is-painted .kc-furn.is-open{width:100%;padding:0}
+  .kc-kitchen.is-painted .kc-furn-sets{flex-direction:row;flex-wrap:nowrap;justify-content:center;align-items:flex-end;gap:12px;padding:0 2px 2px}
+  .kc-kitchen.is-painted .kc-furn.is-multi .kc-furn-sets{justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .kc-kitchen.is-painted .kc-furn.is-open .kc-furn-set{flex:none;width:min(calc((100cqh - 40px)*var(--kc-ar)),100cqw - 8px);scroll-snap-align:start}
+  .kc-kitchen.is-painted .kc-furn.is-multi.is-open .kc-furn-set{width:min(calc((100cqh - 40px)*var(--kc-ar)),100cqw - 56px)}
+  .kc-furn-sets.is-overflow{-webkit-mask-image:linear-gradient(90deg,#000 82%,#0000);mask-image:linear-gradient(90deg,#000 82%,#0000)}
+  .kc-furn-sets.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000);mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000)}
+  .kc-furn-sets.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%);mask-image:linear-gradient(90deg,#0000,#000 12%)}
 }
 
+/* A small phone held sideways: the orders get a little more of the width, so a long slip's two columns stay readable */
+@media (orientation:landscape) and (max-height:599px) and (max-width:759px){
+  .kc-kitchen{grid-template-columns:minmax(0,1.15fr) auto minmax(0,.85fr)}
+  .kc-col:has(.kc-line:nth-child(5)){grid-template-columns:min(300px,calc(57.5vw - 110px)) auto}
+  .kc-col:has(.kc-line:nth-child(5)) .kc-tray{width:80px}
+}
 /* Pages a size up */
 @media (min-width:720px){
   .kc-scenes{grid-template-columns:repeat(2,minmax(0,1fr))}
