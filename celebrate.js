@@ -179,7 +179,9 @@
     ceremonyOpen = true;
     return new Promise(resolve => {
       const mine = winners.find(entry => entry.id === meId);
-      const order = [2,1,3].map(rank => winners.find(entry => entry.rank === rank)).filter(Boolean);
+      // Usually silver–gold–bronze; when the top places share gold (rank 1 twice), they stand side by side, then bronze.
+      const order = winners.filter(entry => entry.rank === 1).length > 1 ? winners
+        : [2,1,3].map(rank => winners.find(entry => entry.rank === rank)).filter(Boolean);
       const delays = {3:.7,2:1.3,1:2};
       const labels = {1:tx('第一名'),2:tx('第二名'),3:tx('第三名')};
       const previousFocus = document.activeElement;
