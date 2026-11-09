@@ -1005,7 +1005,9 @@
     const words = game.scene.words.map(entry).filter(Boolean).map(item => ({word:item.word,audio:item.clip}));
     // The first customers' lines too, in the voice each will speak with.
     const lines = game.state.orders.slice(0,12).map(order => lineFor('order',order.dish,order.voice)).filter(line => line?.audio).map(line => ({word:line.text,audio:line.audio}));
-    try { ui.opts.prefetch?.([...lines.slice(0,10),...words].slice(0,56)); } catch {}
+    // The cabinets' names too: a cabinet's name is read out when it is opened.
+    const cabinets = (game.sceneData?.cabinets || []).map(cabinet => ({word:cabinet.no,audio:''}));
+    try { ui.opts.prefetch?.([...lines.slice(0,10),...cabinets,...words].slice(0,64)); } catch {}
   }
 
   /* ---------- Open, close, navigation ---------- */
@@ -1027,10 +1029,10 @@
     ui.handlers = {click:onClick,submit:onSubmit,input:onInput,pointerdown:onPress,pointerup:onRelease,pointercancel:onRelease};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
     // A scrolled strip fades at whichever edge still hides something.
-    root.addEventListener('scroll',event => { const node = event.target; if (node?.classList?.contains('kc-board-list') || node?.classList?.contains('kc-rail') || node?.classList?.contains('kc-cabs') || node?.classList?.contains('kc-furn-sets') || node?.classList?.contains('kc-wall')) fadeEdges(node); },{capture:true,passive:true});
-    // A wall or an order rail that runs on only sideways scrolls along with an ordinary mouse wheel.
+    root.addEventListener('scroll',event => { const node = event.target; if (node?.classList?.contains('kc-board-list') || node?.classList?.contains('kc-rail') || node?.classList?.contains('kc-cabs') || node?.classList?.contains('kc-wall')) fadeEdges(node); },{capture:true,passive:true});
+    // An order rail or a row of cabinet tabs that runs on sideways scrolls along with an ordinary mouse wheel.
     root.addEventListener('wheel',event => {
-      const strip = event.target?.closest?.('.kc-wall,.kc-rail');
+      const strip = event.target?.closest?.('.kc-rail,.kc-cabs');
       if (!strip || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
       if (strip.scrollHeight > strip.clientHeight+1 || strip.scrollWidth <= strip.clientWidth+1) return;
       strip.scrollLeft += event.deltaMode === 1 ? event.deltaY*32 : event.deltaY;
@@ -1938,15 +1940,38 @@
     const shown = () => [...ui.root.querySelectorAll('[data-scroll]')].filter(node => node.getClientRects().length);
     for (const node of shown()) scrolls.set(node.dataset.scroll,[node.scrollLeft,node.scrollTop]);
     paint(game);
-    if (game.screen === 'kitchen') { holdRail(game); fitWall(game); }
+    // The open cabinet's things are laid out for the room the store has; a new layout is drawn at once.
+    if (game.screen === 'kitchen') { holdRail(game); if (fitStore(game)) paint(game); }
     for (const node of shown()) {
       const [left,top] = scrolls.get(node.dataset.scroll) || [0,0];
       if (node.scrollLeft !== left) node.scrollLeft = left;
       if (node.scrollTop !== top) node.scrollTop = top;
     }
+    // The order being worked on comes into view along the rail (a thing taken flies to its tray, which must be seen).
+    if (game.screen === 'kitchen' && game.focus !== game.shownFocus) {
+      const rail = ui.root.querySelector('.kc-rail'), card = rail?.querySelector(`.kc-col[data-n="${game.focus}"]`);
+      if (card) {
+        const box = rail.getBoundingClientRect(), at = card.getBoundingClientRect();
+        if (at.left < box.left-1) rail.scrollLeft += at.left-box.left-6;
+        else if (at.right > box.right+1) rail.scrollLeft += Math.min(at.left-box.left-6,at.right-box.right+6);
+        scrolls.set('rail',[rail.scrollLeft,rail.scrollTop]);
+      }
+      game.shownFocus = game.focus;
+    }
+    // …and so does the tab of the cabinet just opened (a classmate's call opens one by itself).
+    if (game.screen === 'kitchen' && game.cabOpen !== game.shownCab) {
+      const tabs = ui.root.querySelector('.kc-cabs'), tab = tabs?.querySelector('.kc-cab.is-on');
+      if (tab) {
+        const box = tabs.getBoundingClientRect(), at = tab.getBoundingClientRect();
+        if (at.left < box.left) tabs.scrollLeft += at.left-box.left-12;
+        else if (at.right > box.right) tabs.scrollLeft += at.right-box.right+12;
+        scrolls.set('cabs',[tabs.scrollLeft,tabs.scrollTop]);
+      }
+      game.shownCab = game.cabOpen;
+    }
     restoreFocus(keep);
     // A strip that runs on past the screen fades at its edge (only then: a fade on a short strip looks disabled).
-    for (const strip of ui.root.querySelectorAll('.kc-rail,.kc-cabs,.kc-board-list,.kc-wall,.kc-furn.is-open .kc-furn-sets')) fadeEdges(strip);
+    for (const strip of ui.root.querySelectorAll('.kc-rail,.kc-cabs,.kc-board-list,.kc-wall')) fadeEdges(strip);
     // The next bubble, score or leaving customer to fade is taken off then (tick draws again at that moment).
     const fading = [...game.floats.map(item => item.until),...game.exits.map(item => item.until),...Object.values(game.chats || {}).map(item => item.until)].filter(at => at > Date.now());
     game.expireAt = fading.length ? Math.min(...fading)+60 : 0;
@@ -2122,7 +2147,7 @@
     const chat = game.chatOpen ? `<div class="kc-chat-menu" style="--kc-fx:${since(game,'chat',400) || '-400ms'}">${CHATS.map(id => `<button type="button" class="kc-button kc-ghost" data-kc="chat" data-value="${id}" lang="nb">${e(ui.data?.lines?.chat?.[id]?.text || id)}</button>`).join('')}</div>` : '';
     // Looping motion (steam, a glowing button) runs on the clock, so a redraw picks it up where it was.
     const layout = `--kc-phase:-${Date.now()%3600000}ms`;
-    return `<div class="kc-game is-${tier} is-${screen}${game.hand ? ' is-holding' : ''}${state.plates.length === PLATES_ROOM ? ' is-room' : ''}${shopScene(game) ? ' is-shop' : ''}" style="${layout}">${barMarkup(game,now)}${chat}${watch}${view}${handMarkup(game)}${tabsMarkup(game,now)}${note}${count}${over}${pickerMarkup(game)}</div>`;
+    return `<div class="kc-game is-${tier} is-${screen}${game.hand ? ' is-holding' : ''}${state.plates.length === PLATES_ROOM ? ' is-room' : ''}${shopScene(game) ? ' is-shop' : ''}" style="${layout}">${barMarkup(game,now)}${chat}${watch}${view}${tabsMarkup(game,now)}${note}${count}${over}${pickerMarkup(game)}</div>`;
   }
   // The bar: leave, the scene and its clock, the cooks, the score with its line towards the ★ target, sound.
   function barMarkup(game,now) {
@@ -2229,60 +2254,48 @@
     }).join('');
   }
 
-  /* Kjøkkenet: the wall of storage, the stove, the orders over their trays */
-  // Each cabinet is drawn as the piece of furniture it is (the illustrated pieces replace these drawn ones later).
+  /* Kjøkkenet: the orders over their trays, the stove, and the store: one cabinet open at a time, picked in a row of
+     tabs, with everything in it standing in rows (user 2026-11-09: things in a cabinet hid each other and were too
+     small; a computer shows the same layout as a phone) */
+  // Each cabinet is drawn as the piece of furniture it is: its painted frame round the open cabinet (fridge, crate,
+  // cooler), or a painted board under each row (wall shelf, dish rack).
   const FURNITURE = {kjoleskap:'fridge',ferskvare:'cooler',gront:'crate',servise:'rack'};
-  const FURNITURE_COLS = {fridge:3,cooler:3,crate:5,shelf:6,rack:6};
-  // The illustrated furniture: its picture and proportions (w:h), room left above it for tall things (in widths), and
-  // where things stand on it, in percent of the picture: the floor of each row (from its top) and the stretch of
-  // width they are spread over. Measured on the delivered pictures (kitchen/*.webp).
-  const PAINTED = {
-    fridge:{img:'kitchen/kjoleskap',ar:2/3,extra:0,cols:2,rows:[30.5,56.5,79],left:42,right:91,size:.76},
-    shelf:{img:'kitchen/vegghylle',ar:3,extra:.08,cols:4,rows:[29],left:8,right:92,size:.8},
-    rack:{img:'kitchen/servisehylle',ar:4/3,extra:0,cols:4,rows:[35],left:9,right:91,size:.84},
-    crate:{img:'kitchen/kasse',ar:4/3,extra:0,cols:4,rows:[60],left:13,right:87,size:.92},
-    cooler:{img:'kitchen/kjoledisk',ar:4/3,extra:0,cols:4,rows:[47],left:10,right:90,size:.95},
-  };
+  const FURNITURE_ART = {fridge:'kitchen/kjoleskap',shelf:'kitchen/vegghylle',rack:'kitchen/servisehylle',crate:'kitchen/kasse',cooler:'kitchen/kjoledisk'};
   const OUTDOOR = new Set(['grillfest','hyttetur','17-mai','torget']);
-  // A computer's or tablet's wall is sized to the room it has: the furniture is drawn as large as fits without
-  // scrolling (from 85 %, where things are still about 40 px, up to a third over its own size), a cabinet's several
-  // pieces side by side when it would stand taller than the wall. Measured once per wall size; the result goes into
-  // the markup (game.wallFit).
-  const WALL_FIT = '(min-width:960px) and (min-height:600px)', WALL_MIN = .85;
-  function fitWall(game) {
-    const wall = ui.root.querySelector('.kc-kitchen.is-painted .kc-wall');
-    if (!wall || !wall.clientWidth || !window.matchMedia(WALL_FIT).matches) return;
-    const key = `${wall.clientWidth}x${wall.clientHeight}|${game.cabOpen}`;
-    if (game.wallFit?.key === key) return;
-    const multis = [...wall.querySelectorAll('.kc-furn.is-multi')].map(node => ({node,id:node.dataset.cab,sets:Number(node.style.getPropertyValue('--kc-sets')) || 1,cols:1}));
-    const pad = parseFloat(getComputedStyle(wall).paddingTop)+parseFloat(getComputedStyle(wall).paddingBottom);
-    // At a size, each cabinet in pieces stands them in as few columns as keep it within the wall's height.
-    const arrange = scale => {
-      wall.style.setProperty('--kc-scale',String(scale));
-      for (const item of multis) { item.cols = 1; item.node.style.setProperty('--kc-set-cols','1'); }
-      for (const item of multis) while (item.cols < item.sets && item.node.offsetHeight > wall.clientHeight-pad) item.node.style.setProperty('--kc-set-cols',String(++item.cols));
-      return Math.max(0,wall.scrollHeight-wall.clientHeight-1)+Math.max(0,wall.scrollWidth-wall.clientWidth-1);
-    };
-    // The furniture stands in columns (the fridge, then shelves one above another…), or in rows along the wall when
-    // that holds everything without scrolling at a larger size; a wall that must scroll scrolls sideways, never down.
-    const search = flow => {
-      wall.dataset.flow = flow;
-      let lo = WALL_MIN, hi = 1.35, left = arrange(lo);
-      if (!left) for (let step = 0; step < 7; step++) { const mid = (lo+hi)/2; if (arrange(mid)) hi = mid; else lo = mid; }
-      else {
-        // Nothing fits at the smallest comfortable size: the pieces still keep within the wall's height and the wall
-        // scrolls (a mouse wheel moves a sideways wall along). A few per cent smaller may let a cabinet stand two by two
-        // instead of in one long row, so the size that leaves least to scroll is taken.
-        for (const scale of [WALL_MIN-.03,WALL_MIN-.06]) { const less = arrange(scale); if (less < left-24) { left = less; lo = scale; } }
-      }
-      return {flow,scale:lo,left};
-    };
-    const columns = search('column'), rows = search('row');
-    const best = !rows.left && (columns.left || rows.scale > columns.scale+.01) ? rows : columns;
-    wall.dataset.flow = best.flow;
-    arrange(best.scale);
-    game.wallFit = {key,flow:best.flow,scale:best.scale.toFixed(3),cols:Object.fromEntries(multis.map(item => [item.id,item.cols]))};
-    wall.style.setProperty('--kc-scale',game.wallFit.scale);
+  // The open cabinet's things are drawn as large as the store's room allows with all of them in view: how many stand in
+  // a row and how large (between the sizes kitchen.css gives for the screen) is worked out from the room there is, once
+  // per size of the store and cabinet (game.storeFit). Only when even the smallest size does not fit does the cabinet
+  // scroll, downwards. A cell is as wide as its price tag needs (kitchen.css: --kc-cell-k, --kc-cell-min).
+  function fitStore(game) {
+    const wall = ui.root.querySelector('.kc-wall'), furn = wall?.querySelector('.kc-furn');
+    if (!furn || !wall.clientWidth || !wall.clientHeight) return false;
+    const cells = furn.querySelectorAll('.kc-item'), n = cells.length;
+    const key = `${wall.clientWidth}x${wall.clientHeight}|${furn.dataset.cab}|${n}|${game.state.tier}`;
+    if (!n || game.storeFit?.key === key) return false;
+    const look = getComputedStyle(furn), side = getComputedStyle(wall), px = value => parseFloat(value) || 0;
+    const value = name => px(look.getPropertyValue(name));
+    const shelf = furn.querySelector('.kc-shelf'), row = shelf ? getComputedStyle(shelf) : null;
+    const padX = px(look.paddingLeft)+px(look.paddingRight)+px(look.borderLeftWidth)+px(look.borderRightWidth);
+    const padY = px(look.paddingTop)+px(look.paddingBottom)+px(look.borderTopWidth)+px(look.borderBottomWidth);
+    const gapX = px(row?.columnGap), gapY = px(look.rowGap);
+    const width = wall.clientWidth-px(side.paddingLeft)-px(side.paddingRight)-2, height = wall.clientHeight-px(side.paddingTop)-px(side.paddingBottom)-2;
+    const now = value('--kc-item') || 56, extra = Math.max(...[...cells].map(cell => cell.offsetHeight))-now;
+    const k = value('--kc-cell-k') || 1.2, least = value('--kc-cell-min'), low = value('--kc-item-min') || 44, high = value('--kc-item-max') || 88;
+    const cellW = size => Math.max(size*k+8,least);
+    const fits = (size,cols) => cols*cellW(size)+(cols-1)*gapX+padX <= width && Math.ceil(n/cols)*(size+extra)+(Math.ceil(n/cols)-1)*gapY+padY <= height;
+    let best = null;
+    for (let size = high; size >= low && !best; size -= 2) for (let cols = n; cols >= 1; cols--) if (fits(size,cols)) { best = {size,cols}; break; }
+    // Not even the smallest size fits: as many to a row as the width takes, and the cabinet scrolls down.
+    if (!best) best = {size:low,cols:Math.max(1,Math.min(n,Math.floor((width-padX+gapX)/(cellW(low)+gapX))))};
+    // Rows as even as they can be (seven things as 4 + 3, not 6 + 1).
+    const rows = Math.ceil(n/best.cols);
+    best.cols = Math.ceil(n/rows);
+    // The cells share out the width the row has (up to a third wider than they need), so a long price tag has room.
+    const room = Math.floor((width-padX-(best.cols-1)*gapX)/best.cols);
+    const fit = {key,cab:furn.dataset.cab,cols:best.cols,item:best.size,cell:Math.max(Math.ceil(cellW(best.size)),Math.min(room,Math.round(cellW(best.size)*1.3)))};
+    const changed = !game.storeFit || ['cab','cols','item','cell'].some(name => game.storeFit[name] !== fit[name]);
+    game.storeFit = fit;
+    return changed;
   }
   const artURL = id => ui.manifest.images?.[id] ? imageURL(id,false) : '';
   const painted = () => Boolean(artURL('kitchen/kjoleskap'));
@@ -2290,24 +2303,26 @@
     const state = game.state, data = game.sceneData, tier = state.tier, novice = tier === 'novice';
     const {cooking,ready} = groups(game);
     const cabinets = data.cabinets || [];
-    // On a phone one cabinet is open at a time: at first the fullest of mine (usually the fridge).
+    // One cabinet is open at a time: at first the fullest of mine (usually the fridge).
     if (!cabinets.some(cabinet => cabinet.id === game.cabOpen)) game.cabOpen = ([...cabinets].filter(cabinet => holds(state,cabinet.id,game.me)).sort((a,b) => b.items.length-a.items.length)[0] || cabinets[0])?.id || '';
-    // A kitchen with many cabinets draws its painted furniture smaller, so a computer's wall holds it all.
-    const pieces = cabinets.reduce((sum,cabinet) => { const look = PAINTED[FURNITURE[cabinet.id] || 'shelf']; return sum+(look ? Math.ceil(cabinet.items.length/(look.cols*look.rows.length)) : 1); },0);
-    const fit = game.wallFit && window.matchMedia(WALL_FIT).matches ? game.wallFit : null;
-    const scale = fit ? fit.scale : Math.min(1,5.2/Math.max(5.2,cabinets.length+(pieces-cabinets.length)*.5)).toFixed(3);
-    const wall = `<section class="kc-wall" aria-label="${tx('柜子')}" data-scroll="wall-${e(game.cabOpen)}"${fit ? ` data-flow="${fit.flow}"` : ''} style="--kc-scale:${scale}">${cabinets.map(cabinet => furniture(game,cabinet,now)).join('')}</section>`;
-    const cabs = `<nav class="kc-cabs" aria-label="${tx('打开哪个柜子')}" data-scroll="cabs">${cabinets.map(cabinet => {
-      const theirs = game.room && !holds(state,cabinet.id,game.me);
-      return `<button type="button" class="kc-cab${game.cabOpen === cabinet.id ? ' is-on' : ''}${theirs ? ' is-theirs' : ''}" data-kc="cab" data-value="${e(cabinet.id)}" aria-pressed="${game.cabOpen === cabinet.id}">${pic(cabinet.items[0],'is-tiny')}<b lang="nb">${e(cabinet.no)}</b>${novice ? `<small>${e(cabinetZh(cabinet))}</small>` : ''}</button>`;
+    const open = cabinets.find(cabinet => cabinet.id === game.cabOpen);
+    // A classmate asked me for something: its cabinet's tab glows until I have heard it.
+    const called = new Set([...game.calls].filter(([,until]) => until > Date.now()).map(([item]) => game.scene.cabinetOf[item]));
+    // Online, the cabinets I look after come first in the row (user 2026-11-09), the classmates' after them.
+    const tabs = game.room ? [...cabinets].sort((a,b) => holds(state,b.id,game.me)-holds(state,a.id,game.me)) : cabinets;
+    const cabs = `<nav class="kc-cabs" aria-label="${tx('打开哪个柜子')}" data-scroll="cabs">${tabs.map(cabinet => {
+      const theirs = game.room && !holds(state,cabinet.id,game.me), on = game.cabOpen === cabinet.id, owner = theirs ? state.owner[cabinet.id] : '';
+      return `<button type="button" class="kc-cab${on ? ' is-on' : ''}${theirs ? ' is-theirs' : ''}${called.has(cabinet.id) && !on ? ' is-called' : ''}" data-kc="cab" data-value="${e(cabinet.id)}" aria-pressed="${on}">${pic(cabinet.items[0],'is-tiny')}<span class="kc-cab-text"><b lang="nb">${e(cabinet.no)}</b>${novice ? `<small>${e(cabinetZh(cabinet))}</small>` : ''}</span>${owner ? `<span class="kc-avatar" title="${e(nameOf(owner))}">${e(initial(nameOf(owner)))}</span>` : ''}</button>`;
     }).join('')}</nav>`;
+    // What is in hand lies over the cabinet tabs until its pot or pan is chosen (it covers no thing in the cabinet).
+    const store = `<section class="kc-store" aria-label="${tx('柜子')}">${cabs}${handMarkup(game)}<div class="kc-wall" data-scroll="wall-${e(game.cabOpen)}">${open ? furniture(game,open,now) : ''}</div></section>`;
     const hob = painted() && artURL('kitchen/komfyr') ? state.stations.map((station,x) => ['koke','steke'].includes(station.kind) ? x : -1).filter(x => x >= 0).slice(0,2) : [];
     const rings = hob.length ? `<div class="kc-hob">${hob.map((x,ring) => toolHTML(game,state.stations[x],x,now,`is-on-ring is-ring-${hob.length === 1 ? 'mid' : ring ? 'right' : 'left'}`)).join('')}</div>` : '';
-    // Four tools or more beside the hob: on a phone they stand a size smaller in one row (see .kc-stove.is-many).
-    const many = state.stations.length-hob.length >= 3 && state.stations.length <= 6;
+    // Three tools or more beside the hob: on a phone they stand a size smaller (see .kc-stove.is-many).
+    const many = state.stations.length-hob.length >= 3;
     const stove = game.scene.stations.length ? `<section class="kc-stove${many ? ' is-many' : ''}" aria-label="${tx('灶台')}"><span class="kc-hood" aria-hidden="true"></span><div class="kc-tools">${rings}${state.stations.map((station,x) => hob.includes(x) ? '' : toolHTML(game,station,x,now)).join('')}</div></section>` : '';
     const free = state.plates.filter(plate => plate < 0).length;
-    const spare = Array.from({length:free},() => `<div class="kc-col is-spare" aria-hidden="true"><div class="kc-tray is-spare"><small>${tx('空托盘')}</small></div></div>`).join('');
+    const spare = Array.from({length:free},() => `<div class="kc-col is-spare" aria-hidden="true"><span class="kc-tray is-spare"></span><small>${tx('空托盘')}</small></div>`).join('');
     const rail = `<section class="kc-rail" aria-label="${tx('订单')}" data-scroll="rail"${game.railMin ? ` style="min-height:${game.railMin}px"` : ''}>${cooking.length ? cooking.map(order => orderColumn(game,order,now)).join('')+spare : `<p class="kc-quiet-note">${ready.length ? tx('做好的都送到前台了，去前台上菜') : tx('去前台接单，订单会出现在这里')}</p>`}${ghostColumn(game,now)}</section>`;
     // No pass on the kitchen side (user 2026-11-08: nobody used it): a finished tray flies to the 前台 tab, which says
     // how many dishes wait there.
@@ -2315,47 +2330,34 @@
       ['--kc-hood-art','kitchen/avtrekk'],['--kc-hob-art','kitchen/komfyr']]
       .filter(([,id]) => artURL(id)).map(([name,id]) => `${name}:url('${e(artURL(id))}')`).join(';') : '';
     const scene = data.bg && artURL(data.bg) ? `;--kc-art:url('${e(artURL(data.bg))}')` : '';
-    return `<div class="kc-kitchen${stove ? '' : ' is-nostove'}${art ? ' is-painted' : ''}" data-scroll="kitchen" style="${art}${scene}">${rail}${stove}${wall}${cabs}</div>`;
+    return `<div class="kc-kitchen${stove ? '' : ' is-nostove'}${art ? ' is-painted' : ''}" data-scroll="kitchen" style="${art}${scene}">${rail}${stove}${store}</div>`;
   }
+  // The open cabinet: its things in rows (as many to a row as fitStore found), in the painted piece of furniture.
   function furniture(game,cabinet,now) {
     const state = game.state, type = FURNITURE[cabinet.id] || 'shelf', owner = state.owner[cabinet.id];
-    const theirs = game.room && !holds(state,cabinet.id,game.me), novice = state.tier === 'novice';
+    const theirs = game.room && !holds(state,cabinet.id,game.me);
     // Whose it is; in a big room a cabinet may have helpers: "Bo +2" on theirs, the others' initials on mine.
     const helpers = (state.share?.[cabinet.id] || []).filter(id => id !== owner);
     const others = [owner,...helpers].filter(id => id !== game.me);
     const whose = !game.room ? '' : theirs ? `<span class="kc-whose"><span class="kc-avatar">${e(initial(nameOf(owner)))}</span>${e(nameOf(owner))}${helpers.length ? `<small>+${helpers.length}</small>` : ''}</span>`
       : others.length ? `<span class="kc-whose is-shared" title="${e(others.map(nameOf).join(tx('、')))}">${others.slice(0,3).map(id => `<span class="kc-avatar">${e(initial(nameOf(id)))}</span>`).join('')}${others.length > 3 ? `<small>+${others.length-3}</small>` : ''}<small>${tx('一起用')}</small></span>` : '';
-    const cols = Math.min(cabinet.items.length,FURNITURE_COLS[type]);
-    const name = `<p class="kc-furn-name"><span lang="nb">${e(cabinet.no)}</span>${novice ? `<small>${e(cabinetZh(cabinet))}</small>` : ''}${whose}</p>`;
-    const look = PAINTED[type];
-    if (painted() && look && artURL(look.img)) {
-      const room = look.cols*look.rows.length, count = Math.ceil(cabinet.items.length/room);
-      const per = Math.ceil(cabinet.items.length/count), height = 1/look.ar+look.extra;
-      const sets = Array.from({length:count},(_,set) => cabinet.items.slice(set*per,(set+1)*per)).map(items => {
-        const span = (look.right-look.left)/look.cols, rows = Math.ceil(items.length/look.cols);
-        const spots = items.map((item,index) => {
-          const row = Math.floor(index/look.cols), inRow = Math.min(look.cols,items.length-row*look.cols), col = index%look.cols;
-          // A row with fewer things than places spreads them over the whole width, so their price tags never touch.
-          const x = inRow < look.cols ? look.left+(look.right-look.left)*(col+.5)/inRow : look.left+span*(col+.5), floor = look.rows[Math.min(row,look.rows.length-1)]/100;
-          const bottom = (1-floor)/look.ar/height*100;
-          return itemHTML(game,item,`left:${x.toFixed(2)}%;bottom:${bottom.toFixed(2)}%;width:${(span*look.size).toFixed(2)}%`);
-        }).join('');
-        return `<div class="kc-furn-set" style="aspect-ratio:${(1/height).toFixed(4)};--kc-ar:${(1/height).toFixed(4)};background-image:url('${e(artURL(look.img))}');--kc-rows:${rows}">${spots}</div>`;
-      }).join('');
-      // Several pieces: on a short phone they stand side by side in a strip that swipes sideways (see kitchen.css).
-      const multi = count > 1 ? ` is-multi is-sets-${Math.min(count,3)}` : '';
-      const fit = count > 1 && game.wallFit && window.matchMedia(WALL_FIT).matches ? `;--kc-set-cols:${Math.min(game.wallFit.cols[cabinet.id] || 1,count)}` : '';
-      return `<div class="kc-furn is-${type} is-painted${multi}${game.cabOpen === cabinet.id ? ' is-open' : ''}${theirs ? ' is-theirs' : ''}" data-cab="${e(cabinet.id)}" style="--kc-sets:${count}${fit}">${name}<div class="kc-furn-sets"${count > 1 ? ` data-scroll="sets-${e(cabinet.id)}"` : ''}>${sets}</div></div>`;
-    }
-    return `<div class="kc-furn is-${type}${game.cabOpen === cabinet.id ? ' is-open' : ''}${theirs ? ' is-theirs' : ''}" data-cab="${e(cabinet.id)}" style="--kc-cols:${cols}">
-      ${name}<div class="kc-furn-body">${cabinet.items.map(item => itemHTML(game,item)).join('')}</div></div>`;
+    const items = cabinet.items, fit = game.storeFit?.cab === cabinet.id ? game.storeFit : null;
+    const cols = Math.max(1,Math.min(items.length,fit?.cols || Math.ceil(Math.sqrt(items.length*2))));
+    const rows = Array.from({length:Math.ceil(items.length/cols)},(_,row) => items.slice(row*cols,(row+1)*cols));
+    const art = painted() ? artURL(FURNITURE_ART[type]) : '';
+    const style = [fit ? `--kc-item:${fit.item}px;--kc-cell-w:${fit.cell}px` : '',art ? `--kc-furn-art:url('${e(art)}')` : ''].filter(Boolean).join(';');
+    return `<div class="kc-furn is-${type}${art ? ' is-painted' : ''}${theirs ? ' is-theirs' : ''}" data-cab="${e(cabinet.id)}" ${style ? `style="${style}"` : ''}>${whose}${rows.map(row => `<div class="kc-shelf">${row.map(item => itemHTML(game,item)).join('')}</div>`).join('')}</div>`;
   }
-  // A real thing to take: its picture, and on 新手 a price tag with its Norwegian name and Chinese.
-  function itemHTML(game,item,place = '') {
+  // A real thing to take: its picture, and on 新手 a price tag with its Norwegian name and Chinese (a long name a size
+  // smaller, so the tag stays as wide as its place).
+  function itemHTML(game,item) {
     const novice = game.state.tier === 'novice', until = game.calls.get(item) || 0, now = Date.now();
     const called = until > now, wrong = since(game,`bad:item:${item}`), held = game.hand?.item === item;
-    const style = [place,called ? `--kc-fx:-${now-(until-7000)}ms` : wrong ? `--kc-fx:${wrong}` : ''].filter(Boolean).join(';');
-    return `<button type="button" class="kc-item${held ? ' is-held' : ''}${wrong ? ' is-wrong' : ''}${called ? ' is-called' : ''}" data-kc="item" data-word="${e(item)}" aria-label="${e(zh1(item))}" aria-pressed="${held}" ${style ? `style="${style}"` : ''}>${pic(item,'is-item')}${novice ? `<span class="kc-tag">${wordHTML(item)}<small>${e(zh1(item))}</small></span>` : ''}</button>`;
+    const style = called ? `--kc-fx:-${now-(until-7000)}ms` : wrong ? `--kc-fx:${wrong}` : '';
+    const article = /^(en|ei|et|ei\/en)$/.test(entry(item)?.article || '') ? entry(item).article.length+1 : 0;
+    const length = plainWord(item).length+article*.7;
+    const tag = novice ? `<span class="kc-tag${length > 14.5 ? ' is-longer' : length > 11.5 ? ' is-long' : ''}">${wordHTML(item)}<small>${e(zh1(item))}</small></span>` : '';
+    return `<button type="button" class="kc-item${held ? ' is-held' : ''}${wrong ? ' is-wrong' : ''}${called ? ' is-called' : ''}" data-kc="item" data-word="${e(item)}" aria-label="${e(zh1(item))}" aria-pressed="${held}" ${style ? `style="${style}"` : ''}><span class="kc-item-pic">${pic(item,'is-item')}</span>${tag}</button>`;
   }
   const toolPicture = kind => ui.manifest.images?.[`tool/${kind}`] ? `<img class="kc-tool-pic" src="${e(imageURL(`tool/${kind}`,true))}" alt="" decoding="async" draggable="false">` : `<span class="kc-tool-pic is-blank">${icon(kind)}</span>`;
   // A pot, a pan, the oven, the board or the grill. While something is in hand, the free ones light up to be chosen.
@@ -2373,14 +2375,14 @@
     return `<button type="button" class="kc-tool ${where} is-${station.kind} is-${status}${choice ? ' is-choice' : ''}${game.pending.has(`station:${x}`) ? ' is-pending' : ''}${undoing(game,`station:${x}`) ? ' is-undo' : ''}${fx ? ' is-new' : ''}${wrong ? ' is-wrong' : ''}" data-kc="station" data-x="${x}" aria-label="${e(label)}" ${vars ? `style="${vars}"` : ''}>
       ${steam}${toolPicture(station.kind)}${station.item ? `<span class="kc-tool-food">${pic(station.item,'is-tiny')}</span>` : ''}${owner ? `<span class="kc-tool-whose">${faceHTML(owner.customer,'neutral','is-mini')}</span>` : ''}${flag}<i class="kc-meter"><i></i></i>${novice && verb ? `<span class="kc-tool-label">${wordHTML(verb)}<small>${e(KIND_NAMES[station.kind] || '')}</small></span>` : ''}</button>`;
   }
-  // What is in my hand, waiting for its pot, pan or oven.
+  // What is in my hand, waiting for its pot, pan or oven (laid over the row of cabinet tabs).
   function handMarkup(game) {
     if (!game.hand || game.screen !== 'kitchen') return '';
     const tier = game.state.tier, item = game.hand.item;
     return `<div class="kc-hand" role="status"><span class="kc-hand-pic">${pic(item,'is-tiny')}</span><span class="kc-hand-text"><span>${tx('拿着 {word}',{word:wordHTML(item)})}${tier === 'novice' ? `<small>${e(zh1(item))}</small>` : ''}</span><small>${tx('点灶台上要用的那一样')}</small></span><button type="button" class="kc-hand-x" data-kc="drop" aria-label="${tx('放回去')}">${icon('close')}</button></div>`;
   }
-  // An order: its slip written in Norwegian (新手 adds the picture and Chinese; 高手 has a speaker for each line) and,
-  // under it, its tray with what is on it so far.
+  // An order: its slip written in Norwegian (新手 adds the picture and Chinese; 高手 has a speaker for each line), its
+  // tray on the slip's corner with what is on it so far.
   // The longest slip this game can show, drawn unseen in the rail: the rail keeps that height for the whole game, so the
   // stove and the cabinets never jump as orders come and go (holdRail). Phones held sideways scroll their rail instead.
   function holdRail(game) {
@@ -2418,8 +2420,8 @@
       return `<span class="kc-tray-item${fresh ? ' is-fresh' : ''}" style="${discSpot(i,lying.length)}${fresh ? `;--kc-fx:${fresh}` : ''}">${pic(slot.i,'is-on-plate')}</span>`;
     }).join('')}</div>`;
     return `<div class="kc-col${game.focus === order.n ? ' is-focus' : ''}${taken ? ' is-new' : ''}${wrong ? ' is-wrong' : ''}${game.pending.has(`plate:${order.n}`) ? ' is-pending' : ''}" data-n="${order.n}" ${taken || wrong ? `style="${taken ? `--kc-in:${taken}` : ''}${wrong ? `;--kc-fx:${wrong}` : ''}"` : ''}>
-      <div class="kc-ticket" data-kc="focus" data-n="${order.n}"><span class="kc-ticket-clip" aria-hidden="true"></span><div class="kc-ticket-head">${faceHTML(order.customer,mood(order,now),'is-mini')}<i class="kc-patience" aria-hidden="true" style="--kc-patience:${order.patience}ms;--kc-elapsed:-${elapsed}ms"><i></i></i>${courses}</div>
-        <div class="kc-lines">${slots.map(slot => ticketLine(game,order,slot)).join('')}</div></div>${tray}</div>`;
+      <div class="kc-ticket" data-kc="focus" data-n="${order.n}"><span class="kc-ticket-clip" aria-hidden="true"></span><div class="kc-ticket-head">${faceHTML(order.customer,mood(order,now),'is-mini')}<i class="kc-patience" aria-hidden="true" style="--kc-patience:${order.patience}ms;--kc-elapsed:-${elapsed}ms"><i></i></i>${courses}</div>${tray}
+        <div class="kc-lines">${slots.map(slot => ticketLine(game,order,slot)).join('')}</div></div></div>`;
   }
   // A baking order asks for a measure ("2 dl sukker"): the unit is what is fetched.
   const measureOf = (game,order,slot) => { const measure = game.scene.dishes[order.dish]?.measure; return measure && slot.index >= order.slots.length && slot.i === measure.unit ? measure : null; };
@@ -2431,10 +2433,14 @@
     const word = measure ? `<span class="kc-no" lang="nb">${e(String(measure.amount))} ${e(plainWord(item))}<i class="kc-art"> ${e(plainWord(measure.item))}</i></span>` : wordHTML(item);
     const zh = measure ? tx('{amount} {unit}{item}',{amount:measure.amount,unit:zh1(item),item:zh1(measure.item)}) : zh1(item);
     const verb = slot.k ? `<span class="kc-line-verb">${tier === 'expert' && state === 'open' ? icon('speaker') : `<span lang="nb">${e(plainWord(game.scene.verbs[slot.k]).replace(/^å\s+/,''))}</span>`}${tier === 'novice' ? `<small>${e(KIND_NAMES[slot.k] || '')}</small>` : ''}</span>` : '';
+    // Each line two short rows: the Norwegian, then (新手) the Chinese and how to cook it.
     let body;
-    if (state !== 'open') body = `${pic(item,'is-line')}<span class="kc-line-word">${word}</span>${state === 'cooking' ? `<span class="kc-line-state">${icon(slot.k || 'koke')}</span>` : `<i class="kc-tick">${icon('check')}</i>`}`;
-    else if (tier === 'expert') body = `<span class="kc-line-ear">${icon('speaker')}</span><span class="kc-line-word is-hidden">${tx('听一听')}</span>${verb}`;
-    else body = `${tier === 'novice' || !hasPicture(item) ? pic(item,'is-line') : ''}<span class="kc-line-word">${word}${tier === 'novice' || !hasPicture(item) ? `<small>${e(zh)}</small>` : ''}</span>${verb}`;
+    if (state !== 'open') body = `${pic(item,'is-line')}<span class="kc-line-text"><span class="kc-line-word">${word}</span></span>${state === 'cooking' ? `<span class="kc-line-state">${icon(slot.k || 'koke')}</span>` : `<i class="kc-tick">${icon('check')}</i>`}`;
+    else if (tier === 'expert') body = `<span class="kc-line-ear">${icon('speaker')}</span><span class="kc-line-text"><span class="kc-line-word is-hidden">${tx('听一听')}</span>${verb ? `<span class="kc-line-sub">${verb}</span>` : ''}</span>`;
+    else {
+      const hint = tier === 'novice' || !hasPicture(item);
+      body = `${hint ? pic(item,'is-line') : ''}<span class="kc-line-text"><span class="kc-line-word">${word}</span>${hint || verb ? `<span class="kc-line-sub">${hint ? `<small>${e(zh)}</small>` : ''}${verb}</span>` : ''}</span>`;
+    }
     const fresh = since(game,key), wrong = since(game,`bad:line:${order.n}:${slot.index}`);
     const label = state === 'done' ? tx('已放好') : state === 'cooking' ? tx('正在做') : away ? tx('在同学的柜子里，点一下向同学要') : tier === 'novice' ? zh : tx('听这一样');
     return `<button type="button" class="kc-line is-${state}${away ? ' is-away' : ''}${game.pending.has(key) ? ' is-pending' : ''}${undoing(game,key) ? ' is-undo' : ''}${fresh ? ' is-fresh' : ''}${wrong ? ' is-wrong' : ''}" data-kc="line" data-n="${order.n}" data-x="${slot.index}" aria-label="${e(label)}" ${fresh || wrong ? `style="--kc-fx:${fresh || wrong}"` : ''}>${body}${away ? `<span class="kc-line-away">${icon('people')}</span>` : ''}</button>`;
@@ -2472,7 +2478,15 @@
       case 'chat-open': game.chatOpen = !game.chatOpen; game.fresh.set('chat',Date.now()); drawGame(); return true;
       case 'chat': game.chatOpen = false; act({t:'chat',w:target.dataset.value}); return true;
       case 'screen': setScreen(game,target.dataset.value); return true;
-      case 'cab': game.cabOpen = target.dataset.value || ''; game.fresh.set('cab',Date.now()); drawGame(); return true;
+      case 'cab': {
+        // Opening a cabinet says its name (user 2026-11-09), so its Norwegian is heard every time.
+        game.cabOpen = target.dataset.value || '';
+        game.fresh.set('cab',Date.now());
+        const cabinet = (game.sceneData.cabinets || []).find(item => item.id === game.cabOpen);
+        if (cabinet) say(cabinet.no,'');
+        drawGame();
+        return true;
+      }
       case 'pick-cancel': closePicker(); return true;
       case 'pick': {
         const picking = ui.picking;

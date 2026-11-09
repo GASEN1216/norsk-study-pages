@@ -450,72 +450,87 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-float small{font:italic 13px/1.4 var(--serif,Georgia,serif);color:var(--kc-green);white-space:nowrap}
 @keyframes kc-float{0%{opacity:0;transform:translate(-50%,8px)}18%{opacity:1;transform:translate(-50%,0)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-14px)}}
 
-/* ---------- Kjøkkenet ---------- */
-.kc-kitchen{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"rail rail" "stove stove" "wall wall" "cabs cabs";gap:8px;min-height:0;padding:8px;border-radius:18px;
+/* ---------- Kjøkkenet ----------
+   The same order on a phone and a computer (user 2026-11-09): the orders at the top, a slip each with its tray on the
+   slip's corner; the stove; then the store, a row of cabinet tabs over the one cabinet that is open. Its things stand in
+   rows in the painted piece of furniture, each with its price tag under it, never one over another, as large as the
+   room allows (fitStore in kitchen.js). A wide screen sets the stove beside the orders; a phone held sideways puts the
+   store on the right. */
+.kc-kitchen{--kc-card-w:100%;--kc-tray-w:74px;
+  position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"rail" "stove" "store";gap:8px;min-height:0;padding:8px;border-radius:18px;overflow:hidden;
   background-color:#f3ead9;background-image:linear-gradient(#ba98621c 1px,transparent 1px),linear-gradient(90deg,#ba98621c 1px,transparent 1px);background-size:34px 34px}
-.kc-kitchen.is-nostove{grid-template-areas:"rail rail" "wall wall" "wall wall" "cabs cabs"}
+.kc-kitchen.is-nostove{grid-template-rows:auto minmax(0,1fr);grid-template-areas:"rail" "store"}
+.kc-kitchen.is-painted{background:var(--kc-kitchen-art,none) center bottom/cover no-repeat,#f3ead9}
 .kc-kitchen>.kc-quiet-note{grid-area:rail}
 
-/* The orders: a slip clipped above each tray (the rail scrolls sideways when they do not fit) */
-.kc-rail{grid-area:rail;position:relative;display:flex;align-items:flex-start;gap:10px;min-width:0;padding:8px 2px 4px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:none}
+/* The orders: a slip each, side by side (the rail scrolls sideways when they do not fit) */
+.kc-rail{grid-area:rail;position:relative;display:flex;align-items:flex-start;gap:10px;min-width:0;padding:12px 2px 4px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scroll-padding:0 2px;scrollbar-width:none}
 .kc-rail::-webkit-scrollbar{display:none}
 .kc-rail>.kc-quiet-note{flex:1;align-self:center;margin:12px 0}
-.kc-col{--kc-col-w:178px;position:relative;flex:0 0 auto;display:grid;justify-items:center;gap:8px;width:var(--kc-col-w);scroll-snap-align:start}
+.kc-col{position:relative;flex:0 0 auto;width:var(--kc-card-w);min-width:0;scroll-snap-align:start}
 .kc-col.is-new{animation:kc-rise .5s var(--kc-ease) var(--kc-in,0s) both}
-.kc-col.is-spare{--kc-col-w:92px;align-self:flex-end}
 /* The longest slip of the game, unseen: the rail is held at its height (holdRail in kitchen.js) */
-.kc-col.is-ghost{position:absolute;top:0;left:0;visibility:hidden;pointer-events:none}
-.kc-ticket{position:relative;width:100%;padding:12px 6px 5px;border-radius:3px 3px 10px 10px;background:#fffdf6;box-shadow:0 0 0 1px #d6be8c99,0 12px 20px -14px #46300fa6;transition:box-shadow .3s ease-out}
-.kc-ticket.is-blank{align-self:stretch;min-height:40px;background:#fffdf626;box-shadow:inset 0 0 0 1.5px #a0783c33}
+.kc-col.is-ghost{position:absolute;top:12px;left:2px;visibility:hidden;pointer-events:none}
+/* A free tray waits at the end of the rail */
+.kc-col.is-spare{display:grid;align-content:center;justify-items:center;gap:6px;width:auto;min-width:76px;min-height:96px;padding:12px 10px;border-radius:12px;box-shadow:inset 0 0 0 1.5px #a0783c33;color:#7a5a30;font-size:11px;white-space:nowrap}
+.kc-col.is-spare .kc-tray{width:52px;opacity:.55}
+.kc-ticket{position:relative;width:100%;padding:8px 8px 7px;border-radius:4px 4px 12px 12px;background:#fffdf6;box-shadow:0 0 0 1px #d6be8c99,0 12px 20px -14px #46300fa6;transition:box-shadow .3s ease-out}
 .kc-ticket-clip{position:absolute;top:-6px;left:50%;width:34px;height:11px;border-radius:3px;background:linear-gradient(#e7c98a,#b18c48);transform:translateX(-50%);box-shadow:0 2px 3px #46280a4d}
-.kc-ticket-head{display:flex;align-items:center;gap:6px;height:24px;margin:0 4px 2px}
+.kc-ticket-head{display:flex;align-items:center;gap:8px;min-height:38px;margin:0 calc(var(--kc-tray-w) + 4px) 4px 2px}
+.kc-ticket-head .kc-face.is-mini{width:30px;height:30px}
 .kc-ticket-head .kc-patience{position:relative;left:auto;right:auto;bottom:auto;flex:1;box-shadow:none}
 .kc-col.is-focus .kc-ticket{box-shadow:0 0 0 2px #e2bf6e,0 0 18px 2px #ecc46852,0 12px 20px -14px #46300fa6}
-.kc-lines{display:grid;gap:1px}
-.kc-line{position:relative;display:flex;align-items:center;gap:6px;min-width:0;min-height:31px;padding:2px 6px;border-radius:8px;color:var(--kc-ink);text-align:left;transition:background .2s ease-out}
-.kc-line .kc-pic.is-line{width:24px;height:24px;border-radius:6px}
-.kc-line-word{display:flex;flex:1;align-items:baseline;gap:5px;min-width:0;overflow:hidden;line-height:1.15}
-.kc-line:has(.kc-line-verb){flex-wrap:wrap;row-gap:2px}
-.kc-line:has(.kc-line-verb) .kc-line-word{flex:1 1 auto;max-width:calc(100% - 30px)}
-.kc-line-word .kc-no{font-size:15px;white-space:nowrap}
-.kc-line-word small{overflow:hidden;font-size:11px;color:var(--kc-muted);white-space:nowrap;text-overflow:ellipsis}
-.kc-line-word.is-hidden{font-size:12px;color:var(--kc-muted)}
-.kc-line-verb{display:inline-flex;flex:none;align-items:baseline;gap:3px;margin-left:auto;padding:1px 7px;border-radius:9px;background:#f6e6da;color:#9a4f2c;font:italic 500 12.5px/1.35 var(--serif,Georgia,serif);white-space:nowrap}
-.kc-line-verb small{font:10px var(--sans,sans-serif)}
+/* Each line two short rows (the Norwegian; then on 新手 the Chinese and how it is cooked), two or three lines side by side */
+.kc-lines{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--kc-line-w,146px),1fr));gap:2px 4px}
+.kc-line{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:7px;min-width:0;min-height:46px;padding:4px 6px;border-radius:9px;color:var(--kc-ink);text-align:left;transition:background .2s ease-out}
+.kc-line>.kc-pic,.kc-line>.kc-line-ear{grid-column:1}
+.kc-line .kc-pic.is-line{width:30px;height:30px;border-radius:7px}
+.kc-line-text{grid-column:2;display:grid;gap:2px;min-width:0}
+.kc-line-word{min-width:0;line-height:1.15}
+.kc-line-word .kc-no{display:block;font-size:16px;text-wrap:balance;overflow-wrap:anywhere}
+.kc-line-word.is-hidden{font-size:12.5px;color:var(--kc-muted)}
+.kc-line-sub{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-width:0;line-height:1.2}
+.kc-line-sub small{font-size:12px;color:var(--kc-muted)}
+.kc-line-verb{display:inline-flex;flex:none;align-items:baseline;gap:3px;padding:1px 7px;border-radius:9px;background:#f6e6da;color:#9a4f2c;font:italic 500 13px/1.35 var(--serif,Georgia,serif);white-space:nowrap}
+.kc-line-verb small{font:10.5px var(--sans,sans-serif)}
 .kc-line-verb .kc-icon{width:14px;height:14px;align-self:center}
-.kc-line-ear{display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:50%;background:var(--kc-gold-soft);color:#8a6a2a}
+.kc-line-ear{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--kc-gold-soft);color:#8a6a2a}
 .kc-line-ear .kc-icon{width:15px;height:15px}
 .kc-line.is-done{color:var(--kc-muted)}
 .kc-line.is-done .kc-no{color:#5d6b62}
-.kc-tick{display:flex;flex:none;margin-left:auto;color:#5f8a5a}
+.kc-line:is(.is-done,.is-cooking,.is-away) .kc-line-text{padding-right:16px}
+.kc-tick,.kc-line-state,.kc-line-away{position:absolute;top:5px;right:5px;display:flex}
+.kc-tick{color:#5f8a5a}
 .kc-tick .kc-icon{width:15px;height:15px;stroke-width:2.2}
 .kc-line.is-cooking{background:#fbf1e2}
-.kc-line-state{display:flex;flex:none;margin-left:auto;color:var(--kc-terra)}
+.kc-line-state{color:var(--kc-terra)}
 .kc-line-state .kc-icon{width:16px;height:16px}
 .kc-line.is-away .kc-line-word .kc-no{color:#7a6a4c}
-.kc-line-away{display:flex;flex:none;color:var(--kc-gold)}
+.kc-line-away{color:var(--kc-gold)}
 .kc-line-away .kc-icon{width:15px;height:15px}
 .kc-line.is-fresh{animation:kc-line-fill .9s var(--kc-ease) var(--kc-fx,0s) both}
 @keyframes kc-line-fill{0%{background:#fbedcb}100%{background:#fbedcb00}}
-/* The tray under its slip: what is on it so far, laid out in a ring. */
-.kc-tray{position:relative;width:min(100%,156px);aspect-ratio:2.15;border-radius:50%;background:radial-gradient(ellipse at 50% 36%,#e3bf8c 0%,#d3a36a 62%,#c18c54 100%);box-shadow:inset 0 0 0 5px #9e683080,inset 0 -7px 12px #78461438,0 12px 16px -10px #50320f73;transition:box-shadow .3s ease-out}
-.kc-col.is-focus .kc-tray{box-shadow:inset 0 0 0 5px #9e683080,inset 0 -7px 12px #78461438,0 0 0 3px #f4dc9e,0 0 22px 5px #f2cc7466}
-.kc-tray.is-spare{display:grid;place-items:center;width:84px;opacity:.6;font-size:11px;color:#6b4a22}
+/* The tray on the slip's corner: what is on it so far, laid out in a ring */
+.kc-tray{position:relative;display:block;width:var(--kc-tray-w);aspect-ratio:1.6;border-radius:50%;background:radial-gradient(ellipse at 50% 36%,#e3bf8c 0%,#d3a36a 62%,#c18c54 100%);box-shadow:inset 0 0 0 4px #9e683080,inset 0 -6px 10px #78461438,0 10px 14px -10px #50320f73;transition:box-shadow .3s ease-out,filter .3s ease-out}
+.kc-ticket>.kc-tray{position:absolute;top:-9px;right:4px}
+.kc-col.is-focus .kc-tray{box-shadow:inset 0 0 0 4px #9e683080,inset 0 -6px 10px #78461438,0 0 0 3px #f4dc9e,0 0 18px 4px #f2cc7466}
 .kc-tray-item{position:absolute;transform:translate(-50%,-50%)}
-.kc-tray-item .kc-pic{width:38px;height:38px;filter:drop-shadow(0 4px 3px #46280a40)}
+.kc-tray-item .kc-pic{width:calc(var(--kc-tray-w)*.34);height:calc(var(--kc-tray-w)*.34);filter:drop-shadow(0 3px 2px #46280a40)}
 .kc-tray-item.is-fresh{animation:kc-tray-in .5s var(--kc-ease) var(--kc-fx,0s) both}
 @keyframes kc-tray-in{from{opacity:0;transform:translate(-50%,-50%) scale(.6)}to{opacity:1;transform:translate(-50%,-50%)}}
+.kc-kitchen.is-painted .kc-tray{border-radius:0;background:var(--kc-tray-art) 50% 64%/100% auto no-repeat;box-shadow:none;filter:drop-shadow(0 8px 6px #50320f38)}
+.kc-kitchen.is-painted .kc-col.is-focus .kc-tray{box-shadow:none;filter:drop-shadow(0 0 8px #f2cc74e6) drop-shadow(0 8px 6px #50320f38)}
 
 /* The stove: a pot, a pan, the oven, the board, the grill on the worktop; lit while something is in hand */
 .kc-stove{grid-area:stove;position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
 .kc-hood{display:none}
-.kc-tools{display:flex;align-items:flex-end;justify-content:center;gap:clamp(8px,6vw,40px);padding:10px 6px 6px;border-radius:12px;background:linear-gradient(#ecd5a8,#d9b47c);box-shadow:inset 0 3px 0 #ffffff73,0 10px 14px -8px #46280f73}
+.kc-tools{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:8px clamp(10px,4vw,28px);padding:10px 8px 7px;border-radius:14px;background:linear-gradient(#efdcb4f2,#dcb983f2);box-shadow:inset 0 3px 0 #ffffff73,0 10px 14px -8px #46280f73}
 .kc-tool{position:relative;display:grid;justify-items:center;gap:3px;min-width:0;padding:0;color:var(--kc-green)}
 .kc-tool-pic{width:var(--kc-tool);height:var(--kc-tool);object-fit:contain;filter:drop-shadow(0 8px 6px #46280f47);transition:filter .3s ease-out,transform .35s var(--kc-ease)}
 .kc-tool-pic.is-blank{display:grid;place-items:center;border-radius:14px;background:#fff8ea;color:var(--kc-terra)}
 .kc-tool-pic.is-blank .kc-icon{width:58%;height:58%}
 .kc-tool-food{position:absolute;top:-8px;left:50%;z-index:2;transform:translateX(-50%)}
-.kc-tool-food .kc-pic{width:26px;height:26px;filter:drop-shadow(0 4px 3px #46280a4d)}
+.kc-tool-food .kc-pic{width:28px;height:28px;filter:drop-shadow(0 4px 3px #46280a4d)}
 .kc-tool.is-new .kc-tool-food{animation:kc-pop .45s var(--kc-ease) var(--kc-in,0s) both}
 @keyframes kc-pop{from{opacity:0;transform:translateX(-50%) scale(.7)}to{opacity:1;transform:translateX(-50%)}}
 .kc-tool-whose{position:absolute;top:-4px;right:-4px;z-index:3;line-height:0}
@@ -528,9 +543,9 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-tool.is-burnt .kc-meter i{transform:scaleX(1);background:var(--kc-terra)}
 @keyframes kc-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes kc-ready{from{background:#7d9a84}70%{background:#c9a24f}to{background:var(--kc-terra)}}
-.kc-tool-label{display:grid;justify-items:center;padding:1px 7px 2px;border-radius:9px;background:#fffcf2eb;line-height:1.1;box-shadow:0 0 0 1px #d6be8c73}
-.kc-tool-label .kc-no{font-size:12.5px;white-space:nowrap}
-.kc-tool-label small{font-size:10px;color:var(--kc-muted)}
+.kc-tool-label{display:grid;justify-items:center;padding:2px 8px 3px;border-radius:9px;background:#fffcf2f0;line-height:1.1;box-shadow:0 0 0 1px #d6be8c73}
+.kc-tool-label .kc-no{font-size:13.5px;white-space:nowrap}
+.kc-tool-label small{font-size:10.5px;color:var(--kc-muted)}
 .kc-flag{position:absolute;top:-4px;left:-2px;z-index:3;line-height:1}
 .kc-flag.is-burnt{padding:2px 6px;border-radius:8px;background:#fdf1ea;font:italic 600 12px/1.1 var(--serif,Georgia,serif);color:var(--kc-terra);box-shadow:0 0 0 1px #e9b9a0}
 .kc-flag.is-ready{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#6f9472;color:#fff;box-shadow:0 0 0 2px #fffdf6}
@@ -545,10 +560,29 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-steam i:nth-child(3){left:23px;animation-delay:calc(var(--kc-phase,0s) - 1.7s)}
 @keyframes kc-steam{0%{opacity:0;transform:translateY(6px) scale(.6)}30%{opacity:.85}100%{opacity:0;transform:translateY(-30px) scale(1.6)}}
 .kc-tool.is-burnt .kc-steam i{background:#9c9086;animation-duration:2s}
-/* What is in hand, above the tabs, until its pot or pan is chosen. */
-.kc-hand{position:absolute;left:50%;bottom:calc(var(--kc-tabs-h) + 16px + env(safe-area-inset-bottom));z-index:6;display:flex;align-items:center;gap:10px;max-width:calc(100% - 24px);padding:6px 6px 6px 6px;border-radius:999px;background:#fff6dc;box-shadow:0 0 0 2px #e2bf6e,0 14px 24px -12px #46300fb0;transform:translateX(-50%);white-space:nowrap}
-.kc-hand-pic{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:50%;background:#fffef9;box-shadow:inset 0 0 0 1.5px #d6a6409c}
-.kc-hand-pic .kc-pic{width:36px;height:36px}
+/* The painted hob: the pot and the pan stand on its rings; boards, ovens and grills stand beside it */
+.kc-kitchen.is-painted .kc-stove{background:none;box-shadow:none}
+.kc-kitchen.is-painted .kc-hood{width:150px;height:74px;margin:0 auto 8px;background:var(--kc-hood-art) center bottom/contain no-repeat;filter:drop-shadow(0 10px 10px #3c280f33)}
+.kc-hob{--kc-hob-w:128px;position:relative;flex:none;width:var(--kc-hob-w);aspect-ratio:4/3;background:var(--kc-hob-art) center bottom/contain no-repeat;filter:drop-shadow(0 10px 10px #3c280f2e)}
+.kc-tool.is-on-ring{position:absolute;bottom:56%;transform:translateX(-50%)}
+.kc-tool.is-ring-left{left:30%}
+.kc-tool.is-ring-right{left:73%}
+.kc-tool.is-ring-mid{left:50%}
+.kc-tool.is-on-ring .kc-tool-pic{width:calc(var(--kc-hob-w)*.36);height:calc(var(--kc-hob-w)*.36)}
+.kc-tool.is-on-ring .kc-meter{position:absolute;top:100%;left:14%;width:72%}
+.kc-tool.is-on-ring .kc-tool-label{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%)}
+/* the two rings' labels lean apart, so on a small hob they never cover each other */
+.kc-tool.is-ring-left .kc-tool-label{transform:translateX(-64%)}
+.kc-tool.is-ring-right .kc-tool-label{transform:translateX(-36%)}
+/* Three tools or more beside the hob: a size smaller, so they stay in one row with it */
+.kc-stove.is-many{--kc-tool:44px}
+.kc-stove.is-many .kc-hob{--kc-hob-w:min(118px,30vw)}
+.kc-stove.is-many .kc-tools{gap:8px 10px}
+/* What is in hand, laid over the row of cabinet tabs until its pot or pan is chosen (the stove is just above). */
+.kc-hand{position:relative;z-index:6;display:flex;align-items:center;gap:10px;min-width:0;padding:3px 6px 3px 5px;border-radius:16px;background:#fff6dc;box-shadow:0 0 0 2px #e2bf6e,0 12px 22px -12px #46300fb0;white-space:nowrap;animation:kc-rise .3s var(--kc-ease) both}
+.kc-hand-text{flex:1;overflow:hidden}
+.kc-hand-pic{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:50%;background:#fffef9;box-shadow:inset 0 0 0 1.5px #d6a6409c}
+.kc-hand-pic .kc-pic{width:32px;height:32px}
 .kc-hand-text{display:grid;min-width:0;line-height:1.3;font-size:13px;color:#4b3a1e}
 .kc-hand-text>span{display:flex;align-items:baseline;gap:5px}
 .kc-hand-text .kc-no{font-size:16px;color:var(--kc-green)}
@@ -556,69 +590,83 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-hand-x{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:50%;color:#8a6a2a}
 .kc-hand-x .kc-icon{width:16px;height:16px}
 
-/* The pass: full trays leave for the front by themselves, and the bell rings. */
-.kc-pass{grid-area:pass;position:relative;display:grid;align-content:start;gap:4px;min-width:104px;padding:6px 10px 14px;border-radius:12px;background:linear-gradient(180deg,#fffaf0e6,#f4e8cee6);box-shadow:inset 0 0 0 1px #cdaf78,0 10px 16px -12px #46300f8c}
-.kc-pass::after{content:"";position:absolute;left:6px;right:6px;bottom:5px;height:6px;border-radius:3px;background:linear-gradient(#dcae74,#bb8950)}
-.kc-pass-head{display:grid;padding-right:30px;line-height:1.2}
-.kc-pass-head b{font:italic 600 13px/1.2 var(--serif,Georgia,serif);color:#8a6a2a}
-.kc-pass-head small{font-size:10.5px;color:var(--kc-muted)}
-.kc-pass-row{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px;min-height:40px}
-.kc-pass-dish{position:relative;line-height:0}
-.kc-pass-dish .kc-pic.is-dish{width:40px;height:40px;filter:drop-shadow(0 5px 4px #3c280f4d)}
-.kc-pass-dish .kc-face{position:absolute;right:-5px;bottom:-3px;width:20px;height:20px;box-shadow:0 0 0 2px #fffdf6}
-.kc-bell{position:absolute;top:6px;right:8px;width:26px;height:22px}
-.kc-bell::before{content:"";position:absolute;left:8%;right:8%;top:22%;bottom:18%;border-radius:50% 50% 8% 8%/80% 80% 8% 8%;background:radial-gradient(circle at 35% 30%,#fbe7a8,#d7ab4c 55%,#a97d2c);box-shadow:0 2px 3px #46280a59}
-.kc-bell::after{content:"";position:absolute;left:0;right:0;bottom:6%;height:16%;border-radius:3px;background:linear-gradient(#5a4a36,#3c3126)}
-.kc-bell i{position:absolute;top:6%;left:50%;width:18%;height:20%;border-radius:50%;background:#c79a3e;transform:translateX(-50%)}
-.kc-pass.is-ringing .kc-bell{animation:kc-ring .9s ease-out both}
-@keyframes kc-ring{0%,100%{transform:none}20%{transform:rotate(-10deg)}45%{transform:rotate(8deg)}70%{transform:rotate(-4deg)}}
-
-/* The wall: real furniture with real things on it. On a phone one piece is open at a time, picked in the row below. */
-.kc-wall{grid-area:wall;display:flex;flex-wrap:wrap;align-content:flex-start;align-items:flex-start;gap:12px;min-height:0;padding:2px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
-.kc-furn{--kc-item:60px;--kc-tagh:0px;--kc-cell:calc(var(--kc-item) + var(--kc-tagh) + 14px);position:relative;display:none;grid-template-rows:auto auto;gap:6px;width:100%;padding:10px 12px 12px;border-radius:16px}
-.kc-furn.is-open{display:grid}
-.kc-game.is-novice .kc-furn{--kc-tagh:30px}
-.kc-furn-name{display:flex;align-items:baseline;gap:6px;min-width:0;font-size:11px;line-height:1.2;color:#8a6a2a}
-.kc-furn-name>span{font:italic 600 14px/1.2 var(--serif,Georgia,serif)}
-.kc-whose{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font-size:11.5px;color:var(--kc-muted)}
-.kc-whose .kc-avatar{width:20px;height:20px;font-size:10px}
-.kc-whose small{font-size:11px;color:var(--kc-muted)}
-.kc-whose.is-shared{gap:0}
-.kc-whose.is-shared .kc-avatar+.kc-avatar{margin-left:-6px;box-shadow:0 0 0 1.5px var(--kc-card)}
-.kc-whose.is-shared small:last-child{margin-left:5px}
-.kc-furn-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(calc(var(--kc-item) + 24px),1fr));grid-auto-rows:var(--kc-cell);align-items:start;justify-items:center;column-gap:6px;background-origin:content-box}
-.kc-item{position:relative;display:grid;align-content:start;justify-items:center;gap:8px;min-width:0;padding:0;border-radius:12px}
-.kc-item .kc-pic.is-item{width:var(--kc-item);height:var(--kc-item);border-radius:10px;filter:drop-shadow(0 6px 4px #3c280f47);transition:transform .3s var(--kc-ease),filter .3s ease-out}
+/* The store: the cabinet tabs, and the one cabinet that is open under them */
+.kc-store{grid-area:store;position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px;min-height:0}
+.kc-store>.kc-cabs,.kc-store>.kc-hand{grid-row:1;grid-column:1}
+.kc-store>.kc-wall{grid-row:2;grid-column:1}
+.kc-cabs{display:flex;gap:7px;min-width:0;padding:2px 2px 3px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.kc-cabs::-webkit-scrollbar{display:none}
+.kc-cab{position:relative;display:flex;flex:0 0 auto;align-items:center;gap:7px;min-height:46px;padding:5px 13px 5px 7px;border-radius:14px;background:#fffbf0eb;line-height:1.15;box-shadow:0 0 0 1px #cdaf7880,0 3px 0 #8c5f282e;transition:background .25s ease-out,box-shadow .25s ease-out}
+.kc-cab .kc-pic{width:28px;height:28px}
+.kc-cab-text{display:grid;text-align:left}
+.kc-cab b{font:600 14.5px/1.15 var(--serif,Georgia,serif);color:var(--kc-ink);white-space:nowrap}
+.kc-cab small{font-size:11px;color:var(--kc-muted);white-space:nowrap}
+.kc-cab .kc-avatar{width:20px;height:20px;font-size:10px}
+.kc-cab.is-on{background:#fff2d2;box-shadow:0 0 0 2px #d6a640,0 3px 0 #8c5f282e}
+.kc-cab.is-theirs{opacity:.62}
+.kc-cab.is-called::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 2px #e6c77e,0 0 14px 2px #ecc46866;opacity:0;pointer-events:none;animation:kc-room-call 1.6s ease-in-out var(--kc-phase,0s) infinite}
+.kc-cabs.is-overflow{-webkit-mask-image:linear-gradient(90deg,#000 88%,#0000);mask-image:linear-gradient(90deg,#000 88%,#0000)}
+.kc-cabs.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(90deg,#0000,#000 8%,#000 88%,#0000);mask-image:linear-gradient(90deg,#0000,#000 8%,#000 88%,#0000)}
+.kc-cabs.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(90deg,#0000,#000 8%);mask-image:linear-gradient(90deg,#0000,#000 8%)}
+.kc-rail.is-overflow{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),#0000);mask-image:linear-gradient(90deg,#000 calc(100% - 22px),#0000)}
+.kc-rail.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(90deg,#0000,#000 22px,#000 calc(100% - 22px),#0000);mask-image:linear-gradient(90deg,#0000,#000 22px,#000 calc(100% - 22px),#0000)}
+.kc-rail.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(90deg,#0000,#000 22px);mask-image:linear-gradient(90deg,#0000,#000 22px)}
+/* The open cabinet stands in the middle of the room it has; a full one on a small phone scrolls down. */
+.kc-wall{position:relative;display:flex;min-height:0;padding:6px 4px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.kc-wall::-webkit-scrollbar{display:none}
+.kc-wall:has(.kc-whose){padding-top:16px}
+.kc-wall.is-overflow{-webkit-mask-image:linear-gradient(#000 84%,#0000);mask-image:linear-gradient(#000 84%,#0000)}
+.kc-wall.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(#0000,#000 10%,#000 84%,#0000);mask-image:linear-gradient(#0000,#000 10%,#000 84%,#0000)}
+.kc-wall.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(#0000,#000 10%);mask-image:linear-gradient(#0000,#000 10%)}
+/* A piece of furniture: rows of cells, each a picture with its price tag under it (sizes: fitStore in kitchen.js reads
+   --kc-item-min/max, --kc-cell-k and --kc-cell-min; --kc-fs scales the painted frames) */
+.kc-furn{--kc-item:52px;--kc-item-min:46px;--kc-item-max:72px;--kc-cell-k:1.22;--kc-cell-min:0px;--kc-under:6px;--kc-fs:.2;
+  position:relative;display:grid;align-content:center;row-gap:6px;margin:auto;padding:8px;border-radius:16px}
+.kc-game.is-novice .kc-furn{--kc-cell-min:84px}
+.kc-shelf{position:relative;display:flex;justify-content:center;column-gap:4px}
+.kc-item{position:relative;z-index:1;display:grid;justify-items:center;align-content:start;gap:var(--kc-under);width:var(--kc-cell-w,max(calc(var(--kc-item)*var(--kc-cell-k) + 8px),var(--kc-cell-min)));padding:4px 0 2px;border-radius:12px}
+.kc-item-pic{display:block;width:var(--kc-item);height:var(--kc-item)}
+.kc-item .kc-pic.is-item{display:grid;width:100%;height:100%;border-radius:10px;object-fit:contain;object-position:50% 100%;filter:drop-shadow(0 6px 4px #3c280f47);transition:transform .3s var(--kc-ease),filter .3s ease-out}
 .kc-item:active .kc-pic.is-item{transform:translateY(-3px)}
-.kc-tag{display:grid;justify-items:center;max-width:calc(var(--kc-item) + 24px);padding:2px 6px 3px;border-radius:4px;background:#fffaf0;line-height:1.1;box-shadow:0 1px 0 #8c5f284d,0 0 0 1px #cdaf788c}
-.kc-tag .kc-no{max-width:100%;overflow:hidden;font-size:12.5px;white-space:nowrap;text-overflow:ellipsis}
-.kc-tag .kc-art{font-size:9px}
-.kc-tag small{font-size:9.5px;color:#7a7a6e;white-space:nowrap}
+.kc-tag{display:grid;justify-items:center;max-width:100%;padding:2px 7px 3px;border-radius:5px;background:#fffaf0;line-height:1.15;box-shadow:0 1px 0 #8c5f284d,0 0 0 1px #cdaf788c}
+.kc-tag .kc-no{max-width:100%;font-size:13.5px;text-align:center;text-wrap:balance;overflow-wrap:anywhere}
+.kc-tag .kc-art{font-size:.72em}
+.kc-tag small{max-width:100%;overflow:hidden;font-size:11px;color:#6f6f62;white-space:nowrap;text-overflow:ellipsis}
+.kc-tag.is-long .kc-no{font-size:12.5px}
+.kc-tag.is-longer .kc-no{font-size:11.5px}
 .kc-item.is-held .kc-pic.is-item{filter:drop-shadow(0 0 9px #f0c86ef2) drop-shadow(0 6px 4px #3c280f47);transform:translateY(-6px)}
 .kc-item.is-held .kc-tag{box-shadow:0 0 0 2px #d6a640}
 .kc-item.is-called .kc-pic.is-item{animation:kc-called-pic 1.4s ease-out var(--kc-fx,0s) 3}
 @keyframes kc-called-pic{0%,100%{filter:drop-shadow(0 6px 4px #3c280f47)}40%{filter:drop-shadow(0 0 10px #f0c86e) drop-shadow(0 6px 4px #3c280f47)}}
 .kc-furn.is-theirs .kc-item{opacity:.42}
-/* A cream fridge with glass shelves under each row */
-.kc-furn.is-fridge{background:linear-gradient(90deg,#f8f4ea,#ebe3d2);box-shadow:0 18px 26px -18px #3c280f99,inset 0 0 0 1px #aa967866}
-.kc-furn.is-fridge .kc-furn-body{padding:8px 8px 2px;border-radius:10px;background:repeating-linear-gradient(to bottom,#0000 0 calc(var(--kc-item) + 2px),#ffffffee calc(var(--kc-item) + 2px) calc(var(--kc-item) + 6px),#0000 calc(var(--kc-item) + 6px) var(--kc-cell)) content-box,linear-gradient(#f4f7f2,#e1e8e1) padding-box;box-shadow:inset 0 8px 16px #5a6e6424}
-/* Birch planks on brackets: the tag hangs from the plank's edge */
-.kc-furn.is-shelf{background:#fffaf02e}
-.kc-furn.is-shelf .kc-furn-body{background:repeating-linear-gradient(to bottom,#0000 0 calc(var(--kc-item) + 1px),#dbb079 calc(var(--kc-item) + 1px) calc(var(--kc-item) + 8px),#b9854c calc(var(--kc-item) + 8px) calc(var(--kc-item) + 10px),#0000 calc(var(--kc-item) + 10px) var(--kc-cell)) content-box}
-.kc-furn.is-shelf .kc-item{gap:13px}
-/* A wooden crate of fruit and vegetables */
-.kc-furn.is-crate{background:repeating-linear-gradient(180deg,#d6a86c 0 20px,#bf8d51 20px 23px);box-shadow:inset 0 0 0 3px #8c5a2859,0 14px 18px -12px #3c280f80}
-.kc-furn.is-crate .kc-furn-name{padding:2px 8px;justify-self:start;border-radius:6px;background:#fff6e2e6}
-/* A small chilled counter on crushed ice */
-.kc-furn.is-cooler{background:radial-gradient(circle,#ffffffd9 0 1.5px,#0000 2.5px) 0 0/10px 9px,linear-gradient(#f2f8f9,#d4e4e8);box-shadow:inset 0 0 0 3px #d9ccb0,0 14px 18px -12px #3c280f66}
-.kc-cabs{grid-area:cabs;display:flex;gap:6px;min-width:0;padding:2px 2px 4px;overflow-x:auto;scrollbar-width:none}
-.kc-cabs::-webkit-scrollbar{display:none}
-.kc-cab{position:relative;display:grid;flex:0 0 auto;justify-items:center;gap:1px;min-width:62px;padding:5px 8px 4px;border-radius:12px;background:#fffbf0e0;line-height:1.1;box-shadow:0 0 0 1px #cdaf7880,0 3px 0 #8c5f282e}
-.kc-cab .kc-pic{width:24px;height:24px}
-.kc-cab b{font:600 11.5px/1.2 var(--serif,Georgia,serif);color:var(--kc-ink);white-space:nowrap}
-.kc-cab small{font-size:9.5px;color:var(--kc-muted);white-space:nowrap}
-.kc-cab.is-on{background:#fff3d6;box-shadow:0 0 0 2px #d6a640,0 3px 0 #8c5f282e}
-.kc-cab.is-theirs{opacity:.6}
+.kc-whose{position:absolute;top:-10px;right:0;z-index:3;display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 3px;border-radius:12px;background:#fffaf0f2;font-size:11.5px;color:var(--kc-muted);box-shadow:0 0 0 1px #cdaf7866}
+.kc-whose .kc-avatar{width:20px;height:20px;font-size:10px}
+.kc-whose small{font-size:11px;color:var(--kc-muted)}
+.kc-whose.is-shared{gap:0}
+.kc-whose.is-shared .kc-avatar+.kc-avatar{margin-left:-6px;box-shadow:0 0 0 1.5px var(--kc-card)}
+.kc-whose.is-shared small:last-child{margin-left:5px}
+/* The painted fridge: its open door and its sides as a frame round the rows, a glass shelf under each row */
+.kc-furn.is-fridge{--kc-under:11px;padding:10px 12px 6px;background:linear-gradient(#eef2ec,#e0e7e1);box-shadow:inset 0 0 0 6px #f3eee0,inset 0 12px 18px #5a6e6424}
+.kc-furn.is-fridge .kc-shelf::after{content:"";position:absolute;left:-12px;right:-12px;top:calc(var(--kc-item) + 5px);height:7px;border-radius:2px;background:linear-gradient(#ffffffe6,#d4e4dfd9 45%,#a9c4bcbf);box-shadow:0 3px 5px #5a6e6429}
+.kc-furn.is-fridge.is-painted{border:solid transparent;border-width:calc(118px*var(--kc-fs)) calc(46px*var(--kc-fs)) calc(132px*var(--kc-fs)) calc(206px*var(--kc-fs));border-radius:0;
+  border-image:var(--kc-furn-art) 118 46 132 206;background:linear-gradient(#edf1ec,#dfe6e0) padding-box;box-shadow:inset 0 14px 18px #5a6e642e;filter:drop-shadow(0 14px 12px #3c280f2e)}
+/* The painted crate: its four sides round the rows (the part above the back board and under the front one is air) */
+.kc-furn.is-crate{--kc-under:5px;padding:8px 10px 6px;background:repeating-linear-gradient(180deg,#d6a86c 0 20px,#bf8d51 20px 23px);box-shadow:inset 0 0 0 3px #8c5a2859,0 14px 18px -12px #3c280f80}
+.kc-furn.is-crate.is-painted{border:solid transparent;border-width:calc(50px*var(--kc-fs)) calc(100px*var(--kc-fs)) calc(92px*var(--kc-fs));border-radius:0;padding:4px 6px 2px;background:none;box-shadow:none;
+  border-image-source:var(--kc-furn-art);border-image-slice:130 100 144 fill;border-image-width:calc(130px*var(--kc-fs)) calc(100px*var(--kc-fs)) calc(144px*var(--kc-fs));border-image-outset:calc(80px*var(--kc-fs)) 0 calc(52px*var(--kc-fs));filter:drop-shadow(0 12px 10px #3c280f2e)}
+/* The painted chilled counter: lid and glass above, the cream cabinet below, crushed ice under the rows */
+.kc-furn.is-cooler{--kc-under:5px;padding:8px 10px 6px;background:radial-gradient(circle,#ffffffd9 0 1.5px,#0000 2.5px) 0 0/10px 9px,linear-gradient(#f2f8f9,#d4e4e8);box-shadow:inset 0 0 0 3px #d9ccb0,0 14px 18px -12px #3c280f66}
+.kc-furn.is-cooler.is-painted{border:solid transparent;border-width:calc(105px*var(--kc-fs)) calc(64px*var(--kc-fs)) calc(82px*var(--kc-fs));border-radius:0;padding:6px 6px 4px;
+  background:radial-gradient(circle,#ffffffe6 0 1.5px,#0000 2.5px) 0 0/10px 9px padding-box,linear-gradient(#f4f9fa,#d9e7ea) padding-box;box-shadow:none;
+  border-image-source:var(--kc-furn-art);border-image-slice:150 64 196;border-image-width:calc(150px*var(--kc-fs)) calc(64px*var(--kc-fs)) calc(110px*var(--kc-fs));border-image-outset:calc(45px*var(--kc-fs)) 0 calc(28px*var(--kc-fs));filter:drop-shadow(0 12px 10px #3c280f2e)}
+/* Wall shelves and the dish rack: a painted board under each row, brackets or hooks under it, the tags in front */
+.kc-furn.is-shelf,.kc-furn.is-rack{--kc-under:16px;padding:4px 10px 12px;row-gap:12px;background:none}
+.kc-furn.is-shelf .kc-shelf::before,.kc-furn.is-rack .kc-shelf::before{content:"";position:absolute;z-index:0;left:-10px;right:-10px;top:calc(var(--kc-item) + 4px);height:14px;border-radius:2px;background:linear-gradient(#f1d9ad,#dbb079 40%,#b9854c);box-shadow:0 6px 8px -4px #46280f59}
+.kc-furn.is-shelf.is-painted .kc-shelf::before{--kc-ps:calc(var(--kc-fs)*1.3);top:calc(var(--kc-item) + 4px - 68px*var(--kc-ps));height:calc(256px*var(--kc-ps));border:solid transparent;border-width:0 calc(156px*var(--kc-ps));border-radius:0;background:none;box-shadow:none;
+  border-image-source:var(--kc-furn-art);border-image-slice:0 156 0 150 fill;border-image-width:0 calc(156px*var(--kc-ps)) 0 calc(150px*var(--kc-ps));filter:drop-shadow(0 6px 6px #3c280f26)}
+.kc-furn.is-rack.is-painted .kc-shelf::before{--kc-ps:var(--kc-fs);top:calc(var(--kc-item) + 4px - 156px*var(--kc-ps));height:calc(384px*var(--kc-ps));border:solid transparent;border-width:calc(108px*var(--kc-ps)) calc(52px*var(--kc-ps));border-radius:0;background:none;box-shadow:none;
+  border-image-source:var(--kc-furn-art);border-image-slice:108 52 fill;border-image-repeat:round stretch;filter:drop-shadow(0 6px 6px #3c280f26)}
+.kc-item.is-wrong::after{border-radius:14px}
 
 /* A wrong answer warms the thing tapped for a moment; nothing shakes. A tap the server turned down settles back. */
 .kc-dish.is-wrong::after,.kc-person.is-wrong::after,.kc-item.is-wrong::after,.kc-line.is-wrong::after,.kc-tool.is-wrong::after,.kc-col.is-wrong .kc-ticket::after{content:"";position:absolute;inset:-2px;z-index:4;border-radius:12px;box-shadow:0 0 0 2px #e0a184,inset 0 0 0 999px #f6d9c626;pointer-events:none;opacity:0;animation:kc-flash .9s ease-out var(--kc-fx,0s) both}
@@ -674,29 +722,104 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-cab:hover{background:#fff6e0}
 }
 
-/* Wider: the front side by side (the till on the left, the pickup counter on the right); every piece of furniture
-   on the kitchen wall at once */
+/* The front's painted sign, hanging from its strings */
+.kc-front.is-painted .kc-sign{--kc-sign-w:170px;top:0;display:grid;justify-items:center;align-content:center;gap:0;width:var(--kc-sign-w);aspect-ratio:2;padding:calc(var(--kc-sign-w)*.21) 0 0;border-radius:0;background:var(--kc-sign-art) center/100% 100% no-repeat;box-shadow:none;filter:drop-shadow(0 8px 8px #3c280f33)}
+
+/* ---------- Sizes ----------
+   One layout everywhere (user 2026-11-09: a computer like a phone): Disken is the till under its menu board above the
+   pickup counter; Kjøkkenet is the orders, the stove and the store from top to bottom. Larger screens draw it all
+   larger; only a phone held sideways sets the two halves side by side, as it has no height for them. */
+@media (max-width:719px){
+  .kc-ask .kc-pic.is-bubble{width:40px;height:40px}
+  .kc-ask-line{font-size:14px}
+  .kc-ask-zh{font-size:12px}
+  .kc-front.is-painted .kc-sign{--kc-sign-w:116px}
+}
+@media (max-width:380px){
+  .kc-room{gap:6px}
+  .kc-room>.kc-icon{display:none}
+  .kc-line{column-gap:6px;padding:4px 5px}
+  .kc-line .kc-pic.is-line{width:26px;height:26px}
+  .kc-line-word .kc-no{font-size:15px}
+  .kc-line-sub small{font-size:11.5px}
+  .kc-line-verb{padding:1px 6px;font-size:12.5px}
+}
+/* A phone held upright: the open cabinet keeps a sensible height under the tallest slip; only on a very short screen
+   does the kitchen scroll (the slips and the stove then go up out of the way). */
+@media (max-width:719px) and (orientation:portrait){
+  .kc-kitchen{grid-template-rows:auto auto minmax(200px,1fr);overflow-y:auto;overscroll-behavior:contain}
+  .kc-kitchen.is-nostove{grid-template-rows:auto minmax(200px,1fr)}
+  /* the front: ordering gets the larger share (the menu is where the answer is tapped), so a long menu shows whole */
+  .kc-front{grid-template-rows:minmax(0,1.75fr) minmax(0,1fr)}
+  .kc-board-list{max-height:48cqh}
+  /* everything above the cabinet a little tighter, so the cabinet gets the room */
+  .kc-game{--kc-tool:48px}
+  .kc-hob{--kc-hob-w:116px}
+  .kc-tool-label{padding:1px 7px 2px}
+  .kc-ticket-head{min-height:34px}
+  .kc-line{min-height:43px}
+  .kc-cab{min-height:42px;gap:6px;padding:3px 11px 3px 6px}
+  .kc-cab .kc-pic{width:24px;height:24px}
+  .kc-cab b{font-size:14px}
+  .kc-cab small{font-size:10.5px}
+  .kc-furn{--kc-fs:.17}
+  .kc-wall{padding:6px 2px}
+  .kc-game.is-novice .kc-furn{--kc-cell-min:78px}
+  .kc-tag{padding:2px 6px 3px}
+  .kc-tag .kc-no{font-size:13px}
+  .kc-tag small{font-size:10.5px}
+  .kc-tag.is-long .kc-no{font-size:12px}
+  .kc-tag.is-longer .kc-no{font-size:11.5px}
+}
+/* A slip takes the phone's whole width; the next order is a swipe away (the rail fades at that edge) */
+@media (max-width:519px){
+  .kc-col.is-spare{display:none}
+}
+@media (max-width:719px) and (max-height:760px) and (orientation:portrait){
+  .kc-kitchen{gap:6px}
+  .kc-rail{padding-top:11px}
+  .kc-tools{padding:8px 6px 5px}
+  .kc-stove:not(.is-many) .kc-hob{--kc-hob-w:110px}
+  /* the front: a shorter menu, so the waiting line stays clear of the order bubble */
+  .kc-board-list{max-height:50cqh}
+  .kc-dish{min-height:32px;padding:2px 5px}
+  .kc-dish .kc-no{font-size:13.5px;line-height:1.12}
+  .kc-dish small{font-size:10.5px}
+  .kc-person.is-queued{width:30px;height:30px}
+  .kc-ask{bottom:10px;max-width:calc(100% - 108px);padding:8px 12px 11px 8px}
+  .kc-ask .kc-pic.is-bubble{width:44px;height:44px}
+  .kc-ask-line{font-size:14px}
+}
+/* A tablet, or a phone's width and more: two slips side by side, everything a size up */
+@media (min-width:520px){
+  .kc-kitchen{--kc-card-w:min(calc(50% - 5px),440px);--kc-tray-w:80px}
+}
 @media (min-width:720px){
-  .kc-game{--kc-bar-h:52px;--kc-tabs-h:62px;--kc-tool:64px;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+  .kc-game{--kc-bar-h:52px;--kc-tabs-h:62px;--kc-tool:60px;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
   .kc-zone.is-pickup{--kc-counter:92px}
   .kc-person.is-asker{right:6%;height:min(70cqh,300px)}
   .kc-ask{bottom:24px;max-width:min(400px,calc(100% - min(70cqh,300px) - 6% + 10px))}
   .kc-person.is-queued{width:44px;height:44px}
   .kc-ready .kc-pic.is-dish{width:64px;height:64px;margin-top:-34px}
   .kc-stub .kc-pic{width:36px;height:36px}
-  .kc-col{--kc-col-w:196px}
-  .kc-line-word .kc-no{font-size:16px}
+  .kc-kitchen{gap:10px;padding:10px 12px}
+  .kc-hob{--kc-hob-w:150px}
+  .kc-stove.is-many .kc-hob{--kc-hob-w:140px}
+  .kc-stove.is-many{--kc-tool:54px}
+  .kc-furn{--kc-item-min:54px;--kc-item-max:84px;--kc-fs:.26}
+  .kc-game.is-novice .kc-furn{--kc-cell-min:96px}
+  .kc-tag .kc-no{font-size:14.5px}
+  .kc-tag small{font-size:11.5px}
+  .kc-tag.is-long .kc-no{font-size:13.5px}
+  .kc-tag.is-longer .kc-no{font-size:12.5px}
+  .kc-cab{min-height:50px;padding:6px 16px 6px 8px}
+  .kc-cab .kc-pic{width:32px;height:32px}
+  .kc-cab b{font-size:15.5px}
+  .kc-cab small{font-size:11.5px}
 }
-@media (min-width:720px) and (min-height:900px){
-  .kc-kitchen{grid-template-rows:auto auto minmax(0,1fr)}
-  .kc-game{--kc-tool:78px}
-  .kc-cabs{display:none}
-  .kc-wall{justify-content:center;align-content:center;gap:18px 22px}
-  .kc-furn{--kc-item:66px;display:grid;width:auto}
-  .kc-furn-body{grid-template-columns:repeat(var(--kc-cols,3),calc(var(--kc-item) + 24px))}
-}
+/* The till beside its menu board wherever the counter is wide (a computer's counter stands over the pickup counter,
+   as on a phone) */
 @media (min-width:900px) and (min-aspect-ratio:5/4),(orientation:landscape) and (min-width:600px) and (max-height:599px){
-  .kc-front{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
   .kc-zone.is-order{grid-template-columns:minmax(220px,.82fr) minmax(0,1.18fr);grid-template-rows:minmax(0,1fr) var(--kc-counter);grid-template-areas:"board till" ". .";column-gap:14px;padding:14px 14px 0}
   .kc-board{align-self:start;max-height:calc(100% - 12px)}
   .kc-board-list{grid-template-columns:minmax(0,1fr);max-height:none}
@@ -711,51 +834,91 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-sign{left:50%;transform:translateX(-50%)}
   .kc-spot .kc-person{height:min(calc(100cqh - var(--kc-counter) - 64px),250px)}
 }
-/* A small phone held sideways: the till side takes more of the width, so the order bubble has room beside the menu */
-@media (orientation:landscape) and (max-height:599px) and (max-width:759px){
-  .kc-front{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
-  .kc-zone.is-order{grid-template-columns:minmax(196px,.85fr) minmax(0,1fr);column-gap:8px;padding:10px 10px 0}
-  .kc-board-sign small{display:none}
-  .kc-person.is-asker{height:min(58cqh,40cqw)}
-  .kc-ask{bottom:calc(min(58cqh,40cqw) - 4px);min-width:150px}
-}
-/* Computers, and tablets held sideways: the wall of storage at the top left, the stove at the top right, the orders
-   and their trays below, the pass beside them */
+/* A computer, or a tablet held sideways: the same rooms, larger. Disken's menu board in two columns with larger names;
+   the kitchen's stove beside the orders, the open cabinet under them, the width of the screen. */
 @media (min-width:960px) and (min-height:600px){
-  /* The stove stands the whole height on the right (a tall order slip used to push it up under the top bar); the
-     slips with their trays beside them lie along the table under the wall, one height for the whole game. */
-  .kc-kitchen{grid-template-columns:minmax(0,1fr) minmax(240px,.3fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"wall stove" "rail stove";gap:12px;padding:12px 14px}
-  .kc-col{--kc-slip:226px;--kc-tray-w:128px;--kc-col-w:auto;grid-template-columns:var(--kc-slip) var(--kc-tray-w);align-items:end;gap:8px}
-  /* slips wide enough that a verb (skjære 切) stays on its word's line, and lines a little closer: the wall gets the room */
-  .kc-line{min-height:28px}
-  .kc-line:has(.kc-line-verb) .kc-line-word{flex:0 1 auto}
-  .kc-col.is-spare{--kc-col-w:auto;grid-template-columns:auto}
-  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:var(--kc-tray-w)}
-  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:84px}
-  .kc-kitchen.is-nostove{grid-template-columns:minmax(0,1fr);grid-template-areas:"wall" "rail"}
-  .kc-cabs{display:none}
-  .kc-wall{justify-content:center;align-content:center;gap:18px 22px;padding:8px}
-  .kc-furn{--kc-item:58px;display:grid;width:auto}
-  .kc-furn-body{grid-template-columns:repeat(var(--kc-cols,3),calc(var(--kc-item) + 24px))}
-  .kc-stove{justify-content:flex-end;padding:14px 12px 0;border-radius:16px;background-color:#f7f0e3;background-image:linear-gradient(#a8bcb229 1px,#0000 1px),linear-gradient(90deg,#a8bcb229 1px,#0000 1px);background-size:22px 22px;box-shadow:inset 0 0 0 1px #e3d6bc}
-  .kc-stove{align-self:end}
-  .kc-kitchen{overflow:hidden}
-  .kc-hood{position:relative;display:block;width:70%;height:58px;margin:0 auto 18px;filter:drop-shadow(0 10px 10px #3c280f33)}
-  .kc-hood::after{content:"";position:absolute;inset:0;background:linear-gradient(#f2e9d8,#e0d1b5);clip-path:polygon(16% 0,84% 0,100% 100%,0 100%)}
-  .kc-hood::before{content:"";position:absolute;bottom:calc(100% - 1px);left:50%;width:22%;height:600px;background:linear-gradient(90deg,#e3d6bd,#f4ecdd 45%,#ddcfb3);transform:translateX(-50%)}
-  .kc-tools{padding:14px 10px 10px}
-  .kc-game{--kc-tool:88px}
-  .kc-pass{align-self:end;min-width:0;min-height:120px}
-  .kc-pass-dish .kc-pic.is-dish{width:52px;height:52px}
-  .kc-rail{align-self:end}
+  .kc-game{--kc-bar-h:58px;--kc-tabs-h:66px;--kc-tool:76px}
+  .kc-bar-title span:first-child{font-size:19px}
+  .kc-bar-title span:first-child small{font-size:13px}
+  .kc-clock{font-size:14px}
+  .kc-scoreboard b{font-size:26px}
+  .kc-scoreboard small{font-size:12px}
+  .kc-switch{max-width:720px}
+  .kc-room-name b{font-size:19px}
+  .kc-room-name small,.kc-room-note{font-size:12.5px}
+  .kc-front{grid-template-rows:minmax(0,1.15fr) minmax(0,1fr);gap:10px}
+  .kc-person.is-asker{height:min(70cqh,330px,46cqw)}
+  .kc-ask{bottom:calc(min(70cqh,330px,46cqw) - 4px)}
+  .kc-spot .kc-person{height:min(calc(100cqh - var(--kc-counter) - 56px),260px)}
+  .kc-zone.is-order{grid-template-columns:minmax(360px,.9fr) minmax(0,1.1fr);padding:18px 22px 0;column-gap:22px}
+  .kc-board{padding:10px 18px 12px;border-width:7px}
+  .kc-board-title{font-size:24px}
+  .kc-board-sign b{font-size:16px}
+  .kc-board-sign small{font-size:12px}
+  .kc-board-list{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px;overflow-y:auto}
+  .kc-dish{min-height:52px;padding:5px 8px}
+  .kc-dish .kc-no{font-size:17px}
+  .kc-dish small{font-size:12.5px}
+  .kc-ask{padding:12px 18px 16px 12px}
+  .kc-ask .kc-pic.is-bubble{width:60px;height:60px}
+  .kc-ask-line{font-size:17px}
+  .kc-ask-zh{font-size:13.5px}
+  .kc-zone.is-pickup{--kc-counter:96px}
+  .kc-sign b{font-size:18px}
+  .kc-stub{padding:6px 11px 7px 6px}
+  .kc-stub small{font-size:11.5px}
+  .kc-ready-label{font-size:15px;padding:5px 14px}
+  .kc-kitchen{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"rail stove" "store store";column-gap:16px;row-gap:12px;padding:12px 16px}
+  .kc-kitchen.is-nostove{grid-template-columns:minmax(0,1fr);grid-template-areas:"rail" "store"}
+  .kc-kitchen{--kc-card-w:clamp(320px,calc((100% - 20px)/2),520px);--kc-tray-w:88px}
+  .kc-line-word .kc-no{font-size:16.5px}
+  .kc-line-sub small{font-size:12.5px}
+  .kc-stove{justify-content:flex-start;align-self:start}
+  .kc-tools{flex-wrap:nowrap;gap:12px 20px;padding:14px 16px 10px}
+  .kc-kitchen.is-painted .kc-hood{display:block;width:170px;height:56px;margin:0 auto 6px}
+  .kc-hob{--kc-hob-w:172px}
+  .kc-stove.is-many .kc-hob{--kc-hob-w:150px}
+  .kc-stove.is-many{--kc-tool:60px}
+  .kc-tool-label .kc-no{font-size:15px}
+  .kc-tool-label small{font-size:11.5px}
+  .kc-store{gap:10px}
+  .kc-cabs{justify-content:safe center}
+  .kc-furn{--kc-item-min:60px;--kc-item-max:92px;--kc-fs:.3}
+  .kc-game.is-novice .kc-furn{--kc-cell-min:108px}
+  .kc-furn{row-gap:8px}
+  .kc-shelf{column-gap:8px}
+  .kc-tag{padding:3px 9px 4px}
+  .kc-tag .kc-no{font-size:16px}
+  .kc-tag small{font-size:12.5px}
+  .kc-tag.is-long .kc-no{font-size:15px}
+  .kc-tag.is-longer .kc-no{font-size:14px}
+}
+/* A short computer screen (a 1280 × 720 laptop): the orders and the stove a little tighter, so the open cabinet keeps
+   two rows in view */
+@media (min-width:960px) and (min-height:600px) and (max-height:819px){
+  .kc-game{--kc-bar-h:50px;--kc-tool:64px}
+  .kc-zone.is-pickup{--kc-counter:84px}
+  .kc-kitchen{row-gap:8px;padding-top:8px}
+  .kc-kitchen.is-painted .kc-hood{display:none}
+  .kc-rail{padding-top:11px}
+  .kc-ticket-head{min-height:34px}
+  .kc-line{min-height:42px;padding:3px 6px}
+  .kc-line .kc-pic.is-line{width:28px;height:28px}
+  .kc-line-word .kc-no{font-size:16px}
+  .kc-tools{padding:10px 14px 8px}
+  .kc-hob,.kc-stove.is-many .kc-hob{--kc-hob-w:140px}
+  .kc-stove.is-many{--kc-tool:56px}
+  .kc-cab{min-height:46px;padding:4px 14px 4px 7px}
+  .kc-furn{--kc-item-min:52px;--kc-under:4px;row-gap:6px}
+  .kc-game.is-novice .kc-furn{--kc-cell-min:100px}
+  .kc-tag .kc-no{font-size:15px}
+  .kc-tag small{font-size:12px}
 }
 @media (min-width:1200px) and (min-height:760px){
-  .kc-furn{--kc-item:66px}
-  .kc-game{--kc-tool:100px}
-  .kc-col{--kc-slip:236px;--kc-tray-w:144px}
-  .kc-game.is-novice .kc-furn{--kc-tagh:32px}
+  .kc-furn{--kc-item-max:100px;--kc-fs:.33}
+  .kc-game.is-novice .kc-furn{--kc-cell-min:116px}
 }
-/* Phones held sideways: everything a size down; the kitchen in two columns, the wall on the right */
+/* Phones held sideways: everything a size down; the orders and the stove on the left, the store on the right */
 @media (orientation:landscape) and (max-height:599px){
   .kc-game{--kc-bar-h:40px;--kc-tabs-h:48px;--kc-tool:42px;gap:4px}
   .kc-room-name b{font-size:15px}
@@ -763,237 +926,39 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-board-title{font-size:16px}
   .kc-dish{min-height:30px}
   .kc-dish .kc-no{font-size:14px}
-  /* the orders along the top (each slip with its tray beside it), the stove and the pass under them, the wall on the right */
-  /* the wall shows one cabinet at a time, as in portrait, picked in the row of cabinets under it (all of them one
-     above another made a long scroll) */
-  .kc-kitchen{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto auto;grid-template-areas:"rail rail wall" "stove stove wall" "stove stove cabs";gap:6px;padding:6px}
-  .kc-kitchen.is-nostove{grid-template-areas:"rail rail wall" "rail rail wall" "rail rail cabs"}
-  .kc-pass{align-self:end}
-  .kc-cabs{align-self:end}
-  .kc-cab{grid-template-columns:auto auto;align-items:center;column-gap:5px;padding:4px 8px}
-  .kc-cab .kc-pic{grid-row:span 2;width:20px;height:20px}
-  .kc-cab b,.kc-cab small{justify-self:start}
-  .kc-furn{--kc-item:42px;width:auto;padding:6px 8px 8px}
-  .kc-furn-body{grid-template-columns:repeat(var(--kc-cols,3),calc(var(--kc-item) + 22px))}
-  .kc-game.is-novice .kc-furn{--kc-tagh:28px}
-  .kc-col{--kc-col-w:auto;grid-template-columns:166px auto;align-items:center;gap:6px}
-  .kc-col.is-spare{--kc-col-w:72px;grid-template-columns:auto}
-  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:92px}
-  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:64px}
-  .kc-line{min-height:26px}
-  /* a long slip sets its lines in two columns, so every line shows without scrolling the slip */
-  .kc-col:has(.kc-line:nth-child(5)){grid-template-columns:min(300px,calc(50vw - 120px)) auto}
-  .kc-lines:has(>.kc-line:nth-child(5)){grid-template-columns:repeat(2,minmax(0,1fr));column-gap:4px}
-  .kc-tray{aspect-ratio:2.6}
-  .kc-ticket-head{height:20px}
   .kc-ask{padding:6px 10px 10px 6px}
   .kc-ask .kc-pic.is-bubble{width:40px;height:40px}
-}
-@media (max-width:719px){
-  .kc-ask .kc-pic.is-bubble{width:40px;height:40px}
-  .kc-ask-line{font-size:14px}
-  .kc-ask-zh{font-size:12px}
-}
-@media (max-width:380px){
-  .kc-room{gap:6px}
-  .kc-room>.kc-icon{display:none}
-  .kc-furn{--kc-item:52px}
-  .kc-col{--kc-col-w:166px}
-}
-
-/* The illustrated kitchen (once the furniture pictures are installed): the painted wall and worktop behind it all,
-   each cabinet its own picture with the things standing on its shelves, the pot and the pan on the hob's two rings,
-   the painted tray, hatch and bell. The drawn pieces above stay as the fallback. */
-.kc-kitchen.is-painted{background:var(--kc-kitchen-art,none) center bottom/cover no-repeat,#f3ead9}
-.kc-kitchen.is-painted .kc-stove{background:none;box-shadow:none}
-.kc-kitchen.is-painted .kc-hood{display:block;width:150px;height:74px;margin:0 auto 8px;background:var(--kc-hood-art) center bottom/contain no-repeat;filter:drop-shadow(0 10px 10px #3c280f33)}
-.kc-kitchen.is-painted .kc-hood::before,.kc-kitchen.is-painted .kc-hood::after{display:none}
-.kc-furn.is-painted{gap:4px;padding:0;border-radius:0;background:none;box-shadow:none}
-.kc-furn.is-painted .kc-furn-name{justify-self:start;padding:2px 9px;border-radius:7px;background:#fffaf0e0;box-shadow:0 0 0 1px #cdaf7866}
-.kc-furn-sets{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;gap:10px 16px}
-.kc-kitchen.is-painted .kc-wall{align-content:flex-start;align-items:flex-end;gap:14px 26px}
-.kc-furn.is-fridge{order:1}.kc-furn.is-shelf{order:2}.kc-furn.is-rack{order:3}.kc-furn.is-crate{order:4}.kc-furn.is-cooler{order:5}
-.kc-furn-set{--kc-set-w:260px;position:relative;width:var(--kc-set-w);max-width:100%;background-position:center bottom;background-repeat:no-repeat;background-size:100% auto;filter:drop-shadow(0 14px 12px #3c280f2e)}
-.kc-furn.is-fridge .kc-furn-set{--kc-set-w:200px}
-.kc-furn.is-shelf .kc-furn-set{--kc-set-w:280px}
-.kc-furn.is-rack .kc-furn-set{--kc-set-w:260px}
-.kc-furn.is-crate .kc-furn-set{--kc-set-w:260px}
-.kc-furn.is-cooler .kc-furn-set{--kc-set-w:240px}
-.kc-furn-set .kc-item{position:absolute;display:block;padding:0;border-radius:0;transform:translateX(-50%)}
-.kc-furn-set .kc-item .kc-pic.is-item{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:0;object-fit:contain;object-position:50% 100%}
-.kc-furn-set .kc-tag{position:absolute;top:calc(100% + 2px);left:50%;z-index:2;width:max-content;max-width:120px;padding:1px 5px 2px;transform:translateX(-50%)}
-.kc-furn-set .kc-tag .kc-no{font-size:11px}
-.kc-furn-set .kc-tag small{font-size:9.5px}
-/* In a crate, a cooler or on the dish rack the tags take turns above and below, so neighbours' words never cover each other. */
-.kc-furn.is-crate .kc-furn-set .kc-item:nth-child(even) .kc-tag,.kc-furn.is-cooler .kc-furn-set .kc-item:nth-child(even) .kc-tag,.kc-furn.is-rack .kc-furn-set .kc-item:nth-child(even) .kc-tag{top:auto;bottom:calc(100% + 2px)}
-/* A shelf with three things or more: every other tag hangs one tag lower, under the board, with room kept for it; a rack's raised tags get room above, clear of the cabinet's name */
-.kc-furn.is-shelf .kc-furn-set:has(>.kc-item:nth-child(3)){margin-bottom:30px}
-.kc-furn.is-shelf .kc-furn-set:has(>.kc-item:nth-child(3)) .kc-item:nth-child(even) .kc-tag{top:calc(100% + 36px)}
-.kc-furn.is-rack .kc-furn-set:has(>.kc-item:nth-child(2)){margin-top:28px}
-.kc-furn.is-shelf .kc-furn-set .kc-tag{top:calc(100% + 5px)}
-.kc-furn.is-fridge .kc-furn-set .kc-tag{top:calc(100% + 1px)}
-/* The fridge's two columns stand close: the left tag opens towards the door, the right one towards the wall, so they never cover each other */
-.kc-furn.is-fridge .kc-furn-set .kc-item:nth-child(odd):not(:last-child) .kc-tag{left:auto;right:0;transform:none}
-.kc-furn.is-fridge .kc-furn-set .kc-item:nth-child(even) .kc-tag{left:0;transform:none}
-.kc-item.is-wrong::after{border-radius:50%}
-/* The hob: the pot and the pan stand on its rings; boards, ovens and grills stand beside it */
-.kc-hob{--kc-hob-w:150px;position:relative;flex:none;width:var(--kc-hob-w);aspect-ratio:4/3;background:var(--kc-hob-art) center bottom/contain no-repeat;filter:drop-shadow(0 10px 10px #3c280f2e)}
-.kc-tool.is-on-ring{position:absolute;bottom:56%;transform:translateX(-50%)}
-.kc-tool.is-ring-left{left:30%}
-.kc-tool.is-ring-right{left:73%}
-.kc-tool.is-ring-mid{left:50%}
-.kc-tool.is-on-ring .kc-tool-pic{width:calc(var(--kc-hob-w)*.36);height:calc(var(--kc-hob-w)*.36)}
-.kc-tool.is-on-ring .kc-meter{position:absolute;top:100%;left:14%;width:72%}
-.kc-tool.is-on-ring .kc-tool-label{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%)}
-/* the two rings' labels lean apart, so on a small hob they never cover each other */
-.kc-tool.is-ring-left .kc-tool-label{transform:translateX(-64%)}
-.kc-tool.is-ring-right .kc-tool-label{transform:translateX(-36%)}
-.kc-kitchen.is-painted .kc-tools{flex-wrap:wrap;align-items:flex-end;gap:14px 12px}
-/* The painted tray */
-.kc-kitchen.is-painted .kc-tray{aspect-ratio:1.6;border-radius:0;background:var(--kc-tray-art) 50% 64%/100% auto no-repeat;box-shadow:none;filter:drop-shadow(0 10px 8px #50320f38)}
-.kc-kitchen.is-painted .kc-col.is-focus .kc-tray{box-shadow:none;filter:drop-shadow(0 0 9px #f2cc74e6) drop-shadow(0 10px 8px #50320f38)}
-.kc-kitchen.is-painted .kc-tray.is-spare{width:84px;opacity:.55}
-/* The painted hatch: the café's own painting through its window, finished dishes on its sill, the brass bell */
-.kc-kitchen.is-painted .kc-pass{align-content:end;aspect-ratio:2;width:clamp(140px,100%,300px);min-width:0;min-height:0;padding:0 9% 19%;border-radius:0;background:none;box-shadow:none;isolation:isolate}
-.kc-kitchen.is-painted .kc-pass::before{content:"";position:absolute;inset:22% 7.5% 21% 7.5%;z-index:0;background:var(--kc-art,linear-gradient(#f6ecd8,#e8d6b4)) center 38%/cover no-repeat;filter:saturate(.9)}
-.kc-kitchen.is-painted .kc-pass::after{content:"";position:absolute;inset:0;z-index:1;height:auto;border-radius:0;background:var(--kc-hatch-art) center/100% 100% no-repeat}
-.kc-kitchen.is-painted .kc-pass>*{position:relative;z-index:2}
-.kc-kitchen.is-painted .kc-pass-head{position:absolute;top:2%;left:50%;padding:1px 9px;border-radius:7px;background:#fffaf0eb;white-space:nowrap;transform:translateX(-50%)}
-.kc-kitchen.is-painted .kc-pass-head small{display:none}
-.kc-kitchen.is-painted .kc-pass-row{min-height:0}
-.kc-kitchen.is-painted .kc-bell{position:absolute;top:auto;right:9%;bottom:19%;z-index:3;width:28px;height:28px;background:var(--kc-bell-art) center/contain no-repeat}
-.kc-kitchen.is-painted .kc-bell::before,.kc-kitchen.is-painted .kc-bell::after,.kc-kitchen.is-painted .kc-bell i{display:none}
-/* The front's painted sign, hanging from its strings */
-.kc-front.is-painted .kc-sign{--kc-sign-w:170px;top:0;display:grid;justify-items:center;align-content:center;gap:0;width:var(--kc-sign-w);aspect-ratio:2;padding:calc(var(--kc-sign-w)*.21) 0 0;border-radius:0;background:var(--kc-sign-art) center/100% 100% no-repeat;box-shadow:none;filter:drop-shadow(0 8px 8px #3c280f33)}
-@media (max-width:719px){
-  .kc-furn.is-fridge .kc-furn-set{--kc-set-w:200px}
-  .kc-hob{--kc-hob-w:100px}
-  .kc-kitchen.is-painted .kc-tools{flex-wrap:nowrap;gap:6px;padding:8px 4px 6px}
-  .kc-kitchen.is-painted .kc-hood{display:none}
-  .kc-kitchen.is-painted .kc-pass{width:124px}
-  .kc-front.is-painted .kc-sign{--kc-sign-w:116px}
-}
-/* A short phone: tighter slips, a smaller tray and stove, and the wall keeps room for its furniture (the kitchen
-   scrolls a little rather than squeezing the fridge away) */
-@media (max-width:719px) and (orientation:portrait){
-  .kc-kitchen{grid-template-rows:max-content max-content minmax(224px,1fr) max-content;overflow-y:auto;overscroll-behavior:contain}
-  /* The stove has the whole width: rings, board and oven side by side with room for their labels (a big room's
-     second set of tools wraps to a second row). The pass sits at the foot beside the cabinet tabs, on the way to the
-     front; each order's slip stands beside its tray, so an order takes one short row */
-  .kc-kitchen{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"rail rail" "stove stove" "wall wall" "cabs cabs"}
-  .kc-kitchen.is-nostove{grid-template-areas:"rail rail" "wall wall" "wall wall" "cabs cabs"}
-  .kc-kitchen.is-painted .kc-pass{align-self:end;width:100px}
-  .kc-col{--kc-col-w:auto;grid-template-columns:minmax(160px,min(232px,calc(100vw - 158px))) auto;align-items:center;gap:6px}
-  /* the front: ordering gets the larger share (the menu is where the answer is tapped), so a long menu shows whole */
-  .kc-front{grid-template-rows:minmax(0,1.75fr) minmax(0,1fr)}
-  .kc-board-list{max-height:48cqh}
-  /* the row of cabinets stays at the foot of the screen however long the order slip is, so another cabinet is always one tap away */
-  .kc-cabs{position:sticky;bottom:-8px;z-index:4;margin:0 -8px -8px;padding:6px 10px 10px;background:linear-gradient(#e6c99300,#e6c993f2 30%)}
-  .kc-col.is-spare{--kc-col-w:72px;grid-template-columns:auto}
-  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:100px}
-  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:64px}
-  .kc-kitchen.is-painted .kc-tools{flex-wrap:wrap;justify-content:center;gap:6px 16px;padding:8px 6px 6px}
-  .kc-hob{--kc-hob-w:136px}
-  /* five tools (the hob's two and three beside it) fit one row, a size smaller */
-  .kc-stove.is-many{--kc-tool:44px}
-  .kc-kitchen.is-painted .kc-stove.is-many .kc-tools{flex-wrap:nowrap;gap:6px 8px}
-  .kc-stove.is-many .kc-hob{--kc-hob-w:min(124px,32vw)}
-  /* A cabinet with more things than one piece of furniture holds shows its pieces one above another, each scaled so
-     all of them fit the space left (never smaller than 170 px wide; only then does the wall scroll) */
-  .kc-kitchen.is-painted .kc-wall{container:kc-wall/size}
-  .kc-kitchen.is-painted .kc-furn-sets{flex-direction:column;flex-wrap:nowrap;align-items:center;gap:8px}
-  .kc-kitchen.is-painted .kc-furn.is-open .kc-furn-set{width:clamp(min(190px,100%),calc((100cqh - 60px - (var(--kc-sets) - 1)*8px)/var(--kc-sets)*var(--kc-ar)),min(var(--kc-set-w),100%))}
-}
-/* …and when even that leaves them too small (a short phone, a long order slip), they stand side by side as tall as the
-   wall allows, in a strip that swipes sideways; the next piece shows at the edge */
-@media (max-width:719px) and (orientation:portrait){
-  @container kc-wall (max-height:360px){
-    .kc-kitchen.is-painted .kc-furn.is-sets-2 .kc-furn-sets{flex-direction:row;justify-content:flex-start;align-items:flex-end;gap:12px;margin:0 -12px;padding:0 12px 2px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding:0 12px;scrollbar-width:none}
-    .kc-kitchen.is-painted .kc-furn.is-sets-2.is-open .kc-furn-set{flex:none;width:min(calc((100cqh - 56px)*var(--kc-ar)),calc(100cqw - 64px),var(--kc-set-w));scroll-snap-align:start}
-  }
-  @container kc-wall (max-height:520px){
-    .kc-kitchen.is-painted .kc-furn.is-sets-3 .kc-furn-sets{flex-direction:row;justify-content:flex-start;align-items:flex-end;gap:12px;margin:0 -12px;padding:0 12px 2px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding:0 12px;scrollbar-width:none}
-    .kc-kitchen.is-painted .kc-furn.is-sets-3.is-open .kc-furn-set{flex:none;width:min(calc((100cqh - 56px)*var(--kc-ar)),calc(100cqw - 64px),var(--kc-set-w));scroll-snap-align:start}
-  }
-  .kc-furn-sets.is-overflow{-webkit-mask-image:linear-gradient(90deg,#000 82%,#0000);mask-image:linear-gradient(90deg,#000 82%,#0000)}
-  .kc-furn-sets.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000);mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000)}
-  .kc-furn-sets.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%);mask-image:linear-gradient(90deg,#0000,#000 12%)}
-  /* a tall cabinet (the fridge) on a short phone: the wall fades at the edge that has more to show */
-  .kc-kitchen.is-painted .kc-wall.is-overflow{-webkit-mask-image:linear-gradient(#000 86%,#0000);mask-image:linear-gradient(#000 86%,#0000)}
-  .kc-kitchen.is-painted .kc-wall.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(#0000,#000 10%,#000 86%,#0000);mask-image:linear-gradient(#0000,#000 10%,#000 86%,#0000)}
-  .kc-kitchen.is-painted .kc-wall.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(#0000,#000 10%);mask-image:linear-gradient(#0000,#000 10%)}
-}
-@media (max-width:719px) and (max-height:760px) and (orientation:portrait){
-  .kc-kitchen{grid-template-rows:max-content max-content minmax(204px,1fr) max-content;gap:6px}
-  .kc-cab{grid-template-columns:auto auto;align-items:center;column-gap:5px;padding:5px 9px}
-  .kc-cab .kc-pic{grid-row:span 2;width:22px;height:22px}
-  .kc-cab b,.kc-cab small{justify-self:start}
-  /* the front: a shorter menu, so the waiting line stays clear of the order bubble */
-  .kc-board-list{max-height:50cqh}
-  .kc-dish{min-height:32px;padding:2px 5px}
-  .kc-dish .kc-no{font-size:13.5px;line-height:1.12}
-  .kc-dish small{font-size:10.5px}
-  .kc-person.is-queued{width:30px;height:30px}
-  .kc-ask{bottom:10px;max-width:calc(100% - 108px);padding:8px 12px 11px 8px}
-  .kc-ask .kc-pic.is-bubble{width:44px;height:44px}
-  .kc-ask-line{font-size:14px}
-  .kc-rail{padding-top:6px}
-  .kc-col{gap:4px}
-  .kc-ticket{padding:10px 5px 4px}
-  .kc-ticket-head{height:20px}
-  .kc-line{min-height:25px;padding:1px 5px}
-  .kc-line .kc-pic.is-line{width:20px;height:20px}
-  .kc-tray,.kc-kitchen.is-painted .kc-tray{width:92px}
-  .kc-kitchen .kc-tray.is-spare,.kc-kitchen.is-painted .kc-tray.is-spare{width:60px}
-  .kc-hob{--kc-hob-w:124px}
-  .kc-kitchen.is-painted .kc-tools{padding:6px 4px 4px}
-  .kc-kitchen.is-painted .kc-pass{width:92px}
-}
-/* A computer's wall: the fridge, then the shelves one above another, then the rack, crate and cooler, column by column */
-@media (min-width:960px) and (min-height:600px){
-  .kc-furn.is-fridge .kc-furn-set{--kc-set-w:calc(220px*var(--kc-scale,1))}
-  .kc-furn.is-shelf .kc-furn-set{--kc-set-w:calc(280px*var(--kc-scale,1))}
-  .kc-furn.is-rack .kc-furn-set,.kc-furn.is-crate .kc-furn-set{--kc-set-w:calc(260px*var(--kc-scale,1))}
-  .kc-furn.is-cooler .kc-furn-set{--kc-set-w:calc(240px*var(--kc-scale,1))}
-  .kc-kitchen.is-painted .kc-wall{flex-direction:column;flex-wrap:wrap;align-content:flex-start;align-content:safe center;justify-content:flex-start;align-items:flex-start;gap:6px 30px;padding:6px 8px}
-  .kc-kitchen.is-painted .kc-furn-sets{flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:6px}
-  /* …or in rows along the wall, standing on a common line, when that lets them be drawn larger (fitWall in kitchen.js) */
-  .kc-kitchen.is-painted .kc-wall[data-flow="row"]{flex-direction:row;flex-wrap:wrap;align-content:safe center;justify-content:safe center;align-items:flex-end;gap:12px 30px}
-  /* A cabinet in several pieces may stand them side by side (how many: fitWall in kitchen.js) */
-  .kc-kitchen.is-painted .kc-furn.is-multi .kc-furn-sets{display:grid;grid-template-columns:repeat(var(--kc-set-cols,1),max-content);align-items:end;gap:6px 14px}
-}
-@media (min-width:1200px) and (min-height:760px){
-  .kc-furn.is-fridge .kc-furn-set{--kc-set-w:calc(240px*var(--kc-scale,1))}
-  .kc-furn.is-shelf .kc-furn-set{--kc-set-w:calc(300px*var(--kc-scale,1))}
-  .kc-furn.is-rack .kc-furn-set,.kc-furn.is-crate .kc-furn-set{--kc-set-w:calc(280px*var(--kc-scale,1))}
-  .kc-hob{--kc-hob-w:170px}
-}
-@media (orientation:landscape) and (max-height:599px){
-  .kc-furn.is-fridge .kc-furn-set{--kc-set-w:150px}
-  .kc-furn.is-shelf .kc-furn-set{--kc-set-w:240px}
-  .kc-furn.is-rack .kc-furn-set,.kc-furn.is-crate .kc-furn-set,.kc-furn.is-cooler .kc-furn-set{--kc-set-w:200px}
-  .kc-hob{--kc-hob-w:104px}
-  .kc-tool.is-on-ring .kc-tool-label{padding:1px 5px 2px}
-  .kc-kitchen.is-painted .kc-hood{display:none}
+  .kc-front{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
   .kc-front.is-painted .kc-sign{--kc-sign-w:112px}
-  /* the open cabinet as tall as the wall allows; a cabinet in several pieces stands them side by side in a strip
-     that swipes sideways, the next piece showing at the edge */
-  .kc-kitchen.is-painted .kc-wall{container:kc-wall/size;overflow:hidden;padding:0 2px}
-  .kc-kitchen.is-painted .kc-furn.is-open{width:100%;padding:0}
-  .kc-kitchen.is-painted .kc-furn-sets{flex-direction:row;flex-wrap:nowrap;justify-content:center;align-items:flex-end;gap:12px;padding:0 2px 2px}
-  .kc-kitchen.is-painted .kc-furn.is-multi .kc-furn-sets{justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:none}
-  .kc-kitchen.is-painted .kc-furn.is-open .kc-furn-set{flex:none;width:min(calc((100cqh - 40px)*var(--kc-ar)),100cqw - 8px);scroll-snap-align:start}
-  .kc-kitchen.is-painted .kc-furn.is-multi.is-open .kc-furn-set{width:min(calc((100cqh - 40px)*var(--kc-ar)),100cqw - 56px)}
-  .kc-furn-sets.is-overflow{-webkit-mask-image:linear-gradient(90deg,#000 82%,#0000);mask-image:linear-gradient(90deg,#000 82%,#0000)}
-  .kc-furn-sets.is-overflow.is-scrolled{-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000);mask-image:linear-gradient(90deg,#0000,#000 12%,#000 82%,#0000)}
-  .kc-furn-sets.is-scrolled:not(.is-overflow){-webkit-mask-image:linear-gradient(90deg,#0000,#000 12%);mask-image:linear-gradient(90deg,#0000,#000 12%)}
+  .kc-kitchen{--kc-card-w:min(100%,400px);--kc-tray-w:66px;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"rail store" "stove store";gap:6px;padding:6px}
+  .kc-kitchen.is-nostove{grid-template-rows:minmax(0,1fr);grid-template-areas:"rail store"}
+  .kc-rail{padding-top:10px;overflow-y:auto}
+  .kc-lines{--kc-line-w:118px}
+  .kc-ticket-head{min-height:30px}
+  .kc-ticket-head .kc-face.is-mini{width:24px;height:24px}
+  .kc-line{min-height:38px;column-gap:5px;padding:2px 4px}
+  .kc-line .kc-pic.is-line{width:22px;height:22px}
+  .kc-line-word .kc-no{font-size:14px}
+  .kc-line-sub small{font-size:11px}
+  .kc-line-verb{padding:0 5px;font-size:12px}
+  .kc-hob,.kc-stove.is-many .kc-hob{--kc-hob-w:100px}
+  .kc-tools{flex-wrap:nowrap;padding:6px 6px 4px}
+  .kc-tool.is-on-ring .kc-tool-label{padding:1px 5px 2px}
+  .kc-cab{min-height:40px;padding:3px 10px 3px 5px}
+  .kc-cab .kc-pic{width:22px;height:22px}
+  .kc-wall{padding-top:10px}
+  .kc-furn{--kc-item-min:38px;--kc-item-max:56px;--kc-fs:.16}
+  .kc-game.is-novice .kc-furn{--kc-cell-min:76px}
+  .kc-tag .kc-no{font-size:12.5px}
+  .kc-tag small{font-size:10px}
 }
-
-/* A small phone held sideways: the orders get a little more of the width, so a long slip's two columns stay readable */
+/* A small phone held sideways: the till side takes more of the width, so the order bubble has room beside the menu */
 @media (orientation:landscape) and (max-height:599px) and (max-width:759px){
-  .kc-kitchen{grid-template-columns:minmax(0,1.15fr) auto minmax(0,.85fr)}
-  .kc-col:has(.kc-line:nth-child(5)){grid-template-columns:min(300px,calc(57.5vw - 110px)) auto}
-  .kc-col:has(.kc-line:nth-child(5)) .kc-tray{width:80px}
+  .kc-front{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+  .kc-zone.is-order{grid-template-columns:minmax(196px,.85fr) minmax(0,1fr);column-gap:8px;padding:10px 10px 0}
+  .kc-board-sign small{display:none}
+  .kc-person.is-asker{height:min(58cqh,40cqw)}
+  .kc-ask{bottom:calc(min(58cqh,40cqw) - 4px);min-width:150px}
 }
 /* Pages a size up */
 @media (min-width:720px){
@@ -1014,9 +979,9 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
   .kc-icon-button{width:38px;height:38px}
 }
 @media (prefers-reduced-motion:reduce){
-  .kc-root,.kc-person,.kc-spot,.kc-float,.kc-chat-menu,.kc-confirm,.kc-sheet,.kc-shell.is-enter>*,.kc-digit,.kc-count,.kc-count.is-end>span,.kc-col.is-new{animation-duration:.01ms!important;animation-delay:0s!important}
-  .kc-item.is-called .kc-pic,.kc-game .is-undo,.kc-line.is-fresh,.kc-tray-item.is-fresh,.kc-ready.is-fresh .kc-pic,.kc-tool.is-new .kc-tool-food,.kc-steam i,.kc-ready-label,.kc-room.is-calling::after,
-  .kc-pass.is-ringing .kc-bell,.kc-scoreboard.is-new::before,.kc-stars i.is-new .kc-icon,.kc-stars i.is-new::after,.kc-new-star{animation:none!important}
+  .kc-root,.kc-person,.kc-spot,.kc-float,.kc-chat-menu,.kc-confirm,.kc-sheet,.kc-shell.is-enter>*,.kc-digit,.kc-count,.kc-count.is-end>span,.kc-col.is-new,.kc-hand{animation-duration:.01ms!important;animation-delay:0s!important}
+  .kc-item.is-called .kc-pic,.kc-game .is-undo,.kc-line.is-fresh,.kc-tray-item.is-fresh,.kc-ready.is-fresh .kc-pic,.kc-tool.is-new .kc-tool-food,.kc-steam i,.kc-ready-label,.kc-room.is-calling::after,.kc-cab.is-called::after,
+  .kc-scoreboard.is-new::before,.kc-stars i.is-new .kc-icon,.kc-stars i.is-new::after,.kc-new-star{animation:none!important}
   .kc-patience i{animation:kc-drain var(--kc-patience,60s) linear var(--kc-elapsed,0s) both,kc-tint var(--kc-patience,60s) linear var(--kc-elapsed,0s) both!important}
   .kc-item.is-held .kc-pic.is-item,.kc-tool.is-choice .kc-tool-pic{transform:none}
   img.kc-hero-art,img.kc-scene-banner{transition:none}
