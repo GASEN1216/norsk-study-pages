@@ -56675,21 +56675,31 @@
           "english": "duvet"
         },
         {
-          "word": "handkle",
+          "word": "håndkle",
           "meaning": "毛巾",
-          "syllables": "hand·kle",
-          "ipa": "/ˈhɑŋˌkleː/",
+          "syllables": "hånd·kle",
+          "ipa": "/ˈhɔŋˌkleː/",
           "difficulty": 4,
           "pos": "名词",
           "gender": "n",
           "genderSource": "textbook-ordliste",
           "article": "et",
-          "forms": [],
-          "formsExpanded": [],
-          "usage": "",
-          "spoken": "handkle",
-          "variants": [],
-          "pronunciationSource": "NB Uttale / 已核对基础词",
+          "forms": [
+            "-et",
+            "-ær",
+            "-ærne"
+          ],
+          "formsExpanded": [
+            "håndkleet",
+            "håndklær",
+            "håndklærne"
+          ],
+          "usage": "优先学习较常用的写法 håndkle；教材写作 handkle，两者都是规范写法。",
+          "spoken": "håndkle",
+          "variants": [
+            "handkle"
+          ],
+          "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
           "sourceEntry": "et handkle",
           "sourceOrder": 119,
           "sourceSection": "6.5",
@@ -56716,10 +56726,13 @@
           "sentenceSection": null,
           "sentenceSource": "",
           "posSource": "textbook",
-          "example": "Jeg trenger et rent handkle.",
+          "example": "Jeg trenger et rent håndkle.",
           "exampleSource": "study",
           "exampleLabel": "学习例句（非教材原句）",
-          "english": "towel"
+          "english": "towel",
+          "practiceAliases": [
+            "handkle"
+          ]
         },
         {
           "word": "tørke",
@@ -62809,21 +62822,31 @@
               "english": "duvet"
             },
             {
-              "word": "handkle",
+              "word": "håndkle",
               "meaning": "毛巾",
-              "syllables": "hand·kle",
-              "ipa": "/ˈhɑŋˌkleː/",
+              "syllables": "hånd·kle",
+              "ipa": "/ˈhɔŋˌkleː/",
               "difficulty": 4,
               "pos": "名词",
               "gender": "n",
               "genderSource": "textbook-ordliste",
               "article": "et",
-              "forms": [],
-              "formsExpanded": [],
-              "usage": "",
-              "spoken": "handkle",
-              "variants": [],
-              "pronunciationSource": "NB Uttale / 已核对基础词",
+              "forms": [
+                "-et",
+                "-ær",
+                "-ærne"
+              ],
+              "formsExpanded": [
+                "håndkleet",
+                "håndklær",
+                "håndklærne"
+              ],
+              "usage": "优先学习较常用的写法 håndkle；教材写作 handkle，两者都是规范写法。",
+              "spoken": "håndkle",
+              "variants": [
+                "handkle"
+              ],
+              "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
               "sourceEntry": "et handkle",
               "sourceOrder": 119,
               "sourceSection": "6.5",
@@ -62850,10 +62873,13 @@
               "sentenceSection": null,
               "sentenceSource": "",
               "posSource": "textbook",
-              "example": "Jeg trenger et rent handkle.",
+              "example": "Jeg trenger et rent håndkle.",
               "exampleSource": "study",
               "exampleLabel": "学习例句（非教材原句）",
-              "english": "towel"
+              "english": "towel",
+              "practiceAliases": [
+                "handkle"
+              ]
             },
             {
               "word": "tørke",
@@ -128316,27 +128342,31 @@
           "english": "jog"
         },
         {
-          "word": "hjemmelagd",
+          "word": "hjemmelaget",
           "meaning": "自制",
-          "syllables": "hjem·me·lagd",
-          "ipa": "/ˈjɛməˌlɑgd/",
+          "syllables": "hjem·me·la·get",
+          "ipa": "/ˈjɛməˌlɑːgət/",
           "difficulty": 3,
           "pos": "形容词",
           "gender": "",
           "genderSource": "",
           "article": "",
           "forms": [
-            "-",
-            "-e"
+            "hjemmelaget",
+            "hjemmelagede",
+            "hjemmelagete"
           ],
           "formsExpanded": [
-            "hjemmelagd",
-            "hjemmelagde"
+            "hjemmelaget",
+            "hjemmelagede",
+            "hjemmelagete"
           ],
-          "usage": "原书变化：-, -e",
-          "spoken": "hjemmelagd",
-          "variants": [],
-          "pronunciationSource": "NB Uttale / 已核对基础词",
+          "usage": "优先学习较常用的写法 hjemmelaget；教材写作 hjemmelagd，两者都是规范写法。新词头的中性形式为 hjemmelaget，复数或定式为 hjemmelagede / hjemmelagete；原书变化缩写见来源记录。",
+          "spoken": "hjemmelaget",
+          "variants": [
+            "hjemmelagd"
+          ],
+          "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
           "sourceEntry": "hjemmelagd, -, -e",
           "sourceOrder": 84,
           "sourceSection": "12.4",
@@ -128363,7 +128393,10 @@
           "sentenceSection": "12.4",
           "sentenceSource": "textbook-reading",
           "posSource": "textbook",
-          "english": "homemade"
+          "english": "homemade",
+          "practiceAliases": [
+            "hjemmelagd"
+          ]
         },
         {
           "word": "rundstykke",
@@ -129063,23 +129096,31 @@
           "english": "stomach"
         },
         {
-          "word": "rompe",
+          "word": "rumpe",
           "meaning": "屁股；臀部",
-          "syllables": "rom·pe",
+          "syllables": "rum·pe",
           "ipa": "/ˈrʊmpə/",
           "difficulty": 4,
           "pos": "名词",
           "gender": "f/m",
-          "genderSource": "Bokmålsordboka rumpe（对应原书词形 rompe）",
+          "genderSource": "Bokmålsordboka: ei/en rumpe",
           "article": "ei/en",
-          "forms": [],
-          "formsExpanded": [],
-          "usage": "原书写作 en/en rompe；保留词头。现行 Bokmålsordboka 收录 rumpe，阴性或阳性：ei/en rumpe。",
-          "spoken": "rompe",
-          "variants": [
-            "rumpe"
+          "forms": [
+            "rumpa",
+            "rumpen",
+            "rumper",
+            "rumpene"
           ],
-          "pronunciationSource": "人工核对常用缩写或专名；人名采用挪威语近似读音",
+          "formsExpanded": [
+            "rumpa",
+            "rumpen",
+            "rumper",
+            "rumpene"
+          ],
+          "usage": "学习词头用现行规范写法 rumpe；教材原词头为 en/en rompe，保留在来源记录中。",
+          "spoken": "rumpe",
+          "variants": [],
+          "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
           "sourceEntry": "en/en rompe",
           "sourceOrder": 27,
           "sourceSection": "12.1",
@@ -129109,7 +129150,10 @@
           "example": "Barnet falt på rumpa.",
           "exampleSource": "study",
           "exampleLabel": "学习例句（非教材原句）",
-          "english": "bottom"
+          "english": "bottom",
+          "practiceAliases": [
+            "rompe"
+          ]
         },
         {
           "word": "bein",
@@ -130342,10 +130386,10 @@
           "english": "sick note"
         },
         {
-          "word": "tjukk",
+          "word": "tykk",
           "meaning": "胖的；厚的",
-          "syllables": "tjukk",
-          "ipa": "/ˈçʉk/",
+          "syllables": "tykk",
+          "ipa": "/ˈtʏk/",
           "difficulty": 4,
           "pos": "形容词",
           "gender": "",
@@ -130356,13 +130400,15 @@
             "-e"
           ],
           "formsExpanded": [
-            "tjukt",
-            "tjukke"
+            "tykt",
+            "tykke"
           ],
-          "usage": "原书变化：-t, -e",
-          "spoken": "tjukk",
-          "variants": [],
-          "pronunciationSource": "NB Uttale / 已核对基础词",
+          "usage": "优先学习较常用的写法 tykk；教材写作 tjukk，两者都是规范写法。",
+          "spoken": "tykk",
+          "variants": [
+            "tjukk"
+          ],
+          "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
           "sourceEntry": "tjukk, -t, -e",
           "sourceOrder": 62,
           "sourceSection": "12.3",
@@ -130389,7 +130435,10 @@
           "sentenceSection": "12.3",
           "sentenceSource": "textbook-reading",
           "posSource": "textbook",
-          "english": "thick, fat"
+          "english": "thick, fat",
+          "practiceAliases": [
+            "tjukk"
+          ]
         },
         {
           "word": "perfekt",
@@ -131192,10 +131241,10 @@
           "english": "diabetes"
         },
         {
-          "word": "sydlig",
-          "meaning": "南方的；向南的（sørlig 的变体）",
-          "syllables": "syd·lig",
-          "ipa": "/ˈsyːdlɪ/",
+          "word": "sørlig",
+          "meaning": "南方的；向南的",
+          "syllables": "sør·lig",
+          "ipa": "/ˈsøːɭɪ/",
           "difficulty": 4,
           "pos": "形容词",
           "gender": "",
@@ -131206,13 +131255,15 @@
             "-e"
           ],
           "formsExpanded": [
-            "sydlig",
-            "sydlige"
+            "sørlig",
+            "sørlige"
           ],
-          "usage": "原书变化：-, -e；原书写作 sydlig，意为南方的；“微酸的”应写 syrlig，勿混淆。参见 ordbokene.no/bm/sydlig",
-          "spoken": "sydlig",
-          "variants": [],
-          "pronunciationSource": "NB Uttale / 已核对基础词",
+          "usage": "优先学习较常用的写法 sørlig；教材写作 sydlig，两者都是规范写法。勿与 syrlig（微酸的）混淆。",
+          "spoken": "sørlig",
+          "variants": [
+            "sydlig"
+          ],
+          "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
           "sourceEntry": "sydlig, -, -e",
           "sourceOrder": 98,
           "sourceSection": "12.4",
@@ -131241,10 +131292,13 @@
           "sentenceSection": "12.4",
           "sentenceSource": "textbook-reading",
           "posSource": "textbook",
-          "example": "Det blåser en sydlig vind.",
+          "example": "Det blåser en sørlig vind.",
           "exampleSource": "study",
           "exampleLabel": "学习例句（非教材原句）",
-          "english": "southern"
+          "english": "southern",
+          "practiceAliases": [
+            "sydlig"
+          ]
         },
         {
           "word": "tran",
@@ -134143,23 +134197,31 @@
               "english": "stomach"
             },
             {
-              "word": "rompe",
+              "word": "rumpe",
               "meaning": "屁股；臀部",
-              "syllables": "rom·pe",
+              "syllables": "rum·pe",
               "ipa": "/ˈrʊmpə/",
               "difficulty": 4,
               "pos": "名词",
               "gender": "f/m",
-              "genderSource": "Bokmålsordboka rumpe（对应原书词形 rompe）",
+              "genderSource": "Bokmålsordboka: ei/en rumpe",
               "article": "ei/en",
-              "forms": [],
-              "formsExpanded": [],
-              "usage": "原书写作 en/en rompe；保留词头。现行 Bokmålsordboka 收录 rumpe，阴性或阳性：ei/en rumpe。",
-              "spoken": "rompe",
-              "variants": [
-                "rumpe"
+              "forms": [
+                "rumpa",
+                "rumpen",
+                "rumper",
+                "rumpene"
               ],
-              "pronunciationSource": "人工核对常用缩写或专名；人名采用挪威语近似读音",
+              "formsExpanded": [
+                "rumpa",
+                "rumpen",
+                "rumper",
+                "rumpene"
+              ],
+              "usage": "学习词头用现行规范写法 rumpe；教材原词头为 en/en rompe，保留在来源记录中。",
+              "spoken": "rumpe",
+              "variants": [],
+              "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
               "sourceEntry": "en/en rompe",
               "sourceOrder": 27,
               "sourceSection": "12.1",
@@ -134189,7 +134251,10 @@
               "example": "Barnet falt på rumpa.",
               "exampleSource": "study",
               "exampleLabel": "学习例句（非教材原句）",
-              "english": "bottom"
+              "english": "bottom",
+              "practiceAliases": [
+                "rompe"
+              ]
             },
             {
               "word": "bein",
@@ -136275,10 +136340,10 @@
               "english": "apology, excuse"
             },
             {
-              "word": "tjukk",
+              "word": "tykk",
               "meaning": "胖的；厚的",
-              "syllables": "tjukk",
-              "ipa": "/ˈçʉk/",
+              "syllables": "tykk",
+              "ipa": "/ˈtʏk/",
               "difficulty": 4,
               "pos": "形容词",
               "gender": "",
@@ -136289,13 +136354,15 @@
                 "-e"
               ],
               "formsExpanded": [
-                "tjukt",
-                "tjukke"
+                "tykt",
+                "tykke"
               ],
-              "usage": "原书变化：-t, -e",
-              "spoken": "tjukk",
-              "variants": [],
-              "pronunciationSource": "NB Uttale / 已核对基础词",
+              "usage": "优先学习较常用的写法 tykk；教材写作 tjukk，两者都是规范写法。",
+              "spoken": "tykk",
+              "variants": [
+                "tjukk"
+              ],
+              "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
               "sourceEntry": "tjukk, -t, -e",
               "sourceOrder": 62,
               "sourceSection": "12.3",
@@ -136322,7 +136389,10 @@
               "sentenceSection": "12.3",
               "sentenceSource": "textbook-reading",
               "posSource": "textbook",
-              "english": "thick, fat"
+              "english": "thick, fat",
+              "practiceAliases": [
+                "tjukk"
+              ]
             },
             {
               "word": "perfekt",
@@ -137107,27 +137177,31 @@
               "english": "jog"
             },
             {
-              "word": "hjemmelagd",
+              "word": "hjemmelaget",
               "meaning": "自制",
-              "syllables": "hjem·me·lagd",
-              "ipa": "/ˈjɛməˌlɑgd/",
+              "syllables": "hjem·me·la·get",
+              "ipa": "/ˈjɛməˌlɑːgət/",
               "difficulty": 3,
               "pos": "形容词",
               "gender": "",
               "genderSource": "",
               "article": "",
               "forms": [
-                "-",
-                "-e"
+                "hjemmelaget",
+                "hjemmelagede",
+                "hjemmelagete"
               ],
               "formsExpanded": [
-                "hjemmelagd",
-                "hjemmelagde"
+                "hjemmelaget",
+                "hjemmelagede",
+                "hjemmelagete"
               ],
-              "usage": "原书变化：-, -e",
-              "spoken": "hjemmelagd",
-              "variants": [],
-              "pronunciationSource": "NB Uttale / 已核对基础词",
+              "usage": "优先学习较常用的写法 hjemmelaget；教材写作 hjemmelagd，两者都是规范写法。新词头的中性形式为 hjemmelaget，复数或定式为 hjemmelagede / hjemmelagete；原书变化缩写见来源记录。",
+              "spoken": "hjemmelaget",
+              "variants": [
+                "hjemmelagd"
+              ],
+              "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
               "sourceEntry": "hjemmelagd, -, -e",
               "sourceOrder": 84,
               "sourceSection": "12.4",
@@ -137154,7 +137228,10 @@
               "sentenceSection": "12.4",
               "sentenceSource": "textbook-reading",
               "posSource": "textbook",
-              "english": "homemade"
+              "english": "homemade",
+              "practiceAliases": [
+                "hjemmelagd"
+              ]
             },
             {
               "word": "rundstykke",
@@ -137727,10 +137804,10 @@
               "english": "diabetes"
             },
             {
-              "word": "sydlig",
-              "meaning": "南方的；向南的（sørlig 的变体）",
-              "syllables": "syd·lig",
-              "ipa": "/ˈsyːdlɪ/",
+              "word": "sørlig",
+              "meaning": "南方的；向南的",
+              "syllables": "sør·lig",
+              "ipa": "/ˈsøːɭɪ/",
               "difficulty": 4,
               "pos": "形容词",
               "gender": "",
@@ -137741,13 +137818,15 @@
                 "-e"
               ],
               "formsExpanded": [
-                "sydlig",
-                "sydlige"
+                "sørlig",
+                "sørlige"
               ],
-              "usage": "原书变化：-, -e；原书写作 sydlig，意为南方的；“微酸的”应写 syrlig，勿混淆。参见 ordbokene.no/bm/sydlig",
-              "spoken": "sydlig",
-              "variants": [],
-              "pronunciationSource": "NB Uttale / 已核对基础词",
+              "usage": "优先学习较常用的写法 sørlig；教材写作 sydlig，两者都是规范写法。勿与 syrlig（微酸的）混淆。",
+              "spoken": "sørlig",
+              "variants": [
+                "sydlig"
+              ],
+              "pronunciationSource": "NB Uttale / 已按学习词头及词性核对",
               "sourceEntry": "sydlig, -, -e",
               "sourceOrder": 98,
               "sourceSection": "12.4",
@@ -137776,10 +137855,13 @@
               "sentenceSection": "12.4",
               "sentenceSource": "textbook-reading",
               "posSource": "textbook",
-              "example": "Det blåser en sydlig vind.",
+              "example": "Det blåser en sørlig vind.",
               "exampleSource": "study",
               "exampleLabel": "学习例句（非教材原句）",
-              "english": "southern"
+              "english": "southern",
+              "practiceAliases": [
+                "sydlig"
+              ]
             },
             {
               "word": "tran",

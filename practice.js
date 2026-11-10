@@ -45,6 +45,96 @@
   };
   const unique = values => [...new Set(values.filter(Boolean))];
   const has = (object,key) => Object.prototype.hasOwnProperty.call(object || {},key);
+  // Only reviewed headword changes migrate saved keys; ordinary spelling variants do not.
+  let practiceAliases = new Map();
+  function migratePracticeKeys(store) {
+    if (!practiceAliases.size) return store;
+    const keyOf = key => practiceAliases.get(key) || key;
+    const keysOf = keys => Array.isArray(keys) ? unique(keys.map(keyOf)) : keys;
+    const rekey = (values,merge=(_old,current) => current) => {
+      if (!values || typeof values !== 'object') return values;
+      for (const [old,key] of practiceAliases) if (has(values,old)) {
+        values[key] = has(values,key) ? merge(values[old],values[key]) : values[old];
+        delete values[old];
+      }
+      return values;
+    };
+    const reference = value => {
+      if (!value) return;
+      const proposed=value.proposedKey;
+      for (const field of ['key','proposedKey','matchedKey']) if (typeof value[field] === 'string') value[field]=keyOf(value[field]);
+      if (Array.isArray(value.acceptableKeys)) value.acceptableKeys=keysOf(value.acceptableKeys);
+      for (const option of value.options || []) {
+        const previous=option.key; reference(option);
+        if (previous !== option.key && value.direction === 'to-nb') option.text=state.words.get(option.key)?.word || option.text;
+      }
+      if (proposed !== value.proposedKey && value.direction === 'to-nb') value.proposed=state.words.get(value.proposedKey)?.word || value.proposed;
+    };
+    rekey(store.stats,(old,current) => {
+      const latest=String(old.lastAt || '') > String(current.lastAt || '') ? old : current;
+      const review=String(old.lastReviewAt || '') > String(current.lastReviewAt || '') ? old : current;
+      return {...old,...current,...latest,seen:(old.seen || 0)+(current.seen || 0),points:(old.points || 0)+(current.points || 0),reviews:(old.reviews || 0)+(current.reviews || 0),
+        ...(review.lastReviewAt ? {lastReviewAt:review.lastReviewAt,lastReviewPoints:review.lastReviewPoints} : {})};
+    });
+    store.favorites=keysOf(store.favorites);
+    for (const config of [...(store.sets || []),...(store.recent || []),store.draft]) if (config?.customKeys) config.customKeys=keysOf(config.customKeys);
+    // Completed result text remains the original snapshot; its links follow the reviewed spelling.
+    for (const result of store.history || []) {
+      if (result.customKeys) result.customKeys=keysOf(result.customKeys);
+      for (const answer of result.answers || []) { reference(answer); reference(answer.detail); }
+    }
+    for (const signature of Object.keys(store.matchBest || {})) {
+      let keys; try { keys=JSON.parse(signature); } catch { continue; }
+      if (!Array.isArray(keys)) continue;
+      const updated=JSON.stringify(keysOf(keys).sort());
+      if (updated === signature) continue;
+      const best=store.matchBest[signature], current=store.matchBest[updated];
+      if (!current || best.timeMs < current.timeMs) store.matchBest[updated]=best;
+      delete store.matchBest[signature];
+    }
+    const session=store.active;
+    if (!session) return store;
+    const previous=currentKeys(session)?.[session.index], current=keyOf(previous);
+    const changedGap=previous !== current && session.questions?.[previous]?.gap;
+    const renamedQuestions=new Set(Object.keys(session.questions || {}).filter(key => keyOf(key) !== key).map(keyOf));
+    const changedQuestions=new Set(Object.entries(session.questions || {}).filter(([key,question]) =>
+      ['judge','choice'].includes(question.type) && (keyOf(key) !== key ||
+        (question.proposedKey && keyOf(question.proposedKey) !== question.proposedKey) ||
+        question.options?.some(option => keyOf(option.key) !== option.key))).map(([key]) => keyOf(key)));
+    if (session.customKeys) session.customKeys=keysOf(session.customKeys);
+    if (session.firstKeys) session.firstKeys=keysOf(session.firstKeys);
+    // Repeated review words are intentional: an incorrect answer queues another attempt.
+    if (Array.isArray(session.reviewKeys)) session.reviewKeys=session.reviewKeys.map(keyOf);
+    for (const field of ['answers','reviewAnswers','details','reviewDetails','questions']) rekey(session[field]);
+    for (const field of ['details','reviewDetails']) for (const detail of Object.values(session[field] || {})) reference(detail);
+    for (const [key,question] of Object.entries(session.questions || {})) {
+      reference(question);
+      if (renamedQuestions.has(key)) delete question.gap;
+      // Merging two spellings can turn a distractor into the answer. Rebuild only
+      // unanswered questions, retaining every already-recorded score and detail.
+      if (changedQuestions.has(key) && !has(session.answers,key)) {
+        delete session.questions[key]; checkedQuestions.delete(session);
+      }
+    }
+    if (changedGap) session.inputDraft='';
+    if (session.phase !== 'review') {
+      const index=session.firstKeys?.indexOf(current);
+      if (index >= 0) session.index=index;
+    }
+    if (session.match) {
+      const match=session.match, tileId=id => typeof id === 'string' ? id.replace(/^(word|meaning):(.+)$/u,(_all,side,key) => `${side}:${keyOf(key)}`) : id;
+      if (match.roundKeys) match.roundKeys=keysOf(match.roundKeys);
+      rekey(match.errors,(old,current) => old+current);
+      for (const tile of match.tiles || []) {
+        const old=tile.key; reference(tile); tile.id=tileId(tile.id);
+        if (old !== tile.key && tile.side === 'word') tile.text=state.words.get(tile.key)?.word || tile.text;
+      }
+      if (Array.isArray(match.tiles)) match.tiles=[...new Map(match.tiles.map(tile => [tile.id,tile])).values()];
+      for (const field of ['matched','wrong']) if (Array.isArray(match[field])) match[field]=unique(match[field].map(tileId));
+      match.selected=tileId(match.selected);
+    }
+    return store;
+  }
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
   const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mall:[],mine:[],wordbookTitle:tx('我的词本'),indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
   let sessionPools = new WeakMap(), checkedQuestions = new WeakSet(), inputSaveTimer = null;
@@ -172,7 +262,7 @@
       if (!raw) return blankStore();
       const value = JSON.parse(raw);
       if (!value || value.version !== 1 || !Array.isArray(value.sets) || !Array.isArray(value.history) || !value.stats || typeof value.stats !== 'object') throw new Error('Invalid practice history');
-      return {...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:true,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}};
+      return migratePracticeKeys({...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:true,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}});
     } catch {
       storageFailure(tx('本机学习记录暂时无法读取。本次仍可练习，新进度可能无法在刷新后恢复。'));
       return blankStore();
@@ -305,6 +395,7 @@
     merged.practiceLearningExamples = unique([...(existing.practiceLearningExamples || []),...learningExamples]);
     if (Array.isArray(word.forms)) merged.forms = unique([...(Array.isArray(existing.forms) ? existing.forms : []),...word.forms]);
     if (Array.isArray(word.formsExpanded)) merged.formsExpanded = unique([...(Array.isArray(existing.formsExpanded) ? existing.formsExpanded : []),...word.formsExpanded]);
+    for (const field of ['variants','practiceAliases']) if (Array.isArray(word[field])) merged[field] = unique([...(Array.isArray(existing[field]) ? existing[field] : []),...word[field]]);
     return merged;
   }
   const wordbookSignature = wordbook => { try { return JSON.stringify([wordbook?.title || '',wordbook?.chapters || []]); } catch { return ''; } };
@@ -354,6 +445,13 @@
     const wordbookTitle = String(data?.wordbook?.title || '').trim();
     state.wordbookTitle = (EN && wordbookTitle === '我的词本' ? '' : wordbookTitle) || tx('我的词本');
     for (const chapter of data?.wordbook?.chapters || []) state.mine.push({...chapter,...add(`mine:${chapter.id}`,String(chapter.title || ''),chapter.words)});
+    practiceAliases=new Map();
+    for (const [key,word] of state.words) for (const alias of word.practiceAliases || []) {
+      const previous=normalize(alias);
+      if (!previous || previous === key || state.words.has(previous)) continue;
+      practiceAliases.set(previous,practiceAliases.has(previous) && practiceAliases.get(previous) !== key ? null : key);
+    }
+    for (const [alias,key] of practiceAliases) if (!key) practiceAliases.delete(alias);
   }
   // The wordbook changed (an edit, or a sync from another device): only its sources are new. Selections
   // of chapters that are gone are dropped; an open session keeps going and is checked against the new words.
@@ -1630,10 +1728,11 @@
     checkedQuestions.add(session);
   }
   function recoverActive() {
+    migratePracticeKeys(state.store);
     const session = currentSession();
     if (!session) return;
     if (!Array.isArray(session.firstKeys) || !session.answers || !['first','review','review-intro'].includes(session.phase)) { state.store.active=null; return; }
-    const oldKey = currentKeys(session)?.[session.index];
+    const oldKeys = currentKeys(session), oldKey = oldKeys?.[session.index];
     const pool = sessionPool(session);
     session.firstKeys = session.firstKeys.filter(key => pool.has(key));
     session.reviewKeys = (session.reviewKeys || []).filter(key => pool.has(key));
@@ -1645,8 +1744,8 @@
     }
     if (!session.firstKeys.length) { state.store.active=null; return; }
     const keys = currentKeys(session);
-    // Review queues may hold a re-queued word twice; its live copy is the later one.
-    const retainedIndex = keys.lastIndexOf(oldKey);
+    // Repeated review words are separate queue positions; retain this occurrence.
+    const retainedIndex = pool.has(oldKey) ? oldKeys.slice(0,session.index).filter(key => pool.has(key)).length : -1;
     const unansweredIndex = keys.findIndex(key => !has(answerMap(session),key));
     session.index = retainedIndex >= 0 ? retainedIndex : Math.max(0,unansweredIndex);
     ensureQuestions(session,pool);
