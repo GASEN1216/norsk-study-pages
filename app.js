@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261109-kitchen-layout';
-import {createReadingLibrary} from './reading-library.mjs?v=20261109-kitchen-layout';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261109-kitchen-layout';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261109-kitchen-layout';
-import * as notesModel from './notes-store.mjs?v=20261109-kitchen-layout';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261109-kitchen-layout';
+import {createDataLoader} from './loader.mjs?v=20261110-mall';
+import {createReadingLibrary} from './reading-library.mjs?v=20261110-mall';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261110-mall';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261110-mall';
+import * as notesModel from './notes-store.mjs?v=20261110-mall';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261110-mall';
 
-const VERSION = '20261109-kitchen-layout';
+const VERSION = '20261110-mall';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -565,6 +565,20 @@ async function openKitchen(join = '') {
       }});
   } catch { notify(tx('开饭啦暂时无法打开，请检查网络后重试。')); }
 }
+// 百货超市 (the co-op learning department store); `place` brings back a floor or a shop after a reload, `join` opens
+// a room from an invitation.
+async function openMall(place = '',join = '') {
+  try {
+    await loadFeature('mall');
+    pauseOtherAudio();
+    audio.pause();
+    window.NorskMall.open({community:prepareCommunity,pronounce,stopAudio:pauseOtherAudio,prefetch:prefetchPronunciation,notify,escapeHTML,version:VERSION,addWords:addWordsToWordbook,
+      place:typeof place === 'string' ? place : '',join:typeof join === 'string' ? join : '',onExit:() => {
+        if (/[?&]mall=/.test(location.search)) history.replaceState(null,'',`${location.pathname}${location.hash}`);
+        window.NorskPractice?.refreshHonors?.();
+      }});
+  } catch { notify(tx('百货超市暂时无法打开，请检查网络后重试。')); }
+}
 // Duels draw words from the practice sources, so the practice view is prepared first.
 function requestDuel(join = '') {
   if (state.view === 'practice' && state.practiceInitialized && state.practiceSeriesId === activeSeriesId()) { openDuel(join); return; }
@@ -620,11 +634,11 @@ async function prepareView(view,viewRun = state.viewRun) {
     // Celebrations are decoration: practice starts without them if they fail to load.
     loadFeature('celebrate').catch(error => console.warn('练习动画未载入',error));
     // 开饭啦's word list is one more public source (厨房 Kjøkken); practice starts without it if it fails to load.
-    const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId),loadData('kitchen-lexicon').catch(() => null)]);
+    const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId),loadData('kitchen-lexicon').catch(() => null),loadData('mall-lexicon').catch(() => null)]);
     if (!current()) return;
     activateVocabulary(seriesId,descriptor,vocabulary);
     if (!state.practiceInitialized || state.practiceSeriesId !== seriesId) {
-      window.NorskPractice.init({data:{...state.data,vocabulary,kitchen:state.data['kitchen-lexicon'] || null,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openChase,openKitchen,version:VERSION,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
+      window.NorskPractice.init({data:{...state.data,vocabulary,kitchen:state.data['kitchen-lexicon'] || null,mall:state.data['mall-lexicon'] || null,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openChase,openKitchen,openMall,version:VERSION,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
       state.practiceInitialized = true;
       state.practiceSeriesId = seriesId;
       prepareCommunity().catch(() => {});
@@ -1084,7 +1098,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261109-kitchen-layout').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261110-mall').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -2070,5 +2084,9 @@ async function initialize() {
   if (chase) openChase(chase);
   const kitchen = (/[?&]kitchen=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
   if (kitchen) openKitchen(kitchen);
+  const mallRoom = (/[?&]mall=(\d{4})(?:&|$)/.exec(str(location.search)) || [])[1];
+  const mall = /^#practice\/mall(?:\/(.*))?$/.exec(location.hash);
+  if (mallRoom) openMall('',mallRoom);
+  else if (mall) openMall(mall[1] || '');
 }
 initialize();
