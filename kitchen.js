@@ -2008,24 +2008,32 @@
     }
     return parts;
   }
-  // The new style, keeping the old wording of every moment that has not moved; null when a moment moved.
-  function mergedStyle(oldText,newText,drawnAt,now) {
-    const before = styleParts(oldText), after = styleParts(newText), out = [];
+  // The new style, keeping the old wording of every moment that has not moved; null when a moment moved. Each kept
+  // moment remembers when it began (node.__moments) and is compared with that, not with the last redraw: comparing
+  // with the last redraw made every element whose effect began earlier than that (the whole game's --kc-phase, a
+  // patience bar) look moved, and drew it afresh — a flash, most of all online, where teammates' taps redraw often.
+  // A moment that begins later is a new effect (drawn afresh, it plays again); one that claims to have begun earlier
+  // (an effect already over, written as its whole length) changes nothing on screen and keeps the old one.
+  function mergedStyle(node,oldText,newText,drawnAt,now) {
+    const before = styleParts(oldText), after = styleParts(newText), out = [], began = node.__moments || {}, kept = {};
     for (const [name,value] of after) {
       const was = before.get(name), moment = MOMENT.exec(value), prior = was && MOMENT.exec(was);
       if (moment && prior && Number(moment[1]) > 0 && Number(prior[1]) > 0) {
-        if (Math.abs((now-Number(moment[1]))-(drawnAt-Number(prior[1]))) > 250) return null;
+        const start = began[name] ?? drawnAt-Number(prior[1]);
+        if (now-Number(moment[1])-start > 250) return null;
         out.push(`${name}:${was}`);
+        kept[name] = start;
       } else if (moment && Number(moment[1]) > 0 && was !== undefined && was !== value) return null;
-      else out.push(`${name}:${value}`);
+      else { out.push(`${name}:${value}`); if (moment) kept[name] = now-Number(moment[1]); }
     }
+    node.__moments = kept;
     return out.join(';');
   }
   function morphAttributes(from,to,drawnAt,now) {
     for (const {name} of [...from.attributes]) if (!to.hasAttribute(name)) from.removeAttribute(name);
     for (const {name,value} of [...to.attributes]) {
       if (name === 'style') {
-        const style = from.hasAttribute('style') ? mergedStyle(from.getAttribute('style'),value,drawnAt,now) : value;
+        const style = from.hasAttribute('style') ? mergedStyle(from,from.getAttribute('style'),value,drawnAt,now) : value;
         if (style === null) return false;
         if (style !== from.getAttribute('style')) from.setAttribute('style',style);
       } else if (from.getAttribute(name) !== value) from.setAttribute(name,value);
@@ -2144,7 +2152,7 @@
     const count = game.phase === 'countdown' ? `<div class="kc-count" aria-live="assertive"><span id="kc-count-n"><b class="kc-digit">${Math.max(1,Math.ceil((game.countEnds-(game.room ? serverNow() : Date.now()))/1000))}</b></span><small>${tx('准备开张')}</small></div>` : '';
     const over = state.over && (game.room || game.closing) ? `<div class="kc-count is-end"><span lang="nb">Stengt!</span><small>${game.room ? tx('本局结束，正在算分…') : tx('打烊了，正在算分…')}</small></div>` : '';
     const watch = game.watch ? `<p class="kc-watch">${tx('观战中 · 下一局一起做')}</p>` : '';
-    const chat = game.chatOpen ? `<div class="kc-chat-menu" style="--kc-fx:${since(game,'chat',400) || '-400ms'}">${CHATS.map(id => `<button type="button" class="kc-button kc-ghost" data-kc="chat" data-value="${id}" lang="nb">${e(ui.data?.lines?.chat?.[id]?.text || id)}</button>`).join('')}</div>` : '';
+    const chat = game.chatOpen ? `<div class="kc-chat-menu" style="--kc-fx:${since(game,'chat',400) || '-60s'}">${CHATS.map(id => `<button type="button" class="kc-button kc-ghost" data-kc="chat" data-value="${id}" lang="nb">${e(ui.data?.lines?.chat?.[id]?.text || id)}</button>`).join('')}</div>` : '';
     // Looping motion (steam, a glowing button) runs on the clock, so a redraw picks it up where it was.
     const layout = `--kc-phase:-${Date.now()%3600000}ms`;
     return `<div class="kc-game is-${tier} is-${screen}${game.hand ? ' is-holding' : ''}${state.plates.length === PLATES_ROOM ? ' is-room' : ''}${shopScene(game) ? ' is-shop' : ''}" style="${layout}">${barMarkup(game,now)}${chat}${watch}${view}${tabsMarkup(game,now)}${note}${count}${over}${pickerMarkup(game)}</div>`;
@@ -3056,6 +3064,16 @@
     if (!ui.room) return;
     await roomAction('settings',{scene,tier:playableTier(sceneById(scene)),minutes:ui.prefs.minutes});
   }
+  // 开始 by a host who has not said 准备好了 starts the game with the host in it (the server starts a game with the
+  // ready cooks only, so without this the host would be left watching their own room).
+  async function startRoomNow() {
+    const room = ui.room, me = (room?.players || []).find(player => player.id === room.me);
+    if (me && !me.ready) {
+      const data = await roomAction('ready',{ready:true});
+      if (!data || !['lobby','finished'].includes(ui.room?.status)) return;
+    }
+    void roomAction('start',{});
+  }
   async function copyInvite() {
     const code = ui.room?.code;
     if (!code) return;
@@ -3104,7 +3122,7 @@
         return true;
       case 'room-scene': void pushRoomSettings(value); return true;
       case 'room-ready': { const me = (ui.room?.players || []).find(player => player.id === ui.room?.me); void roomAction('ready',{ready:!me?.ready}); return true; }
-      case 'room-start': void roomAction('start',{}); return true;
+      case 'room-start': void startRoomNow(); return true;
       default: return false;
     }
   }

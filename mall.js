@@ -1182,7 +1182,7 @@
     ui.fx?.remove(); ui.fx = null;
     ui.root?.remove();
     document.body.classList.remove('ml-open');
-    ui.open = false; ui.root = null; ui.content = null;
+    ui.open = false; ui.root = null; ui.content = null; ui.imgStash = null;
     try { history.replaceState(history.state,'',`${location.pathname}${location.search}#practice`); } catch {}
     if (history.state?.norskMall === ui.historyToken) { try { history.back(); } catch {} }
     try { ui.lastFocus?.focus?.({preventScroll:true}); } catch {}
@@ -1424,7 +1424,9 @@
   // Until then the wall behind the counter shows the shop's own things, faded, on two shelves (no words).
   function sceneBack(shop) {
     const art = artURL(`scene/disken-${shop.id}`,!wide());
-    if (art) return `<div class="ml-scene-back is-art" aria-hidden="true" style="--ml-scene-art:url('${e(art)}')"></div>`;
+    // An <img> decoded with the paint (not a CSS background): coming back from Hylla, the wall is there in the same
+    // frame instead of a blank one while a large picture decodes.
+    if (art) return `<div class="ml-scene-back is-art" aria-hidden="true"><img class="ml-scene-img" src="${e(art)}" alt="" decoding="sync" draggable="false"></div>`;
     const things = shop.sections.flatMap(section => section.items.filter(id => !itemOf(id)?.v));
     const shelf = from => `<span class="ml-back-shelf">${things.slice(from,from+7).map(id => pic(id,'is-back')).join('')}</span>`;
     return `<div class="ml-scene-back" aria-hidden="true">${shelf(0)}${shelf(7)}<span class="ml-lamp"></span><span class="ml-lamp"></span></div>`;
@@ -1511,7 +1513,13 @@
     const fits = (size,cols) => { const rows = Math.ceil(n/cols); return cols*cellW(size)+(cols-1)*gapX+padX <= width && rows*(size+tag+12+rowPad)+(rows-1)*gapY+padY <= height; };
     let best = null;
     for (let size = high; size >= low && !best; size -= 2) for (let cols = n; cols >= 1; cols--) if (fits(size,cols)) { best = {size,cols}; break; }
-    if (!best) best = {size:low,cols:Math.max(1,Math.min(n,Math.floor((width-padX+gapX)/(cellW(low)+gapX))))};
+    // Too many to show at once: the shelf scrolls down, so each thing may be as large as the row's width allows.
+    if (!best) {
+      const cols = Math.max(1,Math.min(n,Math.floor((width-padX+gapX)/(cellW(low)+gapX))));
+      let size = low;
+      while (size+2 <= high && cols*cellW(size+2)+(cols-1)*gapX+padX <= width) size += 2;
+      best = {size,cols};
+    }
     const rows = Math.ceil(n/best.cols);
     best.cols = Math.ceil(n/rows);
     void now;
@@ -1706,6 +1714,8 @@
      animation delay names the moment an effect began, so a redraw neither restarts nor cuts it short). ---------- */
   const KEY_ATTRS = ['id','data-n','data-id','data-seat','data-l','data-value','data-ml','data-sec'];
   const MOMENT = /^-(\d+(?:\.\d+)?)ms$/;
+  // An effect that is over: far enough in the past for any of them, and not written as a moment (so a redraw keeps it).
+  const OVER = '-60s';
   function nodeKey(node) {
     if (node.nodeType !== 1) return `#${node.nodeType}`;
     let key = `${node.localName}.${node.classList[0] || ''}`;
@@ -1717,23 +1727,32 @@
     for (const piece of String(text || '').split(';')) { const at = piece.indexOf(':'); if (at > 0) parts.set(piece.slice(0,at).trim(),piece.slice(at+1).trim()); }
     return parts;
   }
-  function mergedStyle(oldText,newText,drawnAt,now) {
-    const before = styleParts(oldText), after = styleParts(newText), out = [];
+  // Each kept moment remembers when it began (node.__moments), so it is compared with when it really began, not with
+  // the last redraw: comparing with the last redraw made every element whose effect had begun earlier than that —
+  // the whole game (--ml-phase), a patience bar, a bubble — look moved, and drew it afresh (a flash, most of all in a
+  // room, where the classmates' taps redraw often). A moment that begins later than the kept one is a new effect and
+  // draws the element afresh so it plays again; one that claims to have begun earlier (an effect already over, written
+  // as its whole length) changes nothing on screen and keeps the old one.
+  function mergedStyle(node,oldText,newText,drawnAt,now) {
+    const before = styleParts(oldText), after = styleParts(newText), out = [], began = node.__moments || {}, kept = {};
     for (const [name,value] of after) {
       const was = before.get(name), moment = MOMENT.exec(value), prior = was && MOMENT.exec(was);
       if (moment && prior && Number(moment[1]) > 0 && Number(prior[1]) > 0) {
-        if (Math.abs((now-Number(moment[1]))-(drawnAt-Number(prior[1]))) > 250) return null;
+        const start = began[name] ?? drawnAt-Number(prior[1]);
+        if (now-Number(moment[1])-start > 250) return null;
         out.push(`${name}:${was}`);
+        kept[name] = start;
       } else if (moment && Number(moment[1]) > 0 && was !== undefined && was !== value) return null;
-      else out.push(`${name}:${value}`);
+      else { out.push(`${name}:${value}`); if (moment) kept[name] = now-Number(moment[1]); }
     }
+    node.__moments = kept;
     return out.join(';');
   }
   function morphAttributes(from,to,drawnAt,now) {
     for (const {name} of [...from.attributes]) if (!to.hasAttribute(name)) from.removeAttribute(name);
     for (const {name,value} of [...to.attributes]) {
       if (name === 'style') {
-        const style = from.hasAttribute('style') ? mergedStyle(from.getAttribute('style'),value,drawnAt,now) : value;
+        const style = from.hasAttribute('style') ? mergedStyle(from,from.getAttribute('style'),value,drawnAt,now) : value;
         if (style === null) return false;
         if (style !== from.getAttribute('style')) from.setAttribute('style',style);
       } else if (from.getAttribute(name) !== value) from.setAttribute(name,value);
@@ -1773,13 +1792,19 @@
     for (const node of state.removed) for (const img of node.nodeType === 1 ? (node.localName === 'img' ? [node] : node.querySelectorAll('img')) : []) {
       const src = img.getAttribute('src'); if (!spare.has(src)) spare.set(src,[]); spare.get(src).push(img);
     }
-    if (spare.size) for (const node of state.added) for (const img of node.nodeType === 1 ? (node.localName === 'img' ? [node] : [...node.querySelectorAll('img')]) : []) {
-      const old = spare.get(img.getAttribute('src'))?.pop();
+    // Pictures that left the screen are kept a while (imgStash), so going back to Disken or to a section shows the
+    // same, already decoded picture rather than a new one that paints a moment later.
+    const stash = ui.imgStash ||= new Map();
+    for (const node of state.added) for (const img of node.nodeType === 1 ? (node.localName === 'img' ? [node] : [...node.querySelectorAll('img')]) : []) {
+      const src = img.getAttribute('src');
+      const old = spare.get(src)?.pop() || stash.get(src)?.pop();
       if (!old || !img.parentNode) continue;
       for (const {name} of [...old.attributes]) if (!img.hasAttribute(name)) old.removeAttribute(name);
       for (const {name,value} of [...img.attributes]) if (old.getAttribute(name) !== value) old.setAttribute(name,value);
       img.replaceWith(old);
     }
+    for (const [src,left] of spare) for (const img of left) { if (!stash.has(src)) stash.set(src,[]); const list = stash.get(src); if (list.length < 4 && !list.includes(img)) list.push(img); }
+    for (const src of [...stash.keys()].slice(0,Math.max(0,stash.size-160))) stash.delete(src);
     container.__drawnAt = now;
   }
   function fadeEdges(strip) {
@@ -1996,6 +2021,7 @@
           break;
         }
         case 'fitin': game.fresh.set(`fitin:${event.n}`,Date.now()); play('curtain'); break;
+        case 'till': game.fresh.set(`till:${event.n}`,Date.now()); break;
         case 'change': game.fresh.set(`change:${event.n}`,Date.now()); sayLine(sayingOf(game,order).text,order.voice); break;
         case 'complete':
           game.fresh.set(`bag:${event.n}`,Date.now());
@@ -2232,14 +2258,16 @@
     const baskets = state.seats.map((n,seat) => `<div class="ml-spot" data-seat="${seat}">${n >= 0 ? basketHTML(game,state.orders[n]) : ''}</div>`).join('');
     const gives = state.seats.map((n,seat) => {
       const order = n >= 0 ? state.orders[n] : null, ready = order && complete(order);
-      return `<div class="ml-give-spot" data-seat="${seat}">${ready ? `<button type="button" class="ml-give" data-ml="give" data-n="${order.n}" style="--ml-fx:${since(game,`bag:${order.n}`,900) || '-900ms'}"><span lang="nb">Vær så god!</span></button>` : ''}</div>`;
+      return `<div class="ml-give-spot" data-seat="${seat}">${ready ? `<button type="button" class="ml-give" data-ml="give" data-n="${order.n}" style="--ml-fx:${since(game,`bag:${order.n}`,900) || OVER}"><span lang="nb">Vær så god!</span></button>` : ''}</div>`;
     }).join('');
-    const tillButton = till ? `<button type="button" class="ml-till${state.orders.some(order => order.status === 'wait' && order.svc === 'till' && order.sv === 'in') ? ' is-printing' : ''}" data-ml="till" aria-label="${tx('收银机')}">${icon('till')}${tier === 'novice' ? `<small>${tx('收银')}</small>` : ''}</button>` : '';
+    // The till stands on the counter at the door's end, where customers pay on their way out.
+    const paying = state.orders.find(order => order.status === 'wait' && order.svc === 'till' && order.sv === 'in');
+    const tillButton = till ? `<div class="ml-till-spot"><button type="button" class="ml-till${paying ? ' is-printing' : ''}" data-ml="till" aria-label="${tx('收银机')}" ${paying ? `style="--ml-fx:${since(game,`till:${paying.n}`,700) || OVER}"` : ''}><span class="ml-till-body">${icon('till')}${paying ? '<i class="ml-till-paper"></i>' : ''}</span>${tier === 'novice' ? `<small class="ml-spot-label">${tx('收银')}</small>` : ''}</button></div>` : '';
     return `<section class="ml-scene${fitting ? ' has-fitting' : ''}${till ? ' has-till' : ''}${compact ? ' is-compact' : ''}" style="--ml-seats:${seats}">
       ${sceneBack(shop)}${queue}
       <div class="ml-people">${people}</div>${rooms}
-      <div class="ml-counter"><span class="ml-counter-art" aria-hidden="true"><i></i></span><div class="ml-spots">${baskets}</div></div>
-      <div class="ml-gives"><div class="ml-till-spot">${tillButton}</div>${gives}</div>
+      <div class="ml-counter"><span class="ml-counter-art" aria-hidden="true"><i></i></span>${tillButton}<div class="ml-spots">${baskets}</div></div>
+      <div class="ml-gives">${gives}</div>
       ${replyMarkup(game,now)}${basketList(game)}</section>`;
   }
   const queuePlace = (state,order) => 1+state.orders.filter(other => other.status === 'wait' && other.sv === 'queue' && (other.queuedAt < order.queuedAt || other.queuedAt === order.queuedAt && other.n < order.n)).length;
@@ -2256,7 +2284,7 @@
     const arriving = since(game,`arrive:${order.n}`,650);
     const talk = order.talks.some(entry => entry.s === 'open');
     const label = talk ? tx('{name} 等你回应，点一下回应',{name:nameOfCustomer(order.customer)}) : tx('{name}，点一下再听一遍',{name:nameOfCustomer(order.customer)});
-    return `<button type="button" class="ml-person${arriving ? ' is-arriving' : ''}${moodOf(order,now) === 'impatient' ? ' is-hurry' : ''}" data-ml="guest" data-n="${order.n}" aria-label="${e(label)}" ${arriving ? `style="--ml-fx:${arriving}"` : ''}>${faceHTML(order.customer,moodOf(order,now),'is-figure')}<span class="ml-name">${e(nameOfCustomer(order.customer))}</span></button>`;
+    return `<button type="button" class="ml-person${arriving ? ' is-arriving' : ''}${moodOf(order,now) === 'impatient' ? ' is-hurry' : ''}" data-ml="guest" data-n="${order.n}" aria-label="${e(label)}" ${arriving ? `style="--ml-fx:${arriving}"` : ''}>${faceHTML(order.customer,moodOf(order,now),'is-figure')}</button>`;
   }
   function leavingHTML(game,exit) {
     const float = game.floats.find(item => item.n === exit.n && item.until > Date.now());
@@ -2295,7 +2323,7 @@
     void now;
     const place = bench ? tx('试鞋凳') : tx('试衣间');
     return `<button type="button" class="ml-room${bench ? ' is-bench' : ''}${order ? ' is-busy' : ''}${ready ? ' is-ready' : ''}${talk ? ' is-talk' : ''}" data-ml="room" data-value="${room}" aria-label="${order ? tx('{place} {n}：{name} 在试', {place,n:room+1,name:nameOfCustomer(order.customer)}) : tx('{place} {n}：空着',{place,n:room+1})}">
-      ${bench ? '<span class="ml-bench"><i></i></span>' : `<span class="ml-curtain${order ? '' : ' is-open'}" style="--ml-fx:${since(game,`fitin:${n}`,500) || since(game,`fitted:${n}`,500) || '-500ms'}"><i></i></span>`}
+      ${bench ? '<span class="ml-bench"><i></i></span>' : `<span class="ml-curtain${order ? '' : ' is-open'}" style="--ml-fx:${since(game,`fitin:${n}`,500) || since(game,`fitted:${n}`,500) || OVER}"><i></i></span>`}
       ${game.state.rooms.length > 1 ? `<small class="ml-room-n">${room+1}</small>` : ''}
       ${order ? `<span class="ml-room-who">${faceHTML(order.customer,'neutral','is-peek')}</span>` : ''}
       ${ask ? `<span class="ml-room-say">${tier === 'expert' ? icon('speaker') : `<span lang="nb">${e(ask[0])}</span>${tier === 'novice' ? `<small>${e(ask[1])}</small>` : ''}`}${icon('chat')}</span>` : ''}
@@ -2314,7 +2342,7 @@
     const service = !bag && linesDone(order) && order.svc && order.sv === 'none' && talksDone(order) ? (order.svc === 'fit' ? tx('→ 试衣间') : tx('→ 收银')) : '';
     return `<button type="button" class="ml-basket${bag ? ' is-bag' : ''}${gift ? ' is-gift' : ''}${order.n === game.guest ? ' is-guest' : ''}${inRoom ? ' is-away' : ''}${fresh ? ' is-fresh' : ''}${since(game,`got:${order.n}.0`,300) || since(game,`got:${order.n}.1`,300) || since(game,`got:${order.n}.2`,300) ? ' is-landed' : ''}" data-ml="basket" data-n="${order.n}" aria-label="${tx('篮子 {have}/{all}',{have,all:total})}" ${fresh ? `style="--ml-fx:${fresh}"` : ''}>
       <span class="ml-basket-body">${bag ? icon('bag') : pieces.slice(0,4).map(piece => `<span class="ml-in${piece.swap ? ' is-swap' : ''}">${pic(piece.i,'is-mini')}${piece.z ? `<b class="ml-size-tag">${e(piece.z)}</b>` : ''}${piece.swap ? `<b class="ml-swap">${tx('换')}</b>` : ''}</span>`).join('')}${pieces.length > 4 ? `<span class="ml-in is-more">+${pieces.length-4}</span>` : ''}</span>
-      <small class="ml-basket-count">${bag ? '✓' : total ? `${have}/${total}` : tx('只需回应')}</small>${service ? `<small class="ml-basket-next">${service}</small>` : ''}</button>`;
+      <small class="ml-spot-label"><span class="ml-spot-name">${e(nameOfCustomer(order.customer))}</span><span class="ml-basket-count">${bag ? icon('check') : total ? `${have}/${total}` : tx('只需回应')}</span></small>${service ? `<small class="ml-basket-next">${service}</small>` : ''}</button>`;
   }
   // The basket opened: what is in it, line by line; a tap on one puts it back on the shelf.
   function basketList(game) {
@@ -2345,9 +2373,28 @@
       const cls = done ? (right ? ' is-right' : chosen ? ' is-wrong' : ' is-dim') : '';
       return `<li><button type="button" class="ml-answer${cls}" data-ml="answer" data-value="${o}" ${done ? 'disabled' : ''}><span lang="nb">${e(opt[0])}</span>${novice || (done && right) ? `<small>${e(opt[1])}</small>` : ''}</button></li>`;
     }).join('');
-    return `<div class="ml-reply" role="dialog" aria-label="${tx('回应')}" style="--ml-fx:${since(game,'reply',260) || '-260ms'}">
+    return `<div class="ml-reply${content.k === 'till' ? ' is-till' : ''}" role="dialog" aria-label="${tx('回应')}" style="--ml-fx:${since(game,'reply',260) || OVER}">
       <header class="ml-reply-head">${faceHTML(order.customer,'neutral','is-tiny')}<button type="button" class="ml-reply-said" data-ml="replay" data-n="${order.n}">${tier === 'expert' ? `<span>${tx('再听一遍')}</span>` : `<span lang="nb">${e(asked[0])}</span>${novice ? `<small>${e(asked[1])}</small>` : ''}`}${icon('speaker')}</button>${closeMini('reply-close')}</header>
-      <ol class="ml-answers">${rows}</ol></div>`;
+      ${content.k === 'till' ? tillSlip(order,content) : ''}<ol class="ml-answers">${rows}</ol></div>`;
+  }
+  // What the till prints when a customer pays (as on a real till, the machine does the sums): each thing with its
+  // price, a bag if one was asked for, the total; with cash, what was handed over and the change.
+  function tillSlip(order,content) {
+    const rows = [];
+    let sum = 0;
+    for (const line of order.lines) {
+      if (line.s === 'struck' || !line.q) continue;
+      const item = itemOf(line.i), cost = item.price*line.q;
+      sum += cost;
+      rows.push([`${line.q > 1 ? `${line.q} × ` : ''}${productEntry(line.i)?.word || ''}${line.z ? ` · ${line.z}` : ''}`,cost]);
+    }
+    const total = Number(content.total) || sum;
+    if (total > sum) rows.push(['Pose',total-sum]);
+    const cash = /(\d+)\s*kroner/i.exec(content.ask?.[0] || '');
+    const paid = cash && /tilbake/i.test(content.opts?.[0]?.[0] || '') ? Number(cash[1]) : 0;
+    const row = ([name,kr],k) => `<li style="--ml-i:${k}"><span lang="nb">${e(name)}</span><b>${kr},-</b></li>`;
+    const foot = [['Totalt',total],...(paid ? [['Kontant',paid],['Tilbake',paid-total]] : [])];
+    return `<div class="ml-slip" aria-label="${e(tx('小票'))}"><ul>${rows.map(row).join('')}</ul><ul class="ml-slip-foot">${foot.map((entry,k) => row(entry,rows.length+k)).join('')}</ul></div>`;
   }
 
   /* Hylla in a game: under the shelf, the shopping list of the customer being served. */
@@ -2467,7 +2514,7 @@
       case 'room-tier': void roomAction('settings',{tier:value}); break;
       case 'room-minutes': ui.prefs.minutes = Number(value); savePrefs(); void roomAction('settings',{minutes:Number(value)}); break;
       case 'room-ready': { const me = (ui.room?.players || []).find(player => player.id === ui.room?.me); void roomAction('ready',{ready:!me?.ready}); break; }
-      case 'room-start': void roomAction('start',{}); break;
+      case 'room-start': void startRoomNow(); break;
       case 'to-room': ui.resultsFor = null; show('room'); break;
       case 'call-pick': chooseCall(game,value); break;
       case 'call-close': game.calling = null; drawGame(); break;
@@ -3109,6 +3156,16 @@
       return null;
     }
   }
+  // 开门 by a host who has not said 准备好了 opens the shop with the host in it (the server starts a shift with the
+  // ready players only, so without this the host would be left watching their own room).
+  async function startRoomNow() {
+    const room = ui.room, me = (room?.players || []).find(player => player.id === room.me);
+    if (me && !me.ready) {
+      const data = await roomAction('ready',{ready:true});
+      if (!data || !['lobby','finished'].includes(ui.room?.status)) return;
+    }
+    void roomAction('start',{});
+  }
   async function copyInvite() {
     const code = ui.room?.code;
     if (!code) return;
@@ -3170,7 +3227,7 @@
     const calling = game.calling, order = calling ? game.state.orders[calling.n] : null;
     if (!order || order.status !== 'wait') { game.calling = null; return ''; }
     const novice = game.state.tier === 'novice', who = playerName(holder(game.state,order.lines[calling.l].i,game.scene));
-    return `<div class="ml-reply is-call" role="dialog" aria-label="${tx('喊同学拿')}" style="--ml-fx:${since(game,'call',260) || '-260ms'}">
+    return `<div class="ml-reply is-call" role="dialog" aria-label="${tx('喊同学拿')}" style="--ml-fx:${since(game,'call',260) || OVER}">
       <header class="ml-reply-head"><span class="ml-avatar is-small">${e(initial(who))}</span><p class="ml-call-ask">${tx('请 {name} 拿哪一样？选出挪威语',{name:e(who)})}</p>${closeMini('call-close')}</header>
       <ol class="ml-answers is-words">${calling.options.map(product => `<li><button type="button" class="ml-answer" data-ml="call-pick" data-value="${e(product)}">${wordHTML(product)}${novice ? `<small>${e(zhOf(product))}</small>` : ''}</button></li>`).join('')}</ol></div>`;
   }

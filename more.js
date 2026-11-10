@@ -376,14 +376,17 @@
     // The first visit records what is already earned without replaying it.
     if (!Array.isArray(seen)) { try { localStorage.setItem(SEEN_KEY,JSON.stringify(all.map(item => item.key))); } catch {} return; }
     const fresh = all.filter(item => !seen.includes(item.key) && !state.queue.some(queued => queued.key === item.key));
-    if (!fresh.length) return;
-    try { localStorage.setItem(SEEN_KEY,JSON.stringify([...seen,...fresh.map(item => item.key)].slice(-400))); } catch {}
-    state.queue.push(...fresh);
-    if (!state.revealing) nextReveal();
+    if (fresh.length) {
+      try { localStorage.setItem(SEEN_KEY,JSON.stringify([...seen,...fresh.map(item => item.key)].slice(-400))); } catch {}
+      state.queue.push(...fresh);
+    }
+    // Also honors held back while a game had the screen: the game's exit refreshes honors, and they show now.
+    if (state.queue.length && !state.revealing) nextReveal();
   }
   function nextReveal() {
-    // Keep new honors queued while the multiplayer dialog owns the screen and focus.
-    if (window.NorskDuel?.isOpen?.()) { state.revealing = false; return; }
+    // Keep new honors queued while a game owns the screen and focus (翻翻乐, 抓小偷, 开饭啦, 百货超市): a card over a game
+    // in play covers the shop or the kitchen mid-shift. They show when the game is closed (its exit refreshes honors).
+    if (['NorskDuel','NorskChase','NorskKitchen','NorskMall'].some(name => window[name]?.isOpen?.())) { state.revealing = false; return; }
     const item = state.queue.shift();
     if (!item || !document.body) {
       state.revealing = false;

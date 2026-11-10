@@ -161,8 +161,8 @@ body.ml-open{overflow:hidden}
   min-height:0;column-gap:8px;border-radius:16px;overflow:hidden}
 .ml-scene.has-fitting{--ml-side:72px}
 .ml-scene-back{position:absolute;inset:0 0 58px;border-radius:16px;background:linear-gradient(180deg,#fbf3e1 0%,#f6ead2 64%,#efdfbf 100%);overflow:hidden}
-.ml-scene-back.is-art{background:var(--ml-scene-art) center bottom/cover no-repeat}
-.ml-scene-back.is-art>*{display:none}
+.ml-scene-back.is-art{background:#f6ead2}
+.ml-scene-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center bottom;user-select:none;pointer-events:none}
 .ml-back-shelf{position:absolute;left:12%;right:12%;display:flex;justify-content:space-around;align-items:flex-end;height:clamp(34px,7dvh,64px);padding:0 4%;border-bottom:7px solid #e3cfa7;opacity:.5;filter:saturate(.55)}
 .ml-back-shelf:first-child{top:8%}
 .ml-back-shelf:nth-child(2){top:calc(8% + clamp(34px,7dvh,64px) + 28px)}
@@ -183,13 +183,13 @@ body.ml-open{overflow:hidden}
 .ml-quiet-note{color:var(--ml-muted);font-size:14px;text-align:center;padding:12px}
 .ml-seat{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:16px;min-width:0;height:100%;min-height:0;padding-top:8px}
 .ml-seat>.ml-bubble{flex:none}
-.ml-person{position:relative;display:flex;justify-content:center;align-items:flex-end;width:min(100%,clamp(110px,32dvh,260px));aspect-ratio:1;flex:0 1 auto;min-height:40px;margin-bottom:-14px;transition:transform .3s var(--ml-ease)}
+.ml-person{position:relative;display:flex;justify-content:center;align-items:flex-end;width:min(118%,clamp(110px,32dvh,260px));aspect-ratio:1;flex:0 1 auto;min-height:40px;margin-bottom:-14px;transition:transform .3s var(--ml-ease)}
 .ml-person .ml-face.is-figure{width:100%;height:100%}
 .ml-person.is-arriving{animation:ml-arrive .6s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
 @keyframes ml-arrive{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
 .ml-name{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);padding:1px 8px;border-radius:999px;background:rgba(255,253,246,.92);font-size:12px;color:var(--ml-muted);white-space:nowrap}
 .ml-seat.is-guest .ml-name{color:var(--ml-ink);box-shadow:inset 0 -2px 0 var(--ml-gold-line)}
-.ml-seat.is-away .ml-away-note{margin-bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(255,253,246,.85);font-size:13px;color:var(--ml-muted);text-align:center}
+.ml-seat.is-away .ml-away-note{margin-bottom:calc(var(--ml-bh)*.8);padding:6px 10px;border-radius:10px;background:rgba(255,253,246,.85);font-size:13px;color:var(--ml-muted);text-align:center}
 .ml-bubble{position:relative;display:grid;gap:3px;width:100%;max-width:300px;padding:10px 12px 12px;border-radius:16px;background:var(--ml-card);border:1px solid var(--ml-warm);box-shadow:0 10px 24px -18px rgba(90,70,30,.6);text-align:left;font-size:15px;line-height:1.4}
 .ml-bubble::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;background:var(--ml-card);border-right:1px solid var(--ml-warm);border-bottom:1px solid var(--ml-warm);transform:translateX(-50%) rotate(45deg)}
 .ml-bubble.is-fresh{animation:ml-rise .18s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
@@ -225,45 +225,76 @@ body.ml-open{overflow:hidden}
 .ml-curtain{position:absolute;inset:9px 6px 4px;border-radius:2px 2px 4px 4px;background:repeating-linear-gradient(90deg,#c98f6f 0 7px,#b97b5c 7px 10px);transform-origin:left;transition:transform .5s var(--ml-ease);opacity:.92}
 .ml-curtain.is-open{transform:scaleX(.22)}
 .ml-room.is-ready{box-shadow:0 0 0 2px rgba(201,162,75,.5)}
-.ml-room-n{position:absolute;top:10px;right:10px;font-size:11px;color:#fff8ea;z-index:1}
+.ml-room-n{position:absolute;top:10px;right:10px;font-size:12px;color:#fff8ea;z-index:1}
 .ml-room-who{position:absolute;inset:auto 0 6px;display:grid;place-items:center;z-index:1}
 .ml-face.is-peek{width:34px;height:34px;border-radius:50%;overflow:hidden;background:var(--ml-gold-soft);border:2px solid #fffdf6}
 .ml-face.is-peek img{object-position:50% 12%;transform:scale(1.5);transform-origin:50% 0}
 .ml-room-say{position:absolute;right:calc(100% + 6px);top:14px;z-index:3;display:grid;gap:2px;width:max-content;max-width:170px;padding:8px 10px;border-radius:12px;background:var(--ml-card);border:1px solid var(--ml-warm);font-size:14px;text-align:left;box-shadow:0 10px 22px -16px rgba(90,70,30,.6);animation:ml-rise .2s var(--ml-ease) both}
 .ml-room-say small{font-size:12px;color:var(--ml-muted)}
 .ml-room-say .ml-icon{position:absolute;top:-9px;right:-8px;width:24px;height:24px;padding:5px;border-radius:50%;background:var(--ml-green);color:#fbf8ee}
-.ml-room-queue{position:absolute;bottom:-18px;font-size:11px;color:var(--ml-muted);white-space:nowrap}
-/* The counter with the baskets */
+.ml-room-queue{position:absolute;bottom:-18px;font-size:12px;color:var(--ml-muted);white-space:nowrap}
+/* The counter with the baskets. Baskets and the till stand ON the counter top: the counter's top padding (a share of
+   the scene's width, like the painted counter's own depth) is the line where they rest, and they rise from it over
+   the customers standing behind. --ml-bh: a basket's height; --ml-th: the till's. */
+.ml-scene{--ml-bh:72px;--ml-bw:96px;--ml-th:58px}
 .ml-counter{grid-area:counter;position:relative;z-index:2;display:grid;grid-template-columns:var(--ml-door) minmax(0,1fr) var(--ml-side);column-gap:8px;min-height:84px;padding:10px 0 8px;
   background:linear-gradient(#ead8b5 0 10px,#dcc398 10px 13px,#e6d2ab 13px);border-radius:8px 8px 4px 4px;box-shadow:0 -1px 0 #f4e8cd inset,0 14px 24px -22px rgba(90,70,30,.8)}
-.ml-spots{grid-column:2;display:grid;grid-template-columns:repeat(var(--ml-seats),minmax(0,1fr));gap:8px}
-.ml-spot{display:grid;place-items:center}
-.ml-basket{position:relative;display:grid;justify-items:center;gap:2px;width:min(100%,104px);padding-top:8px}
-.ml-basket-body{position:relative;display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:center;gap:1px;width:100%;min-height:48px;padding:4px;border-radius:4px 4px 14px 14px;
-  background:repeating-linear-gradient(90deg,#d3b585 0 3px,#c6a674 3px 6px);border:2px solid #b8955f;box-shadow:inset 0 6px 0 -3px #e7cf9f}
-.ml-basket::before{content:"";position:absolute;top:0;left:22%;right:22%;height:18px;border:2px solid #b8955f;border-bottom:0;border-radius:12px 12px 0 0}
+.ml-scene:not(.is-browse) .ml-counter{min-height:0;padding:4.5% 0 6px;align-items:start}
+/* Three or more at the counter (a room): smaller baskets, and the customers may stand a little wider than their place
+   (their pictures have empty margins), so faces stay in view over the baskets. */
+.ml-scene.is-compact{--ml-bh:56px;--ml-bw:74px}
+.ml-scene.is-compact .ml-person{width:min(150%,clamp(110px,32dvh,260px))}
+/* …and the customer being served speaks in a bubble wider than their place (the others show a dot), its tail still
+   over them: at the ends it lines up with the scene's edge, in between it spreads both ways. */
+.ml-scene.is-compact .ml-seat{container-type:inline-size}
+.ml-scene.is-compact .ml-seat.is-guest{z-index:2}
+.ml-scene.is-compact .ml-seat.is-guest>.ml-bubble:not(.is-dot){width:min(200cqw,300px);max-width:none;z-index:3}
+.ml-scene.is-compact .ml-seat.is-guest:first-child>.ml-bubble:not(.is-dot){align-self:flex-start}
+.ml-scene.is-compact .ml-seat.is-guest:first-child>.ml-bubble:not(.is-dot)::after{left:50cqw}
+.ml-scene.is-compact .ml-seat.is-guest:last-child>.ml-bubble:not(.is-dot){align-self:flex-end}
+.ml-scene.is-compact .ml-seat.is-guest:last-child>.ml-bubble:not(.is-dot)::after{left:calc(100% - 50cqw)}
+.ml-spots{grid-column:2;grid-row:1;display:grid;grid-template-columns:repeat(var(--ml-seats),minmax(0,1fr));gap:8px;margin-top:calc(-1*var(--ml-bh))}
+.ml-spot{display:grid;justify-items:center;align-content:start;min-width:0}
+.ml-basket{position:relative;display:grid;justify-items:center;gap:4px;width:min(100%,var(--ml-bw));min-width:0}
+.ml-basket-body{position:relative;display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;width:100%;height:var(--ml-bh);padding:calc(var(--ml-bh)*.3) 12% calc(var(--ml-bh)*.18);border-radius:4px 4px 14px 14px;
+  background:repeating-linear-gradient(90deg,#d3b585 0 3px,#c6a674 3px 6px);border:2px solid #b8955f;box-shadow:inset 0 6px 0 -3px #e7cf9f;transition:filter .3s var(--ml-ease)}
+.ml-basket::before{content:"";position:absolute;top:-14px;left:26%;right:26%;height:16px;border:2px solid #b8955f;border-bottom:0;border-radius:12px 12px 0 0}
 .ml-basket.is-guest .ml-basket-body{box-shadow:inset 0 6px 0 -3px #e7cf9f,0 0 0 2px rgba(201,162,75,.55)}
 .ml-basket.is-landed .ml-basket-body{animation:ml-sink .16s var(--ml-ease) both}
 @keyframes ml-sink{0%{transform:none}50%{transform:translateY(2px)}100%{transform:none}}
-.ml-basket.is-bag .ml-basket-body{align-content:center;background:linear-gradient(#e2c79c,#d5b684);border-color:#c3a06b;border-radius:3px;min-height:56px;width:62px;color:#7a5c2c}
-.ml-basket.is-bag::before{left:34%;right:34%;height:12px;top:2px;border-color:#a9875a}
-.ml-basket.is-fresh .ml-basket-body{animation:ml-bag .52s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
-@keyframes ml-bag{0%{transform:scaleY(.86);opacity:.6}100%{transform:none;opacity:1}}
-.ml-basket.is-away{opacity:.62}
-.ml-in{position:relative;display:inline-grid}
+.ml-basket.is-bag .ml-basket-body{background:linear-gradient(#e2c79c,#d5b684);border-color:#c3a06b;border-radius:3px;color:#7a5c2c}
+.ml-basket.is-bag::before{left:38%;right:38%;height:12px;top:-10px;border-color:#a9875a}
+.ml-basket.is-fresh .ml-basket-body{animation:ml-bag .52s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms);transform-origin:50% 100%}
+@keyframes ml-bag{0%{transform:scaleY(.9);opacity:.5}100%{transform:none;opacity:1}}
+.ml-basket.is-away .ml-basket-body{opacity:.62}
+/* The things in a basket peek over its rim, side by side, a little overlapped. */
+.ml-in{position:relative;display:inline-grid;filter:drop-shadow(0 2px 2px rgba(110,84,36,.25))}
+.ml-in+.ml-in{margin-left:-7px}
 .ml-in.is-swap{outline:1.5px dashed var(--ml-terra);outline-offset:-1px;border-radius:4px}
-.ml-swap{position:absolute;top:-8px;right:-6px;padding:0 3px;border-radius:4px;background:var(--ml-terra);color:#fff;font-size:10px;font-weight:600}
-.ml-size-tag{position:absolute;bottom:-3px;right:-4px;min-width:14px;padding:0 2px;border-radius:3px;background:#fffdf6;border:1px solid #e3cfa3;font-size:9px;line-height:12px;text-align:center}
-.ml-in.is-more{font-size:11px;color:#6f5426;align-self:center}
-.ml-basket-count{font-size:12px;color:#6f5426;font-variant-numeric:tabular-nums}
-.ml-basket-next{position:absolute;bottom:-20px;white-space:nowrap;font-size:12px;color:var(--ml-green)}
-.ml-till-spot{display:grid;place-items:center}
-.ml-till{display:grid;justify-items:center;gap:1px;width:min(100%,58px);padding:5px 0;border-radius:10px;background:linear-gradient(#f9f3e6,#ece0c6);border:1px solid #d9c49b;color:#6f5426}
-.ml-till .ml-icon{width:26px;height:26px}
-.ml-till small{font-size:11px}
-.ml-till.is-printing .ml-icon{animation:ml-print .7s var(--ml-ease) both}
-@keyframes ml-print{0%{transform:none}50%{transform:translateY(-2px)}100%{transform:none}}
+.ml-swap{position:absolute;top:-8px;right:-6px;padding:0 3px;border-radius:4px;background:var(--ml-terra);color:#fff;font-size:11px;font-weight:600}
+.ml-size-tag{position:absolute;bottom:-4px;right:-5px;min-width:16px;padding:0 2px;border-radius:3px;background:#fffdf6;border:1px solid #e3cfa3;font-size:10px;line-height:13px;text-align:center}
+.ml-in.is-more{margin-left:2px;padding:0 5px;border-radius:999px;background:rgba(255,252,244,.92);font-size:12px;color:#6f5426;filter:none}
+/* Under each basket, on the counter's front: whose it is and how far it is. */
+.ml-spot-label{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:22px;padding:1px 9px;border-radius:999px;background:rgba(255,252,244,.92);box-shadow:0 1px 0 rgba(176,138,60,.2);font-size:13px;line-height:1.3;color:#6f5426;white-space:nowrap}
+.ml-spot-name{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--ml-muted)}
+.ml-basket.is-guest .ml-spot-name{color:var(--ml-ink);box-shadow:inset 0 -2px 0 var(--ml-gold-line)}
+.ml-basket-count{flex:none;font-variant-numeric:tabular-nums}
+.ml-basket-count .ml-icon{width:15px;height:15px;color:var(--ml-green);vertical-align:-3px}
+.ml-basket-next{position:absolute;top:calc(100% + 3px);white-space:nowrap;font-size:13px;color:var(--ml-green)}
+/* The till on the counter top at the door's end. */
+.ml-scene.has-till{--ml-door:max(var(--ml-door-min,48px),var(--ml-th))}
+.ml-till-spot{grid-column:1;grid-row:1;justify-self:start;margin-top:calc(-1*var(--ml-th));z-index:1}
+.ml-till{display:grid;justify-items:center;gap:4px;padding:0;background:none;border:0}
+.ml-till-body{position:relative;display:grid;place-items:center;width:var(--ml-th);height:var(--ml-th);border-radius:10px;background:linear-gradient(#f9f3e6,#ece0c6);border:1px solid #d9c49b;color:#6f5426;transition:filter .3s var(--ml-ease)}
+.ml-till-body>.ml-icon{width:26px;height:26px}
+.ml-till:hover .ml-till-body{filter:brightness(1.04) drop-shadow(0 0 4px rgba(201,162,75,.45))}
+.ml-till.is-printing .ml-till-body{animation:ml-print .7s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
+@keyframes ml-print{0%{transform:none}30%{transform:translateY(-2px)}60%{transform:none}100%{transform:none}}
+/* The slip coming out of the till's printer while a customer pays. */
+.ml-till-paper{position:absolute;left:26%;bottom:51%;width:21%;height:30%;border-radius:1px 1px 0 0;background:repeating-linear-gradient(#fffefa 0 3px,#efe8d8 3px 4px);box-shadow:0 1px 2px rgba(110,84,36,.25);transform-origin:50% 100%;animation:ml-paper .7s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
+@keyframes ml-paper{from{transform:scaleY(0)}to{transform:none}}
 .ml-gives{grid-area:give;display:grid;grid-template-columns:var(--ml-door) repeat(var(--ml-seats),minmax(0,1fr)) var(--ml-side);column-gap:8px;align-items:center}
+.ml-gives>.ml-give-spot:first-child{grid-column:2}
 .ml-give-spot{display:grid;place-items:center;min-height:48px}
 .ml-give{min-height:44px;padding:8px 16px;border-radius:999px;background:var(--ml-green);color:#fbf8ee;font:600 15px/1.1 var(--serif,Georgia,serif);box-shadow:0 8px 18px -10px rgba(23,55,47,.75);animation:ml-fade .4s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms);white-space:nowrap}
 /* The board for business on the empty counter */
@@ -283,6 +314,15 @@ body.ml-open{overflow:hidden}
 .ml-reply-said>span{flex:1 1 auto;font-size:15px}
 .ml-reply-said small{flex:1 0 100%;font-size:12px;color:var(--ml-muted)}
 .ml-reply-said .ml-icon{color:var(--ml-green)}
+/* The till's slip in the reply strip: it feeds out line by line (things and prices, then the total). */
+.ml-slip{justify-self:center;width:min(100%,320px);padding:9px 14px 11px;background:#fffefa;border:1px solid #ece4d2;border-radius:3px;box-shadow:0 12px 20px -18px rgba(90,70,30,.8);font-size:14px;line-height:1.35;font-variant-numeric:tabular-nums;
+  animation:ml-slip .5s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
+@keyframes ml-slip{from{clip-path:inset(0 0 100% 0);transform:translateY(-6px)}to{clip-path:inset(0 0 -20px 0);transform:none}}
+.ml-slip li{display:flex;justify-content:space-between;gap:14px;padding:1px 0;animation:ml-fade .3s ease-out both;animation-delay:calc(var(--ml-fx,0ms) + 160ms + var(--ml-i,0)*90ms)}
+.ml-slip li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ml-ink)}
+.ml-slip li b{flex:none;font-weight:500;color:#6f5426}
+.ml-slip-foot{margin-top:5px;padding-top:5px;border-top:1px dashed #dfd3b8}
+.ml-slip-foot li span,.ml-slip-foot li b{font-weight:600;color:var(--ml-ink)}
 .ml-answers{display:grid;gap:6px}
 .ml-answer{display:grid;width:100%;min-height:50px;padding:10px 14px;border-radius:12px;background:var(--ml-card);border:1px solid var(--ml-line);text-align:left;font-size:16px;transition:background .2s,border-color .2s,opacity .25s}
 .ml-answer:hover:not(:disabled){border-color:var(--ml-gold-line);background:#fffaf0}
@@ -308,7 +348,7 @@ body.ml-open{overflow:hidden}
 .ml-sections.is-scrolled:not(.is-overflow){mask-image:linear-gradient(90deg,transparent,#000 10%)}
 .ml-section{position:relative;flex:none;display:grid;justify-items:center;min-height:44px;padding:6px 14px;border-radius:12px;border:1px solid transparent;color:var(--ml-muted);transition:background .2s,color .2s,border-color .2s}
 .ml-section b{font:600 15px/1.2 var(--serif,Georgia,serif)}
-.ml-section small{font-size:11px}
+.ml-section small{font-size:12px}
 .ml-section.is-on{background:var(--ml-card);border-color:var(--ml-warm);color:var(--ml-ink);box-shadow:inset 0 -2px 0 var(--ml-gold-line)}
 .ml-section.is-needed::after{content:"";position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--ml-gold-line)}
 .ml-section.is-theirs{opacity:.7}
@@ -350,7 +390,7 @@ body.ml-open{overflow:hidden}
 .ml-list{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;padding:8px 10px;margin-top:6px;border-radius:16px;background:var(--ml-card);border:1px solid var(--ml-warm);box-shadow:0 -10px 24px -24px rgba(90,70,30,.7)}
 .ml-list .ml-quiet-note{grid-column:1/-1;padding:6px}
 .ml-list-who{display:grid;justify-items:center;gap:1px;min-width:52px;font-size:12px;color:var(--ml-muted)}
-.ml-list-who small{font-size:10px}
+.ml-list-who small{font-size:12px}
 .ml-list-lines{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
 .ml-list-lines::-webkit-scrollbar{display:none}
 .ml-line{flex:none;display:flex;align-items:center;gap:6px;min-height:48px;padding:6px 10px;border-radius:12px;background:var(--ml-cream);border:1px solid #efe4cb;text-align:left;transition:background .25s,border-color .25s}
@@ -430,7 +470,7 @@ body.ml-open{overflow:hidden}
 .ml-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .ml-options.is-minutes{grid-template-columns:repeat(3,minmax(0,1fr))}
 .ml-option{display:grid;justify-items:center;gap:1px;min-height:52px;padding:6px 4px;border-radius:12px;border:1px solid var(--ml-line);background:#fffdf8;font-size:14px;transition:border-color .2s,background .2s}
-.ml-option small{font-size:11px;color:var(--ml-muted);text-align:center}
+.ml-option small{font-size:12px;color:var(--ml-muted);text-align:center}
 .ml-option.is-on{border-color:var(--ml-gold-line);background:#fffaf0;box-shadow:inset 0 -2px 0 var(--ml-gold-line)}
 .ml-option.is-locked{color:#a9a08c}
 .ml-option.is-small{min-height:44px}
@@ -511,7 +551,7 @@ body.ml-open{overflow:hidden}
 
 /* Sizes. Phones: the shelf gives each thing 60–88 px; tablets and computers more, the same layout. */
 @media (max-width:420px){
-  .ml-scene{column-gap:6px;--ml-door:40px}
+  .ml-scene{column-gap:6px;--ml-door:40px;--ml-door-min:40px;--ml-th:54px}
   .ml-scene.has-fitting{--ml-side:62px}
   .ml-door{width:36px}
   .ml-bubble{padding:8px 10px 10px;font-size:14px}
@@ -535,7 +575,6 @@ body.ml-open{overflow:hidden}
   .ml-gives{grid-area:counter;z-index:3;align-self:center;pointer-events:none}
   .ml-give-spot{justify-items:end;padding-right:4%}
   .ml-give{pointer-events:auto}
-  .ml-till-spot{pointer-events:auto;align-self:end}
   .ml-seat{gap:12px;padding-top:4px}
   .ml-reply{bottom:8px}
   .ml-bubble-text{-webkit-line-clamp:2}
@@ -550,11 +589,11 @@ body.ml-open{overflow:hidden}
   .ml-floor{min-height:132px}
   .ml-corridor{justify-content:center;flex-wrap:wrap;overflow:visible}
   .ml-store{flex-basis:300px}
-  .ml-scene{--ml-door:64px}
+  .ml-scene{--ml-door:64px;--ml-door-min:64px;--ml-bh:96px;--ml-bw:124px;--ml-th:76px}
+  .ml-scene.is-compact{--ml-bh:80px;--ml-bw:104px}
   .ml-scene.has-fitting{--ml-side:110px}
   .ml-door{width:56px}
   .ml-bubble{max-width:340px}
-  .ml-basket{width:min(100%,128px)}
   .ml-reply{left:50%;right:auto;width:min(92%,520px);transform:translateX(-50%)}
   .ml-reply{animation-name:ml-rise-center}
   .ml-sheet-layer{align-items:center}
@@ -570,14 +609,14 @@ body.ml-open{overflow:hidden}
   .ml-patience>i{animation-duration:var(--ml-patience)!important;animation-delay:var(--ml-elapsed)!important}
 }
 /* A phone on its side: the shelf is low, so things stay phone-sized however wide it is. */
-@media (orientation:landscape) and (max-height:520px){.ml-root{--ml-item-min:60px;--ml-item-max:80px;--ml-cell-min:80px}}
+@media (orientation:landscape) and (max-height:520px){.ml-root{--ml-item-min:60px;--ml-item-max:80px;--ml-cell-min:80px}.ml-scene{--ml-bh:58px;--ml-bw:84px;--ml-th:50px}.ml-scene.is-compact{--ml-bh:50px;--ml-bw:70px}}
 /* The shoe shop's bench: a low wooden seat with a small mirror over it, where a customer sits to try a pair. */
 .ml-room.is-bench{background:linear-gradient(#fbf6ea,#f3e7cc)}
 .ml-room.is-bench::before{inset:10px 22% auto;height:34%;border-radius:40px 40px 6px 6px;background:linear-gradient(160deg,#fffdf6,#e9e2cf);border:3px solid #cdb187}
 .ml-bench{position:absolute;left:8%;right:8%;bottom:14%;height:12px;border-radius:4px;background:linear-gradient(#cfae7a,#b48f5b)}
 .ml-bench i{position:absolute;left:10%;right:10%;top:12px;height:18px;border-left:4px solid #a7834f;border-right:4px solid #a7834f}
 /* A floor just opened for business: its number lights gold, the lock slides away, the shop windows warm up (once). */
-.ml-new{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--ml-gold-soft);border:1px solid #e3cfa3;font:600 10px/1.4 var(--sans,sans-serif);color:#8a6a2c;letter-spacing:.06em;vertical-align:middle;font-style:normal}
+.ml-new{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--ml-gold-soft);border:1px solid #e3cfa3;font:600 11px/1.4 var(--sans,sans-serif);color:#8a6a2c;letter-spacing:.06em;vertical-align:middle;font-style:normal}
 .ml-floor.is-new .ml-floor-n{animation:ml-new-number 1.6s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
 .ml-floor.is-new .ml-mini-front::after{animation:ml-new-glow 1.6s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
 .ml-floor.is-new .ml-floor-state{animation:ml-new-state 1.6s var(--ml-ease) both;animation-delay:var(--ml-fx,0ms)}
@@ -671,15 +710,17 @@ body.ml-open{overflow:hidden}
 .ml-root.art-counter .ml-counter-art i{display:block;width:100%;aspect-ratio:2/1;margin-top:-14.5%;background:var(--ml-art-counter) center top/100% 100% no-repeat}
 .ml-root.art-counter .ml-gives{z-index:3}
 /* Baskets, the paper bag, the till, the fitting room's curtain. */
+/* The pictures have transparent margins (basket and gift box 81 % of the canvas high, paper bag 81 %, till 81 %): each is
+   scaled so the drawn thing fills its box from top to bottom — never cut, and the same height whatever it becomes. */
 .ml-root.art-basket .ml-basket::before{display:none}
-.ml-root.art-basket .ml-basket-body{min-height:66px;padding:16px 10px 12px;border:0;background:var(--ml-art-basket) center 70%/118% auto no-repeat;box-shadow:none}
+.ml-root.art-basket .ml-basket-body{border:0;border-radius:0;background:var(--ml-art-basket) center/auto 123.6% no-repeat;box-shadow:none;filter:drop-shadow(0 6px 4px rgba(110,84,36,.18))}
 .ml-root.art-basket .ml-basket.is-guest .ml-basket-body{box-shadow:none;filter:drop-shadow(0 0 5px rgba(201,162,75,.85))}
 .ml-root.art-paper-bag .ml-basket.is-bag::before{display:none}
-.ml-root.art-paper-bag .ml-basket.is-bag .ml-basket-body{width:84px;min-height:80px;border:0;background:var(--ml-art-paper-bag) center/contain no-repeat}
+.ml-root.art-paper-bag .ml-basket.is-bag .ml-basket-body{border:0;border-radius:0;background:var(--ml-art-paper-bag) center/auto 123.4% no-repeat}
 .ml-root.art-paper-bag .ml-basket.is-bag .ml-basket-body .ml-icon{display:none}
-.ml-root.art-till .ml-till{width:60px;min-height:60px;align-content:end;border:0;background:var(--ml-art-till) center 30%/contain no-repeat;box-shadow:none}
-.ml-root.art-till .ml-till .ml-icon{opacity:0}
-.ml-root.art-till .ml-till small{padding:0 4px;border-radius:6px;background:rgba(255,252,244,.9)}
+.ml-root.art-till .ml-till-body{border:0;border-radius:0;background:var(--ml-art-till) center/auto 123% no-repeat;filter:drop-shadow(0 6px 4px rgba(110,84,36,.18))}
+.ml-root.art-till .ml-till-body>.ml-icon{opacity:0}
+.ml-root.art-till .ml-till:hover .ml-till-body{filter:brightness(1.04) drop-shadow(0 0 5px rgba(201,162,75,.6))}
 .ml-root.art-curtain-open .ml-room:not(.is-bench){border:0;background:var(--ml-art-curtain-open) center 40%/140% auto no-repeat;box-shadow:none}
 .ml-root.art-curtain-closed .ml-room.is-busy:not(.is-bench){background-image:var(--ml-art-curtain-closed)}
 .ml-root.art-curtain-open .ml-room:not(.is-bench) .ml-curtain{display:none}
@@ -695,5 +736,5 @@ body.ml-open{overflow:hidden}
 /* The preview: the shop's window picture as a banner. */
 .ml-preview-cover{height:clamp(96px,20dvh,180px);border-radius:14px;background:var(--ml-cover) center 45%/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(214,190,140,.55)}
 .ml-scene-back.is-art ~ .ml-door-zone .ml-door{opacity:0}
-.ml-root.art-gift-box .ml-basket.is-gift .ml-basket-body{background-image:var(--ml-art-gift-box)}
+.ml-root.art-gift-box .ml-basket.is-gift .ml-basket-body{background-image:var(--ml-art-gift-box);background-size:auto 123.6%}
 .ml-receipt-upload{padding-top:8px;font-size:13px;color:var(--ml-muted)}
