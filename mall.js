@@ -24,8 +24,12 @@
   const MINUTES = [3,4,5], DEFAULT_MINUTES = 4;
   const MAX_PLAYERS = 30;
   // Customers come every ARRIVE_GAP ms (±25 %), by number of clerks; quicker with more than four, never closer than ARRIVE_MIN.
-  const ARRIVE_GAP = [0,16000,13000,11000,9500], ARRIVE_MIN = 6000;
-  const FIRST_ARRIVAL = 1500, QUIET_END = 25000, MAX_ORDERS = 60;
+  // Once the counter is empty the next one comes EMPTY_WAIT ms later at the latest, and everyone after them as much
+  // sooner (a quick clerk is never left waiting). Nobody new comes in the last QUIET_END ms.
+  const ARRIVE_GAP = [0,16000,13000,11000,9500], ARRIVE_MIN = 6000, EMPTY_WAIT = 1500;
+  const FIRST_ARRIVAL = 1500, QUIET_END = 25000, MAX_ORDERS = 90;
+  // A room's view carries the customers so far and the next VIEW_AHEAD (enough to run on between two polls).
+  const VIEW_AHEAD = 8;
   // How long a customer waits: a base, more for each piece, each reply and a service. A reply that comes up gives
   // them back at least TALK_FLOOR % of their patience. In a fitting room (or waiting for one) patience stops.
   const PATIENCE_BASE = 42000, PATIENCE_PIECE = 9000, PATIENCE_TALK = 7000, PATIENCE_SERVICE = 9000, TALK_FLOOR = 30;
@@ -104,15 +108,16 @@
 
   // The customers of one game, drawn from the seed: who comes when, with which order. Orders with words the clerks
   // have not mastered (`weak`) come more often; the theme's core orders come in every game, among the first few.
+  // MAX_ORDERS are drawn whatever the length of the game: an empty counter brings them sooner (nextEvent).
   function plan(scene,{seed,minutes = DEFAULT_MINUTES,players = 1,weak = []}) {
-    const random = rng(seed), duration = minutes*60000, weakSet = new Set(weak);
+    const random = rng(seed), weakSet = new Set(weak);
     const weights = scene.tplList.map(id => {
       const words = tplWords(scene,scene.tpls[id]);
       return 4+Math.floor(12*words.filter(word => weakSet.has(word)).length/Math.max(1,words.length));
     });
     const gap = arriveGap(players), picks = [], times = [];
     let at = FIRST_ARRIVAL, last = -1;
-    while (at <= duration-QUIET_END && picks.length < MAX_ORDERS) {
+    while (picks.length < MAX_ORDERS) {
       let total = 0;
       for (let index = 0; index < weights.length; index++) if (index !== last || weights.length === 1) total += weights[index];
       let draw = pick(random,total), chosen = 0;
@@ -207,7 +212,7 @@
           change:tpl.change ? {line:tpl.change.line,to:tpl.change.to || '',q:tpl.change.q || 0,s:'wait'} : null,
           sub:tpl.soldout ? {line:tpl.soldout.line,i:tpl.soldout.sub,accept:Boolean(tpl.soldout.accept)} : null};
       }),
-      next:0,t:0,over:false,score:0,served:0,gone:0};
+      next:0,t:0,over:false,score:0,served:0,gone:0,lead:0,emptyAt:-1};
   }
 
   const seated = state => state.orders.filter(order => order.status === 'wait');
@@ -238,6 +243,8 @@
   function freeSeat(state,order) {
     if (order.seat >= 0 && state.seats[order.seat] === order.n) state.seats[order.seat] = -1;
   }
+  // When the next customer is due by the plan, less the time an empty counter has already brought them sooner (`lead`).
+  const dueAt = (state,order) => order.at-state.lead;
   // A fitting room just came free: the customer who has waited longest goes in.
   function fillRooms(state,t,events) {
     for (let room = 0; room < state.rooms.length; room++) {
@@ -250,7 +257,8 @@
     }
   }
   // The next thing that happens by itself: a fitting ending, a customer leaving, or the next one arriving (who waits
-  // while every place at the counter is taken). At the same moment: fittings, then leaving, then arriving.
+  // while every place at the counter is taken; comes EMPTY_WAIT after the counter emptied if that is sooner; never
+  // when due in the last QUIET_END). At the same moment: fittings, then leaving, then arriving.
   function nextEvent(state) {
     let best = null;
     const consider = (kind,rank,at,order) => {
@@ -262,8 +270,9 @@
       if (order.hold < 0) consider('leave',1,order.leavesAt,order);
     }
     if (state.next < state.orders.length && state.seats.includes(-1)) {
-      const order = state.orders[state.next];
-      consider('arrive',2,Math.max(order.at,state.t),order);
+      const order = state.orders[state.next], empty = state.emptyAt >= 0 && state.seats.every(seat => seat < 0);
+      const due = Math.min(dueAt(state,order),empty ? state.emptyAt+EMPTY_WAIT : Infinity);
+      if (due <= state.duration-QUIET_END) consider('arrive',2,Math.max(due,state.t),order);
     }
     return best;
   }
@@ -283,6 +292,7 @@
         events.push({e:'leave',n:order.n,at});
       } else if (next.kind === 'arrive') {
         const seat = state.seats.indexOf(-1);
+        state.lead += Math.max(0,dueAt(state,order)-at);
         state.seats[seat] = order.n;
         Object.assign(order,{status:'wait',seat,arrivedAt:at,leavesAt:at+order.patience});
         for (const talk of order.talks) if (talk.k === 'start' || talk.k === 'soldout') talk.s = 'open';
@@ -489,6 +499,8 @@
         here.status = 'served';
         here.servedAt = now;
         freeSeat(state,here);
+        // The last one at the counter served: the next customer comes sooner (nextEvent). One who left unserved does not.
+        if (state.seats.every(seat => seat < 0)) state.emptyAt = now;
         player.served++;
         for (const entry of state.players) if (!entry.away) entry.bags++;
         for (const entry of state.players) {
@@ -689,7 +701,7 @@
     return state;
   }
   function publicView(state,me = '') {
-    return {...state,players:state.players.map(player => player.id === me ? player : {...player,learn:[],done:[],counted:[]})};
+    return {...state,orders:state.orders.slice(0,state.next+VIEW_AHEAD),players:state.players.map(player => player.id === me ? player : {...player,learn:[],done:[],counted:[]})};
   }
 
   // A computer clerk for tests and for setting each theme's ★ target: one step every `think` ms; a careless one taps
@@ -1497,7 +1509,8 @@
       `<div class="ml-row">${row.map(id => itemCell(game,id,out.includes(id),big)).join('')}</div>`).join('')}</div>`;
   }
   // One thing on the shelf with its tag. Browsing: its name (中文 if switched on). In a game the tag shows what a
-  // real shop's tag shows (price, size of pack) — the name only for 新手.
+  // real shop's tag shows (price, size of pack) and the name: 新手 Norwegian + 中文, 标准 Norwegian only, 高手 none
+  // (高手 hears the customer and finds the thing by its look).
   function itemCell(game,id,soldOut,big = false) {
     const item = itemOf(id), tier = game?.state.tier || '';
     const price = `<span class="ml-price">${item.price},-</span>`;
@@ -1505,6 +1518,7 @@
     let tag;
     if (!game) tag = `${wordHTML(id)}${note ? `<span class="ml-variant" lang="nb">${e(note)}</span>` : ''}${ui.prefs.zh ? `<small class="ml-zh">${e(colorZh(id) && item.color && Object.values(ui.data.items).some(o => o.p === item.p && o.v === 'color') ? colorBefore(id) : '')}${e(zhOf(id))}</small>` : ''}`;
     else if (tier === 'novice') tag = `${wordHTML(id)}<small class="ml-zh">${e(zhOf(id))}</small><span class="ml-tag-foot">${label}${price}</span>`;
+    else if (tier === 'standard') tag = `${wordHTML(id)}<span class="ml-tag-foot">${label}${price}</span>`;
     else tag = `<span class="ml-tag-foot">${label}${price}</span>`;
     if (soldOut) return `<button type="button" class="ml-item is-out" data-ml="out" data-id="${e(id)}" aria-label="Utsolgt"><span class="ml-pic is-empty" aria-hidden="true"></span><span class="ml-tag"><b lang="nb">Utsolgt</b>${tier === 'novice' ? `<small class="ml-zh">${tx('售罄')}</small>` : ''}</span></button>`;
     const theirs = game?.room && !holds(game.state,game.scene.sectionOf[id],game.me);
@@ -1512,7 +1526,7 @@
     const glow = !game && ui.browse.flash?.id === id && Date.now()-ui.browse.flash.at < 1300 ? ` style="--ml-fx:-${Date.now()-ui.browse.flash.at}ms"` : wrong ? ` style="--ml-fx:${wrong}"` : '';
     const name = productEntry(id)?.word || '';
     const sized = item.sizes.length ? ` · ${tx('有尺码')}` : '';
-    const aria = game && tier !== 'novice' ? `${item.price} kroner${item.label ? `, ${item.label}` : ''}${sized}` : `${name}${note && item.v ? ` ${note}` : ''}, ${item.price} kroner`;
+    const aria = game && tier === 'expert' ? `${item.price} kroner${item.label ? `, ${item.label}` : ''}${sized}` : `${name}${note && item.v ? ` ${note}` : ''}, ${item.price} kroner`;
     return `<button type="button" class="ml-item${wrong ? ' is-wrong' : ''}${called ? ' is-called' : ''}${theirs ? ' is-theirs' : ''}${glow && !game ? ' is-found' : ''}${game?.tags?.id === id ? ' is-lifted' : ''}" data-ml="item" data-id="${e(id)}" aria-label="${e(aria)}"${glow}>${pic(id,big ? 'is-big' : '')}<span class="ml-tag">${tag}</span></button>`;
   }
   // How many things stand in a row and how large: as large as the shelf allows with every thing in view (开饭啦's
@@ -1910,7 +1924,7 @@
     const tier = game.state.tier, novice = tier === 'novice', theme = game.theme;
     const fresh = (theme.fresh?.length ? theme.fresh : [...new Set(theme.orders.flatMap(tpl => tpl.want.map(want => want.i)))]).slice(0,6);
     const phraseText = theme.phrase?.text || '';
-    const hint = novice ? tx('开门后顾客的话和价签上都有中文。') : tier === 'standard' ? tx('开门后顾客只说挪威语，价签上不写商品名。') : tx('开门后顾客只说话，购物单要点开听。');
+    const hint = novice ? tx('开门后顾客的话和价签上都有中文。') : tier === 'standard' ? tx('开门后顾客的话和价签上都只有挪威语。') : tx('开门后顾客只说话，购物单要点开听。');
     return `${topBar(tx('今天的货'),game.room ? '' : game.themeId === 'daily' ? 'daily' : 'shop')}
       <section class="ml-preview">
         ${artURL(`cover/${theme.shop}`) ? `<div class="ml-preview-cover" aria-hidden="true" style="--ml-cover:url('${e(artURL(`cover/${theme.shop}`,!wide()))}')"></div>` : ''}
@@ -2271,7 +2285,7 @@
   function diskenMarkup(game,shop,now) {
     const state = game.state, tier = state.tier, seats = state.seats.length;
     const fitting = fittingKind(shop), till = game.theme.orders.some(tpl => tpl.svc === 'till');
-    const waiting = state.orders.slice(state.next).filter(order => order.at <= now);
+    const waiting = state.orders.slice(state.next).filter(order => dueAt(state,order) <= Math.min(now,state.duration-QUIET_END));
     const queue = `<div class="ml-door-zone" aria-label="${tx('门口排队')}"><span class="ml-door${since(game,`arrive:${state.orders[state.next-1]?.n}`,700) ? ' is-opening' : ''}" aria-hidden="true"></span>${waiting.slice(0,3).map(order => faceHTML(order.customer,'neutral','is-queued')).join('')}${waiting.length > 3 ? `<span class="ml-queue-more">+${waiting.length-3}</span>` : ''}</div>`;
     const compact = seats >= 3;
     const people = state.seats.map((n,seat) => {
