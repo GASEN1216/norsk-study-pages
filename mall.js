@@ -832,7 +832,7 @@
   function pic(id,cls = '') {
     const item = itemOf(id);
     if (!item) return `<span class="ml-pic ${cls}" aria-hidden="true"></span>`;
-    const small = !/\bis-large\b/.test(cls);
+    const small = !/\bis-(?:large|big)\b/.test(cls);
     const art = item.art ? kitchenURL(item.art) : artURL(`product/${id}`,small) || artURL(`product/${item.p}`,small);
     if (art) return `<span class="ml-pic is-art ${cls}" aria-hidden="true"><img src="${e(art)}" alt="" loading="lazy" decoding="async"></span>`;
     const color = item.color ? ui.data.colors[item.color]?.hex : TINTS[hashOf(item.p) % TINTS.length];
@@ -1080,6 +1080,17 @@
     try { void Promise.resolve(ui.opts.pronounce?.({word:text,audio:audio || ''},{onEnded})).catch(() => {}); } catch {}
   }
   const sayWord = id => { const item = productEntry(id) || entryOf(id); if (item) say(item.word,item.clip); };
+  // A variant chip on the word card: the word, then what the chip says (svart; 75 ml — labelSpeech from
+  // scripts/content/mall-themes/labels.json, in the clerk's voice).
+  function sayVariant(id) {
+    const item = itemOf(id), entry = productEntry(id), note = variantNote(id);
+    if (!item || !entry) return;
+    const colour = note && note === ui.data.colors[item.color]?.no ? entryOf(`m-farge-${item.color}`) : null;
+    const words = colour ? '' : ui.data.labelSpeech?.[note] || '';
+    const then = colour ? () => say(colour.word,colour.clip) : words ? () => sayLine(words,clerkVoice()) : undefined;
+    if (words) void lineURL(words,clerkVoice());
+    say(entry.word,entry.clip,then);
+  }
   // A customer's line waits for a word still being read, so nothing is cut off.
   function sayLine(text,voice = 'f',onEnded) {
     if (!text) return;
@@ -1346,8 +1357,22 @@
         ${status}</button>`;
     }).join('');
     const today = ui.daily?.theme ? shopById(ui.daily.theme.shop) : null;
+    // On a computer the building stands at the left and this column beside it (on a phone it is not shown: the
+    // resume pills, the day's sign on the building and the note under it say the same).
+    const states = data.floors.map(floorState), opened = states.filter(state => state.open).length;
+    const done = states.reduce((sum,state) => sum+state.done,0), core = states.reduce((sum,state) => sum+state.core,0);
+    const side = `<aside class="ml-side" aria-label="${tx('百货超市')}">
+        <p class="ml-kicker" lang="nb">Varehuset</p>
+        <p class="ml-side-title">${tx('{floors} 层 · {shops} 家店',{floors:data.floors.length,shops:data.shops.length})}</p>
+        <p class="ml-side-progress">${tx('营业已开放 {n}/{all} 层',{n:opened,all:data.floors.length})} · ${tx('核心主题')} ★★ ${done}/${core}</p>
+        ${resume ? resume.replace('class="ml-resume"','class="ml-resume is-side"') : ''}
+        <button type="button" class="ml-daily-card" data-ml="daily"><span class="ml-kicker" lang="nb">Dagens vakt</span>
+          <b>${today ? `<span lang="nb">${e(today.sign)}</span> · ${e(tx(today.zh))}` : tx('今日营业')}</b>
+          <small>${tx('每天全服同一家店、同一组顾客，不受楼层和主题的限制。档位自己选。')}</small>${icon('next')}</button>
+        <p class="ml-hint">${tx('逛店不受限制，6 层都能进去看；营业一层一层开放。')}</p>
+      </aside>`;
     return `${topBar(L10N.english ? '<span lang="nb">Varehuset</span>' : `${tx('百货超市')} <span class="ml-title-no" lang="nb">Varehuset</span>`,'',`<button type="button" class="ml-text-button" data-ml="join">${tx('输入房号')}</button>`)}
-      ${resume}
+      ${resume}${painted ? side : ''}
       ${painted ? `<section class="ml-building is-painted" aria-label="${tx('商场大楼')}"><div class="ml-tower">${floors}
           <button type="button" class="ml-daily-sign is-painted" data-ml="daily"><b lang="nb">Dagens vakt</b><small>${today ? `<span lang="nb">${e(today.sign)}</span> · ${e(tx(today.zh))}` : tx('今日营业')}</small></button></div></section>`
       : `<section class="ml-building" aria-label="${tx('商场大楼')}">
@@ -1369,11 +1394,11 @@
       const cover = artURL(`cover/${shop.id}`);
       if (artURL('fixture/storefront') && cover) return `<button type="button" class="ml-store" data-ml="shop" data-value="${shop.id}">
         <span class="ml-store-front is-painted" aria-hidden="true"><span class="ml-store-window" style="--ml-cover:url('${e(cover)}')"></span><span class="ml-store-sign" lang="nb">${e(shop.sign)}</span></span>
-        <span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span><span class="ml-store-state">${state}</span></button>`;
+        <span class="ml-store-plate"><span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span><span class="ml-store-state">${state}</span></span></button>`;
       return `<button type="button" class="ml-store" data-ml="shop" data-value="${shop.id}" style="--ml-tint:${TINTS[hashOf(shop.id) % TINTS.length]}">
         <span class="ml-store-front" aria-hidden="true"><span class="ml-awning"></span><span class="ml-store-sign" lang="nb">${e(shop.sign)}</span>
           <span class="ml-window">${shown.map(id => pic(id,'is-window')).join('')}</span><span class="ml-store-door"></span></span>
-        <span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span><span class="ml-store-state">${state}</span></button>`;
+        <span class="ml-store-plate"><span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span><span class="ml-store-state">${state}</span></span></button>`;
     }).join('');
     return `${topBar(`<span>${floor.n}F</span> · <span lang="nb">${e(floor.no)}</span>`,'building')}
       <div class="ml-atrium"><div class="ml-corridor" data-scroll="corridor">${fronts}</div></div>
@@ -1466,12 +1491,14 @@
     const rows = [];
     for (let i = 0; i < section.items.length; i += fit.cols) rows.push(section.items.slice(i,i+fit.cols));
     const out = game ? outOfStock(game.state) : [];
+    // Things standing larger than the small picture holds on this screen get the large picture.
+    const big = fit.item*(globalThis.devicePixelRatio || 1) > 280;
     return `<div class="ml-shelf ${FIXTURE_ROW[section.fixture] || 'is-board'}" data-sec="${e(section.id)}" data-cols="${fit.cols}" style="--ml-cols:${fit.cols};--ml-item:${fit.item}px">${rows.map(row =>
-      `<div class="ml-row">${row.map(id => itemCell(game,id,out.includes(id))).join('')}</div>`).join('')}</div>`;
+      `<div class="ml-row">${row.map(id => itemCell(game,id,out.includes(id),big)).join('')}</div>`).join('')}</div>`;
   }
   // One thing on the shelf with its tag. Browsing: its name (中文 if switched on). In a game the tag shows what a
   // real shop's tag shows (price, size of pack) — the name only for 新手.
-  function itemCell(game,id,soldOut) {
+  function itemCell(game,id,soldOut,big = false) {
     const item = itemOf(id), tier = game?.state.tier || '';
     const price = `<span class="ml-price">${item.price},-</span>`;
     const note = variantNote(id), label = item.label ? `<span class="ml-label">${e(item.label)}</span>` : '';
@@ -1486,7 +1513,7 @@
     const name = productEntry(id)?.word || '';
     const sized = item.sizes.length ? ` · ${tx('有尺码')}` : '';
     const aria = game && tier !== 'novice' ? `${item.price} kroner${item.label ? `, ${item.label}` : ''}${sized}` : `${name}${note && item.v ? ` ${note}` : ''}, ${item.price} kroner`;
-    return `<button type="button" class="ml-item${wrong ? ' is-wrong' : ''}${called ? ' is-called' : ''}${theirs ? ' is-theirs' : ''}${glow && !game ? ' is-found' : ''}${game?.tags?.id === id ? ' is-lifted' : ''}" data-ml="item" data-id="${e(id)}" aria-label="${e(aria)}"${glow}>${pic(id)}<span class="ml-tag">${tag}</span></button>`;
+    return `<button type="button" class="ml-item${wrong ? ' is-wrong' : ''}${called ? ' is-called' : ''}${theirs ? ' is-theirs' : ''}${glow && !game ? ' is-found' : ''}${game?.tags?.id === id ? ' is-lifted' : ''}" data-ml="item" data-id="${e(id)}" aria-label="${e(aria)}"${glow}>${pic(id,big ? 'is-big' : '')}<span class="ml-tag">${tag}</span></button>`;
   }
   // How many things stand in a row and how large: as large as the shelf allows with every thing in view (开饭啦's
   // fitStore); only when even the smallest size does not fit does the shelf scroll down.
@@ -2497,7 +2524,7 @@
         openSheet('card',{id:target.dataset.id});
         break;
       case 'out': say('utsolgt',''); break;
-      case 'card-variant': ui.sheet.id = target.dataset.id; render(); sayWord(target.dataset.id); break;
+      case 'card-variant': ui.sheet.id = target.dataset.id; render(); sayVariant(target.dataset.id); break;
       case 'hear-word': sayWord(target.dataset.id); break;
       case 'hear-line': sayLine(value,target.dataset.voice || 'f'); break;
       case 'card-add': addToWordbook([target.dataset.id]); break;
