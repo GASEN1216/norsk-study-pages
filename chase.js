@@ -33,6 +33,16 @@
   // Bot speeds in letters per minute (user, 2026-11-06: 新手 20, 高手 240; the server's CHASE_LEVELS holds the same).
   const LEVELS = {easy:{name:tx('新手'),rate:20},normal:{name:EN ? tx('熟练（电脑水平）') : '熟练',rate:110},hard:{name:tx('高手'),rate:240},match:{name:tx('旗鼓相当'),rate:0}};
   const ENDS = {catch:{name:tx('抓到为止')},timed:{name:tx('限时')}};
+  // 朗读 (user, 2026-11-11): against the computer the player may read the text aloud instead of typing it; the page's own
+  // recogniser hears it (chase-speech.mjs). Reading is two to three times as fast as typing, so every READ_SCALE letters
+  // read count as one letter of the chase: speed, vehicles, the computer's levels, distances and the server's records stay
+  // on the typing scale, and a lap still takes minutes. 2, not 2.5: the server credits at most one word per two letters,
+  // and textbook words average 4.4 letters (2.5 cost a reader a tenth of the XP). Rooms are typing only for now.
+  const READ_SCALE = 2;
+  // (朗读 elsewhere on the site means playing a recording, hence the note on the English key.)
+  const READ_NAME = EN ? tx('朗读（玩法）') : '朗读';
+  const INPUTS = {type:{name:tx('打字'),hint:tx('用键盘')},read:{name:READ_NAME,hint:tx('念出课文')}};
+  const STUCK_MS = 7000;             // reading but no word heard this long: offer to pass the word
   // How the 3D scene is drawn: each player chooses for their own picture (it changes nothing in the game, so a room's
   // players may each see their own). chase-brunstad.mjs builds all three; the cast follows the look.
   const LOOKS = {pixel:{name:tx('像素'),hint:tx('复古像素画')},town:{name:tx('Q版'),hint:tx('手绘贴图')},anime:{name:'3D',hint:tx('动画风建模')}};
@@ -104,7 +114,7 @@
         if (!(end > start) || start < 0 || end > text.length) continue;
         const piece = text.slice(start,end);
         if (!TYPEABLE.test(piece)) continue;
-        words.push({start,end,text:piece,key});
+        words.push({start,end,text:piece,key,...(reader?.lexicon?.[key]?.pos === '专名' ? {name:true} : {})});
         for (let i = start; i < end; i++) covered.add(i);
       }
       for (const match of text.matchAll(RUNS)) {
@@ -133,7 +143,7 @@
       item.endLetter = text.letters.length;
       for (const word of sentence.words) {
         const letterEnd = item.firstLetter+prefix[word.end];
-        if (prefix[word.end] > prefix[word.start]) text.words.push({text:word.text,clip:word.clip,s,letterEnd,letterStart:item.firstLetter+prefix[word.start],start:word.start,end:word.end});
+        if (prefix[word.end] > prefix[word.start]) text.words.push({text:word.text,clip:word.clip,s,letterEnd,letterStart:item.firstLetter+prefix[word.start],start:word.start,end:word.end,...(word.name ? {name:true} : {})});
       }
     }
     text.words.sort((a,b) => a.letterEnd-b.letterEnd);
@@ -314,6 +324,26 @@
     }
     return done;
   }
+  // Where a player is in the text. A typist's letters are both the text and the chase; a reader (player.read) moves
+  // through the text by words heard, and the chase gets one letter for every READ_SCALE letters read.
+  const textAt = player => player.read ? player.read.pos : player.letters;
+  const wordAt = player => player.read ? player.read.word : player.wordIndex;
+  // A word read aloud: the text moves on to its end, and the chase by its letters (and those passed before it) / READ_SCALE.
+  // A word passed by hand (`passed`) moves the text on but gives no letters.
+  function readWord(game,player,word,now,passed=false) {
+    const read = player.read, gained = Math.max(0,word.letterEnd-read.pos);
+    read.pos = Math.max(read.pos,word.letterEnd);
+    read.word++;
+    if (passed) { read.passed++; return; }
+    player.words++;
+    read.carry += gained/READ_SCALE;
+    while (read.carry >= 1) {
+      read.carry--;
+      player.letters++;
+      player.times.push(now);
+    }
+    if (player.times.length > 400) player.times.splice(0,player.times.length-300);
+  }
   function advance(game,dt,now=0) {
     const keep = 1-Math.exp(-dt/EASE);
     for (const player of game.players) {
@@ -438,6 +468,7 @@
     track:'<path d="M3.5 12h17"/><circle cx="8" cy="12" r="2"/><circle cx="16.5" cy="12" r="2"/>',
     people:'<circle cx="8.5" cy="9" r="3"/><circle cx="16" cy="9.5" r="2.5"/><path d="M3.5 19a5 5 0 0 1 10 0M13.5 15.2a4.5 4.5 0 0 1 7 3.8"/>',
     keyboard:'<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14.2h8"/>',
+    mic:'<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5M9 20.5h6"/>',
     'keyboard-hide':'<rect x="2.5" y="3.5" width="19" height="11" rx="2.5"/><path d="M6.5 7.3h.01M10 7.3h.01M14 7.3h.01M17.5 7.3h.01M8 11h8"/><path d="m9 18 3 2.5 3-2.5"/>',
   };
   const icon = name => `<svg class="pc-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -461,6 +492,7 @@
       text:saved.text === 'words' && typeof saved.words === 'string' && saved.words ? 'words' : 'section',
       words:typeof saved.words === 'string' ? saved.words : '',wordsTitle:typeof saved.wordsTitle === 'string' ? saved.wordsTitle.slice(0,60) : '',
       opponents:[1,2,3].includes(saved.opponents) ? saved.opponents : 1,teammates:[0,1,2].includes(saved.teammates) ? saved.teammates : 0,
+      input:saved.input === 'read' ? 'read' : 'type',
       level:LEVELS[saved.level] ? saved.level : 'match',end:ENDS[saved.end] ? saved.end : 'catch',minutes:MINUTES.includes(saved.minutes) ? saved.minutes : 3,
       // Someone who asked their device for less motion starts in the wide view (they can still switch).
       // Background music starts out as the sound does (someone who silenced the game before keeps it silent).
@@ -966,6 +998,7 @@
     ui.root?.scrollTo?.(0,0);
     $('h2')?.focus?.({preventScroll:true});
     if (ui.toast?.classList.contains('is-on')) placeToast();
+    if (view === 'setup' && ui.prefs.input === 'read') void checkSpeech();
   }
   function onVisibility() {
     if (ui.room && !document.hidden) schedulePoll(0);
@@ -1028,7 +1061,7 @@
     const recent = ui.records.slice(0,3);
     return `${topBar(tx('警察抓小偷'),'')}
       <section class="pc-hero"><img class="pc-hero-art" src="${sprite('key-art')}" alt="" decoding="async" draggable="false">
-        <div class="pc-hero-text"><span class="pc-kicker">Politi og røver</span><p class="pc-hero-title">${tx('打课文，比速度')}</p><p class="pc-hero-note">${tx('打对一个字母就前进一步，打完一个词会念给你听。警察追上小偷算抓到；小偷多跑一圈、从后面追上警察，就是套圈，可以嘲笑他。')}</p></div></section>
+        <div class="pc-hero-text"><span class="pc-kicker">Politi og røver</span><p class="pc-hero-title">${tx('打课文，比速度')}</p><p class="pc-hero-note">${tx('打对一个字母就前进一步，打完一个词会念给你听。警察追上小偷算抓到；小偷多跑一圈、从后面追上警察，就是套圈，可以嘲笑他。')}${tx('人机对战也可以选「朗读」，念出课文来跑。')}</p></div></section>
       <div class="pc-actions">${button('go',`<span>${tx('人机对战')}</span>`,'pc-primary pc-wide','data-view="setup"')}
         ${ui.joining ? `<form class="pc-join" novalidate><label for="pc-join-code">${tx('房间号')}</label><input id="pc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${tx('4 位数字')}" value="${e(ui.joinCode)}">
           ${button('room-join',ui.busy ? tx('正在加入…') : tx('加入'),'pc-primary',`type="submit"${ui.busy ? ' disabled' : ''}`).replace('type="button" ','')}${button('room-join-cancel',tx('取消'),'pc-quiet')}</form>`
@@ -1051,8 +1084,10 @@
     return `${topBar(tx('人机对战'))}
       <section class="pc-panel pc-setup">
         <div class="pc-field"><span class="pc-label">${tx('地图 · 在 Brunstad 平面图上点选赛道')}</span>${planMarkup()}</div>
+        <div class="pc-field"><span class="pc-label">${tx('玩法')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('玩法')}">${Object.entries(INPUTS).map(([key,item]) => option('input',key,item.name,p.input,item.hint)).join('')}</div>
+          ${p.input === 'read' ? `<p class="pc-hint pc-read-state" id="pc-read-state" aria-live="polite">${e(readState())}</p>` : ''}</div>
         <div class="pc-field"><span class="pc-label">${tx('你当')}</span><div class="pc-sides" role="radiogroup" aria-label="${tx('身份')}">${sideTile('police')}${sideTile('thief')}</div></div>
-        <div class="pc-field"><span class="pc-label">${tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName(p))}</span>${icon('down')}</button></div>
+        <div class="pc-field"><span class="pc-label">${p.input === 'read' ? tx('朗读内容') : tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName(p))}</span>${icon('down')}</button></div>
         <div class="pc-field"><span class="pc-label">${tx('电脑对手')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑对手')}">${[1,2,3].map(n => option('opponents',n,tx('{n} 名',{n}),p.opponents)).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">${tx('电脑队友')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑队友')}">${[0,1,2].map(n => option('teammates',n,n ? tx('{n} 名',{n}) : tx('不要'),p.teammates)).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">${tx('电脑水平')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑水平')}">${Object.entries(LEVELS).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${level.rate}/min` : tx('跟着你'))).join('')}</div></div>
@@ -1156,7 +1191,7 @@
     const when = Number.isFinite(Number(record.at)) && record.at ? EN ? `${date.getDate()} ${MONTHS[date.getMonth()]} ${clock}` : `${date.getMonth()+1}月${date.getDate()}日 ${clock}` : '';
     return `<li class="pc-game-row"><button type="button" class="pc-game-button" data-pc="expand" data-value="${e(record.id)}" aria-expanded="${ui.expanded === record.id}">
       <span class="pc-result is-${e(record.result)}">${resultName(record.result)}</span>
-      <span class="pc-game-main"><strong>${e(titleText(record.title || ''))}</strong><small>${record.kind === 'room' ? tx('房间局') : tx('人机局')} · ${when} · ${e(mapName(mapOf(record.map || 'lakeside')))} · ${SIDES[record.side]?.name || ''} · ${record.end === 'timed' ? tx('{n} 分钟',{n:record.minutes}) : tx('抓到为止')}</small></span>
+      <span class="pc-game-main"><strong>${e(titleText(record.title || ''))}</strong><small>${record.kind === 'room' ? tx('房间局') : tx('人机局')}${record.input === 'read' ? ` · ${READ_NAME}` : ''} · ${when} · ${e(mapName(mapOf(record.map || 'lakeside')))} · ${SIDES[record.side]?.name || ''} · ${record.end === 'timed' ? tx('{n} 分钟',{n:record.minutes}) : tx('抓到为止')}</small></span>
       <span class="pc-game-score">${icon('cuffs')}${Number(record.score?.catch) || 0}<i>:</i>${Number(record.score?.taunt) || 0}${icon('taunt')}</span>
       <span class="pc-game-rate"><b>${Number(record.me?.rate) || 0}</b>/min</span></button>
       ${ui.expanded === record.id ? recordDetail(record) : ''}</li>`;
@@ -1166,7 +1201,9 @@
     const names = list => list.map(player => `${nameOf(player.name)}${player.side && player.startSide && player.side !== player.startSide ? tx('（换了阵营）') : ''}`).join(tx('、'));
     const mates = others.filter(player => (player.startSide || player.side) === record.side), rivals = others.filter(player => (player.startSide || player.side) !== record.side);
     const people = [mates.length ? tx('队友 {names}',{names:names(mates)}) : '', rivals.length ? tx('对手 {names}',{names:names(rivals)}) : ''].filter(Boolean).join(' · ');
-    return `<div class="pc-detail"><p class="pc-detail-line">${e(`${tx('正确率 {n}% · {words} 个词 · 最高 {vehicle}',{n:Number(me.accuracy) || 0,words:Number(me.words) || 0,vehicle:VEHICLES[record.finalSide || record.side]?.[(me.maxTier || 1)-1] || ''})}${people ? ` · ${people}` : ''}`)}</p>${sentenceList(record.sentences || [],record.id)}</div>`;
+    const vehicle = VEHICLES[record.finalSide || record.side]?.[(me.maxTier || 1)-1] || '';
+    const line = record.input === 'read' ? tx('念了 {words} 个词 · 最高 {vehicle}',{words:Number(me.words) || 0,vehicle}) : tx('正确率 {n}% · {words} 个词 · 最高 {vehicle}',{n:Number(me.accuracy) || 0,words:Number(me.words) || 0,vehicle});
+    return `<div class="pc-detail"><p class="pc-detail-line">${e(`${line}${people ? ` · ${people}` : ''}`)}</p>${sentenceList(record.sentences || [],record.id)}</div>`;
   }
   function sentenceList(sentences,owner) {
     if (!sentences.length) return '';
@@ -1202,6 +1239,8 @@
       else ui.prefs[key] = Number.isNaN(number) ? value : number;
       if (key === 'look') ui.prefs.lookPicked = true;
       savePrefs();
+      // Choosing 朗读 starts getting the recogniser at once (a download the first time; the setup page says so).
+      if (key === 'input' && value === 'read') void prepareSpeech();
       // (the picture's look is mine alone, never the room's)
       if (ui.view === 'room' && key !== 'look') pushRoomSettings();
       render();
@@ -1228,6 +1267,7 @@
       return;
     }
     if (action === 'start') { startGame(); return; }
+    if (action === 'skip-word') { passWord(); return; }
     if (action === 'room-create') { void createRoom(); return; }
     if (action === 'room-join-open') { ui.joining = true; render(); $('#pc-join-code')?.focus?.(); return; }
     if (action === 'room-join-cancel') { closeJoin(); return; }
@@ -1915,6 +1955,12 @@
     // A finished game still waiting to show its results gives way to the new one.
     ui.game = null;
     ui.confirming = false;
+    closeMic();
+    // 朗读: the microphone is asked for inside this tap (iOS starts audio only in a tap). A start left behind closes it.
+    const reading = prefs.input === 'read';
+    const micAsk = reading ? (ui.speech ? ui.speech.openMic() : loadSpeech().then(speech => speech.openMic())) : null;
+    micAsk?.catch(() => {});
+    const dropMic = () => micAsk?.then(mic => mic.close(),() => {});
     stopSlice();
     wakeSfx();
     ui.calm = reduceMotion();
@@ -1932,10 +1978,24 @@
     try {
       // A word range is read from 练习 now; when it is gone (another textbook there now), the player picks again.
       const range = prefs.text === 'words' ? wordList(prefs.words) : null;
-      if (prefs.text === 'words' && !range) { ui.game = null; show('setup'); notify(tx('这个词语范围现在不可用，请重新选择打字内容。')); return; }
+      if (prefs.text === 'words' && !range) { dropMic(); ui.game = null; show('setup'); notify(tx('这个词语范围现在不可用，请重新选择打字内容。')); return; }
       const seed = Math.random();
-      const [section] = await Promise.all([range ? loadClips().catch(() => null).then(() => buildWordList(range.list,`${seed}-0`,clipFor)) : loadSection(prefs.section),loadAssets()]);
-      if (!current()) return;
+      const [section,,heard] = await Promise.all([range ? loadClips().catch(() => null).then(() => buildWordList(range.list,`${seed}-0`,clipFor)) : loadSection(prefs.section),loadAssets(),
+        reading ? prepareSpeech() : true]);
+      if (!current()) { dropMic(); return; }
+      let mic = null;
+      if (reading) {
+        if (!heard) { dropMic(); ui.game = null; show('setup'); notify(readState(),6000); return; }
+        try { mic = await micAsk; }
+        catch (error) {
+          if (!current()) return;
+          ui.game = null;
+          show('setup');
+          notify(error?.code === 'denied' ? tx('没有允许使用麦克风。请在浏览器设置里允许这个网站使用麦克风，再开始。') : tx('没有找到麦克风，请检查后再开始。'),6000);
+          return;
+        }
+        if (!current()) { mic.close(); return; }
+      }
       const game = createGame({side:prefs.side,map:prefs.map,opponents:prefs.opponents,teammates:prefs.teammates,level:prefs.level,end:prefs.end,minutes:prefs.minutes,
         usual:usualRate(ui.records),me:ui.nickname || '我'});
       game.text = appendSection(createText(),section);
@@ -1948,8 +2008,14 @@
       game.paused = false;
       game.bubbles = [];
       game.fresh = [];
+      if (reading) {
+        game.read = true;
+        game.players.find(player => player.me).read = {pos:0,word:0,carry:0,passed:0,soft:0,movedAt:0};
+        Object.assign(ui,{mic,micStarted:false,micOn:false,voiceAt:0});
+      }
       ui.game = game;
-      prepareMusic(game,Math.random());
+      // No background music while reading: the microphone would hear it.
+      if (!reading) prepareMusic(game,Math.random());
       await setupStage(current,prefs.map);
       if (!current() || ui.game !== game) return;
       renderLine(true);
@@ -1958,9 +2024,11 @@
       if (document.hidden || ui.confirming) { game.status = 'held'; $('#pc-loading')?.remove(); if (!ui.loop) ui.loop = requestAnimationFrame(frame); }
       else startCountdown();
     } catch (error) {
-      if (!current()) return;
+      if (!current()) { dropMic(); return; }
       console.warn('警察抓小偷没有开始',error);
       ui.game = null;
+      closeMic();
+      dropMic();
       const fallback = error?.graphics ? lighterLook() : '';
       if (fallback && pictureAgain(false)) { notify(tx('{fallback}。',{fallback}),5000); return; }
       show('setup');
@@ -1970,8 +2038,10 @@
     }
   }
   function gameMarkup(p) {
-    // Phones and tablets type on the game's own keyboard; a new game screen starts on its letter page.
-    ui.ownKeys = ownKeyboard();
+    // Phones and tablets type on the game's own keyboard; a new game screen starts on its letter page. A reader has no
+    // keyboard: the panel shows the microphone instead.
+    const reading = p.input === 'read' && !p.watch;
+    ui.ownKeys = reading ? false : ownKeyboard();
     ui.kbWant = '';
     ui.tallAt = -1;
     const own = ui.ownKeys;
@@ -1982,16 +2052,27 @@
         <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>/min</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
         ${p.watch ? `<span class="pc-watch-tag">${tx('观战')}</span>` : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
         <button type="button" class="pc-icon-button" data-pc="scene" aria-label="${sceneLabel(ui.prefs.scene)}" title="${sceneLabel(ui.prefs.scene)}">${icon(ui.prefs.scene ? 'scene' : 'track')}</button>
-        <button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>
+        ${reading ? '' : `<button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>`}
         <button type="button" class="pc-icon-button" data-pc="sound" aria-label="${soundLabel(ui.prefs.sound)}" title="${soundLabel(ui.prefs.sound)}">${icon(ui.prefs.sound ? 'sound' : 'mute')}</button></header>
       <div class="pc-stage" id="pc-stage"><canvas id="pc-canvas" aria-hidden="true"></canvas><canvas class="pc-fx" id="pc-fx" aria-hidden="true"></canvas><div class="pc-overlay" id="pc-overlay" aria-hidden="true"></div><div class="pc-veil" id="pc-veil" aria-hidden="true"></div><div class="pc-plain" id="pc-plain" aria-hidden="true"><div class="pc-plain-track"><span class="pc-plain-end">${tx('后方半圈')}</span><span class="pc-plain-end is-ahead">${tx('前方半圈')}</span></div></div><canvas class="pc-minimap" id="pc-minimap" aria-hidden="true"></canvas><div class="pc-count" id="pc-count" aria-live="assertive"></div><div class="pc-event" id="pc-event" role="status" aria-live="polite"></div><p class="pc-loading" id="pc-loading">${tx('正在载入{map}…',{map:e(mapTitle(p.map))})}</p></div>
-      <div class="pc-panel-type${own ? ` has-kb${ui.prefs.keys ? '' : ' kb-off'}` : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
+      ${reading ? readPanel() : `<div class="pc-panel-type${own ? ` has-kb${ui.prefs.keys ? '' : ' kb-off'}` : ''}" id="pc-type"${p.watch ? ' hidden' : ''}>
         <div class="pc-line-wrap" id="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
         <div class="pc-type-foot"><span class="pc-progress" id="pc-progress"></span><span class="pc-ime" id="pc-ime" hidden>${tx('出现候选框时，请把输入法切到英文')}</span>${letterKeys()}${own ? showKeysMarkup() : ''}</div>
         ${own ? keyboardMarkup() : ''}
         <textarea class="pc-input" id="pc-input" aria-label="${tx('在这里打字')}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
-      </div></div>`;
+      </div>`}</div>`;
+  }
+  // The reading panel: the sentence to read, its meaning, and below it the microphone (its dot breathes with my voice),
+  // where I am, what the recogniser last heard, and — when a word will not get through — a button to pass it.
+  function readPanel() {
+    return `<div class="pc-panel-type is-read" id="pc-type">
+        <div class="pc-line-wrap" id="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
+        <p class="pc-zh" id="pc-zh"></p>
+        <div class="pc-type-foot"><span class="pc-mic" id="pc-mic" role="status">${icon('mic')}<span id="pc-mic-text">${tx('出发后开始听')}</span></span><span class="pc-progress" id="pc-progress"></span>
+          <button type="button" class="pc-skip" id="pc-skip" data-pc="skip-word" hidden>${tx('跳过这个词')}</button></div>
+        <p class="pc-heard" id="pc-heard" lang="nb" aria-live="off"></p>
+      </div>`;
   }
   // On a touch screen the system keyboard would cover half the picture (and some phones shrink or shift the page for
   // it), so the game brings its own keyboard, laid out like 练习's: Å right of P, Ø and Æ right of L. Only letters and
@@ -2030,7 +2111,7 @@
   // bring the game's own.
   function useOwnKeys() {
     const type = $('#pc-type');
-    if (ui.ownKeys || !type) return;
+    if (ui.ownKeys || !type || ui.game?.read) return;
     ui.ownKeys = true;
     ui.kbWant = '';
     const input = $('#pc-input');
@@ -2042,7 +2123,7 @@
     type.classList.remove('is-tap');
     type.querySelector('.pc-type-foot')?.insertAdjacentHTML('beforeend',showKeysMarkup());
     type.querySelector('.pc-type-foot')?.insertAdjacentHTML('afterend',keyboardMarkup());
-    const game = ui.game, me = game?.players.find(player => player.me), letter = me && game.text.letters[me.letters];
+    const game = ui.game, me = game?.players.find(player => player.me), letter = me && game.text.letters[textAt(me)];
     if (letter) followKeyboard(letter);
     if (ui.stage) requestAnimationFrame(layoutStage);
   }
@@ -2112,6 +2193,7 @@
     game.countdown = [];
   }
   function stopGame() {
+    closeMic();
     if (ui.loop) cancelAnimationFrame(ui.loop);
     ui.loop = 0;
     ui.stage?.observer?.disconnect?.();
@@ -2149,6 +2231,7 @@
     if (ui.stage.lastStamp && stamp-ui.stage.lastStamp < 10) return;
     const elapsed = Math.min(.1,Math.max(0,(stamp-(ui.stage.lastStamp || stamp))/1000));
     ui.stage.lastStamp = stamp;
+    if (ui.mic) syncMic(game);
     if (game.status === 'playing' && !game.paused && !game.over) tick(game);
     // The world runs on its own clock, which stands still while the game is paused (behind the leave dialog).
     const dt = game.paused ? 0 : elapsed;
@@ -2174,7 +2257,7 @@
   // More text is fetched while the leader still has a few sentences to go.
   function ensureText(game) {
     if (game.loadingText || performance.now() < (game.textRetryAt || 0)) return;
-    const leader = Math.max(...game.players.map(player => player.letters));
+    const leader = Math.max(...game.players.map(textAt));
     if (game.text.letters.length-leader > 260) return;
     if (game.words) {
       appendSection(game.text,buildWordList(game.words,`${game.wordsSeed}-${++game.wordsPass}`,clipFor));
@@ -2211,6 +2294,124 @@
     if (ui.hud.rate !== rate) { $('#pc-rate').textContent = rate; ui.hud.rate = rate; }
     const tier = VEHICLES[me.side][me.tier-1];
     if (ui.hud.tier !== tier) { $('#pc-tier').textContent = tier; ui.hud.tier = tier; }
+  }
+
+  /* ---------- 朗读: reading the text aloud ---------- */
+  // The recogniser (chase-speech.mjs + dist/asr) loads only for 朗读. Its state for the setup page and the loading screen:
+  // 'unknown' (not looked yet), 'unsupported', 'idle' (not downloaded), 'loading' (downloading or starting), 'ready', 'failed'.
+  const speechOf = () => ui.speech;
+  function loadSpeech() {
+    ui.speechLoad ||= import(versioned('./chase-speech.mjs')).then(module => (ui.speech = module)).catch(error => { ui.speechLoad = null; throw error; });
+    return ui.speechLoad;
+  }
+  function readState() {
+    const r = ui.reading || {status:'unknown'};
+    if (r.status === 'unsupported') return tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。');
+    if (r.status === 'failed') return tx('语音识别没有准备好，请检查网络后再试。');
+    if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。');
+    if (r.status === 'loading') return r.total && r.loaded < r.total ? tx('正在下载语音识别 {loaded} / {total} MB…',{loaded:Math.round(r.loaded/1e6),total:Math.round(r.total/1e6)}) : tx('正在准备语音识别…');
+    if (r.status === 'idle') return tx('第一次要下载语音识别（约 120 MB，建议用 Wi-Fi），之后存在这台设备上。');
+    return tx('正在检查语音识别…');
+  }
+  function showReadState() {
+    const line = $('#pc-read-state');
+    if (line) line.textContent = readState();
+    const loading = $('#pc-loading');
+    if (loading && ui.view === 'game' && ui.reading?.status === 'loading') loading.textContent = readState();
+  }
+  // On the setup page with 朗读 chosen: find out whether the model is here (then start it: no download, only a few seconds).
+  async function checkSpeech() {
+    if (ui.reading && ui.reading.status !== 'unknown' && ui.reading.status !== 'failed') return;
+    ui.reading = {status:'unknown'};
+    try {
+      const speech = await loadSpeech();
+      if (!speech.supported()) { ui.reading = {status:'unsupported'}; showReadState(); return; }
+      if (speech.isReady()) { ui.reading = {status:'ready'}; showReadState(); return; }
+      ui.reading = {status:'idle'};
+      showReadState();
+      if (await speech.cached()) void prepareSpeech();
+    } catch { ui.reading = {status:'failed'}; showReadState(); }
+  }
+  // Download (once) and start the recogniser. Resolves true when it can listen.
+  async function prepareSpeech() {
+    try {
+      const speech = await loadSpeech();
+      if (!speech.supported()) { ui.reading = {status:'unsupported'}; showReadState(); return false; }
+      if (!speech.isReady()) { ui.reading = {status:'loading',loaded:0,total:0}; showReadState(); }
+      const ok = await speech.prepare(({loaded,total}) => { ui.reading = {status:'loading',loaded,total}; showReadState(); });
+      ui.reading = {status:ok ? 'ready' : 'failed'};
+      showReadState();
+      return ok;
+    } catch {
+      ui.reading = {status:'failed'};
+      showReadState();
+      return false;
+    }
+  }
+  function closeMic() {
+    try { ui.mic?.close(); } catch {}
+    ui.mic = null;
+    ui.micOn = false;
+  }
+  // Called every frame: the microphone listens exactly while my reading game is running (not before the start signal,
+  // behind the leave dialog, in a hidden tab or after the end).
+  function syncMic(game) {
+    const want = Boolean(game?.read && game.status === 'playing' && !game.paused && !game.over && !ui.confirming);
+    if (want !== ui.micOn) {
+      ui.micOn = want;
+      if (want && !ui.micStarted) { ui.micStarted = true; ui.mic.start(onHeard,onLevel); }
+      else if (want) ui.mic.resume();
+      else ui.mic.pause();
+      micLabel(want ? tx('在听，请念上面的句子') : tx('暂停'));
+    }
+    if (!want) return;
+    // Reading without a word getting through for a while: offer to pass the word.
+    const me = game.players.find(player => player.me), stuck = gameNow(game)-(me.read.movedAt || 0) > STUCK_MS && performance.now()-(ui.voiceAt || 0) < 2500;
+    const skip = $('#pc-skip');
+    if (skip && skip.hidden === stuck) skip.hidden = !stuck;
+  }
+  function micLabel(text) {
+    const label = $('#pc-mic-text');
+    if (label && label.textContent !== text) label.textContent = text;
+  }
+  function onLevel(level) {
+    if (level > .02) ui.voiceAt = performance.now();
+    const dot = $('#pc-mic');
+    if (dot) dot.style.setProperty('--level',Math.min(1,level*12).toFixed(2));
+  }
+  // A transcript of the last few seconds: how many of the words still to read does it hold?
+  function onHeard(text,info) {
+    const game = ui.game, speech = speechOf();
+    if (!game?.read || game.status !== 'playing' || game.paused || game.over || !speech) return;
+    const me = game.players.find(player => player.me), from = me.read.word;
+    const words = game.text.words.slice(from,from+12);
+    // Proper nouns (the reader lexicon's 专名, or capitalised inside a sentence) may be spelt any way by the recogniser.
+    const want = words.map(word => ({text:word.text,soft:Boolean(word.name) || (word.start > 0 && /^\p{Lu}/u.test(word.text))}));
+    const heard = $('#pc-heard');
+    if (heard) heard.textContent = tx('听到：{text}',{text});
+    const {count,skipped} = speech.matchWords(want,text);
+    if (!count) return;
+    const now = gameNow(game);
+    for (const word of words.slice(0,count)) readWord(game,me,word,now);
+    me.read.soft += skipped;
+    me.read.movedAt = now;
+    // The last word read gets a bubble (several words come at once: one bubble each would pile up).
+    bubble(me,words[count-1].text,now);
+    ui.mic?.mark(info.at);
+    $('#pc-skip')?.setAttribute('hidden','');
+    updateLine(game,me);
+  }
+  // 跳过这个词: the word the recogniser keeps missing is passed; the text moves on, the runner does not.
+  function passWord() {
+    const game = ui.game;
+    if (!game?.read || game.status !== 'playing' || game.paused || game.over) return;
+    const me = game.players.find(player => player.me), word = game.text.words[me.read.word];
+    if (!word) return;
+    readWord(game,me,word,gameNow(game),true);
+    me.read.movedAt = gameNow(game);
+    ui.mic?.cut();
+    $('#pc-skip')?.setAttribute('hidden','');
+    updateLine(game,me);
   }
 
   /* ---------- Typing ---------- */
@@ -2255,7 +2456,7 @@
   }
   function feed(char) {
     const game = ui.game;
-    if (!game || game.status !== 'playing' || game.paused || game.over || game.watch) return;
+    if (!game || game.status !== 'playing' || game.paused || game.over || game.watch || game.read) return;
     const me = game.players.find(player => player.me), next = game.text.letters[me.letters];
     if (!next) return;
     if (!accepts(next.ch,char)) {
@@ -2280,7 +2481,8 @@
   }
   function prefetchAhead() {
     const game = ui.game, me = game?.players.find(player => player.me);
-    if (!me) return;
+    // A reader hears no word readings (the microphone would hear them too).
+    if (!me || game.read) return;
     const words = game.text.words.slice(me.wordIndex,me.wordIndex+16).filter(word => word.clip).map(word => ({word:word.text,audio:word.clip}));
     if (words.length) ui.opts.prefetch?.(words);
   }
@@ -2292,7 +2494,7 @@
     if (!game || !line) return;
     const me = game.players.find(player => player.me);
     if (!me) return;
-    const letter = game.text.letters[Math.min(me.letters,game.text.letters.length-1)];
+    const letter = game.text.letters[Math.min(textAt(me),game.text.letters.length-1)];
     if (!letter) return;
     if (!reset && letter.s >= ui.lineFrom && letter.s < ui.lineTo) return;
     const sentences = game.text.sentences, sentence = sentences[letter.s];
@@ -2331,15 +2533,19 @@
     updateLine(game,me);
   }
   function updateLine(game,me) {
-    const letter = game.text.letters[me.letters];
+    const letter = game.text.letters[textAt(me)];
     if (!letter) return;
     followKeyboard(letter);
     if (letter.s < ui.lineFrom || letter.s >= ui.lineTo) { renderLine(true); return; }
     const chars = ui.lineChars || [], caret = ui.lineOffsets[letter.s-ui.lineFrom]+letter.c;
+    // A reader's next word is underlined whole (words are heard whole, so there is no caret).
+    const next = game.read ? game.text.words[wordAt(me)] : null;
+    const from = next && next.s >= ui.lineFrom && next.s < ui.lineTo ? ui.lineOffsets[next.s-ui.lineFrom]+next.start : -1, to = from < 0 ? -1 : from+next.end-next.start;
     for (let i = 0; i < chars.length; i++) {
       const span = chars[i], done = i < caret;
       span.classList.toggle('is-done',done);
       span.classList.toggle('is-caret',i === caret);
+      if (game.read) span.classList.toggle('is-next',i >= from && i < to);
       if (!done && i !== caret) span.classList.remove('is-miss');
     }
     chars[caret]?.scrollIntoView?.({block:'nearest',inline:'nearest'});
@@ -2392,6 +2598,7 @@
     game.endedAt = now;
     play('finish');
     const record = game.record = saveRecord(game,result,now);
+    closeMic();
     void uploadRecord(record);
     later(() => {
       if (ui.game !== game) return;
@@ -2408,7 +2615,7 @@
   // The sentences I typed, for replaying their recordings; a section typed twice (the text comes round again) is listed once.
   function typedSentences(game,me) {
     const seen = new Set();
-    return game.text.sentences.filter(sentence => sentence.firstLetter < me.letters)
+    return game.text.sentences.filter(sentence => sentence.firstLetter < textAt(me))
       .filter(sentence => { const key = `${sentence.section}|${sentence.from}|${sentence.text}`; if (seen.has(key)) return false; seen.add(key); return true; })
       .slice(-MAX_RECORD_SENTENCES)
       .map(sentence => ({text:sentence.text,zh:sentence.zh,...(sentence.en ? {en:sentence.en} : {}),audio:sentence.audio,from:sentence.from,to:sentence.to,section:sentence.section}));
@@ -2423,10 +2630,14 @@
     const minutes = Math.max(now,1)/60000;
     const typed = typedSentences(game,me);
     // `synced` turns true once the server has the game (my average speed and its XP).
-    const record = {id:`g${Date.now().toString(36)}`,at:Date.now(),kind:'bot',synced:false,map:game.map,side:me.startSide,finalSide:me.side,end:game.mode,minutes:game.mode === 'timed' ? game.duration/60000 : 0,
+    // A reading game keeps how many words were passed by hand and how long a recognition took (its letters are already
+    // on the typing scale, see READ_SCALE); it has no accuracy.
+    const stats = ui.mic?.stats, read = game.read ? {input:'read'} : {};
+    const heard = game.read ? {passed:me.read.passed,heardMs:stats?.passes ? Math.round(stats.ms/stats.passes) : 0} : {};
+    const record = {id:`g${Date.now().toString(36)}`,at:Date.now(),kind:'bot',...read,synced:false,map:game.map,side:me.startSide,finalSide:me.side,end:game.mode,minutes:game.mode === 'timed' ? game.duration/60000 : 0,
       sections:[...game.text.sections],title:game.title,result:outcomeFor(game,result),winner:result,durationMs:Math.round(now),score:{...game.score},
-      me:{rate:Math.round(me.letters/minutes),accuracy:me.letters+me.errors ? Math.round(me.letters/(me.letters+me.errors)*100) : 100,words:me.words,letters:me.letters,errors:me.errors,
-        catches:me.catches,taunts:me.taunts,caught:me.caught,taunted:me.taunted,maxTier:me.maxTier},
+      me:{rate:Math.round(me.letters/minutes),accuracy:game.read ? null : me.letters+me.errors ? Math.round(me.letters/(me.letters+me.errors)*100) : 100,words:me.words,letters:me.letters,errors:me.errors,
+        catches:me.catches,taunts:me.taunts,caught:me.caught,taunted:me.taunted,maxTier:me.maxTier,...heard},
       players:game.players.map(player => ({name:player.name,me:player.me,side:player.side,startSide:player.startSide,level:player.bot?.level || '',
         rate:Math.round(player.letters/minutes),catches:player.catches,taunts:player.taunts,caught:player.caught,taunted:player.taunted,maxTier:player.maxTier})),
       sentences:typed};
@@ -2460,14 +2671,14 @@
     const headline = draw ? tx('平局') : won ? tx('你赢了') : tx('这局输了');
     const sideWord = record.winner === 'draw' ? tx('两边打成平手') : `${SIDES[record.winner]?.team || ''}${EN ? tx('获胜（阵营）') : '获胜'}`;
     const art = record.winner === 'thief' ? 'thief-taunt' : record.winner === 'police' ? 'police-catch' : record.side === 'police' ? 'police-catch' : 'thief-taunt';
-    const me = record.me, room = record.kind === 'room';
+    const me = record.me, room = record.kind === 'room', reading = record.input === 'read';
     const stat = (label,value) => `<div class="pc-tile"><span>${label}</span><b>${value}</b></div>`;
     return `${topBar(tx('本局结果'),room && ui.room ? 'room' : 'home')}
       <section class="pc-result-hero is-${record.result}"><img src="${sprite(art)}" alt="" draggable="false"><div><span class="pc-kicker">${e(room ? `${tx('房间 {code}',{code:record.room})} · ${sideWord}` : sideWord)}</span><p class="pc-result-title">${headline}</p>
         <p class="pc-result-score">${icon('cuffs')}${tx('抓到')} <b>${record.score.catch}</b><i>:</i><b>${record.score.taunt}</b> ${tx('嘲笑')}${icon('taunt')}</p>${record.xp ? `<p class="pc-result-xp">+${record.xp} XP</p>` : ''}</div></section>
-      <section class="pc-panel"><div class="pc-tiles is-four">${stat(tx('速度'),`${me.rate}/min`)}${stat(tx('正确率'),`${me.accuracy}%`)}${stat(tx('打了'),tx('{n} 个词',{n:me.words}))}${stat(tx('最高'),VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div></section>
+      <section class="pc-panel"><div class="pc-tiles is-four">${stat(tx('速度'),`${me.rate}/min`)}${reading ? stat(tx('念了'),tx('{n} 个词',{n:me.words})) : stat(tx('正确率'),`${me.accuracy}%`)}${reading ? stat(tx('跳过'),tx('{n} 个词',{n:Number(me.passed) || 0})) : stat(tx('打了'),tx('{n} 个词',{n:me.words}))}${stat(tx('最高'),VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div>${reading ? `<p class="pc-hint">${tx('朗读时每念 2 个字母算 1 个，速度和打字用同一把尺。')}</p>` : ''}</section>
       <section class="pc-panel"><div class="pc-section-head"><h3>${tx('本局选手')}</h3></div><ul class="pc-players">${record.players.map(player => `<li class="${player.me ? 'is-me' : ''}">${avatar(player.name,player.side,'',Boolean(player.level))}<span class="pc-player-name">${e(nameOf(player.name))}${player.level ? `<small>${tx('电脑')} · ${LEVELS[player.level]?.name || ''}</small>` : player.result === 'left' ? `<small>${tx('中途离开')}</small>` : ''}</span><span class="pc-player-side">${SIDES[player.side].name}${player.side !== player.startSide ? `<small>${tx('换过阵营')}</small>` : ''}</span><span class="pc-player-rate"><b>${player.rate}</b>/min</span><span class="pc-player-score">${[player.catches ? tx('抓到 {n}',{n:player.catches}) : '',player.taunts ? tx('嘲笑 {n}',{n:player.taunts}) : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul></section>
-      ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head">${record.sentences[0].section === 'words' ? `<h3>${tx('打过的词语')}</h3><small class="pc-hint">${tx('点播放键听读音')}</small>` : `<h3>${tx('打过的句子')}</h3><small class="pc-hint">${tx('点播放键听原书录音')}</small>`}</div>${sentenceList(record.sentences,record.id)}</section>` : ''}
+      ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head">${record.sentences[0].section === 'words' ? `<h3>${reading ? tx('念过的词语') : tx('打过的词语')}</h3><small class="pc-hint">${tx('点播放键听读音')}</small>` : `<h3>${reading ? tx('念过的句子') : tx('打过的句子')}</h3><small class="pc-hint">${tx('点播放键听原书录音')}</small>`}</div>${sentenceList(record.sentences,record.id)}</section>` : ''}
       ${room ? `<div class="pc-actions">${ui.room ? button('go',`<span>${tx('回到房间')}</span>`,'pc-primary pc-wide','data-view="room"') : ''}<div class="pc-actions-row">${button('go',ui.room ? tx('离开房间') : tx('返回'),'pc-quiet','data-view="home"')}</div></div>`
         : `<div class="pc-actions">${button('again',`<span>${tx('再来一局')}</span>`,'pc-primary pc-wide')}<div class="pc-actions-row">${button('go',tx('换个设置'),'pc-ghost','data-view="setup"')}${button('go',tx('返回'),'pc-quiet','data-view="home"')}</div></div>`}`;
   }
@@ -2737,7 +2948,7 @@
   // and the next word takes its place. Returns me while it is shown.
   function placeLive(game) {
     const stage = ui.stage, me = game.players.find(player => player.me && !player.gone);
-    const word = me && !game.watch && !game.over ? game.text?.words?.[me.wordIndex] : null;
+    const word = me && !game.watch && !game.over ? game.text?.words?.[wordAt(me)] : null;
     const head = word ? stage.world.headOf(me.id) : null;
     let element = stage.live;
     if (!head?.ok) { if (element) element.style.visibility = 'hidden'; return null; }
@@ -2754,7 +2965,7 @@
       element.letters = [...element.querySelectorAll('.pc-live-ch')];
       element.typed = -1;
     }
-    const typed = Math.max(0,Math.min(me.letters-word.letterStart,element.letters.length));
+    const typed = Math.max(0,Math.min(textAt(me)-word.letterStart,element.letters.length));
     if (element.typed !== typed) {
       element.typed = typed;
       element.letters.forEach((span,index) => span.classList.toggle('is-done',index < typed));

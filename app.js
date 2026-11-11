@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261111-mall-desktop';
-import {createReadingLibrary} from './reading-library.mjs?v=20261111-mall-desktop';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-mall-desktop';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-mall-desktop';
-import * as notesModel from './notes-store.mjs?v=20261111-mall-desktop';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-mall-desktop';
+import {createDataLoader} from './loader.mjs?v=20261111-chase-read';
+import {createReadingLibrary} from './reading-library.mjs?v=20261111-chase-read';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-chase-read';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-chase-read';
+import * as notesModel from './notes-store.mjs?v=20261111-chase-read';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-chase-read';
 
-const VERSION = '20261111-mall-desktop';
+const VERSION = '20261111-chase-read';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -1098,7 +1098,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-mall-desktop').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-chase-read').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });

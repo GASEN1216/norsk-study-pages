@@ -621,7 +621,7 @@
   // 联机游戏: one door for every game played with classmates. Each card opens its own game; new games join this list.
   const ONLINE_GAMES = [
     {action:'duel',title:tx('联机翻翻乐'),short:tx('翻翻乐'),note:tx('和同学抢翻词对，挪威语配中文'),meta:tx('开房间 · 加入房间')},
-    {action:'chase',title:tx('警察抓小偷'),short:tx('警察抓小偷'),note:tx('打课文比速度，警察追、小偷逃'),meta:tx('人机对战 · 开房间 · 加入房间')},
+    {action:'chase',title:tx('警察抓小偷'),short:tx('警察抓小偷'),note:tx('打字或朗读课文比速度，警察追、小偷逃'),meta:tx('人机对战 · 开房间 · 加入房间')},
     {action:'kitchen',title:tx('开饭啦'),short:tx('开饭啦'),note:tx('听懂点单、配菜上桌，学会挪威的日常饮食'),meta:tx('一个人开张 · 开房间 · 加入房间')},
     {action:'mall',title:tx('百货超市'),short:tx('百货超市'),note:tx('当店员接待顾客，在货架上找对东西，学会购物用语'),meta:tx('逛店 · 一个人开店 · 和同学一起')},
   ];

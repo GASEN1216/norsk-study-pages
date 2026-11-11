@@ -418,6 +418,20 @@ body.pc-open{overflow:hidden}
 .pc-type-foot{display:flex;align-items:center;gap:10px;max-width:980px;margin:6px auto 0}
 .pc-progress{flex:1;min-width:0;font-size:12px;color:#9a9a8c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pc-ime{font-size:12px;color:#a5482f}
+/* 朗读: no keyboard; the word to read next is underlined in gold (not a caret: words are heard whole), the microphone
+   chip's ring swells with the voice, and under it what the recogniser last heard, faint. */
+.pc-panel-type.is-read{cursor:default}
+.pc-panel-type.is-read .pc-char.is-caret::after{display:none}
+.pc-char.is-next{color:#7d725a}
+.pc-char.is-next::after{content:"";position:absolute;left:0;right:0;bottom:.06em;height:2px;background:#d9bf86}
+.pc-char.is-next.is-pass::after{display:none}
+.pc-mic{display:inline-flex;align-items:center;gap:6px;flex:none;height:30px;padding:0 12px 0 9px;border-radius:15px;background:var(--pc-gold-soft);color:#7a5d27;font-size:12.5px;white-space:nowrap;
+  box-shadow:0 0 0 calc(var(--level,0)*5px) #efe1bf;transition:box-shadow .14s ease-out}
+.pc-mic .pc-icon{width:16px;height:16px;color:var(--pc-green)}
+.pc-skip{flex:none;height:30px;padding:0 12px;border:1px solid var(--pc-warm-line);border-radius:10px;background:#fffef9;box-shadow:0 1.5px 0 #e3d6b8;color:var(--pc-ink);font-size:12.5px;animation:pc-fade .3s ease-out both}
+.pc-skip:hover{background:var(--pc-gold-soft)}
+.pc-heard{max-width:980px;min-height:1.5em;margin:4px auto 0;overflow:hidden;font-size:12px;line-height:1.5;color:#aaa592;text-overflow:ellipsis;white-space:nowrap}
+.pc-read-state{margin-top:8px}
 .pc-keys{display:flex;gap:6px}
 .pc-key{display:grid;place-items:center;width:38px;height:34px;padding:0;border:1px solid var(--pc-warm-line);border-radius:10px;background:#fffef9;color:var(--pc-ink);font:500 17px/1 var(--serif,Georgia,serif);transition:background .15s ease-out,border-color .15s ease-out}
 .pc-key:active{background:var(--pc-gold-soft);border-color:#d8c9a2}

@@ -1,6 +1,11 @@
 *.pdf binary
 *.mp3 binary
 *.pptx binary
+# 朗读's speech recogniser: weights and their external-data chunks are bytes, never text.
+*.onnx binary
+*.onnx_data binary
+*.onnx_data_* binary
+*.wasm binary
 *.json text eol=lf
 *.js text eol=lf
 *.mjs text eol=lf
