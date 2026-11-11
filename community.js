@@ -122,10 +122,16 @@
   function resultPayload(result) {
     if (!result || !ACTIVITIES.includes(result.activity) || typeof result.id !== 'string' || !result.id.trim() || count(result.id) > 80 || CONTROL.test(result.id)) return null;
     if (!Number.isInteger(result.total) || result.total < 1 || result.total > 3000 || !Array.isArray(result.answers)) return null;
-    return {sessionId:result.id,activity:result.activity,total:result.total,correct:Math.min(result.total,result.answers.filter(answer => answer?.points === 2).length)};
+    const correct=Math.min(result.total,result.answers.filter(answer => answer?.points === 2).length);
+    // A practice left halfway sends its answered words as a partial result; finishing it later sends only the words
+    // not yet credited (possibly none), so no word earns twice.
+    if (result.partial === true) return {sessionId:result.id,activity:result.activity,total:result.total,correct:Number.isInteger(result.correct) ? Math.max(0,Math.min(result.total,result.correct)) : correct,partial:true};
+    const credited=result.credited || {}, before=Math.max(0,Math.min(result.total,Number.isInteger(credited.total) ? credited.total : 0));
+    const total=result.total-before;
+    return {sessionId:result.id,activity:result.activity,total,correct:Math.max(0,Math.min(total,correct-(Number.isInteger(credited.correct) ? credited.correct : 0)))};
   }
   function validQueued(item) {
-    return item && typeof item.sessionId === 'string' && item.sessionId.trim() && count(item.sessionId) <= 80 && !CONTROL.test(item.sessionId) && ACTIVITIES.includes(item.activity) && Number.isInteger(item.total) && item.total >= 1 && item.total <= 3000 && Number.isInteger(item.correct) && item.correct >= 0 && item.correct <= item.total;
+    return item && typeof item.sessionId === 'string' && item.sessionId.trim() && count(item.sessionId) <= 80 && !CONTROL.test(item.sessionId) && ACTIVITIES.includes(item.activity) && (item.partial === undefined || item.partial === true) && Number.isInteger(item.total) && item.total >= (item.partial ? 1 : 0) && item.total <= 3000 && Number.isInteger(item.correct) && item.correct >= 0 && item.correct <= item.total;
   }
   const resultKey = sessionId => RESULT_PREFIX+currentIdentity().deviceId+':'+encodeURIComponent(sessionId);
   function storeEntry(key,entry) {
@@ -162,7 +168,7 @@
       else if (item.status === 'pending' && validQueued(item)) pending.push(item);
     }
     pending.sort((a,b) => (a.queuedAt || 0)-(b.queuedAt || 0) || a.sessionId.localeCompare(b.sessionId));
-    const items=pending.map(item => ({sessionId:item.sessionId,activity:item.activity,total:item.total,correct:item.correct}));
+    const items=pending.map(item => ({sessionId:item.sessionId,activity:item.activity,total:item.total,correct:item.correct,...(item.partial ? {partial:true} : {})}));
     state.pending=items.length;
     return {version:2,deviceId,items,completed};
   }
@@ -377,7 +383,7 @@
     const focused=document.activeElement;
     const focusId=container.contains?.(focused) ? focused?.id : null;
     const selection=focusId === 'nc-nickname' ? [focused.selectionStart,focused.selectionEnd] : null;
-    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">${tx('排行榜')}</h3><div class="nc-tabs" role="tablist" aria-label="${tx('排行榜时段')}">${['week','month'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? tx('周榜') : tx('月榜')}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${tx('{n} 次练习待上传，联网后自动补上。',{n:formatNumber(state.pending)})}</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">${tx('经验与等级怎么算')}</summary><ul><li>${tx('网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。')}</li><li>${tx('所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。联机翻翻乐每抢到一对 +10 XP。练习每天最多 8,000 XP。')}</li><li>${tx('昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。')}</li><li>${tx('等级：4 {star} = 1 {moon}，4 {moon} = 1 {sun}，4 {sun} = 1 {crown}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。',{star:icon('star'),moon:icon('moon'),sun:icon('sun'),crown:icon('crown')})}</li></ul></details></section>`;
+    container.innerHTML=`<section class="nc-panel" aria-labelledby="nc-title"><div class="nc-head"><h3 id="nc-title">${tx('排行榜')}</h3><div class="nc-tabs" role="tablist" aria-label="${tx('排行榜时段')}">${['week','month'].map(period => `<button type="button" id="nc-tab-${period}" class="nc-tab" role="tab" aria-selected="${state.period === period}" tabindex="${state.period === period ? 0 : -1}" data-nc-action="period" data-nc-period="${period}">${period === 'week' ? tx('周榜') : tx('月榜')}</button>`).join('')}</div></div>${meMarkup()}<div id="nc-board" class="nc-board" role="tabpanel" aria-labelledby="nc-tab-${state.period}" aria-busy="${state.status === 'loading'}">${boardMarkup()}</div>${state.pending ? `<p class="nc-pending" role="status">${tx('{n} 次练习待上传，联网后自动补上。',{n:formatNumber(state.pending)})}</p>` : ''}<details class="nc-rules"${state.rulesOpen ? ' open' : ''}><summary data-nc-action="rules">${tx('经验与等级怎么算')}</summary><ul><li>${tx('网站开着且在前台：每分钟 +2 XP，每天最多 240 XP。')}</li><li>${tx('所有练习每词 +2 XP；拼写、测验、配对、听音首答答对再 +8 XP；词卡为自评，只计每词 2 XP。中途退出也按已答的词计。联机翻翻乐每抢到一对 +10 XP。练习每天最多 8,000 XP。')}</li><li>${tx('昵称相同视为同一个人，多台设备的经验和排名合并计算；改成已有的昵称前会先确认。')}</li><li>${tx('等级：4 {star} = 1 {moon}，4 {moon} = 1 {sun}，4 {sun} = 1 {crown}。Lv.2 需 500 XP，Lv.5 需 3,200，Lv.10 需 11,700，Lv.16 需 28,500。',{star:icon('star'),moon:icon('moon'),sun:icon('sun'),crown:icon('crown')})}</li></ul></details></section>`;
     if (focusId) {
       const next=container.querySelector?.('#'+focusId);
       next?.focus?.({preventScroll:true});

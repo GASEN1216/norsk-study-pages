@@ -135,7 +135,7 @@
     }
     return store;
   }
-  const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[]});
+  const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[],creditParts:[]});
   const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mall:[],mine:[],wordbookTitle:tx('我的词本'),indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
   let sessionPools = new WeakMap(), checkedQuestions = new WeakSet(), inputSaveTimer = null;
   let editor = null;
@@ -262,7 +262,7 @@
       if (!raw) return blankStore();
       const value = JSON.parse(raw);
       if (!value || value.version !== 1 || !Array.isArray(value.sets) || !Array.isArray(value.history) || !value.stats || typeof value.stats !== 'object') throw new Error('Invalid practice history');
-      return migratePracticeKeys({...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:true,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}});
+      return migratePracticeKeys({...blankStore(),...value,keyboardChoice:value.keyboardChoice === true,feedbackSound:true,communityPending:Array.isArray(value.communityPending) ? unique(value.communityPending.filter(id => typeof id === 'string')) : [],creditParts:Array.isArray(value.creditParts) ? value.creditParts.filter(part => part && typeof part.id === 'string' && part.partial === true) : [],recent:Array.isArray(value.recent) ? value.recent : [],favorites:Array.isArray(value.favorites) ? unique(value.favorites.filter(key => typeof key === 'string')) : [],matchBest:value.matchBest && typeof value.matchBest === 'object' ? value.matchBest : {}});
     } catch {
       storageFailure(tx('本机学习记录暂时无法读取。本次仍可练习，新进度可能无法在刷新后恢复。'));
       return blankStore();
@@ -885,6 +885,9 @@
       if (['learn','quiz','listen'].includes(activity)) session.questions = makeQuestions(pool,firstKeys,activity,session.quiz);
       checkedQuestions.add(session);
       if (activity === 'match') { session.match={round:0,elapsedMs:0,penaltyMs:0,errors:{},matched:[],selected:null,wrong:[]}; makeMatchRound(session,pool); }
+      // The practice this one replaces keeps the XP of the words already answered in it.
+      const replaced = currentSession();
+      if (replaced) creditSession(replaced);
       state.store.active = session; state.keyboardPage='letters';
       if (!customKeys) { const saved={sources,mode,activity,quiz:session.quiz}; applyConfig(saved); rememberConfig(saved,session.label); state.store.draft=saved; }
       persist(); renderSession(); autoPlay(session); if (activity === 'match') startMatchClock();
@@ -1404,6 +1407,8 @@
       if (result.newBest) (state.store.matchBest ||= {})[signature]={timeMs:result.timeMs,finishedAt:result.finishedAt,total:result.total};
       result.bestMs=state.store.matchBest[signature].timeMs;
     }
+    // Words already credited when the practice was left halfway are not sent again.
+    if (session.credit?.total) result.credited={total:session.credit.total,correct:session.credit.correct};
     if (!state.store.history.some(item => item.id === result.id)) state.store.history.unshift(result);
     if (RANKED.includes(result.activity)) state.store.communityPending=unique([...(state.store.communityPending || []),result.id]);
     state.store.active = null; state.result = result; persist(); renderResult(result);
@@ -1412,6 +1417,23 @@
       const summary=resultSummary(result);
       window.NorskCelebrate?.complete?.({ratio:firstTryRatio(result),newBest:beatRecord,score:Number(summary.score),decimals:result.activity === 'match' ? 1 : 0,anchor:$('.pr-results-hero')});
     }
+    syncCommunity();
+  }
+  // Leaving a practice halfway (save and exit, discard, or starting another) earns its answered words now: each exit
+  // sends the first answers new since the last one as a partial result `<id>~<n>`. Partial results are no finished
+  // practice for quests; finishing later sends only the words not yet credited (see resultPayload in community.js).
+  function creditSession(session=currentSession()) {
+    if (!session || !RANKED.includes(activityOf(session)) || !Array.isArray(session.firstKeys) || !session.answers) return;
+    const answered=session.firstKeys.filter(key => has(session.answers,key));
+    const credit=session.credit && Number.isInteger(session.credit.total) ? session.credit : (session.credit={total:0,correct:0,parts:0});
+    const total=answered.length-credit.total;
+    if (total < 1) return;
+    const correct=Math.max(0,Math.min(total,answered.filter(key => session.answers[key] === 2).length-credit.correct));
+    credit.parts=(Number(credit.parts) || 0)+1; credit.total=answered.length; credit.correct+=correct;
+    const part={id:`${session.id}~${credit.parts}`,partial:true,activity:activityOf(session),total,correct,answers:[],finishedAt:now()};
+    state.store.creditParts=[...(state.store.creditParts || []),part];
+    state.store.communityPending=unique([...(state.store.communityPending || []),part.id]);
+    persist();
     syncCommunity();
   }
   function syncCommunity() {
@@ -1424,13 +1446,14 @@
     // server receipt can be retried, but the old tab must never overwrite the new owner.
     const sync=(async () => {
       while (store.communityPending.length) {
-        const id=store.communityPending[0], result=store.history.find(item => item.id === id);
+        const id=store.communityPending[0], result=store.history.find(item => item.id === id) || store.creditParts?.find(item => item.id === id);
         if (result && RANKED.includes(activityOf(result))) {
           try { if (await submit(result) !== true) return false; }
           catch { return false; }
         }
         if (editor !== owner || !ownsStore(store,key)) return false;
         store.communityPending=store.communityPending.filter(item => item !== id);
+        if (store.creditParts?.length) store.creditParts=store.creditParts.filter(item => item.id !== id);
         persistStore(store,key);
       }
       return true;
@@ -1544,8 +1567,8 @@
   }
   function exitPrompt() {
     if (!currentSession()) return;
-    confirmDialog(tx('离开这次练习？'),tx('进度会保存，下次从这里继续。'),[
-      {action:'confirm-run',text:tx('保存并退出'),primary:true,run:renderSetup},
+    confirmDialog(tx('离开这次练习？'),tx('进度会保存，下次从这里继续；已答的词现在就计经验。'),[
+      {action:'confirm-run',text:tx('保存并退出'),primary:true,run:() => { creditSession(); renderSetup(); }},
       {action:'confirm-resume',text:tx('继续练习')},
       {action:'discard',text:tx('放弃本次进度'),danger:true},
     ]);
@@ -1604,7 +1627,7 @@
       case 'resume': resume(); break;
       case 'pause': if (session?.paused) resume(); else { pause(); renderSession(); } break;
       case 'exit': exitPrompt(); break;
-      case 'discard': closeDialogs(); stopAudio(); stopMatchClock(); state.store.active=null; persist(); renderSetup(); break;
+      case 'discard': closeDialogs(); stopAudio(); stopMatchClock(); creditSession(); state.store.active=null; persist(); renderSetup(); break;
       case 'confirm-run': { const run=state.pending; state.pending=null; closeDialogs(); run?.(); break; }
       case 'confirm-close': state.pending=null; $('#pr-confirm')?.close?.(); if (state.screen === 'session') resume(); break;
       case 'confirm-resume': state.pending=null; resume(); break;
