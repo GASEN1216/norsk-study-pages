@@ -432,6 +432,12 @@ body.pc-open{overflow:hidden}
 .pc-skip:hover{background:var(--pc-gold-soft)}
 .pc-heard{max-width:980px;min-height:1.5em;margin:4px auto 0;overflow:hidden;font-size:12px;line-height:1.5;color:#aaa592;text-overflow:ellipsis;white-space:nowrap}
 .pc-read-state{margin-top:8px}
+.pc-mic.is-ask{cursor:pointer;background:#fbe9d6;color:#8a4a22;animation:pc-fade .3s ease-out both}
+.pc-mic.is-ask:hover{background:#f7dcc0}
+.pc-unit{margin-left:2px;font-size:.72em;font-weight:500;letter-spacing:.02em}
+/* A reading room: the recogniser's state and a word about headsets, quiet, above the game's facts. */
+.pc-room-read{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;border:1px solid var(--pc-warm-line);border-radius:16px;background:#fffaf0;line-height:1.6}
+.pc-room-read .pc-icon{width:17px;height:17px;margin-top:2px;color:var(--pc-gold)}
 .pc-keys{display:flex;gap:6px}
 .pc-key{display:grid;place-items:center;width:38px;height:34px;padding:0;border:1px solid var(--pc-warm-line);border-radius:10px;background:#fffef9;color:var(--pc-ink);font:500 17px/1 var(--serif,Georgia,serif);transition:background .15s ease-out,border-color .15s ease-out}
 .pc-key:active{background:var(--pc-gold-soft);border-color:#d8c9a2}

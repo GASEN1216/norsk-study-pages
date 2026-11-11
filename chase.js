@@ -33,12 +33,20 @@
   // Bot speeds in letters per minute (user, 2026-11-06: 新手 20, 高手 240; the server's CHASE_LEVELS holds the same).
   const LEVELS = {easy:{name:tx('新手'),rate:20},normal:{name:EN ? tx('熟练（电脑水平）') : '熟练',rate:110},hard:{name:tx('高手'),rate:240},match:{name:tx('旗鼓相当'),rate:0}};
   const ENDS = {catch:{name:tx('抓到为止')},timed:{name:tx('限时')}};
-  // 朗读 (user, 2026-11-11): against the computer the player may read the text aloud instead of typing it; the page's own
-  // recogniser hears it (chase-speech.mjs). Reading is two to three times as fast as typing, so every READ_SCALE letters
-  // read count as one letter of the chase: speed, vehicles, the computer's levels, distances and the server's records stay
-  // on the typing scale, and a lap still takes minutes. 2, not 2.5: the server credits at most one word per two letters,
-  // and textbook words average 4.4 letters (2.5 cost a reader a tenth of the XP). Rooms are typing only for now.
-  const READ_SCALE = 2;
+  // 朗读 (user, 2026-11-11): the player may read the text aloud instead of typing it, against the computer or in a room
+  // (the host chooses for everyone). The page's own recogniser hears it (chase-speech.mjs). A reader's speed is words a
+  // minute (the user's choice): each word heard is WORD_STEP letters of the chase, so the rules, laps and vehicles stay as
+  // they are and a reader's speed is shown as letters / WORD_STEP. 40 words a minute then runs like typing 100 letters
+  // (vehicles at 24 / 40 / 60 / 84 words a minute), and the server's one-word-per-two-letters XP check still holds.
+  // Readers are averaged apart from typists (the server's chase_results.input). The server's CHASE_WORD_STEP and
+  // CHASE_READ_LEVELS hold the same numbers.
+  const WORD_STEP = 2.5;
+  const READ_LEVELS = {easy:{name:LEVELS.easy.name,rate:37.5},normal:{name:LEVELS.normal.name,rate:87.5},hard:{name:LEVELS.hard.name,rate:175},match:LEVELS.match};
+  const levelsFor = reading => reading ? READ_LEVELS : LEVELS;
+  // A speed as shown: letters a minute, or for a reader words a minute.
+  const speedValue = (rate,reading) => Math.round((Number(rate) || 0)/(reading ? WORD_STEP : 1));
+  const speedUnit = reading => reading ? tx('词/分') : '/min';
+  const speedHTML = (rate,reading) => `<b>${speedValue(rate,reading)}</b>${reading ? `<small class="pc-unit">${speedUnit(true)}</small>` : '/min'}`;
   // (朗读 elsewhere on the site means playing a recording, hence the note on the English key.)
   const READ_NAME = EN ? tx('朗读（玩法）') : '朗读';
   const INPUTS = {type:{name:tx('打字'),hint:tx('用键盘')},read:{name:READ_NAME,hint:tx('念出课文')}};
@@ -325,18 +333,18 @@
     return done;
   }
   // Where a player is in the text. A typist's letters are both the text and the chase; a reader (player.read) moves
-  // through the text by words heard, and the chase gets one letter for every READ_SCALE letters read.
+  // through the text by words heard, and the chase gets WORD_STEP letters for each.
   const textAt = player => player.read ? player.read.pos : player.letters;
   const wordAt = player => player.read ? player.read.word : player.wordIndex;
-  // A word read aloud: the text moves on to its end, and the chase by its letters (and those passed before it) / READ_SCALE.
+  // A word read aloud: the text moves on to its end, and the chase by WORD_STEP letters, whatever the word's length.
   // A word passed by hand (`passed`) moves the text on but gives no letters.
   function readWord(game,player,word,now,passed=false) {
-    const read = player.read, gained = Math.max(0,word.letterEnd-read.pos);
+    const read = player.read;
     read.pos = Math.max(read.pos,word.letterEnd);
     read.word++;
     if (passed) { read.passed++; return; }
     player.words++;
-    read.carry += gained/READ_SCALE;
+    read.carry += WORD_STEP;
     while (read.carry >= 1) {
       read.carry--;
       player.letters++;
@@ -367,7 +375,7 @@
   // A matched bot follows the human's recent speed, a little faster or slower in turns, so it stays close
   // without ever being out of reach; for the first seconds it goes at a gentle start (or my usual speed).
   function botRate(game,player,now) {
-    const level = LEVELS[player.bot.level] || LEVELS.match;
+    const level = levelsFor(game.read)[player.bot.level] || LEVELS.match;
     if (level.rate) return level.rate*player.bot.drift;
     const me = game.players.find(item => item.me);
     const base = now < 4000 || !me ? Math.min(game.usual || 70,110) : Math.max(me.rate,25);
@@ -403,7 +411,7 @@
       if (result === 'win') total.wins++; else if (result === 'loss') total.losses++; else total.draws++;
       total.catches += Number(record?.me?.catches) || 0;
       total.taunts += Number(record?.me?.taunts) || 0;
-      total.best = Math.max(total.best,Number(record?.me?.rate) || 0);
+      if (record?.input !== 'read') total.best = Math.max(total.best,Number(record?.me?.rate) || 0);
       const tier = Number(record?.me?.maxTier) || 0;
       if (tier > total.bestTier) { total.bestTier = tier; total.bestSide = record?.finalSide || record?.side; }
       const side = total[record?.side];
@@ -412,9 +420,9 @@
     total.winRate = total.games ? Math.round(total.wins/total.games*100) : 0;
     return total;
   }
-  // The speed shown on my avatar: the average of my last ten games.
-  function usualRate(records) {
-    const recent = (Array.isArray(records) ? records : []).slice(0,10).map(record => Number(record?.me?.rate) || 0).filter(Boolean);
+  // The speed shown on my avatar: the average of my last ten games (typed ones; read ones have an average of their own).
+  function usualRate(records,input='type') {
+    const recent = (Array.isArray(records) ? records : []).filter(record => (record?.input || 'type') === input).slice(0,10).map(record => Number(record?.me?.rate) || 0).filter(Boolean);
     return recent.length ? Math.round(recent.reduce((a,b) => a+b,0)/recent.length) : 0;
   }
   // Where another runner is from me on the loop, the short way round, in metres (+ ahead, − behind), and whether meeting
@@ -891,6 +899,7 @@
   }
   function exit() {
     if (!ui.open) return;
+    closeRoomMic();
     leaveRoom();
     stopGame();
     stopSlice();
@@ -1090,7 +1099,7 @@
         <div class="pc-field"><span class="pc-label">${p.input === 'read' ? tx('朗读内容') : tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName(p))}</span>${icon('down')}</button></div>
         <div class="pc-field"><span class="pc-label">${tx('电脑对手')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑对手')}">${[1,2,3].map(n => option('opponents',n,tx('{n} 名',{n}),p.opponents)).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">${tx('电脑队友')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑队友')}">${[0,1,2].map(n => option('teammates',n,n ? tx('{n} 名',{n}) : tx('不要'),p.teammates)).join('')}</div></div>
-        <div class="pc-field"><span class="pc-label">${tx('电脑水平')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑水平')}">${Object.entries(LEVELS).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${level.rate}/min` : tx('跟着你'))).join('')}</div></div>
+        <div class="pc-field"><span class="pc-label">${tx('电脑水平')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('电脑水平')}">${Object.entries(levelsFor(p.input === 'read')).map(([key,level]) => option('level',key,level.name,p.level,level.rate ? `${speedValue(level.rate,p.input === 'read')}${speedUnit(p.input === 'read')}` : tx('跟着你'))).join('')}</div></div>
         <div class="pc-field"><span class="pc-label">${tx('结束方式')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('结束方式')}">${option('end','catch',tx('抓到为止'),p.end,p.opponents+p.teammates > 1 ? tx('输了换阵营') : tx('一次定胜负'))}${MINUTES.map(n => option('minutes',n,tx('{n} 分钟',{n}),p.end === 'timed' ? p.minutes : 0,tx('比次数'))).join('')}</div></div>
         ${lookField()}
       </section>
@@ -1193,7 +1202,7 @@
       <span class="pc-result is-${e(record.result)}">${resultName(record.result)}</span>
       <span class="pc-game-main"><strong>${e(titleText(record.title || ''))}</strong><small>${record.kind === 'room' ? tx('房间局') : tx('人机局')}${record.input === 'read' ? ` · ${READ_NAME}` : ''} · ${when} · ${e(mapName(mapOf(record.map || 'lakeside')))} · ${SIDES[record.side]?.name || ''} · ${record.end === 'timed' ? tx('{n} 分钟',{n:record.minutes}) : tx('抓到为止')}</small></span>
       <span class="pc-game-score">${icon('cuffs')}${Number(record.score?.catch) || 0}<i>:</i>${Number(record.score?.taunt) || 0}${icon('taunt')}</span>
-      <span class="pc-game-rate"><b>${Number(record.me?.rate) || 0}</b>/min</span></button>
+      <span class="pc-game-rate">${speedHTML(record.me?.rate,record.input === 'read')}</span></button>
       ${ui.expanded === record.id ? recordDetail(record) : ''}</li>`;
   }
   function recordDetail(record) {
@@ -1272,7 +1281,8 @@
     if (action === 'room-join-open') { ui.joining = true; render(); $('#pc-join-code')?.focus?.(); return; }
     if (action === 'room-join-cancel') { closeJoin(); return; }
     if (action === 'room-side') { void roomAction('side',{side:value}); ui.prefs.side = value; savePrefs(); return; }
-    if (action === 'room-ready') { void roomAction('ready',{ready:value === 'on'}); return; }
+    if (action === 'room-ready') { if (value === 'on' && ui.room?.state?.settings?.input === 'read') void readyToRead(); else { closeRoomMic(); void roomAction('ready',{ready:value === 'on'}); } return; }
+    if (action === 'mic-open') { void openMicNow(); return; }
     if (action === 'room-start') { void startRoom(); return; }
     if (action === 'room-bot-menu') { ui.botMenu = ui.botMenu === value ? '' : value; ui.botMenuNew = Boolean(ui.botMenu); renderRoom(); return; }
     if (action === 'room-bot-add') { ui.botMenu = ''; void roomAction('bot',{side:target.dataset.side,level:value}); return; }
@@ -1481,6 +1491,7 @@
   function leaveRoom() {
     const room = ui.room;
     if (!room) return;
+    closeRoomMic();
     dropRoom();
     if (ui.game?.room) ui.game = null;
     void roomCall(`/chase/rooms/${room.code}/leave`,{}).catch(() => {});
@@ -1583,6 +1594,8 @@
       } else if (['countdown','playing'].includes(state.status)) roomCountdown(game,match.startsAt);
     }
     if (state.results && ui.resultsFor?.room) roomXp(state.results);
+    if (state.settings?.input === 'read') void checkSpeech();
+    else if (ui.roomMic && !game) closeRoomMic();
     // The lesson picker keeps its scroll while open; closing it draws the room afresh.
     if (ui.view === 'room' && !reply.unchanged && !ui.picker) renderRoom();
   }
@@ -1640,16 +1653,26 @@
     player.letters = letters;
     const words = game.text?.words || [];
     let last = null;
-    while (player.wordIndex < words.length && words[player.wordIndex].letterEnd <= letters) { last = words[player.wordIndex]; player.wordIndex++; player.words++; }
+    if (game.read) {
+      // A reader's letters are WORD_STEP a word.
+      const reached = Math.min(words.length,Math.floor(letters/WORD_STEP+1e-9));
+      while (player.wordIndex < reached) { last = words[player.wordIndex]; player.wordIndex++; player.words++; }
+    } else while (player.wordIndex < words.length && words[player.wordIndex].letterEnd <= letters) { last = words[player.wordIndex]; player.wordIndex++; player.words++; }
     if (last && !quiet && game.status === 'playing') bubble(player,last.text,now);
   }
   function adoptLetters(game,player,letters) {
     player.letters = player.dist = letters;
-    passTyped(game,player);
+    if (player.read) {
+      // Reading again after a reload: the words read so far are the letters / WORD_STEP.
+      const words = game.text?.words || [], done = Math.min(words.length,Math.floor(letters/WORD_STEP+1e-9));
+      Object.assign(player.read,{word:done,pos:done ? words[done-1].letterEnd : 0,carry:letters-done*WORD_STEP > 0 ? letters-done*WORD_STEP : 0});
+      player.words = done;
+    } else passTyped(game,player);
     renderLine(true);
   }
   // Words I typed before a reload are passed over without a sound (also when more of the text arrives later).
   function passTyped(game,player) {
+    if (player.read) return;
     const words = game.text?.words || [];
     while (player.wordIndex < words.length && words[player.wordIndex].letterEnd <= player.letters) { player.wordIndex++; player.words++; }
   }
@@ -1675,7 +1698,8 @@
     ui.calm = reduceMotion();
     ui.view = 'game';
     ui.root.classList.add('is-game');
-    ui.root.innerHTML = gameMarkup({end:settings.end,minutes:settings.minutes,side:mine?.side || 'police',map:settings.map,watch});
+    const reading = settings.input === 'read' && !watch;
+    ui.root.innerHTML = gameMarkup({end:settings.end,minutes:settings.minutes,side:mine?.side || 'police',map:settings.map,watch,input:reading ? 'read' : 'type'});
     $('#pc-loading').textContent = tx('正在载入{map}…',{map:mapTitle(settings.map)});
     ui.hud = {};
     ui.typed = '';
@@ -1686,7 +1710,8 @@
     if (ui.toast?.classList.contains('is-on')) placeToast();
     try {
       const words = settings.words?.length ? settings.words : null;
-      const [section] = await Promise.all([words ? loadClips().catch(() => null).then(() => buildWordList(words,`${match.id}-0`,clipFor)) : loadSection(settings.section),loadAssets()]);
+      const [section] = await Promise.all([words ? loadClips().catch(() => null).then(() => buildWordList(words,`${match.id}-0`,clipFor)) : loadSection(settings.section),loadAssets(),
+        reading ? prepareSpeech() : true]);
       if (!current()) return;
       // Everyone but me is drawn from the server's reports (`net`: see follow).
       const players = match.runners.map(runner => {
@@ -1700,11 +1725,19 @@
         lap:lapOf(settings.map),room:true,watch,code:state.code,number:match.number,seq:0,byId:new Map(players.map(player => [player.id,player])),status:'loading',
         title:settings.title || sectionName(settings.section),map:settings.map,firstSection:settings.section,lastSection:settings.section,
         words,wordsSeed:match.id,wordsPass:0,
-        paused:false,bubbles:[],fresh:[]};
+        paused:false,bubbles:[],fresh:[],read:settings.input === 'read'};
       game.text = appendSection(createText(),section);
       game.sectionsLoaded = [section];
+      if (reading) {
+        // The microphone was opened at 准备 (a tap); without it the mic chip asks for a tap (see syncMic).
+        const me = game.players.find(player => player.me);
+        if (me) me.read = {pos:0,word:0,carry:0,passed:0,soft:0,movedAt:0};
+        Object.assign(ui,{mic:ui.roomMic || null,micStarted:false,micOn:false,voiceAt:0});
+        ui.roomMic = null;
+      }
       ui.game = game;
-      prepareMusic(game,match.id || `${state.code}-${match.number}`);
+      // No background music while reading: the microphones would hear it.
+      if (!game.read) prepareMusic(game,match.id || `${state.code}-${match.number}`);
       await setupStage(current,settings.map);
       if (!current() || ui.game !== game) return;
       game.ready = game.loaded = true;
@@ -1713,7 +1746,7 @@
         prefetchAhead();
         // A room game starts on the server's word, not on a tap, so a phone or tablet does not open its keyboard by
         // itself: a quiet note over the sentence asks for one tap (it goes at the first key or when the keyboard is up).
-        if (!ui.ownKeys && window.matchMedia?.('(pointer: coarse)').matches && keyboardHeight() < 80) $('#pc-type')?.classList.add('is-tap');
+        if (!reading && !ui.ownKeys && window.matchMedia?.('(pointer: coarse)').matches && keyboardHeight() < 80) $('#pc-type')?.classList.add('is-tap');
       }
       const loading = $('#pc-loading');
       if (loading) { loading.textContent = tx('等大家载入地图…'); loading.classList.add('is-wait'); }
@@ -1803,7 +1836,9 @@
     const record = {id:`r${Date.now().toString(36)}`,at:Date.now(),kind:'room',room:game.code,gameId:results.id,map:game.map,side:mine.startSide,finalSide:mine.side,
       end:game.mode,minutes:game.mode === 'timed' ? game.duration/60000 : 0,sections:[...game.text.sections],title:game.title,result:mine.result,
       winner:results.winner,durationMs:results.durationMs,score:{...results.score},xp:mine.xp ?? null,
-      me:{rate:mine.rate,accuracy:me.letters+me.errors ? Math.round(me.letters/(me.letters+me.errors)*100) : 100,words:me.words,letters:me.letters,errors:me.errors,
+      ...(game.read ? {input:'read'} : {}),
+      me:{rate:mine.rate,accuracy:game.read ? null : me.letters+me.errors ? Math.round(me.letters/(me.letters+me.errors)*100) : 100,words:me.words,letters:me.letters,errors:me.errors,
+        ...(game.read && me.read ? {passed:me.read.passed} : {}),
         catches:mine.catches,taunts:mine.taunts,caught:mine.caught,taunted:mine.taunted,maxTier:Math.max(me.maxTier || 1,mine.maxTier || 1)},
       players:results.players.map(player => ({name:player.name,me:player.id === me.id,side:player.side,startSide:player.startSide,level:player.level || '',
         rate:player.rate,catches:player.catches,taunts:player.taunts,caught:player.caught,taunted:player.taunted,maxTier:player.maxTier,result:player.result})),
@@ -1823,7 +1858,7 @@
   }
   // A room types words when the host picked a range: the words drawn for it go to everyone with the settings.
   function roomSettings() {
-    const p = ui.prefs, base = {section:p.section,title:roomTitle(p.section),map:p.map,end:p.end,minutes:p.minutes};
+    const p = ui.prefs, base = {section:p.section,title:roomTitle(p.section),map:p.map,end:p.end,minutes:p.minutes,input:p.input === 'read' ? 'read' : 'type'};
     if (p.text !== 'words') return base;
     const held = ui.room?.state?.settings;
     if (!ui.wordsFresh && held?.words?.length) return {...base,title:held.title,words:held.words};
@@ -1848,7 +1883,7 @@
     ui.roomEdit = !ui.roomEdit;
     // The editor starts from what the room plays now.
     if (ui.roomEdit && settings) {
-      Object.assign(ui.prefs,{section:settings.section,map:settings.map,end:settings.end,minutes:settings.minutes,text:settings.words?.length ? 'words' : 'section'});
+      Object.assign(ui.prefs,{section:settings.section,map:settings.map,end:settings.end,minutes:settings.minutes,input:settings.input === 'read' ? 'read' : 'type',text:settings.words?.length ? 'words' : 'section'});
       if (settings.words?.length) ui.prefs.wordsTitle = String(settings.title || '').replace(/^词语 · /,'');
     }
     renderRoom();
@@ -1893,18 +1928,18 @@
   function roomPage() {
     const state = ui.room?.state;
     if (!state) return homePage();
-    const host = state.hostId === state.me, between = ['lobby','finished'].includes(state.status), s = state.settings;
+    const host = state.hostId === state.me, between = ['lobby','finished'].includes(state.status), s = state.settings, reading = s.input === 'read';
     const me = state.players.find(player => player.id === state.me), menuFresh = ui.botMenuNew;
     const person = player => {
       const notes = [player.host ? tx('房主') : '',!player.online ? tx('离线') : '',!between && !player.playing ? tx('观战') : ''].filter(Boolean).join(' · ');
       return `<li class="pc-person${player.id === state.me ? ' is-me' : ''}${player.online ? '' : ' is-away'}">${avatar(player.name,player.side)}
         <span class="pc-person-name"><span class="pc-person-line"><b>${e(nameOf(player.name))}</b>${player.id === state.me ? `<i>${ME}</i>` : ''}</span>${notes ? `<small>${notes}</small>` : ''}</span>
-        <span class="pc-person-rate">${player.usual ? `<b>${player.usual}</b>/min` : `<small>${tx('新选手')}</small>`}</span>
+        <span class="pc-person-rate">${(reading ? player.usualRead : player.usual) ? speedHTML(reading ? player.usualRead : player.usual,reading) : `<small>${tx('新选手')}</small>`}</span>
         <span class="pc-person-state${between && player.ready ? ' is-ready' : ''}">${between && player.ready ? `${icon('check')}<span>${tx('已准备')}</span>` : ''}</span></li>`;
     };
     const bot = item => `<li class="pc-person is-bot">${avatar(item.name,item.side,'',true)}
       <span class="pc-person-name"><b>${e(item.name)}</b><small>${tx('电脑')} · ${LEVELS[item.level]?.name || ''}</small></span>
-      <span class="pc-person-rate">${item.level === 'match' ? `<small>${tx('跟着对手')}</small>` : `<b>${item.usual}</b>/min`}</span>
+      <span class="pc-person-rate">${item.level === 'match' ? `<small>${tx('跟着对手')}</small>` : speedHTML(levelsFor(reading)[item.level]?.rate || item.usual,reading)}</span>
       ${host && between ? `<button type="button" class="pc-person-remove" data-pc="room-bot-remove" data-value="${e(item.id)}" aria-label="${e(tx('移除{name}',{name:item.name}))}" title="${tx('移除')}">${icon('close')}</button>` : '<span class="pc-person-state"></span>'}</li>`;
     const team = side => {
       const people = state.players.filter(player => player.side === side), bots = state.bots.filter(item => item.side === side);
@@ -1915,18 +1950,19 @@
         ${between && ((me && me.side !== side) || (host && state.bots.length < state.maxBots)) ? `<div class="pc-team-foot">
           ${me && me.side !== side ? `<button type="button" class="pc-link" data-pc="room-side" data-value="${side}">${side === 'police' ? tx('换到警方') : tx('换到小偷团')}</button>` : ''}
           ${host && state.bots.length < state.maxBots ? `<button type="button" class="pc-link" data-pc="room-bot-menu" data-value="${side}" aria-expanded="${menu}">${icon('plus')}${tx('加电脑')}</button>` : ''}</div>` : ''}
-        ${menu ? `<div class="pc-segment pc-bot-levels${menuFresh ? ' is-new' : ''}" role="group" aria-label="${tx('电脑水平')}">${Object.entries(LEVELS).map(([key,level]) => `<button type="button" class="pc-option" data-pc="room-bot-add" data-side="${side}" data-value="${key}"><span>${level.name}</span><small>${level.rate ? `${level.rate}/min` : tx('跟着对手')}</small></button>`).join('')}</div>` : ''}
+        ${menu ? `<div class="pc-segment pc-bot-levels${menuFresh ? ' is-new' : ''}" role="group" aria-label="${tx('电脑水平')}">${Object.entries(levelsFor(reading)).map(([key,level]) => `<button type="button" class="pc-option" data-pc="room-bot-add" data-side="${side}" data-value="${key}"><span>${level.name}</span><small>${level.rate ? `${speedValue(level.rate,reading)}${speedUnit(reading)}` : tx('跟着对手')}</small></button>`).join('')}</div>` : ''}
       </section>`;
     };
     // The bot menu rises in once, when it opens, not again with every poll.
     ui.botMenuNew = false;
     const lesson = titleText(s.title) || sectionName(s.section);
-    const facts = `<div class="pc-room-facts"><span>${icon('map')}<b>${e(mapTitle(s.map))}</b></span><span title="${e(lesson)}">${icon('book')}<b>${e(lesson)}</b></span><span>${icon('clock')}<b>${s.end === 'timed' ? tx('限时 {n} 分钟',{n:s.minutes}) : tx('抓到为止')}</b></span></div>`;
+    const facts = `<div class="pc-room-facts"><span>${icon(reading ? 'mic' : 'keyboard')}<b>${reading ? READ_NAME : tx('打字')}</b></span><span>${icon('map')}<b>${e(mapTitle(s.map))}</b></span><span title="${e(lesson)}">${icon('book')}<b>${e(lesson)}</b></span><span>${icon('clock')}<b>${s.end === 'timed' ? tx('限时 {n} 分钟',{n:s.minutes}) : tx('抓到为止')}</b></span></div>`;
     // One on one, the first catch or taunt decides; with more players the loser changes sides.
     const many = state.players.filter(player => player.online).length+state.bots.length > 2;
     const editor = host && between && ui.roomEdit ? `<div class="pc-setup pc-room-editor">
         <div class="pc-field"><span class="pc-label">${tx('地图')}</span>${planMarkup()}</div>
-        <div class="pc-field"><span class="pc-label">${tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName())}</span>${icon('down')}</button></div>
+        <div class="pc-field"><span class="pc-label">${tx('玩法')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('玩法')}">${Object.entries(INPUTS).map(([key,item]) => option('input',key,item.name,ui.prefs.input,item.hint)).join('')}</div></div>
+        <div class="pc-field"><span class="pc-label">${ui.prefs.input === 'read' ? tx('朗读内容') : tx('打字内容')}</span><button type="button" class="pc-pick" data-pc="picker">${icon('book')}<span>${e(textName())}</span>${icon('down')}</button></div>
         <div class="pc-field"><span class="pc-label">${tx('结束方式')}</span><div class="pc-segment" role="radiogroup" aria-label="${tx('结束方式')}">${option('end','catch',tx('抓到为止'),ui.prefs.end,many ? tx('输了换阵营') : tx('一次定胜负'))}${MINUTES.map(n => option('minutes',n,tx('{n} 分钟',{n}),ui.prefs.end === 'timed' ? ui.prefs.minutes : 0,tx('比次数'))).join('')}</div></div></div>` : '';
     const issue = {people:tx('至少要 2 位同学准备好'),police:tx('还需要有人当警察'),thief:tx('还需要有人当小偷')}[state.startIssue] || '';
     const counted = tx('{ready}/{here} 人已准备',{ready:state.readyCount,here:state.here});
@@ -1938,6 +1974,7 @@
       : `<div class="pc-actions pc-start-bar pc-room-bar"><p class="pc-room-hint">${state.status === 'playing' ? tx('这一局正在进行，下一局一起玩') : tx('这一局马上开始，下一局一起玩')}</p><div class="pc-room-buttons">${button('room-watch',`${icon('eye')}<span>${tx('观战')}</span>`,'pc-primary',state.status === 'loading' ? 'disabled' : '')}</div></div>`;
     return `<header class="pc-top"><button type="button" class="pc-icon-button" data-pc="room-leave" aria-label="${tx('离开房间')}" title="${tx('离开房间')}">${icon('back')}</button><h2 tabindex="-1">${tx('联机房间')}</h2><button type="button" class="pc-icon-button" data-pc="close" aria-label="${tx('离开警察抓小偷')}" title="${tx('离开')}">${icon('close')}</button></header>
       <section class="pc-room-head"><div class="pc-room-code"><span class="pc-kicker">${tx('房间号')}</span><b>${e(state.code)}</b></div><p>${tx('告诉同学这 4 位数字，或者把邀请链接发给他们。')}</p>${button('room-copy',`${icon('link')}<span>${canShare() ? tx('邀请同学') : tx('复制邀请链接')}</span>`,'pc-ghost')}</section>
+      ${reading ? `<p class="pc-hint pc-room-read" id="pc-read-state-wrap">${icon('mic')}<span><span id="pc-read-state">${e(readState())}</span> ${tx('大家要念课文来跑。在教室里最好戴耳机麦克风，旁边同学的声音也会被听到。')}</span></p>` : ''}
       <section class="pc-panel pc-room-game"><div class="pc-section-head"><h3>${tx('这一局')}</h3>${host ? (between ? `<button type="button" class="pc-link" data-pc="room-edit" aria-expanded="${ui.roomEdit}">${ui.roomEdit ? EN ? tx('收起（房间设置）') : '收起' : tx('更改')}</button>` : '') : `<small class="pc-hint">${tx('房主选择')}</small>`}</div>${facts}${editor}</section>
       <div class="pc-teams">${team('police')}${team('thief')}</div>
       ${between ? `<section class="pc-panel pc-room-look">${lookField(tx('我的画面 · 只改自己看到的'))}</section>` : ''}
@@ -1997,7 +2034,7 @@
         if (!current()) { mic.close(); return; }
       }
       const game = createGame({side:prefs.side,map:prefs.map,opponents:prefs.opponents,teammates:prefs.teammates,level:prefs.level,end:prefs.end,minutes:prefs.minutes,
-        usual:usualRate(ui.records),me:ui.nickname || '我'});
+        usual:usualRate(ui.records,reading ? 'read' : 'type'),me:ui.nickname || '我'});
       game.text = appendSection(createText(),section);
       game.sectionsLoaded = [section];
       game.title = range ? `词语 · ${range.title}` : sectionName(prefs.section);
@@ -2049,7 +2086,7 @@
       <header class="pc-gbar"><button type="button" class="pc-icon-button" data-pc="close" aria-label="${p.watch ? tx('退出观战') : tx('离开这一局')}">${icon('close')}</button>
         <div class="pc-clock" id="pc-clock" aria-label="${tx('时间')}">${icon('clock')}<span>${p.end === 'timed' ? formatClock(p.minutes*60000) : '0:00'}</span></div>
         <div class="pc-score" aria-label="${tx('比分')}"><span class="pc-score-side" title="${tx('抓到')}">${icon('cuffs')}<b id="pc-catch">0</b></span><i>:</i><span class="pc-score-side" title="${tx('嘲笑')}"><b id="pc-taunt">0</b>${icon('taunt')}</span></div>
-        <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>/min</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
+        <div class="pc-speed" aria-live="off"><b id="pc-rate">0</b><small>${speedUnit(p.input === 'read')}</small><span id="pc-tier">${VEHICLES[p.side][0]}</span></div>
         ${p.watch ? `<span class="pc-watch-tag">${tx('观战')}</span>` : `<button type="button" class="pc-icon-button" data-pc="camera" aria-label="${cameraLabel(ui.prefs.camera)}" title="${cameraLabel(ui.prefs.camera)}">${icon(ui.prefs.camera === 'still' ? 'still' : 'follow')}</button>`}
         <button type="button" class="pc-icon-button" data-pc="scene" aria-label="${sceneLabel(ui.prefs.scene)}" title="${sceneLabel(ui.prefs.scene)}">${icon(ui.prefs.scene ? 'scene' : 'track')}</button>
         ${reading ? '' : `<button type="button" class="pc-icon-button" data-pc="music" aria-label="${musicLabel(ui.prefs.music)}" title="${musicLabel(ui.prefs.music)}">${icon(ui.prefs.music ? 'music' : 'music-off')}</button>`}
@@ -2231,7 +2268,7 @@
     if (ui.stage.lastStamp && stamp-ui.stage.lastStamp < 10) return;
     const elapsed = Math.min(.1,Math.max(0,(stamp-(ui.stage.lastStamp || stamp))/1000));
     ui.stage.lastStamp = stamp;
-    if (ui.mic) syncMic(game);
+    if (game.read && !game.watch) syncMic(game);
     if (game.status === 'playing' && !game.paused && !game.over) tick(game);
     // The world runs on its own clock, which stands still while the game is paused (behind the leave dialog).
     const dt = game.paused ? 0 : elapsed;
@@ -2290,7 +2327,7 @@
     if (ui.hud.catch !== game.score.catch) { $('#pc-catch').textContent = game.score.catch; ui.hud.catch = game.score.catch; }
     if (ui.hud.taunt !== game.score.taunt) { $('#pc-taunt').textContent = game.score.taunt; ui.hud.taunt = game.score.taunt; }
     if (!me) return;
-    const rate = Math.round(me.rate);
+    const rate = speedValue(me.rate,game.read);
     if (ui.hud.rate !== rate) { $('#pc-rate').textContent = rate; ui.hud.rate = rate; }
     const tier = VEHICLES[me.side][me.tier-1];
     if (ui.hud.tier !== tier) { $('#pc-tier').textContent = tier; ui.hud.tier = tier; }
@@ -2356,6 +2393,12 @@
   // Called every frame: the microphone listens exactly while my reading game is running (not before the start signal,
   // behind the leave dialog, in a hidden tab or after the end).
   function syncMic(game) {
+    if (!ui.mic) {
+      // No microphone yet (a room game started without my 准备 tap opening it): the chip asks for a tap.
+      const chip = $('#pc-mic');
+      if (chip && chip.dataset.pc !== 'mic-open') { Object.assign(chip.dataset,{pc:'mic-open'}); chip.setAttribute('role','button'); chip.tabIndex = 0; chip.classList.add('is-ask'); micLabel(tx('点这里打开麦克风')); }
+      return;
+    }
     const want = Boolean(game?.read && game.status === 'playing' && !game.paused && !game.over && !ui.confirming);
     if (want !== ui.micOn) {
       ui.micOn = want;
@@ -2400,6 +2443,40 @@
     ui.mic?.mark(info.at);
     $('#pc-skip')?.setAttribute('hidden','');
     updateLine(game,me);
+  }
+  // The microphone for a room: asked for in the 准备 tap, kept until the game starts (then it is the game's).
+  async function readyToRead() {
+    if (ui.readying) return;
+    ui.readying = true;
+    try {
+      const speech = ui.speech || await loadSpeech();
+      const ask = ui.roomMic ? Promise.resolve(ui.roomMic) : speech.openMic();
+      ask.catch(() => {});
+      if (!await prepareSpeech()) { notify(readState(),6000); return; }
+      try { ui.roomMic = await ask; }
+      catch (error) { notify(error?.code === 'denied' ? tx('没有允许使用麦克风，不能准备。请在浏览器设置里允许这个网站使用麦克风。') : tx('没有找到麦克风，不能准备。'),6000); return; }
+      await roomAction('ready',{ready:true});
+    } catch { notify(readState(),6000); }
+    finally { ui.readying = false; }
+  }
+  function closeRoomMic() {
+    try { ui.roomMic?.close(); } catch {}
+    ui.roomMic = null;
+  }
+  // The mic chip tapped in a game that has no microphone yet.
+  async function openMicNow() {
+    const game = ui.game;
+    if (!game?.read || ui.mic) return;
+    try {
+      const speech = ui.speech || await loadSpeech();
+      const mic = await speech.openMic();
+      if (ui.game !== game) { mic.close(); return; }
+      Object.assign(ui,{mic,micStarted:false,micOn:false});
+      const chip = $('#pc-mic');
+      if (chip) { delete chip.dataset.pc; chip.setAttribute('role','status'); chip.removeAttribute('tabindex'); chip.classList.remove('is-ask'); }
+    } catch (error) {
+      notify(error?.code === 'denied' ? tx('没有允许使用麦克风。请在浏览器设置里允许这个网站使用麦克风，再开始。') : tx('没有找到麦克风，请检查后再开始。'),6000);
+    }
   }
   // 跳过这个词: the word the recogniser keeps missing is passed; the text moves on, the runner does not.
   function passWord() {
@@ -2631,7 +2708,7 @@
     const typed = typedSentences(game,me);
     // `synced` turns true once the server has the game (my average speed and its XP).
     // A reading game keeps how many words were passed by hand and how long a recognition took (its letters are already
-    // on the typing scale, see READ_SCALE); it has no accuracy.
+    // WORD_STEP a word, see readWord); it has no accuracy.
     const stats = ui.mic?.stats, read = game.read ? {input:'read'} : {};
     const heard = game.read ? {passed:me.read.passed,heardMs:stats?.passes ? Math.round(stats.ms/stats.passes) : 0} : {};
     const record = {id:`g${Date.now().toString(36)}`,at:Date.now(),kind:'bot',...read,synced:false,map:game.map,side:me.startSide,finalSide:me.side,end:game.mode,minutes:game.mode === 'timed' ? game.duration/60000 : 0,
@@ -2651,7 +2728,7 @@
     ui.uploading.add(record.id);
     try {
       const community = await ui.opts.community?.();
-      const reply = await community?.request?.('/chase/result',{method:'POST',timeout:10000,body:{sessionId:record.id,side:record.side,result:record.result,
+      const reply = await community?.request?.('/chase/result',{method:'POST',timeout:10000,body:{sessionId:record.id,side:record.side,result:record.result,input:record.input === 'read' ? 'read' : 'type',
         letters:Number(record.me?.letters) || 0,words:Math.min(Number(record.me?.words) || 0,Number(record.me?.letters) || 0),durationMs:Math.max(1000,Math.min(Number(record.durationMs) || 0,660000))}});
       if (!reply?.accepted) return;
       record.synced = true;
@@ -2676,8 +2753,8 @@
     return `${topBar(tx('本局结果'),room && ui.room ? 'room' : 'home')}
       <section class="pc-result-hero is-${record.result}"><img src="${sprite(art)}" alt="" draggable="false"><div><span class="pc-kicker">${e(room ? `${tx('房间 {code}',{code:record.room})} · ${sideWord}` : sideWord)}</span><p class="pc-result-title">${headline}</p>
         <p class="pc-result-score">${icon('cuffs')}${tx('抓到')} <b>${record.score.catch}</b><i>:</i><b>${record.score.taunt}</b> ${tx('嘲笑')}${icon('taunt')}</p>${record.xp ? `<p class="pc-result-xp">+${record.xp} XP</p>` : ''}</div></section>
-      <section class="pc-panel"><div class="pc-tiles is-four">${stat(tx('速度'),`${me.rate}/min`)}${reading ? stat(tx('念了'),tx('{n} 个词',{n:me.words})) : stat(tx('正确率'),`${me.accuracy}%`)}${reading ? stat(tx('跳过'),tx('{n} 个词',{n:Number(me.passed) || 0})) : stat(tx('打了'),tx('{n} 个词',{n:me.words}))}${stat(tx('最高'),VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div>${reading ? `<p class="pc-hint">${tx('朗读时每念 2 个字母算 1 个，速度和打字用同一把尺。')}</p>` : ''}</section>
-      <section class="pc-panel"><div class="pc-section-head"><h3>${tx('本局选手')}</h3></div><ul class="pc-players">${record.players.map(player => `<li class="${player.me ? 'is-me' : ''}">${avatar(player.name,player.side,'',Boolean(player.level))}<span class="pc-player-name">${e(nameOf(player.name))}${player.level ? `<small>${tx('电脑')} · ${LEVELS[player.level]?.name || ''}</small>` : player.result === 'left' ? `<small>${tx('中途离开')}</small>` : ''}</span><span class="pc-player-side">${SIDES[player.side].name}${player.side !== player.startSide ? `<small>${tx('换过阵营')}</small>` : ''}</span><span class="pc-player-rate"><b>${player.rate}</b>/min</span><span class="pc-player-score">${[player.catches ? tx('抓到 {n}',{n:player.catches}) : '',player.taunts ? tx('嘲笑 {n}',{n:player.taunts}) : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul></section>
+      <section class="pc-panel"><div class="pc-tiles is-four">${stat(tx('速度'),`${speedValue(me.rate,reading)}${speedUnit(reading)}`)}${reading ? stat(tx('念了'),tx('{n} 个词',{n:me.words})) : stat(tx('正确率'),`${me.accuracy}%`)}${reading ? stat(tx('跳过'),tx('{n} 个词',{n:Number(me.passed) || 0})) : stat(tx('打了'),tx('{n} 个词',{n:me.words}))}${stat(tx('最高'),VEHICLES[record.finalSide || record.side][(me.maxTier || 1)-1])}</div>${reading ? `<p class="pc-hint">${tx('朗读的速度是每分钟念出的词数。')}</p>` : ''}</section>
+      <section class="pc-panel"><div class="pc-section-head"><h3>${tx('本局选手')}</h3></div><ul class="pc-players">${record.players.map(player => `<li class="${player.me ? 'is-me' : ''}">${avatar(player.name,player.side,'',Boolean(player.level))}<span class="pc-player-name">${e(nameOf(player.name))}${player.level ? `<small>${tx('电脑')} · ${LEVELS[player.level]?.name || ''}</small>` : player.result === 'left' ? `<small>${tx('中途离开')}</small>` : ''}</span><span class="pc-player-side">${SIDES[player.side].name}${player.side !== player.startSide ? `<small>${tx('换过阵营')}</small>` : ''}</span><span class="pc-player-rate">${speedHTML(player.rate,reading)}</span><span class="pc-player-score">${[player.catches ? tx('抓到 {n}',{n:player.catches}) : '',player.taunts ? tx('嘲笑 {n}',{n:player.taunts}) : ''].filter(Boolean).join(' · ')}</span></li>`).join('')}</ul></section>
       ${record.sentences.length ? `<section class="pc-panel"><div class="pc-section-head">${record.sentences[0].section === 'words' ? `<h3>${reading ? tx('念过的词语') : tx('打过的词语')}</h3><small class="pc-hint">${tx('点播放键听读音')}</small>` : `<h3>${reading ? tx('念过的句子') : tx('打过的句子')}</h3><small class="pc-hint">${tx('点播放键听原书录音')}</small>`}</div>${sentenceList(record.sentences,record.id)}</section>` : ''}
       ${room ? `<div class="pc-actions">${ui.room ? button('go',`<span>${tx('回到房间')}</span>`,'pc-primary pc-wide','data-view="room"') : ''}<div class="pc-actions-row">${button('go',ui.room ? tx('离开房间') : tx('返回'),'pc-quiet','data-view="home"')}</div></div>`
         : `<div class="pc-actions">${button('again',`<span>${tx('再来一局')}</span>`,'pc-primary pc-wide')}<div class="pc-actions-row">${button('go',tx('换个设置'),'pc-ghost','data-view="setup"')}${button('go',tx('返回'),'pc-quiet','data-view="home"')}</div></div>`}`;
