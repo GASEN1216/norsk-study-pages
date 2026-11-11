@@ -564,6 +564,9 @@
   }
   function shell(content) {
     clearFeedbackVisual();
+    // While a practice is under way the site's top bar steps aside (styles.css .practice-focus): the session bar's ✕ is
+    // the way out, and a phone keeps the whole screen for the words. Setup, results and history show the bar again.
+    document.body?.classList.toggle('practice-focus',state.screen === 'session');
     state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog><dialog class="pr-dialog pr-quests-dialog" id="pr-quests" aria-labelledby="pr-quests-title"></dialog><dialog class="pr-dialog pr-event-dialog" id="pr-event" aria-labelledby="pr-event-title"></dialog>`;
     $('#pr-confirm').addEventListener('cancel',event => { event.preventDefault(); state.pending = null; $('#pr-confirm').close(); if (state.screen === 'session') resume(); });
     syncBackLayer();

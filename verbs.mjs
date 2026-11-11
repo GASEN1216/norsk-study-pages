@@ -379,6 +379,7 @@ export function createVerbs(deps = {}) {
   const tableHead = () => `<div class="vb-head" aria-hidden="true"><span></span><span class="vb-cells"><span>动词原型</span><span>现在时</span><span>过去时</span><span>完成时</span></span><span>释义</span><span></span></div>`;
   function renderBook(focus = '') {
     const scroll = window.scrollY;
+    focusMode(false);
     state.root.innerHTML = `<div class="vb-book"><div class="mh-tool-bar"><button type="button" class="mh-back" data-more="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>更多</span></button></div>${hero()}${toolbar()}<div class="vb-layout">${rail()}<div class="vb-list" id="vb-list">${listBody()}</div></div></div>`;
     if (focus) state.root.querySelector(focus)?.focus({preventScroll:true});
     if (state.view === 'book' && scroll) window.scrollTo(0,scroll);
@@ -557,6 +558,7 @@ export function createVerbs(deps = {}) {
   function renderSession() {
     const session = state.session, card = session.current;
     const verb = byId.get(card.verb);
+    focusMode(true);
     state.root.innerHTML = `<div class="vb-session">${sessionBar()}${card.kind === 'learn' ? learnCard(verb) : questionCard(card)}</div>`;
     // Choices are not focused up front: a ring on one option would read like a hint.
     const focus = session.reveal ? '[data-verbs="next"]' : card.kind === 'learn' ? '[data-verbs="learned"]' : card.type === 'choose' ? '.vb-card' : 'input:not([disabled])';
@@ -578,6 +580,7 @@ export function createVerbs(deps = {}) {
     const rate = result.firstTries ? Math.round(result.right/result.firstTries*100) : 0;
     const tomorrow = state.data.verbs.filter(verb => dueSlots(verb,state.store,addDays(dayOf(),1)).length).length;
     const missed = result.missed.slice(0,8).map(item => { const verb = byId.get(item.verb); return `<li><span class="vb-missed-label">${LABEL[item.slot]}</span><span lang="nb">${e(verb.infinitive)} → <b>${e(verb[item.slot])}</b></span>${item.given ? `<span class="vb-missed-given" lang="nb">写成 ${e(item.given)}</span>` : ''}</li>`; }).join('');
+    focusMode(false);
     state.root.innerHTML = `<div class="vb-session"><article class="vb-card is-result"><p class="vb-card-kicker">${e(result.label)} · 完成</p><h3>${result.fresh.length ? `新学了 ${result.fresh.length} 个动词` : '今天的复习完成了'}</h3>
       <dl class="vb-result-stats"><div><dt>新学</dt><dd>${result.fresh.length}</dd></div><div><dt>复习</dt><dd>${result.reviewed.length}</dd></div><div><dt>一次答对</dt><dd>${rate}<small>%</small></dd></div></dl>
       ${missed ? `<div class="vb-missed"><p>这些形态答错过，已经安排在明天再练${result.missed.length > 8 ? `（共 ${result.missed.length} 个，这里列出前 8 个）` : ''}：</p><ul>${missed}</ul></div>` : `<p class="vb-result-note">都一次答对了。</p>`}
@@ -716,9 +719,12 @@ export function createVerbs(deps = {}) {
       else { state.view = 'book'; state.result = null; renderBook(); }
     });
   }
+  // While a session is under way the site's top bar steps aside (styles.css .practice-focus); its own ✕ leads out.
+  function focusMode(on) { document.body?.classList.toggle('practice-focus',on); }
   function unmount() {
     stopSequence();
     if (!state.root) return;
+    focusMode(false);
     state.root.removeEventListener('click',onClick);
     state.root.removeEventListener('submit',onSubmit);
     state.root.removeEventListener('input',onInput);

@@ -63,6 +63,9 @@ body[data-view=reading].audio-open .main{padding-bottom:103px}
 body.reader-focus[data-view=reading] .site-header,body.reader-focus[data-view=reading] .sidebar,body.reader-focus[data-view=reading] .content-heading{display:none}
 body.reader-focus[data-view=reading] .workspace{height:100dvh}
 body.reader-focus[data-view=reading] .main{width:100%;max-width:none;padding:8px}
+/* A practice under way has the screen to itself (practice.js toggles .practice-focus): the top bar steps aside, the session bar's ✕ leads out. 动词本 and the interview (更多) do the same. */
+body.practice-focus:is([data-view=practice],[data-view=more]) .site-header{display:none}
+body.practice-focus:is([data-view=practice],[data-view=more]) .workspace{min-height:100dvh}
 .category-level{display:block;font-weight:400;color:#859276;font-size:10px;margin-top:2px}
 .word-grammar{font-size:12px;color:#607752;line-height:1.8;margin:6px 0 0;overflow-wrap:anywhere}
 .word-source{font-size:11px;color:#76876a;margin-top:5px}

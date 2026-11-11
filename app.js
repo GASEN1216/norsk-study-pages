@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261111-online-partial';
-import {createReadingLibrary} from './reading-library.mjs?v=20261111-online-partial';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-online-partial';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-online-partial';
-import * as notesModel from './notes-store.mjs?v=20261111-online-partial';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-online-partial';
+import {createDataLoader} from './loader.mjs?v=20261111-practice-focus';
+import {createReadingLibrary} from './reading-library.mjs?v=20261111-practice-focus';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-practice-focus';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-practice-focus';
+import * as notesModel from './notes-store.mjs?v=20261111-practice-focus';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-practice-focus';
 
-const VERSION = '20261111-online-partial';
+const VERSION = '20261111-practice-focus';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -922,6 +922,8 @@ async function setView(view, updateHash = true) {
     state.renderTask = null;
     document.body.classList.remove('reader-focus');
   }
+  // A practice's focus mode belongs to the view it runs in; going back there renders the session and sets it again.
+  if (state.view !== view) document.body.classList.remove('practice-focus');
   state.view = view;
   document.body.dataset.view = view;
   if (view === 'practice') {
@@ -1098,7 +1100,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-online-partial').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-practice-focus').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });

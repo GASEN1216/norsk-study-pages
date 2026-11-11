@@ -159,6 +159,8 @@ export function createInterview(deps = {}) {
   function render(focus = '',motion = '') {
     if (!root) return;
     transition = motion;
+    // While a session is under way the site's top bar steps aside (styles.css .practice-focus); its own ✕ leads out.
+    document.body?.classList.toggle('practice-focus',screen === 'session');
     root.innerHTML = screen === 'session' ? sessionMarkup() : `${idleMarkup()}${dialogMarkup()}`;
     transition = '';
     if (focus) focusTarget(focus)?.focus({preventScroll:true});
@@ -333,6 +335,7 @@ export function createInterview(deps = {}) {
   }
   function visibility() { if (document.hidden) stopAudio(); }
   function unmount() {
+    document.body?.classList.remove('practice-focus');
     stopAudio();
     closeDialog();
     if (!root) return;
