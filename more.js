@@ -22,6 +22,8 @@
   const e = value => state.deps.escapeHTML ? state.deps.escapeHTML(value) : String(value ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const art = name => `assets/honors/${name}.webp`;
   const weekArt = (n,perfect = false) => art(`week-${String(n).padStart(2,'0')}${perfect ? '-perfect' : ''}`);
+  // One-day event medals (双11): art is named by the event id without its year.
+  const eventArt = (event,gold = false) => art(`event-${String(event.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}`);
   const pct = (progress,target) => target ? Math.max(0,Math.min(100,Math.round(Number(progress)/Number(target)*100))) : 0;
   const number = value => Number(value || 0).toLocaleString('zh-CN');
   function dayLabel(iso,offset = 0) {
@@ -199,6 +201,20 @@
     if (!weeks.length) return '<p class="mh-empty">周一到周日七天都打卡，这里就会多一枚奖章。漏掉的一天可以用补打卡补上。</p>';
     return `<ol class="mh-medals">${weeks.map(w => `<li><button type="button" class="mh-medal" data-more="badge" data-week="${e(w.n)}" aria-label="第 ${e(w.n)} 周全勤奖章 ${e(w.challenge?.theme || '')}">${img(weekArt(w.n,true),'')}<small>第 ${e(w.n)} 周</small><strong lang="nb">${e(w.challenge?.theme || '')}</strong></button></li>`).join('')}</ol>`;
   }
+  // 纪念章: medals of one-day events. Earned ones stay for good with the day's whole-site record;
+  // on the event day itself the medal waits here, unlit, with today's progress.
+  function eventShelf(h) {
+    const events = (h.events || []).filter(event => event.earned || event.active).reverse();
+    return `<ol class="mh-events">${events.map(event => {
+      const goal = event.earned ? event.words : event.xp;
+      const line = event.gold ? '金色纪念章' : event.earned ? (event.active ? `再练 ${number(Math.max(0,goal.target-goal.progress))} 个词升级金色` : '纪念章') : `今天获得 ${number(goal.target)} XP 即得`;
+      const site = `全站 ${number(event.site?.people)} 人 · ${number(event.site?.progress)} 词`;
+      return `<li class="mh-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}">${img(eventArt(event,event.gold),`${event.theme || ''} 纪念章`)}
+        <div><small>${e(dayLabel(event.day))} · ${e(event.title || '')}</small><strong lang="nb">${e(event.theme || '')}</strong><p>${e(line)}</p>
+        ${event.gold || (event.earned && !event.active) ? '' : `${bar(goal.progress,goal.target,false)}<span class="mh-event-count">${number(Math.min(goal.progress,goal.target))} / ${number(goal.target)}${event.earned ? ' 词' : ' XP'}</span>`}
+        <span class="mh-event-site">${e(site)}${event.site?.done ? ' · 全站目标达成' : event.active ? ` / ${number(event.site?.target)}` : ''}</span></div></li>`;
+    }).join('')}</ol>`;
+  }
   function trophyShelf(h) {
     const trophies = [...(h.trophies || [])].sort((a,b) => String(b.weekStart).localeCompare(String(a.weekStart)));
     if (!trophies.length) return '<p class="mh-empty">每周排行榜前三名会在这里留下一座奖杯。周一结算上一周。</p>';
@@ -218,7 +234,9 @@
     const perfect = (h.weeks || []).filter(w => w.perfect).length;
     const achievements = (h.achievements || []).filter(a => a.earned).length;
     const stat = (target,value,label) => `<button type="button" data-more="jump" data-target="${target}"><strong>${value}</strong><span>${label}</span></button>`;
-    return `${challengeCard(h)}
+    const eventSection = (h.events || []).some(event => event.earned || event.active) ? `<section class="mh-section" aria-labelledby="mh-events-title"><div class="mh-panel-head"><h3 id="mh-events-title" tabindex="-1">纪念章</h3><span>特别的日子限定一天，拿到就永久收藏</span></div>${eventShelf(h)}</section>` : '';
+    const eventToday = (h.events || []).some(event => event.active);
+    return `${challengeCard(h)}${eventToday ? eventSection : ''}
       <div class="mh-split">
         <section class="mh-panel" aria-labelledby="mh-quests-title"><div class="mh-panel-head"><h3 id="mh-quests-title">今日任务</h3><span>${e(dayLabel(h.today?.date))} · 每天北京时间零点更新</span></div><ol class="mh-quests">${questRows(h.today?.quests)}</ol></section>
         <section class="mh-panel mh-stats" aria-label="荣誉统计">
@@ -231,6 +249,7 @@
       </div>
       <section class="mh-section" aria-labelledby="mh-season-title"><div class="mh-panel-head"><h3 id="mh-season-title" tabindex="-1">赛季徽章</h3><span>20 周，每周一个挪威文化主题；完成当周挑战即获得徽章</span></div><ol class="mh-season">${seasonGrid(h)}</ol></section>
       <section class="mh-section" aria-labelledby="mh-medals-title"><div class="mh-panel-head"><h3 id="mh-medals-title" tabindex="-1">全勤奖章</h3><span>周一到周日七天都打卡，每周一枚</span></div>${medalShelf(h)}</section>
+      ${eventToday ? '' : eventSection}
       <section class="mh-section" aria-labelledby="mh-trophy-title"><div class="mh-panel-head"><h3 id="mh-trophy-title" tabindex="-1">奖杯柜</h3><span>每周排行榜前三名</span></div>${trophyShelf(h)}</section>
       <section class="mh-section" aria-labelledby="mh-ach-title"><div class="mh-panel-head"><h3 id="mh-ach-title" tabindex="-1">成就</h3><span>长期积累的里程碑</span></div><ol class="mh-achievements">${achievementGrid(h)}</ol></section>`;
   }
@@ -363,6 +382,11 @@
     for (const w of h?.weeks || []) {
       if (w.challenge?.done) keys.push({key:`week-${w.n}`,image:weekArt(w.n),kicker:tx('第 {n} 周挑战完成',{n:w.n}),title:(L10N.english ? w.challenge.theme || '' : `${w.challenge.theme || ''} ${w.challenge.themeZh || ''}`).trim(),text:tx('赛季徽章已收入荣誉。')});
       if (w.perfect) keys.push({key:`perfect-${w.n}`,image:weekArt(w.n,true),kicker:tx('七天全勤'),title:tx('第 {n} 周全勤奖章',{n:w.n}),text:tx('这一周七天都有打卡，奖章已收入荣誉。')});
+    }
+    for (const event of h?.events || []) {
+      const title = `${event.theme || ''} ${tx('纪念章')}`.trim();
+      if (event.earned) keys.push({key:`event-${event.id}`,image:eventArt(event),kicker:tx('{title} 限定纪念章',{title:tx(event.title || '')}),title,text:tx('{day}获得 {n} XP，纪念章已收入荣誉。',{day:dayLabel(event.day),n:Number(event.xp?.target || 0).toLocaleString('en-US')})});
+      if (event.gold) keys.push({key:`event-${event.id}-gold`,image:eventArt(event,true),kicker:tx('金色纪念章'),title,text:tx('{day}练了 {n} 个词，纪念章升级为金色。',{day:dayLabel(event.day),n:Number(event.words?.target || 0).toLocaleString('en-US')})});
     }
     for (const t of h?.trophies || []) keys.push({key:`trophy-${t.weekStart}`,image:art(`trophy-${t.rank}`),kicker:tx('周榜奖杯'),title:tx('第 {n} 名 · {cup}',{n:t.rank,cup:tx(RANKS[t.rank] || '')}),text:weekRange(t.weekStart)});
     for (const a of h?.achievements || []) if (a.earned) keys.push({key:`achievement-${a.id}`,image:art(`achievement-${a.id}`),kicker:tx('成就'),title:tx(a.title || ''),text:tx(a.description || '')});

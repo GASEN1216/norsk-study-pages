@@ -564,7 +564,7 @@
   }
   function shell(content) {
     clearFeedbackVisual();
-    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog><dialog class="pr-dialog pr-quests-dialog" id="pr-quests" aria-labelledby="pr-quests-title"></dialog>`;
+    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog><dialog class="pr-dialog pr-quests-dialog" id="pr-quests" aria-labelledby="pr-quests-title"></dialog><dialog class="pr-dialog pr-event-dialog" id="pr-event" aria-labelledby="pr-event-title"></dialog>`;
     $('#pr-confirm').addEventListener('cancel',event => { event.preventDefault(); state.pending = null; $('#pr-confirm').close(); if (state.screen === 'session') resume(); });
     syncBackLayer();
   }
@@ -590,7 +590,7 @@
     const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>${tx('继续{title}',{title:e(ACTIVITIES[activityOf(active)].title)})}</strong><span>${tx('{done} / {n} 词',{done:Object.keys(active.answers || {}).length,n:active.firstKeys.length})}</span></div>${button('resume',tx('继续'),'','pr-primary')}</section>` : '';
     // The interface language switch sits quietly beside the textbook name; choosing reloads the page.
     const language = `<span class="pr-lang-dot" aria-hidden="true">·</span><button type="button" class="pr-lang-switch" data-practice-action="language" ${EN ? 'lang="zh" aria-label="Switch to Chinese">中文' : 'lang="en" aria-label="切换到英文界面">English'}</button>`;
-    shell(`<div class="pr-home">${resumeBanner}<div class="pr-home-heading"><h2 class="pr-home-title">${tx('今天练什么？')}</h2><span class="pr-home-meta"><span class="pr-series-label">${e(state.seriesTitle)}</span>${language}</span></div><div class="pr-mode-grid" role="group" aria-label="${tx('练习方式')}">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
+    shell(`<div class="pr-home">${resumeBanner}<div id="pr-event-slot">${eventMarkup()}</div><div class="pr-home-heading"><h2 class="pr-home-title">${tx('今天练什么？')}</h2><span class="pr-home-meta"><span class="pr-series-label">${e(state.seriesTitle)}</span>${language}</span></div><div class="pr-mode-grid" role="group" aria-label="${tx('练习方式')}">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
     const slot = $('#pr-community-slot');
     if (slot) state.deps.mountCommunity?.(slot);
     loadHonors();
@@ -693,6 +693,53 @@
   function updateGoals() {
     const slot = state.visible && state.screen === 'setup' ? $('#pr-goals') : null;
     if (slot) slot.innerHTML = goalsMarkup();
+    const eventSlot = state.visible && state.screen === 'setup' ? $('#pr-event-slot') : null;
+    if (eventSlot) eventSlot.innerHTML = eventMarkup();
+    if ($('#pr-event')?.open) { const event = activeEvent(); if (event) $('#pr-event').innerHTML = eventDialogMarkup(event); else $('#pr-event').close(); }
+  }
+  // One-day events (双11): a quiet card above the modes on that Beijing day only; the medal itself stays in 荣誉.
+  const eventEnd = event => Date.parse(`${event.day}T00:00:00+08:00`)+86400000;
+  const activeEvent = () => (state.honors?.events || []).find(event => event.active && Date.now() < eventEnd(event));
+  const eventArt = (event,gold) => `assets/honors/event-${String(event.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}.webp`;
+  const grouped = value => Number(value || 0).toLocaleString('en-US');
+  function eventLeft(event) {
+    const minutes = Math.max(0,Math.floor((eventEnd(event)-Date.now())/60000));
+    return minutes >= 60 ? tx('还剩 {h} 小时 {m} 分',{h:Math.floor(minutes/60),m:minutes%60}) : tx('还剩 {m} 分钟',{m:Math.max(1,minutes)});
+  }
+  function eventMarkup() {
+    const event = activeEvent();
+    if (!event) return '';
+    const goal = event.earned ? event.words : event.xp;
+    const width = event.gold ? 100 : Math.round(Math.min(goal.progress,goal.target)/goal.target*100);
+    const status = event.gold ? tx('金色纪念章已获得') : event.earned ? tx('纪念章已获得 · 练满 {n} 个词升级金色',{n:grouped(event.words.target)}) : tx('今天获得 {n} XP 即得纪念章',{n:grouped(event.xp.target)});
+    const count = event.gold ? tx('完成') : `${grouped(Math.min(goal.progress,goal.target))}/${grouped(goal.target)}`;
+    return `<button type="button" class="pr-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}" data-practice-action="event" aria-haspopup="dialog" aria-controls="pr-event"><img class="pr-event-medal" src="${eventArt(event,event.gold)}" alt="" decoding="async" draggable="false"><span class="pr-event-text"><span class="pr-event-kicker">${tx('11·11 限定 · 仅今天')}</span><strong><span lang="nb">${e(event.theme)}</span> ${tx('纪念章')}</strong><span class="pr-event-sub">${status}</span></span><span class="pr-event-side"><b class="pr-event-count">${count}</b><span class="pr-event-meter" aria-hidden="true"><i style="width:${width}%"></i></span><span class="pr-event-site">${tx('全站 {n} / {target} 词',{n:grouped(event.site.progress),target:grouped(event.site.target)})}</span></span></button>`;
+  }
+  function eventDialogMarkup(event) {
+    const arrow = '<svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>';
+    const row = (goal,title,reward,metric) => {
+      const target = Number(goal.target) || 0, progress = Math.min(Number(goal.progress) || 0,target);
+      const width = goal.done ? 100 : target ? Math.round(progress/target*100) : 0;
+      const place = goal.done || !metric ? null : questPlace({metric});
+      const where = place?.activity ? ACTIVITIES[place.activity]?.title : '';
+      const body = `<span class="pr-quest-mark" aria-hidden="true"></span><span class="pr-quest-text"><strong>${title}</strong><small class="pr-event-reward">${reward}</small><span class="pr-quest-meter" aria-hidden="true"><i style="width:${width}%"></i></span></span><span class="pr-quest-side"><b class="pr-quest-count">${goal.done ? tx('完成') : `${grouped(progress)}/${grouped(target)}`}</b>${where ? `<span class="pr-quest-go">${e(where)}${arrow}</span>` : ''}</span>`;
+      return `<li>${where ? `<button type="button" class="pr-quest" data-practice-action="event-go" data-pr-metric="${metric}">${body}</button>` : `<div class="pr-quest${goal.done ? ' is-done' : ''}">${body}</div>`}</li>`;
+    };
+    return `<div class="pr-dialog-heading"><h2 id="pr-event-title" tabindex="-1">${tx('11·11 限定')}</h2>${iconButton('event-close','close',tx('关闭'))}</div><div class="pr-event-hero"><img class="pr-event-hero-medal" src="${eventArt(event,event.gold)}" alt="${e(tx('纪念章'))}" decoding="async" draggable="false"><div><p class="pr-event-kicker">${tx('仅限今天')} · ${e(eventLeft(event))}</p><h3><span lang="nb">${e(event.theme)}</span> ${tx('纪念章')}</h3><p>${e(tx(event.note))}</p></div></div><ol class="pr-quests">${row(event.xp,tx('今天获得 {n} XP',{n:grouped(event.xp.target)}),tx('得纪念章'),'xp')}${row(event.words,tx('今天练习 {n} 个词',{n:grouped(event.words.target)}),tx('升级金色纪念章'),'words')}${row(event.site,tx('全站一起练 {n} 个词',{n:grouped(event.site.target)}),tx('今天已有 {n} 位同学参与',{n:event.site.people}),'')}</ol><p class="pr-quests-foot"><span>${tx('北京时间今晚 24 点结束，纪念章永久收在荣誉里')}</span><button type="button" class="pr-quests-link" data-practice-action="event-honors">${tx('荣誉与成就')}${arrow}</button></p>`;
+  }
+  function openEvent() {
+    const dialog = $('#pr-event'), event = activeEvent();
+    if (!dialog || !event) return;
+    dialog.innerHTML = eventDialogMarkup(event);
+    if (!dialog.open) dialog.showModal?.();
+    $('#pr-event-title')?.focus?.();
+  }
+  function goEvent(metric) {
+    const place = questPlace({metric});
+    if (!place?.activity) return;
+    if (!canEdit()) { requireEditor(); return; }
+    $('#pr-event')?.close();
+    openActivity(place.activity);
   }
   async function loadHonors(force=false) {
     const run = ++state.honorsRequest;
@@ -1501,7 +1548,7 @@
   function onClick(event) {
     const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
     if (requested === 'takeover') { acquireEditor(true); return; }
-    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','mall','series','wordbook-open','scope-tab','language','quests','quests-close','quest-go'].includes(requested)) { requireEditor(); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','mall','series','wordbook-open','scope-tab','language','quests','quests-close','quest-go','event','event-close','event-honors'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
     if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { openActivity(modeTarget.dataset.prActivity); return; }
@@ -1522,6 +1569,10 @@
       case 'quests': openQuests(); break;
       case 'quests-close': $('#pr-quests')?.close(); break;
       case 'quest-go': goQuest(Number(target.dataset.prQuest)); break;
+      case 'event': openEvent(); break;
+      case 'event-close': $('#pr-event')?.close(); break;
+      case 'event-go': goEvent(target.dataset.prMetric); break;
+      case 'event-honors': $('#pr-event')?.close(); state.deps.openHonors?.(); break;
       case 'honors': $('#pr-quests')?.close(); state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
       case 'export': exportRecords(); break;
@@ -1845,6 +1896,7 @@
     // The 联机游戏 sheet does not stay open over another view.
     if ($('#pr-online')?.open) $('#pr-online').close();
     if ($('#pr-quests')?.open) $('#pr-quests').close();
+    if ($('#pr-event')?.open) $('#pr-event').close();
     if (state.prepareTimer != null) clearTimeout(state.prepareTimer);
     state.prepareTimer=null;
     if (currentSession()) pause(); else stopAudio();

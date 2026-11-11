@@ -108,6 +108,43 @@ button.pr-quest:hover .pr-quest-go{color:var(--green)}
 .pr-quests-link .pr-goal-arrow{width:13px;height:13px;color:currentColor}
 @media(max-width:560px){.pr-quests-dialog{padding:16px 14px 12px}.pr-quest{gap:12px;padding:13px 12px 13px 14px}}
 @media(prefers-reduced-motion:reduce){button.pr-quest{transition:none}}
+/* One-day event (双11): a warm card above the modes, only on that day. */
+.pr-event{display:grid;grid-template-columns:58px minmax(0,1fr) auto;align-items:center;gap:16px;width:100%;margin:0 0 22px;padding:12px 22px 12px 14px;border:1px solid #eadfc6;border-radius:20px;background:linear-gradient(100deg,#fffef9 0%,#fcf6e8 55%,#f7ecd3 100%);color:var(--pr-ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .25s ease-out,box-shadow .25s ease-out}
+.pr-event:hover{border-color:#dcc89c;box-shadow:0 12px 30px -22px #8a6a2a}
+.pr-event:focus-visible{outline:2px solid #b48d3c;outline-offset:2px}
+.pr-event-medal{width:58px;height:76px;margin:-8px 0;object-fit:cover;filter:saturate(.55) brightness(1.03);transition:filter .8s ease-out}
+.pr-event.is-earned .pr-event-medal{filter:none}
+.pr-event-text{display:grid;gap:1px;min-width:0}
+.pr-event-kicker{font-size:11.5px;font-weight:600;letter-spacing:.08em;color:#a8853f}
+.pr-event-text strong{font:500 18px/1.3 var(--serif,Georgia,serif);color:var(--pr-green)}
+.pr-event-sub{font-size:13px;color:var(--pr-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-event-side{display:grid;justify-items:end;gap:5px;min-width:150px}
+.pr-event-count{font:500 16px var(--serif,Georgia,serif);color:#9a7631;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr-event-meter{display:block;width:150px;height:4px;border-radius:4px;background:#efe4cb;overflow:hidden}
+.pr-event-meter i{display:block;height:100%;border-radius:inherit;background:#c9a04a;transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.pr-event-site{font-size:12px;color:#9a8a68;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr-event-dialog{width:480px;padding:20px 22px 16px}
+.pr-event-dialog .pr-dialog-heading{margin-bottom:6px}
+.pr-event-hero{display:grid;grid-template-columns:108px minmax(0,1fr);align-items:center;gap:18px;margin:0 0 16px;padding:14px 16px 14px 10px;border:1px solid #eadfc6;border-radius:18px;background:linear-gradient(100deg,#fffef9,#f8eed8)}
+.pr-event-hero-medal{width:108px;height:132px;margin:-8px 0;object-fit:cover}
+.pr-event-hero .pr-event-kicker{margin:0}
+.pr-event-hero h3{margin:2px 0 6px;font:500 21px/1.3 var(--serif,Georgia,serif);color:var(--pr-green)}
+.pr-event-hero p:last-child{margin:0;font-size:13.5px;line-height:1.6;color:var(--pr-muted)}
+.pr-event-reward{font-size:12px;color:#a8853f;margin-top:-5px}
+@media(max-width:560px){
+  .pr-event{grid-template-columns:48px minmax(0,1fr);gap:4px 12px;margin-bottom:16px;padding:12px 14px 12px 10px;border-radius:18px}
+  .pr-event-medal{width:48px;height:64px;margin:0;grid-row:span 2}
+  .pr-event-text strong{font-size:16.5px}
+  .pr-event-side{grid-column:2;display:flex;align-items:center;gap:10px;min-width:0}
+  .pr-event-meter{flex:1;width:auto;min-width:40px}
+  .pr-event-count{order:2;font-size:14px}
+  .pr-event-site{display:none}
+  .pr-event-dialog{padding:16px 14px 12px}
+  .pr-event-hero{grid-template-columns:84px minmax(0,1fr);gap:12px;padding:12px 12px 12px 6px}
+  .pr-event-hero-medal{width:84px;height:104px;margin:-4px 0}
+  .pr-event-hero h3{font-size:18px}
+}
+@media(prefers-reduced-motion:reduce){.pr-event,.pr-event-medal,.pr-event-meter i{transition:none}}
 .pr-dialog-heading .pr-mode-icon{width:40px;height:40px;margin:0;border-radius:12px}.pr-dialog-heading .pr-mode-icon svg{width:22px;height:22px}
 .pr-dialog-heading h2{flex:1;font-size:21px}
 .pr-quick-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
