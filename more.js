@@ -24,6 +24,8 @@
   const weekArt = (n,perfect = false) => art(`week-${String(n).padStart(2,'0')}${perfect ? '-perfect' : ''}`);
   // One-day event medals (双11): art is named by the event id without its year.
   const eventArt = (event,gold = false) => art(`event-${String(event.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}`);
+  // A medal the whole site completed together glows (styles.css .nk-radiant); the light is masked by the picture itself.
+  const radiant = (inner,src,{on = true,epic = false,fit = 'cover'} = {}) => `<span class="nk-radiant${on ? ' is-on' : ''}${epic ? ' is-epic' : ''}" style="--art:url('${e(src)}');--fit:${fit}">${epic ? '<i class="nk-radiant-rays" aria-hidden="true"></i>' : ''}${inner}<i class="nk-radiant-sheen" aria-hidden="true"></i></span>`;
   const pct = (progress,target) => target ? Math.max(0,Math.min(100,Math.round(Number(progress)/Number(target)*100))) : 0;
   const number = value => Number(value || 0).toLocaleString('zh-CN');
   function dayLabel(iso,offset = 0) {
@@ -204,15 +206,17 @@
   // 纪念章: medals of one-day events. Earned ones stay for good with the day's whole-site record;
   // on the event day itself the medal waits here, unlit, with today's progress.
   function eventShelf(h) {
-    const events = (h.events || []).filter(event => event.earned || event.active).reverse();
+    // Shown: earned medals, today's event, and — once the site reached its goal — everyone who practised that day.
+    const events = (h.events || []).filter(event => event.earned || event.active || (event.joined && event.site?.done)).reverse();
     return `<ol class="mh-events">${events.map(event => {
       const goal = event.earned ? event.words : event.xp;
-      const line = event.gold ? '金色纪念章' : event.earned ? (event.active ? `再练 ${number(Math.max(0,goal.target-goal.progress))} 个词升级金色` : '纪念章') : `今天获得 ${number(goal.target)} XP 即得`;
-      const site = `全站 ${number(event.site?.people)} 人 · ${number(event.site?.progress)} 词`;
-      return `<li class="mh-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}">${img(eventArt(event,event.gold),`${event.theme || ''} 纪念章`)}
+      const line = event.gold ? '金色纪念章' : event.earned ? (event.active ? `再练 ${number(Math.max(0,goal.target-goal.progress))} 个词升级金色` : '纪念章') : event.active ? `今天获得 ${number(goal.target)} XP 即得` : '全站达成时一起练过';
+      const site = `${event.site?.done ? '全站达成' : '全站'} ${number(event.site?.people)} 人 · ${number(event.site?.progress)} 词`;
+      const src = eventArt(event,event.gold);
+      return `<li class="mh-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}${event.site?.done ? ' is-radiant' : ''}">${radiant(img(src,`${event.theme || ''} 纪念章`),src,{on:Boolean(event.site?.done)})}
         <div><small>${e(dayLabel(event.day))} · ${e(event.title || '')}</small><strong lang="nb">${e(event.theme || '')}</strong><p>${e(line)}</p>
-        ${event.gold || (event.earned && !event.active) ? '' : `${bar(goal.progress,goal.target,false)}<span class="mh-event-count">${number(Math.min(goal.progress,goal.target))} / ${number(goal.target)}${event.earned ? ' 词' : ' XP'}</span>`}
-        <span class="mh-event-site">${e(site)}${event.site?.done ? ' · 全站目标达成' : event.active ? ` / ${number(event.site?.target)}` : ''}</span></div></li>`;
+        ${event.gold || !event.active ? '' : `${bar(goal.progress,goal.target,false)}<span class="mh-event-count">${number(Math.min(goal.progress,goal.target))} / ${number(goal.target)}${event.earned ? ' 词' : ' XP'}</span>`}
+        <span class="mh-event-site">${e(site)}${!event.site?.done && event.active ? ` / ${number(event.site?.target)}` : ''}</span></div></li>`;
     }).join('')}</ol>`;
   }
   function trophyShelf(h) {
@@ -386,6 +390,8 @@
     for (const event of h?.events || []) {
       const title = `${event.theme || ''} ${tx('纪念章')}`.trim();
       if (event.earned) keys.push({key:`event-${event.id}`,image:eventArt(event),kicker:tx('{title} 限定纪念章',{title:tx(event.title || '')}),title,text:tx('{day}获得 {n} XP，纪念章已收入荣誉。',{day:dayLabel(event.day),n:Number(event.xp?.target || 0).toLocaleString('en-US')})});
+      // The whole site reached its goal: everyone who practised that day shares the moment, earned medal or not.
+      if (event.site?.done && event.joined) keys.push({key:`event-${event.id}-site`,image:eventArt(event,event.gold),radiant:true,kicker:tx('全站达成'),title:tx('{n} 个词 · 一起做到',{n:Number(event.site.target || 0).toLocaleString('en-US')}),text:tx('{day}全站 {people} 人一起练满 {n} 个词，你也在其中。',{day:dayLabel(event.day),people:event.site.people,n:Number(event.site.target || 0).toLocaleString('en-US')})});
       if (event.gold) keys.push({key:`event-${event.id}-gold`,image:eventArt(event,true),kicker:tx('金色纪念章'),title,text:tx('{day}练了 {n} 个词，纪念章升级为金色。',{day:dayLabel(event.day),n:Number(event.words?.target || 0).toLocaleString('en-US')})});
     }
     for (const t of h?.trophies || []) keys.push({key:`trophy-${t.weekStart}`,image:art(`trophy-${t.rank}`),kicker:tx('周榜奖杯'),title:tx('第 {n} 名 · {cup}',{n:t.rank,cup:tx(RANKS[t.rank] || '')}),text:weekRange(t.weekStart)});
@@ -425,7 +431,7 @@
     layer.setAttribute('role','dialog');
     layer.setAttribute('aria-modal','true');
     layer.setAttribute('aria-label',item.kicker);
-    layer.innerHTML = `<div class="mh-reveal-card"><div class="mh-reveal-art">${img(item.image,item.title,'',true)}</div><p class="mh-kicker">${e(item.kicker)}</p><h3>${e(item.title)}</h3>${item.text ? `<p>${e(item.text)}</p>` : ''}<button type="button" class="mh-reveal-ok">${tx('收下')}</button></div>`;
+    layer.innerHTML = `<div class="mh-reveal-card"><div class="mh-reveal-art">${item.radiant ? radiant(img(item.image,item.title,'',true),item.image,{epic:true,fit:'contain'}) : img(item.image,item.title,'',true)}</div><p class="mh-kicker">${e(item.kicker)}</p><h3>${e(item.title)}</h3>${item.text ? `<p>${e(item.text)}</p>` : ''}<button type="button" class="mh-reveal-ok">${tx('收下')}</button></div>`;
     let closing = false;
     const close = () => {
       if (closing) return;

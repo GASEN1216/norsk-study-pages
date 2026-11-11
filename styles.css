@@ -424,3 +424,19 @@ body[data-view=reading].audio-open .main{padding-bottom:calc(103px + env(safe-ar
 }
 /* Long word lists: rows off screen are laid out and painted only when they come near, so a chapter opens and scrolls without the phone laying out every row first. */
 .vocab-row,.basic-card{content-visibility:auto;contain-intrinsic-size:auto 190px}
+/* 全站达成: a medal the whole site earned together keeps a warm halo, and now and then a slow line of light crosses
+   its metal only (the light is masked by the medal picture itself, so no rectangle ever shows). The reveal adds fine
+   rays turning behind it, like the gold cup in the weekly ceremony. */
+.nk-radiant{position:relative;display:inline-block;line-height:0;isolation:isolate;flex:none}
+.nk-radiant>img{position:relative;z-index:1}
+.nk-radiant-sheen,.nk-radiant-rays{display:none}
+.nk-radiant.is-on::before{content:"";position:absolute;inset:-12% -42%;z-index:0;border-radius:50%;background:radial-gradient(closest-side,#f0cd7aa6,#e8bd6440 48%,transparent);pointer-events:none;animation:nk-radiant-breathe 6.5s ease-in-out infinite alternate}
+.nk-radiant.is-on .nk-radiant-sheen{display:block;position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(108deg,transparent 43%,#fff3d61f 46.5%,#fff6e2a6 50%,#fff3d61f 53.5%,transparent 57%) no-repeat;background-size:300% 100%;background-position:120% 0;mix-blend-mode:screen;-webkit-mask-image:var(--art);mask-image:var(--art);-webkit-mask-size:var(--fit,cover);mask-size:var(--fit,cover);-webkit-mask-position:center;mask-position:center;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;animation:nk-radiant-sweep 10s cubic-bezier(.4,0,.3,1) 1.4s infinite}
+.nk-radiant.is-epic::before{inset:-34% -40%;background:radial-gradient(closest-side,#e9c77a52,#d9b25f1c 55%,transparent)}
+.nk-radiant.is-epic .nk-radiant-rays{display:block;position:absolute;inset:-62%;z-index:0;border-radius:50%;pointer-events:none;background:repeating-conic-gradient(from 0deg,#f4e6c416 0deg 2deg,transparent 2deg 12deg);-webkit-mask-image:radial-gradient(circle,#000 18%,transparent 62%);mask-image:radial-gradient(circle,#000 18%,transparent 62%);animation:nk-radiant-rays-in 2.8s ease-out .6s both,nk-radiant-turn 140s linear infinite}
+.nk-radiant.is-epic .nk-radiant-sheen{animation-delay:1.9s;animation-duration:8s}
+@keyframes nk-radiant-breathe{from{opacity:.55;transform:scale(.97)}to{opacity:1;transform:scale(1.03)}}
+@keyframes nk-radiant-sweep{0%{background-position:120% 0}32%,100%{background-position:-20% 0}}
+@keyframes nk-radiant-turn{to{transform:rotate(360deg)}}
+@keyframes nk-radiant-rays-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.nk-radiant.is-on::before,.nk-radiant-rays{animation:none!important}.nk-radiant.is-on .nk-radiant-sheen{display:none}}
