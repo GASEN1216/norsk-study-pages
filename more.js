@@ -210,7 +210,9 @@
     const events = (h.events || []).filter(event => event.earned || event.active || (event.joined && event.site?.done)).reverse();
     return `<ol class="mh-events">${events.map(event => {
       const goal = event.earned ? event.words : event.xp;
-      const line = event.gold ? '金色纪念章' : event.earned ? (event.active ? `再练 ${number(Math.max(0,goal.target-goal.progress))} 个词升级金色` : '纪念章') : event.active ? `今天获得 ${number(goal.target)} XP 即得` : '全站达成时一起练过';
+      // With a gold boost each word counts `boost` times, so the words still to practise are fewer.
+      const boost = event.words?.boost > 1 ? event.words.boost : 1;
+      const line = event.gold ? '金色纪念章' : event.earned ? (event.active ? `再练 ${number(Math.ceil(Math.max(0,goal.target-goal.progress)/boost))} 个词升级金色${boost > 1 ? `（现在 1 词记 ${boost} 词）` : ''}` : '纪念章') : event.active ? `今天获得 ${number(goal.target)} XP 即得` : '全站达成时一起练过';
       const site = `${event.site?.done ? '全站达成' : '全站'} ${number(event.site?.people)} 人 · ${number(event.site?.progress)} 词`;
       const src = eventArt(event,event.gold);
       return `<li class="mh-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}${event.site?.done ? ' is-radiant' : ''}">${radiant(img(src,`${event.theme || ''} 纪念章`),src,{on:Boolean(event.site?.done)})}

@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261111-partial-xp';
-import {createReadingLibrary} from './reading-library.mjs?v=20261111-partial-xp';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-partial-xp';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-partial-xp';
-import * as notesModel from './notes-store.mjs?v=20261111-partial-xp';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-partial-xp';
+import {createDataLoader} from './loader.mjs?v=20261111-online-partial';
+import {createReadingLibrary} from './reading-library.mjs?v=20261111-online-partial';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-online-partial';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-online-partial';
+import * as notesModel from './notes-store.mjs?v=20261111-online-partial';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-online-partial';
 
-const VERSION = '20261111-partial-xp';
+const VERSION = '20261111-online-partial';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -1098,7 +1098,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-partial-xp').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-online-partial').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });

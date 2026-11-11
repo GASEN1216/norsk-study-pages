@@ -14,6 +14,7 @@
 
   /* ---------- Rules and tuning ---------- */
   const PREFS_KEY = 'norsk-chase-v1', RECORDS_KEY = 'norsk-chase-records-v1', MAX_RECORDS = 120, MAX_RECORD_SENTENCES = 40;
+  const LEFT_KEY = 'norsk-chase-left-v1';
   // The chase is measured in letters: the thief starts GAP letters ahead; the officer catches up by gaining those GAP
   // letters, the thief taunts by lapping the officer, a lead of one whole lap of the map (its `lap` in letters; the
   // user, 2026-11-06, went back to lapping from "twice the start gap").
@@ -892,6 +893,8 @@
         const mine = await community?.request?.('/chase/usual',{timeout:8000});
         if (Number.isFinite(mine?.usual) && ui.open) { ui.serverUsual = mine.usual; if ((ui.view === 'home' && !ui.joining) || ui.view === 'history') render(); }
         for (const record of ui.records.filter(item => item.synced === false).slice(0,5)) await uploadRecord(record);
+        const left = readJSON(LEFT_KEY,[]);
+        for (const record of (Array.isArray(left) ? left : []).filter(item => item?.id && Date.now()-Number(item.at) < 3*86400000).slice(0,5)) await uploadRecord({...record,synced:false});
       } catch {}
     })();
     if (/^\d{4}$/.test(String(options.join || ''))) void joinRoom(String(options.join));
@@ -901,6 +904,7 @@
     if (!ui.open) return;
     closeRoomMic();
     leaveRoom();
+    creditLeft(ui.game);
     stopGame();
     stopSlice();
     releaseSfx();
@@ -1340,7 +1344,7 @@
       return;
     }
     if (action === 'confirm-stay') { hideConfirm(); return; }
-    if (action === 'confirm-leave') { hideConfirm(); ui.game = null; show('home'); return; }
+    if (action === 'confirm-leave') { hideConfirm(); creditLeft(ui.game); ui.game = null; show('home'); return; }
   }
   // The room code form on the home page; closing it gives the focus back to 加入房间.
   function closeJoin() {
@@ -1389,7 +1393,7 @@
     layer.className = 'pc-confirm-layer';
     const host = ui.room?.state && ui.room.state.hostId === ui.room.state.me;
     const text = kind === 'room' ? `${tx('离开这个房间吗？')}${host ? tx('房主会交给下一位同学。') : tx('之后可以用房间号再回来。')}`
-      : ui.game?.room || (!ui.game && ui.room) ? tx('离开这一局吗？你会退出这个房间，这一局不会记入战绩。') : tx('离开这一局吗？这一局不会记入战绩。');
+      : ui.game?.room || (!ui.game && ui.room) ? tx('离开这一局吗？你会退出这个房间。已打好的词照样计经验，这一局不记入战绩。') : tx('离开这一局吗？已打好的词照样计经验，这一局不记入战绩。');
     layer.innerHTML = `<div class="pc-confirm" role="alertdialog" aria-modal="true" aria-labelledby="pc-confirm-text"><p id="pc-confirm-text">${text}</p><div class="pc-confirm-actions">${button('confirm-stay',kind === 'room' ? tx('留下') : tx('继续'),'pc-primary')}${button('confirm-leave',kind === 'room' ? tx('离开房间') : tx('离开'),'pc-quiet')}</div></div>`;
     ui.root.append(layer);
     layer.querySelector('[data-pc="confirm-stay"]')?.focus();
@@ -2734,12 +2738,35 @@
       record.synced = true;
       record.xp = reply.xp;
       if (Number.isFinite(reply.usual)) ui.serverUsual = reply.usual;
+      if (record.result === 'left') {
+        forgetLeft(record.id);
+        if (reply.xp > 0 && !reply.duplicate && ui.open) notify(tx('中途离开，已打好的词照样记了 {n} XP',{n:reply.xp}));
+      }
       if (ui.records.includes(record)) writeJSON(RECORDS_KEY,ui.records);
       if (ui.open && ui.view === 'results' && ui.resultsFor?.record === record) render();
     } catch (error) {
       // A game the server finds invalid is not offered again; anything else is retried the next time the game opens.
-      if (error?.code === 'invalid_request') { record.synced = true; writeJSON(RECORDS_KEY,ui.records); }
+      if (error?.code === 'invalid_request') { record.synced = true; if (record.result === 'left') forgetLeft(record.id); else writeJSON(RECORDS_KEY,ui.records); }
     } finally { ui.uploading.delete(record.id); }
+  }
+  // A game against the computer left halfway (user 2026-11-11): the words already typed or read still earn XP, even
+  // one. It is not kept among my games, so wins and speeds stay those of finished games; it waits in its own list
+  // until the server has it.
+  function creditLeft(game) {
+    if (!game || game.room || game.watch || game.over || game.status !== 'playing') return;
+    const me = game.players.find(player => player.me);
+    if (!me || !(me.words > 0)) return;
+    game.over = 'left';
+    const now = Math.max(1000,Math.round(gameNow(game)));
+    const record = {id:`g${Date.now().toString(36)}`,at:Date.now(),kind:'bot',result:'left',synced:false,side:me.startSide,...(game.read ? {input:'read'} : {}),
+      durationMs:now,me:{letters:me.letters,words:me.words,rate:Math.round(me.letters/(now/60000))}};
+    const kept = readJSON(LEFT_KEY,[]);
+    writeJSON(LEFT_KEY,[record,...(Array.isArray(kept) ? kept : [])].slice(0,20));
+    void uploadRecord(record);
+  }
+  function forgetLeft(id) {
+    const kept = readJSON(LEFT_KEY,[]);
+    if (Array.isArray(kept)) writeJSON(LEFT_KEY,kept.filter(item => item?.id !== id));
   }
   function resultsPage() {
     const {record} = ui.resultsFor || {};
@@ -2806,6 +2833,7 @@
   }
   // Starts the picture over in the new look: a bot game begins again, a room game rejoins its round if it is still on.
   function pictureAgain(room,watch) {
+    if (!room) creditLeft(ui.game);
     stopGame();
     ui.starting = null;
     if (!room) { void startGame(); return true; }
