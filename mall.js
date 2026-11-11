@@ -1082,8 +1082,17 @@
     call:() => { tone(880,.12,{type:'triangle',gain:.18}); tone(1175,.18,{type:'triangle',gain:.16,delay:.1}); },
     finish:() => { tone(523,.5,{gain:.18}); tone(659,.5,{gain:.16,delay:.09}); tone(784,.9,{gain:.16,delay:.18}); },
     goal:() => { tone(784,.45,{gain:.12}); tone(1175,.55,{gain:.1,delay:.12}); tone(1568,.9,{gain:.08,delay:.24}); },
+    beep:() => tone(2093,.075,{gain:.07}),
+    thud:() => { tone(196,.14,{gain:.16,glide:150}); noise(.06,{gain:.05,from:400,to:250}); },
+    wrong:() => tone(247,.2,{type:'triangle',gain:.13,glide:208}),
+    tap:() => tone(1318,.035,{gain:.035}),
+    ready:() => { tone(1046,.25,{gain:.08}); tone(1568,.4,{gain:.06,delay:.08}); },
   };
   const play = name => { try { if (sfxContext()) SOUNDS[name]?.(); } catch {} };
+  // A short vibration on phones that have one (Android; iOS has none for pages); quiet when the game's sound is off.
+  function buzz(pattern) {
+    try { if (ui.prefs?.sound && navigator.vibrate && window.matchMedia('(pointer: coarse)').matches) navigator.vibrate(pattern); } catch {}
+  }
   function wakeSfx() { const context = ui.sfx.context; if (ui.prefs?.sound && (!context || context.state !== 'running')) sfxContext(); }
   // A word or a line, read by the site's own player.
   function say(text,audio,onEnded) {
@@ -1134,7 +1143,18 @@
     root.append(ui.content);
     ui.handlers = {click:onClick,keydown:onRootKey,input:onInput};
     for (const [type,handler] of Object.entries(ui.handlers)) root.addEventListener(type,handler);
-    root.addEventListener('scroll',event => { const node = event.target; if (node?.classList?.contains('ml-sections') || node?.classList?.contains('ml-corridor') || node?.classList?.contains('ml-list-lines')) fadeEdges(node); },{capture:true,passive:true});
+    root.addEventListener('scroll',event => {
+      const node = event.target;
+      if (node?.classList?.contains('ml-sections') || node?.classList?.contains('ml-corridor') || node?.classList?.contains('ml-list-lines')) fadeEdges(node);
+      // The dots under a floor's shops follow the one in view.
+      if (node?.classList?.contains('ml-corridor')) {
+        const stores = node.querySelectorAll('.ml-store'), dots = node.parentElement?.querySelectorAll('.ml-corridor-dots i') || [];
+        const mid = node.getBoundingClientRect().left+node.clientWidth/2;
+        let best = 0, gap = Infinity;
+        stores.forEach((store,k) => { const box = store.getBoundingClientRect(), d = Math.abs(box.left+box.width/2-mid); if (d < gap) { gap = d; best = k; } });
+        dots.forEach((dot,k) => dot.classList.toggle('is-on',k === best));
+      }
+    },{capture:true,passive:true});
     root.addEventListener('wheel',event => {
       const strip = event.target?.closest?.('.ml-sections,.ml-corridor,.ml-list-lines');
       if (!strip || event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY) || strip.scrollWidth <= strip.clientWidth+1) return;
@@ -1404,16 +1424,21 @@
       const state = open.has(shop.themes[0]) ? tx('★★ {done}/{all} · 可营业',{done,all:core}) : shop.themes.length ? tx('营业未开 · 先完成 {n}F 核心主题',{n:floor.n-1}) : tx('主题制作中 · 可以逛店');
       const shown = shop.sections.flatMap(section => section.items.filter(id => !itemOf(id)?.v)).slice(0,4);
       const cover = artURL(`cover/${shop.id}`);
-      if (artURL('fixture/storefront') && cover) return `<button type="button" class="ml-store" data-ml="shop" data-value="${shop.id}">
-        <span class="ml-store-front is-painted" aria-hidden="true"><span class="ml-store-window" style="--ml-cover:url('${e(cover)}')"></span><span class="ml-store-sign" lang="nb">${e(shop.sign)}</span></span>
-        <span class="ml-store-plate"><span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span><span class="ml-store-state">${state}</span></span></button>`;
-      return `<button type="button" class="ml-store" data-ml="shop" data-value="${shop.id}" style="--ml-tint:${TINTS[hashOf(shop.id) % TINTS.length]}">
-        <span class="ml-store-front" aria-hidden="true"><span class="ml-awning"></span><span class="ml-store-sign" lang="nb">${e(shop.sign)}</span>
-          <span class="ml-window">${shown.map(id => pic(id,'is-window')).join('')}</span><span class="ml-store-door"></span></span>
-        <span class="ml-store-plate"><span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span><span class="ml-store-state">${state}</span></span></button>`;
+      // Under each shopfront, its two ways in: straight to work (the board opens), or to the shelves to look round.
+      const working = open.has(shop.themes[0]);
+      const plate = `<span class="ml-store-plate"><span class="ml-store-name"><b lang="nb">${e(shop.sign)}</b> ${e(tx(shop.zh))}</span>
+        <span class="ml-store-actions"><button type="button" class="ml-store-go is-work${working ? '' : ' is-locked'}" data-ml="shop-work" data-value="${shop.id}" aria-label="${e(`${tx('营业')} · ${state}`)}">${icon(working ? 'counter' : 'lock')}${working ? tx('营业') : tx('营业未开')}${working ? `<small>★★ ${done}/${core}</small>` : ''}</button>
+        <button type="button" class="ml-store-go" data-ml="shop-browse" data-value="${shop.id}">${icon('shelf')}${tx('逛店')}</button></span></span>`;
+      const label = e(tx('进店：{name}',{name:`${shop.sign} ${tx(shop.zh)}`}));
+      if (artURL('fixture/storefront') && cover) return `<div class="ml-store">
+        <button type="button" class="ml-store-front is-painted" data-ml="shop" data-value="${shop.id}" aria-label="${label}"><span class="ml-store-window" style="--ml-cover:url('${e(cover)}')"></span><span class="ml-store-sign" lang="nb">${e(shop.sign)}</span></button>${plate}</div>`;
+      return `<div class="ml-store" style="--ml-tint:${TINTS[hashOf(shop.id) % TINTS.length]}">
+        <button type="button" class="ml-store-front" data-ml="shop" data-value="${shop.id}" aria-label="${label}"><span class="ml-awning"></span><span class="ml-store-sign" lang="nb">${e(shop.sign)}</span>
+          <span class="ml-window">${shown.map(id => pic(id,'is-window')).join('')}</span><span class="ml-store-door"></span></button>${plate}</div>`;
     }).join('');
+    const dots = floor.shops.length > 1 ? `<div class="ml-corridor-dots" aria-hidden="true">${floor.shops.map((_,k) => `<i${k ? '' : ' class="is-on"'}></i>`).join('')}</div>` : '';
     return `${topBar(`<span>${floor.n}F</span> · <span lang="nb">${e(floor.no)}</span>`,'building')}
-      <div class="ml-atrium"><div class="ml-corridor" data-scroll="corridor">${fronts}</div></div>
+      <div class="ml-atrium"><div class="ml-corridor" data-scroll="corridor">${fronts}</div>${dots}</div>
       <p class="ml-foot-note">${tx('点店门进店。营业没开的店也能进去逛。')}</p>`;
   }
 
@@ -1434,7 +1459,7 @@
     warmShop(shop);
     const page = ui.place.page === 'hylla' ? 'hylla' : 'disken';
     const zhSwitch = page === 'hylla' ? `<button type="button" class="ml-text-button${ui.prefs.zh ? ' is-on' : ''}" data-ml="zh" aria-pressed="${ui.prefs.zh}">${L10N.english ? 'English' : '中文'}</button>` : '';
-    const view = page === 'hylla' ? hyllaMarkup(null,shop) : browseCounter(shop);
+    const view = page === 'hylla' ? hyllaBack(shop)+hyllaMarkup(null,shop) : browseCounter(shop);
     return `<div class="ml-shop is-${page}">${topBar(`<span lang="nb">${e(shop.sign)}</span><small>${e(tx(shop.zh))}</small>`,'floor',zhSwitch)}
       <main class="ml-stage">${view}</main>${tabsMarkup(null,page)}</div>`;
   }
@@ -1459,17 +1484,28 @@
   }
   // The painted counter scene once it arrives; until then a quiet drawn shop wall.
   // Until then the wall behind the counter shows the shop's own things, faded, on two shelves (no words).
-  function sceneBack(shop) {
+  function sceneBack(shop,door = '') {
     const art = artURL(`scene/disken-${shop.id}`,!wide());
+    // The shop's name on a sign hanging from the beam (开饭啦's blank sign; words written by the page).
+    const signArt = kitchenURL('kitchen/skilt'), novice = ui.game ? ui.game.state.tier === 'novice' : true;
+    const sign = `<span class="ml-shop-sign${signArt ? ' is-painted' : ''}"${signArt ? ` style="--ml-sign-art:url('${e(signArt)}')"` : ''}><b lang="nb">${e(shop.sign)}</b>${novice ? `<small>${e(tx(shop.zh))}</small>` : ''}</span>`;
     // An <img> decoded with the paint (not a CSS background): coming back from Hylla, the wall is there in the same
-    // frame instead of a blank one while a large picture decodes.
-    if (art) return `<div class="ml-scene-back is-art" aria-hidden="true"><img class="ml-scene-img" src="${e(art)}" alt="" decoding="sync" draggable="false"></div>`;
+    // frame instead of a blank one while a large picture decodes. Every counter picture has the shop's glass door at
+    // its left edge: narrow screens keep that edge in view (where the queue waits), not the middle of the wall.
+    // Over the picture: the daylight through the window drifting slowly, and light through the door as it opens.
+    if (art) return `<div class="ml-scene-back is-art" aria-hidden="true"><img class="ml-scene-img" src="${e(art)}" alt="" decoding="sync" draggable="false"><i class="ml-scene-light"></i><i class="ml-door-glow${door ? ' is-on' : ''}"${door ? ` style="--ml-fx:${door}"` : ''}></i>${sign}</div>`;
     const things = shop.sections.flatMap(section => section.items.filter(id => !itemOf(id)?.v));
     const shelf = from => `<span class="ml-back-shelf">${things.slice(from,from+7).map(id => pic(id,'is-back')).join('')}</span>`;
     return `<div class="ml-scene-back" aria-hidden="true">${shelf(0)}${shelf(7)}<span class="ml-lamp"></span><span class="ml-lamp"></span></div>`;
   }
 
-  /* Hylla: section tabs over one open section; in a game the shopping list stands under it. */
+  // Behind the shelves: the shop's own wall and floor (its counter picture, faded back), so Hylla is a place in the
+  // same shop and not a panel on paper.
+  function hyllaBack(shop) {
+    const art = artURL(`scene/disken-${shop.id}`,!wide());
+    return `<div class="ml-hylla-back${art ? ' is-art' : ''}" aria-hidden="true">${art ? `<img class="ml-scene-img" src="${e(art)}" alt="" decoding="sync" draggable="false">` : ''}<i class="ml-hylla-floor"></i></div>`;
+  }
+  /* Hylla: section tabs over one open section; in a game the shopping slip is pinned over it. */
   function hyllaMarkup(game,shop) {
     const sections = shop.sections, key = shop.id;
     const store = game ? game : ui.place;
@@ -1548,8 +1584,15 @@
     const now = px(getComputedStyle(cells[0]).getPropertyValue('--ml-item')) || value('--ml-item') || 72;
     const tag = Math.max(...[...cells].map(cell => cell.querySelector('.ml-tag')?.offsetHeight || 0));
     const low = value('--ml-item-min') || 60, high = value('--ml-item-max') || 88, least = value('--ml-cell-min') || 78;
-    // A cell is as wide as its widest tag needs (words never break inside).
-    const tagWidth = Math.max(...[...cells].map(cell => cell.querySelector('.ml-tag')?.scrollWidth || 0));
+    // A cell is as wide as its widest tag needs: the Norwegian word and the price line never break (the Chinese line
+    // under the word may wrap).
+    const tagWidth = Math.max(...[...cells].map(cell => {
+      const tag = cell.querySelector('.ml-tag');
+      if (!tag) return 0;
+      const parts = [...tag.querySelectorAll('.ml-word,.ml-tag-foot,.ml-variant,b')].map(node => node.scrollWidth);
+      const look = getComputedStyle(tag);
+      return parts.length ? Math.max(...parts)+px(look.paddingLeft)+px(look.paddingRight)+px(look.borderLeftWidth)+px(look.borderRightWidth) : tag.scrollWidth;
+    }));
     const cellW = size => Math.max(size+16,least,tagWidth+6);
     const fits = (size,cols) => { const rows = Math.ceil(n/cols); return cols*cellW(size)+(cols-1)*gapX+padX <= width && rows*(size+tag+12+rowPad)+(rows-1)*gapY+padY <= height; };
     let best = null;
@@ -1564,8 +1607,7 @@
     const rows = Math.ceil(n/best.cols);
     best.cols = Math.ceil(n/rows);
     void now;
-    const fit = {key,cols:best.cols,item:best.size};
-    const changed = !holder.fit[sec] || holder.fit[sec].cols !== fit.cols || holder.fit[sec].item !== fit.item;
+    const fit = {key,cols:best.cols,item:best.size};    const changed = !holder.fit[sec] || holder.fit[sec].cols !== fit.cols || holder.fit[sec].item !== fit.item;
     holder.fit[sec] = fit;
     return changed;
   }
@@ -1857,8 +1899,10 @@
   function since(game,key,ms = 900) {
     const at = game?.fresh?.get(key);
     const age = at ? Date.now()-at : Infinity;
-    return age < ms ? `-${age}ms` : '';
+    return age >= 0 && age < ms ? `-${age}ms` : '';
   }
+  // A moment still to come: a customer waiting at the door until the one before has left with their bag.
+  const pending = (game,key) => (game?.fresh?.get(key) || 0) > Date.now();
 
   /* ---------- A game ---------- */
   const sessionId = () => `ml-${Date.now().toString(36)}-${Math.floor(Math.random()*2**32).toString(36)}`;
@@ -1866,7 +1910,7 @@
     stopVoice();
     return {themeId,theme,scene,state,me:'me',room:false,log:[],page:'disken',section:'',guest:-1,phase:'preview',started:0,pausedTotal:0,paused:false,pausedAt:0,
       timer:null,note:null,fresh:new Map(),flights:[],shown:0,goal:false,exits:[],floats:[],reply:null,tags:null,basket:-1,fit:null,heard:new Set(),calls:new Map(),
-      bellAt:0,id:sessionId(),...extra};
+      bellAt:0,id:sessionId(),coach:!extra.room && (ui.prefs.coach || 0) < 3,coached:new Set(),actedAt:0,...extra};
   }
   function beginSolo(themeId,tier) {
     const theme = themeById(themeId);
@@ -2004,6 +2048,31 @@
     const expired = game.expireAt && Date.now() >= game.expireAt;
     if (expired) game.expireAt = 0;
     if (events.length || expired) drawGame(); else updateHud(game,now);
+    coach(game);
+  }
+  /* The first three games alone: one short hint at a time, only when the player seems to wait for something to happen
+     (开饭啦's coach). Each hint once per game. */
+  function coach(game) {
+    if (!game.coach || game.phase !== 'play' || game.state.over || game.reply || game.tags) return;
+    if (game.note && game.note.until > Date.now()-600) return;
+    if (Date.now()-Math.max(game.actedAt || 0,game.openAt || 0) < 3200) return;
+    const tip = (key,text) => {
+      if (game.coached.has(key)) return false;
+      game.coached.add(key);
+      game.note = {kind:'coach',html:`<span class="ml-note-label">${tx('小提示')}</span><span class="ml-note-main">${text}</span>`,until:Date.now()+4800,at:Date.now()};
+      drawGame();
+      return true;
+    };
+    const here = seated(game.state).filter(order => !pending(game,`arrive:${order.n}`)), disken = game.page !== 'hylla';
+    const full = here.filter(complete), talking = here.filter(order => order.talks.some(talk => talk.s === 'open'));
+    const service = here.find(order => !complete(order) && linesDone(order) && order.svc && order.sv === 'none' && talksDone(order));
+    const picking = here.filter(order => order.lines.some(line => line.s === 'open' && !line.hide && line.got.length < line.q));
+    if (full.length && disken && tip('give',tx('东西都齐了：点 <b lang="nb">Vær så god!</b>，在收银台结账装袋'))) return;
+    if (full.length && !disken && tip('go-give',tx('篮子满了，点下面的 <b lang="nb">Disken</b> 回柜台交给顾客'))) return;
+    if (talking.length && disken && tip('reply',tx('顾客在等你回答：点一下顾客，选一句挪威语回应'))) return;
+    if (service && disken && tip(service.svc,service.svc === 'fit' ? tx('点右边的试衣间，请顾客去试') : tx('点柜台上的收银机结账'))) return;
+    if (picking.length && disken && tip('go-shelf',tx('听懂顾客要什么，点下面的 <b lang="nb">Hylla</b> 去货架拿'))) return;
+    if (picking.length && !disken) tip('pick',tx('看单子上的挪威语，在货架上点那样东西，它会自己飞进篮子；上面可以换分区'));
   }
   function remember(game,event) {
     const key = `${event.e}:${event.n ?? ''}:${event.at ?? ''}`;
@@ -2033,11 +2102,15 @@
       const order = Number.isInteger(event.n) ? game.state.orders[event.n] : null;
       switch (event.e) {
         case 'arrive': {
-          game.fresh.set(`arrive:${event.n}`,Date.now());
-          if (Date.now()-game.bellAt > 3000) { play('doorbell'); game.bellAt = Date.now(); }
+          // Someone still leaving from that place (with their bag): the newcomer steps up once they have gone.
+          const exit = game.exits.find(entry => entry.seat === order.seat && entry.until > Date.now());
+          const wait = exit ? Math.max(0,exit.until-300-Date.now()) : 0;
+          game.fresh.set(`arrive:${event.n}`,Date.now()+(wait ? wait+300 : 0));
+          const bell = () => { if (Date.now()-game.bellAt > 3000) { play('doorbell'); game.bellAt = Date.now(); } };
+          if (wait) later(bell,wait); else bell();
           const before = game.guest;
           settleGuest(game);
-          if (before < 0 || game.guest === event.n) sayLine(sayingOf(game,order).text,order.voice);
+          if (before < 0 || game.guest === event.n) { const say = () => sayLine(sayingOf(game,order).text,order.voice); if (wait) later(say,wait); else say(); }
           if (game.page === 'hylla') game.fresh.set('tab:disken',Date.now());
           break;
         }
@@ -2064,18 +2137,29 @@
         case 'fitin': game.fresh.set(`fitin:${event.n}`,Date.now()); play('curtain'); break;
         case 'till': game.fresh.set(`till:${event.n}`,Date.now()); break;
         case 'change': game.fresh.set(`change:${event.n}`,Date.now()); sayLine(sayingOf(game,order).text,order.voice); break;
-        case 'complete':
+        case 'complete': {
           game.fresh.set(`bag:${event.n}`,Date.now());
-          play('paper');
-          if (game.page === 'hylla') game.fresh.set('tab:disken',Date.now());
+          play('ready');
+          if (game.page !== 'hylla') break;
+          game.fresh.set('tab:disken',Date.now());
+          // On Hylla the full basket leaves the slip's corner for the counter (after the last thing has dropped in).
+          const basket = ui.root?.querySelector(`.ml-ticket-basket .ml-basket[data-n="${event.n}"]`);
+          const art = artURL('prop/basket');
+          if (basket) fly(game,basket.getBoundingClientRect(),'.ml-tab[data-value="disken"]',art ? `<img class="ml-fly-basket" src="${e(art)}" alt="">` : icon('bag'),{delay:520,size:46});
           break;
-        case 'serve':
-          game.exits.push({n:event.n,seat:order.seat >= 0 ? order.seat : game.seatOf?.[event.n] ?? 0,customer:order.customer,mood:'happy',text:'Tusen takk!',at:Date.now(),until:Date.now()+900});
-          game.floats.push({n:event.n,text:`+${event.points+event.tip}`,at:Date.now(),until:Date.now()+900});
-          sayLine('Tusen takk!',order.voice);
-          play('serve');
+        }
+        case 'serve': {
+          const seat = order.seat >= 0 ? order.seat : game.seatOf?.[event.n] ?? 0;
+          // The things are rung up and bagged at the till, the bag handed over; then thanks, and away.
+          const handed = bagShow(game,order,seat), stay = handed ? 700 : 0, now = Date.now();
+          game.exits.push({n:event.n,seat,customer:order.customer,mood:'happy',text:'Tusen takk!',at:now,said:handed,after:handed+stay,bag:Boolean(handed),until:now+handed+stay+700});
+          game.floats.push({n:event.n,text:`+${event.points+event.tip}`,at:now,after:handed,until:now+handed+900});
+          game.scoreAt = now+handed+250;
+          const thanks = () => { sayLine('Tusen takk!',order.voice); play('serve'); buzz(16); };
+          if (handed) later(thanks,handed); else thanks();
           settleGuest(game);
           break;
+        }
         case 'end': play('finish'); break;
         default: break;
       }
@@ -2091,6 +2175,7 @@
     game.seatOf ||= {};
     for (const order of seated(game.state)) game.seatOf[order.n] = order.seat;
     const result = apply(game.state,game.scene,{...action,by:game.me},now);
+    game.actedAt = Date.now();
     if (result.ok || result.learn.length) { if (game.room) queueAction(game,action,now,result); else game.log.push({...action,at:now}); }
     const fresh = result.events.filter(event => remember(game,event));
     react(fresh,game);
@@ -2109,12 +2194,15 @@
       const event = result.events.find(entry => ['pick','attr','wrong'].includes(entry.e));
       if (result.ok && event) {
         sayWord(action.i);
+        buzz(8);
+        if (!reduceMotion()) later(() => play('thud'),430);
         game.fresh.set(`got:${event.n}.${event.l}`,now);
-        if (from) fly(game,from,game.page === 'hylla' ? `.ml-line[data-n="${event.n}"][data-l="${event.l}"]` : `.ml-basket[data-n="${event.n}"]`,pic(action.i),event.n);
+        if (from) fly(game,from,`.ml-basket[data-n="${event.n}"]`,pic(action.i),{grow:true});
         return;
       }
       if (result.why === 'attr' && event) {
         game.fresh.set(`bad:${action.i}`,now);
+        buzz([12,50,12]);
         const want = itemOf(event.want);
         const text = event.what === 'color' ? tx('要的是这个颜色') : event.what === 'size' ? tx('要的是这个尺码') : tx('要的是这一种');
         const main = event.what === 'color' ? `<span lang="nb">${e(ui.data.colors[want.color]?.no || '')}</span> · ${e(colorZh(event.want))}` : event.what === 'size' ? `<span lang="nb">${e(event.wz)}</span> · ${e(sizeWord(event.wz))}` : `${wordHTML(event.want,{article:false})} <span lang="nb">${e(want.label || variantNote(event.want))}</span>`;
@@ -2125,6 +2213,7 @@
       }
       if (result.why === 'wrong' && event) {
         game.fresh.set(`bad:${action.i}`,now);
+        play('wrong'); buzz([12,50,12]);
         const guest = game.state.orders[game.guest];
         const wanted = guest?.status === 'wait' ? guest.lines.find(line => line.s === 'open' && !line.hide && line.got.length < line.q) : null;
         game.note = {kind:'fix',id:action.i,html:`<span class="ml-note-main">${wordHTML(action.i,{article:false})} · ${e(zhOf(action.i))} ${icon('speaker')}</span><span class="ml-note-sub">${wanted && game.state.tier !== 'expert' ? `${tx('要的是')} ${wordHTML(wanted.i,{article:false})}` : wanted ? tx('再听一遍顾客要什么') : tx('现在没人要它')}</span>`,word:action.i,until:now+2400,at:now};
@@ -2139,9 +2228,10 @@
     if (!result.ok && WHY[result.why]) notify(WHY[result.why](),2200);
   }
   // A picture flies along a soft arc from where it was tapped to where it went (a body-level layer; nothing moves).
-  function fly(game,from,selector,html) {
+  // grow: it leaves at the size it stood on the shelf and lands small; delay: it waits (another flight lands first).
+  function fly(game,from,selector,html,{grow = false,delay = 0,size = 40} = {}) {
     if (!from || reduceMotion() || !html) return;
-    game.flights.push({from,selector,html,at:Date.now()});
+    game.flights.push({from,selector,html,grow,delay,size,at:Date.now()});
   }
   function fxLayer() {
     if (!ui.fx || !ui.fx.isConnected) {
@@ -2156,27 +2246,32 @@
     for (const item of game.flights.splice(0).filter(entry => Date.now()-entry.at < 1200)) {
       const target = ui.root?.querySelector(item.selector) || ui.root?.querySelector('.ml-tab[data-value="disken"]');
       if (!target || typeof Element.prototype.animate !== 'function') continue;
-      const to = target.getBoundingClientRect(), from = item.from, size = 40;
-      const dx = from.left+from.width/2-(to.left+to.width/2), dy = from.top+from.height/2-(to.top+to.height/2);
+      const to = target.getBoundingClientRect(), from = item.from, size = item.size || 40;
+      // Into a basket it drops through the rim (a little above the basket's middle).
+      const toY = to.top+to.height*(target.classList.contains('ml-basket') ? .38 : .5);
+      const dx = from.left+from.width/2-(to.left+to.width/2), dy = from.top+from.height/2-toY;
+      const start = item.grow ? Math.max(1,Math.min(2.4,Math.min(from.width,from.height)/size)) : .9;
       const node = document.createElement('div');
       node.className = 'ml-fly';
-      node.style.cssText = `left:${to.left+to.width/2-size/2}px;top:${to.top+to.height/2-size/2}px;width:${size}px;height:${size}px`;
+      node.style.cssText = `left:${to.left+to.width/2-size/2}px;top:${toY-size/2}px;width:${size}px;height:${size}px`;
       node.innerHTML = item.html;
       fxLayer().append(node);
-      const lift = Math.min(40,Math.hypot(dx,dy)*.2);
+      const lift = Math.min(48,Math.hypot(dx,dy)*.22);
       const flight = node.animate([
-        {transform:`translate(${dx}px,${dy}px) scale(.9)`,opacity:0},
-        {transform:`translate(${dx*.5}px,${dy*.5-lift}px) scale(1)`,opacity:1,offset:.4},
+        {transform:`translate(${dx}px,${dy}px) scale(${start})`,opacity:item.grow ? 1 : 0},
+        {transform:`translate(${dx*.45}px,${dy*.45-lift}px) scale(${(start+1)/2})`,opacity:1,offset:.42},
         {transform:'translate(0,0) scale(1)',opacity:1,offset:.84},
-        {transform:'translate(0,2px) scale(.9)',opacity:0},
-      ],{duration:420+Math.min(220,Math.hypot(dx,dy)*.3),easing:'cubic-bezier(.2,.7,.2,1)'});
+        {transform:'translate(0,6px) scale(.7)',opacity:0},
+      ],{duration:440+Math.min(240,Math.hypot(dx,dy)*.3),delay:item.delay || 0,fill:'backwards',easing:'cubic-bezier(.2,.7,.2,1)'});
       const done = () => node.remove();
       flight.onfinish = done; flight.oncancel = done;
-      setTimeout(done,1500);
+      setTimeout(done,1600+(item.delay || 0));
     }
   }
   function tweenScore(game) {
     const goal = game.state.score;
+    // The points of a bag being handed over count up once the customer has it.
+    if (game.scoreAt > Date.now()) { if (!game.scoreWait) game.scoreWait = later(() => { game.scoreWait = 0; if (ui.game === game) tweenScore(game); },game.scoreAt-Date.now()); return; }
     if (reduceMotion()) { game.shown = goal; paintScore(game); return; }
     if (game.shown === goal || game.tween?.to === goal) return;
     game.tween = {from:game.shown,to:goal,at:performance.now()};
@@ -2260,7 +2355,7 @@
     settleGuest(game);
     const shop = shopById(game.theme.shop);
     const page = game.page === 'hylla' ? 'hylla' : 'disken';
-    const view = page === 'hylla' ? hyllaMarkup(game,shop)+listMarkup(game,now)+tagsMarkup(game)+callMarkup(game) : diskenMarkup(game,shop,now);
+    const view = page === 'hylla' ? hyllaBack(shop)+slipMarkup(game,now)+hyllaMarkup(game,shop)+tagsMarkup(game)+callMarkup(game) : diskenMarkup(game,shop,now);
     const noteOn = game.note && game.note.until > Date.now();
     const note = noteOn ? `<button type="button" class="ml-note is-${game.note.kind}" id="ml-note" data-ml="note" data-id="${e(game.note.word || '')}" style="--ml-fx:-${Date.now()-game.note.at}ms">${game.note.html}</button>` : '';
     const count = game.phase === 'countdown' ? `<div class="ml-count" aria-live="assertive"><span id="ml-count-n"><b class="ml-digit">${Math.max(1,Math.ceil((game.countEnds-Date.now())/1000))}</b></span><span class="ml-door-sign"><b lang="nb">Stengt</b><b lang="nb">Åpent</b></span></div>` : '';
@@ -2303,13 +2398,21 @@
     }).join('');
     // The till stands on the counter at the door's end, where customers pay on their way out.
     const paying = state.orders.find(order => order.status === 'wait' && order.svc === 'till' && order.sv === 'in');
-    const tillButton = till ? `<div class="ml-till-spot"><button type="button" class="ml-till${paying ? ' is-printing' : ''}" data-ml="till" aria-label="${tx('收银机')}" ${paying ? `style="--ml-fx:${since(game,`till:${paying.n}`,700) || OVER}"` : ''}><span class="ml-till-body">${icon('till')}${paying ? '<i class="ml-till-paper"></i>' : ''}</span>${tier === 'novice' ? `<small class="ml-spot-label">${tx('收银')}</small>` : ''}</button></div>` : '';
-    return `<section class="ml-scene${fitting ? ' has-fitting' : ''}${till ? ' has-till' : ''}${compact ? ' is-compact' : ''}" style="--ml-seats:${seats}">
-      ${sceneBack(shop)}${queue}
+    // Every shop has its till at the door's end of the counter; only themes with paying customers make it a button.
+    const tillButton = !till ? `<div class="ml-till-spot"><span class="ml-till is-prop" aria-hidden="true"><span class="ml-till-body">${icon('till')}</span></span></div>` : `<div class="ml-till-spot"><button type="button" class="ml-till${paying ? ' is-printing' : ''}" data-ml="till" aria-label="${tx('收银机')}" ${paying ? `style="--ml-fx:${since(game,`till:${paying.n}`,700) || OVER}"` : ''}><span class="ml-till-body">${icon('till')}${paying ? '<i class="ml-till-paper"></i>' : ''}</span>${tier === 'novice' ? `<small class="ml-spot-label">${tx('收银')}</small>` : ''}</button></div>`;
+    return `<section class="ml-scene${fitting ? ' has-fitting' : ''} has-till${compact ? ' is-compact' : ''}" style="--ml-seats:${seats}">
+      ${sceneBack(shop,doorMoment(game))}${queue}
       <div class="ml-people">${people}</div>${rooms}
       <div class="ml-counter"><span class="ml-counter-art" aria-hidden="true"><i></i></span>${tillButton}<div class="ml-spots">${baskets}</div></div>
       <div class="ml-gives">${gives}</div>
       ${replyMarkup(game,now)}${basketList(game)}</section>`;
+  }
+  // When the door last opened: a customer coming in (or the shop opening).
+  function doorMoment(game) {
+    let best = '';
+    for (const order of game.state.orders.slice(0,game.state.next)) { const at = since(game,`arrive:${order.n}`,1100); if (at && (!best || Number(at.slice(1,-2)) < Number(best.slice(1,-2)))) best = at; }
+    if (!best && game.openAt && Date.now()-game.openAt < 1100) best = `-${Date.now()-game.openAt}ms`;
+    return best;
   }
   const queuePlace = (state,order) => 1+state.orders.filter(other => other.status === 'wait' && other.sv === 'queue' && (other.queuedAt < order.queuedAt || other.queuedAt === order.queuedAt && other.n < order.n)).length;
   function moodOf(order,now) {
@@ -2323,13 +2426,72 @@
   }
   function personHTML(game,order,now) {
     const arriving = since(game,`arrive:${order.n}`,650);
+    // A nod as a thing for them lands in the basket.
+    const nod = order.lines.map((line,l) => since(game,`got:${order.n}.${l}`,1000)).find(Boolean);
     const talk = order.talks.some(entry => entry.s === 'open');
     const label = talk ? tx('{name} 等你回应，点一下回应',{name:nameOfCustomer(order.customer)}) : tx('{name}，点一下再听一遍',{name:nameOfCustomer(order.customer)});
-    return `<button type="button" class="ml-person${arriving ? ' is-arriving' : ''}${moodOf(order,now) === 'impatient' ? ' is-hurry' : ''}" data-ml="guest" data-n="${order.n}" aria-label="${e(label)}" ${arriving ? `style="--ml-fx:${arriving}"` : ''}>${faceHTML(order.customer,moodOf(order,now),'is-figure')}</button>`;
+    return `<button type="button" class="ml-person${pending(game,`arrive:${order.n}`) ? ' is-waiting' : ''}${arriving ? ' is-arriving' : ''}${nod ? ' is-nod' : ''}${moodOf(order,now) === 'impatient' ? ' is-hurry' : ''}" data-ml="guest" data-n="${order.n}" aria-label="${e(label)}" ${arriving || nod ? `style="${arriving ? `--ml-fx:${arriving};` : ''}${nod ? `--ml-nod:${nod}` : ''}"` : ''}>${faceHTML(order.customer,moodOf(order,now),'is-figure')}</button>`;
   }
   function leavingHTML(game,exit) {
     const float = game.floats.find(item => item.n === exit.n && item.until > Date.now());
-    return `<div class="ml-leaving is-${exit.mood}" style="--ml-fx:-${Date.now()-exit.at}ms" aria-hidden="true">${faceHTML(exit.customer,exit.mood,'is-figure')}<span class="ml-reply-bubble" lang="nb">${e(exit.text)}</span>${float ? `<b class="ml-float" style="--ml-fx:-${Date.now()-float.at}ms">${e(float.text)}</b>` : ''}</div>`;
+    const bag = exit.bag ? artURL('prop/paper-bag') : '';
+    return `<div class="ml-leaving is-${exit.mood}" style="--ml-fx:-${Date.now()-exit.at}ms;--ml-said:${exit.said || 0}ms;--ml-after:${exit.after || 0}ms" aria-hidden="true"><span class="ml-leaving-who">${faceHTML(exit.customer,exit.mood,'is-figure')}${bag ? `<img class="ml-leaving-bag" src="${e(bag)}" alt="">` : ''}<span class="ml-reply-bubble" lang="nb">${e(exit.text)}</span>${float ? `<b class="ml-float" style="--ml-fx:-${Date.now()-float.at}ms;--ml-said:${float.after || 0}ms">${e(float.text)}</b>` : ''}</span></div>`;
+  }
+  /* Ringing up (on Vær så god!): the things leave the basket one by one, pass the till's scanner with a beep while the
+     till's window counts the total, and drop into a paper bag where the basket stood; the bag goes to the customer.
+     Drawn in the body-level effect layer from where things stand now (before the counter is drawn again), so nothing
+     in the layout moves. Returns when the bag reaches the customer (ms), 0 when there is nothing to show. */
+  function bagShow(game,order,seat) {
+    if (reduceMotion() || game.page !== 'disken' || !ui.root || typeof Element.prototype.animate !== 'function') return 0;
+    const basket = ui.root.querySelector(`.ml-basket[data-n="${order.n}"] .ml-basket-body`);
+    if (!basket) return 0;
+    const till = ui.root.querySelector('.ml-till-body'), person = ui.root.querySelector(`.ml-seat[data-seat="${seat}"] .ml-person`);
+    const b = basket.getBoundingClientRect(), t = till?.getBoundingClientRect(), p = person?.getBoundingClientRect();
+    const things = [];
+    for (const line of order.lines) for (let k = 0; k < Math.min(line.q,line.got.length); k++) things.push(line.i);
+    const shown = things.slice(0,4), layer = fxLayer(), size = Math.round(Math.max(30,Math.min(46,b.height*.62)));
+    const node = (cls,html,x,y,w,h = w) => { const el = document.createElement('div'); el.className = cls; el.style.cssText = `left:${x-w/2}px;top:${y-h/2}px;width:${w}px;height:${h}px`; el.innerHTML = html; layer.append(el); return el; };
+    const gone = (el,ms) => setTimeout(() => el.remove(),ms);
+    const bx = b.left+b.width/2, by = b.top+b.height*.42;
+    const tx0 = t ? t.left+t.width/2 : bx, ty0 = t ? t.top+t.height*.3 : by-40;
+    const step = 150, travel = 620;
+    // The paper bag opens where the basket was.
+    const gift = basket.closest('.ml-basket')?.classList.contains('is-gift');
+    const bagArt = artURL(gift ? 'prop/gift-box' : 'prop/paper-bag');
+    const bagSize = Math.round(b.height*1.12);
+    const bag = node('ml-show-bag',bagArt ? `<img src="${e(bagArt)}" alt="">` : icon('bag'),bx,b.top+b.height-bagSize/2,bagSize);
+    const ease = 'cubic-bezier(.2,.7,.2,1)';
+    bag.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'none'}],{duration:220,delay:90,fill:'backwards',easing:ease});
+    play('paper');
+    // The till's window: the running total.
+    let sum = 0;
+    const screen = t ? node('ml-show-total','',tx0,t.top-14,Math.max(64,t.width*1.2),26) : null;
+    shown.forEach((id,k) => {
+      const el = node('ml-fly',pic(id),bx,by,size);
+      const dx = tx0-bx, dy = ty0-by, lift = Math.min(40,Math.abs(dx)*.25+16);
+      el.animate([
+        {transform:'translate(0,6px) scale(.8)',opacity:0},
+        {transform:`translate(${dx*.5}px,${dy*.5-lift}px) scale(1)`,opacity:1,offset:.22},
+        {transform:`translate(${dx}px,${dy}px) scale(1)`,opacity:1,offset:.45},
+        {transform:`translate(${dx}px,${dy}px) scale(1)`,opacity:1,offset:.58},
+        {transform:`translate(${dx*.4}px,${dy*.4-lift*.6}px) scale(.9)`,opacity:1,offset:.8},
+        {transform:'translate(0,10px) scale(.6)',opacity:0},
+      ],{duration:travel,delay:k*step,fill:'both',easing:ease});
+      gone(el,travel+k*step+60);
+      setTimeout(() => {
+        play('beep');
+        sum += itemOf(id)?.price || 0;
+        if (screen) { screen.textContent = `${sum},-`; screen.classList.add('is-on'); }
+        if (t) { const flash = node('ml-show-scan','',tx0,ty0+6,t.width*.9,4); flash.animate([{opacity:0},{opacity:1,offset:.3},{opacity:0}],{duration:260,easing:'ease-out'}); gone(flash,300); }
+      },k*step+travel*.45);
+    });
+    const packed = (shown.length-1)*step+travel;
+    // Handed over: the bag goes to the customer's hands.
+    const hx = p ? p.left+p.width*.5 : bx, hy = p ? p.top+p.height*.7 : by-60;
+    bag.animate([{transform:'none',opacity:1},{transform:`translate(${hx-bx}px,${hy-(b.top+b.height-bagSize/2)}px) scale(.8)`,opacity:1,offset:.85},{transform:`translate(${hx-bx}px,${hy-(b.top+b.height-bagSize/2)}px) scale(.8)`,opacity:0}],{duration:420,delay:packed,fill:'forwards',easing:ease});
+    gone(bag,packed+460);
+    if (screen) { screen.animate([{opacity:1},{opacity:0}],{duration:300,delay:packed+200,fill:'forwards'}); gone(screen,packed+520); }
+    return packed+360;
   }
   // The text of a customer's line with its key words underlined in gold.
   function markedText(line) {
@@ -2350,7 +2512,7 @@
     const fresh = since(game,`arrive:${order.n}`,500);
     const claim = game.room ? order.talks.find(entry => entry.s === 'open' && entry.by && entry.by !== game.me && entry.until > now) : null;
     if (claim && !small) return `<div class="ml-bubble is-claimed" aria-hidden="true"><span class="ml-claim">${icon('chat')}<span class="ml-claim-name">${e(tx('{name} 在回应',{name:playerName(claim.by)}))}</span></span><i class="ml-patience" style="${patienceStyle(order,now)}"><i></i></i></div>`;
-    return `<button type="button" class="ml-bubble${small ? ' is-dot' : ''}${talk ? ' is-talk' : ''}${changed ? ' is-changed' : ''}${fresh ? ' is-fresh' : ''}" data-ml="guest" data-n="${order.n}" tabindex="-1" aria-hidden="true" style="${[changed ? `--ml-fx:${changed}` : fresh ? `--ml-fx:${fresh}` : ''].filter(Boolean).join(';')}">${small ? (talk ? icon('chat') : '<i></i>') : body}${talk && !small ? `<span class="ml-talk-mark">${icon('chat')}</span>` : ''}<i class="ml-patience" style="${patienceStyle(order,now)}"><i></i></i></button>`;
+    return `<button type="button" class="ml-bubble${pending(game,`arrive:${order.n}`) ? ' is-waiting' : ''}${small ? ' is-dot' : ''}${talk ? ' is-talk' : ''}${changed ? ' is-changed' : ''}${fresh ? ' is-fresh' : ''}" data-ml="guest" data-n="${order.n}" tabindex="-1" aria-hidden="true" style="${[changed ? `--ml-fx:${changed}` : fresh ? `--ml-fx:${fresh}` : ''].filter(Boolean).join(';')}">${small ? (talk ? icon('chat') : '<i></i>') : body}${talk && !small ? `<span class="ml-talk-mark">${icon('chat')}</span>` : ''}<i class="ml-patience" style="${patienceStyle(order,now)}"><i></i></i></button>`;
   }
   // Where a customer tries things on: a fitting room with a curtain (clothes), or a bench to sit on (shoes).
   const fittingKind = shop => shop?.service?.includes('fitting-room') ? 'room' : shop?.service?.includes('bench') ? 'bench' : '';
@@ -2381,8 +2543,12 @@
     const gift = bag && /\bgave\b/i.test(tplOf(game,order).say.text);
     const fresh = since(game,`bag:${order.n}`,520);
     const service = !bag && linesDone(order) && order.svc && order.sv === 'none' && talksDone(order) ? (order.svc === 'fit' ? tx('→ 试衣间') : tx('→ 收银')) : '';
-    return `<button type="button" class="ml-basket${bag ? ' is-bag' : ''}${gift ? ' is-gift' : ''}${order.n === game.guest ? ' is-guest' : ''}${inRoom ? ' is-away' : ''}${fresh ? ' is-fresh' : ''}${since(game,`got:${order.n}.0`,300) || since(game,`got:${order.n}.1`,300) || since(game,`got:${order.n}.2`,300) ? ' is-landed' : ''}" data-ml="basket" data-n="${order.n}" aria-label="${tx('篮子 {have}/{all}',{have,all:total})}" ${fresh ? `style="--ml-fx:${fresh}"` : ''}>
-      <span class="ml-basket-body">${bag ? icon('bag') : pieces.slice(0,4).map(piece => `<span class="ml-in${piece.swap ? ' is-swap' : ''}">${pic(piece.i,'is-mini')}${piece.z ? `<b class="ml-size-tag">${e(piece.z)}</b>` : ''}${piece.swap ? `<b class="ml-swap">${tx('换')}</b>` : ''}</span>`).join('')}${pieces.length > 4 ? `<span class="ml-in is-more">+${pieces.length-4}</span>` : ''}</span>
+    // A full basket stays a basket (it is bagged at the till on Vær så god!); a present is wrapped at once.
+    const wrapped = bag && gift, landed = order.lines.map((line,l) => since(game,`got:${order.n}.${l}`,800)).find(Boolean);
+    // A customer still waiting for their place to clear: their basket comes with them.
+    const waiting = pending(game,`arrive:${order.n}`), stepIn = since(game,`arrive:${order.n}`,400);
+    return `<button type="button" class="ml-basket${waiting ? ' is-waiting' : stepIn ? ' is-coming' : ''}${wrapped ? ' is-bag' : ''}${bag && !wrapped ? ' is-full' : ''}${gift ? ' is-gift' : ''}${order.n === game.guest ? ' is-guest' : ''}${inRoom ? ' is-away' : ''}${fresh && wrapped ? ' is-fresh' : ''}${landed ? ' is-landed' : ''}" data-ml="basket" data-n="${order.n}" aria-label="${tx('篮子 {have}/{all}',{have,all:total})}" style="${landed || fresh ? `--ml-fx:${landed || fresh};` : ''}${stepIn ? `--ml-in:${stepIn}` : ''}">
+      <span class="ml-basket-body">${wrapped ? icon('bag') : pieces.slice(0,4).map(piece => `<span class="ml-in${piece.swap ? ' is-swap' : ''}">${pic(piece.i,'is-mini')}${piece.z ? `<b class="ml-size-tag">${e(piece.z)}</b>` : ''}${piece.swap ? `<b class="ml-swap">${tx('换')}</b>` : ''}</span>`).join('')}${pieces.length > 4 ? `<span class="ml-in is-more">+${pieces.length-4}</span>` : ''}</span>
       <small class="ml-spot-label"><span class="ml-spot-name">${e(nameOfCustomer(order.customer))}</span><span class="ml-basket-count">${bag ? icon('check') : total ? `${have}/${total}` : tx('只需回应')}</span></small>${service ? `<small class="ml-basket-next">${service}</small>` : ''}</button>`;
   }
   // The basket opened: what is in it, line by line; a tap on one puts it back on the shelf.
@@ -2438,32 +2604,63 @@
     return `<div class="ml-slip" aria-label="${e(tx('小票'))}"><ul>${rows.map(row).join('')}</ul><ul class="ml-slip-foot">${foot.map((entry,k) => row(entry,rows.length+k)).join('')}</ul></div>`;
   }
 
-  /* Hylla in a game: under the shelf, the shopping list of the customer being served. */
-  function listMarkup(game) {
-    const order = game.state.orders[game.guest], tier = game.state.tier, novice = tier === 'novice';
-    const here = seated(game.state);
-    if (!order || order.status !== 'wait') return `<section class="ml-list"><p class="ml-quiet-note">${here.length ? '' : tx('还没有顾客，回柜台看看门口。')}</p></section>`;
-    const who = `<button type="button" class="ml-list-who" data-ml="next-guest" aria-label="${tx('换一位顾客')}">${faceHTML(order.customer,'neutral','is-tiny')}<span>${e(nameOfCustomer(order.customer))}</span>${here.length > 1 ? `<small>${here.findIndex(entry => entry.n === order.n)+1}/${here.length}</small>` : ''}</button>`;
+  /* Hylla in a game: the shopping list of the customer being served, as a slip pinned over the shelf (开饭啦's
+     kitchen order slip): the customer and their patience, each thing in its own cell, the basket on the slip's corner
+     where the things fly. An unseen copy of the game's longest slip shares the slip's grid cell, so the shelf never
+     jumps as customers come and go. */
+  function slipMarkup(game,now) {
+    const order = game.state.orders[game.guest];
+    const live = order && order.status === 'wait' ? ticketHTML(game,order,now)
+      : `<div class="ml-ticket is-empty"><span class="ml-ticket-clip" aria-hidden="true"></span><p class="ml-quiet-note">${seated(game.state).length ? '' : tx('还没有顾客，回柜台看看门口。')}</p></div>`;
+    return `<section class="ml-tickets" aria-label="${tx('购物单')}">${live}${ghostTicket(game,now)}${basketList(game)}</section>`;
+  }
+  function ghostTicket(game,now) {
+    if (game.ghostN === undefined) {
+      let best = -1, size = -1;
+      for (const order of game.state.orders) {
+        const weight = order.lines.length*1000+order.lines.reduce((sum,line) => sum+phrase(line.i,line.q,line.any,line.z).length,0);
+        if (weight > size) { size = weight; best = order.n; }
+      }
+      game.ghostN = best;
+    }
+    const order = game.state.orders[game.ghostN];
+    return order ? ticketHTML(game,order,now,true) : '';
+  }
+  function ticketHTML(game,order,now,ghost = false) {
+    const tier = game.state.tier, novice = tier === 'novice', here = seated(game.state);
+    const at = here.findIndex(entry => entry.n === order.n), many = !ghost && here.length > 1;
+    const name = `${faceHTML(order.customer,ghost ? 'neutral' : moodOf(order,now),'is-tiny')}<span class="ml-ticket-name">${e(nameOfCustomer(order.customer))}</span>`;
+    const who = many ? `<button type="button" class="ml-ticket-who" data-ml="next-guest" aria-label="${tx('换一位顾客')}">${name}<small class="ml-ticket-page">${at+1}/${here.length}${icon('next')}</small></button>` : `<span class="ml-ticket-who">${name}</span>`;
+    const ready = !ghost && complete(order);
     let status = '';
-    if (complete(order)) status = `<button type="button" class="ml-list-go is-ready" data-ml="go-counter" data-n="${order.n}">${icon('check')}${tx('去柜台交付')}</button>`;
-    else if (order.talks.some(talk => talk.s === 'open')) status = `<button type="button" class="ml-list-go" data-ml="go-counter" data-n="${order.n}">${icon('chat')}${tx('去柜台回应')}</button>`;
-    else if (order.sv === 'queue') status = `<span class="ml-list-go">${tx('等试衣间 · 第 {n} 位',{n:queuePlace(game.state,order)})}</span>`;
+    // What waits at the counter, in a few words beside the name (the slip's corner is the basket's).
+    if (ghost) status = `<span class="ml-list-go is-talk">${icon('chat')}${tx('去回应')}</span>`;
+    else if (order.talks.some(talk => talk.s === 'open')) status = `<button type="button" class="ml-list-go is-talk" data-ml="go-counter" data-n="${order.n}" aria-label="${tx('去柜台回应')}">${icon('chat')}${tx('去回应')}</button>`;
+    else if (order.sv === 'queue') status = `<span class="ml-list-go">${tx('排队第 {n} 位',{n:queuePlace(game.state,order)})}</span>`;
     else if (order.sv === 'in' && order.fitAt >= 0) status = `<span class="ml-list-go">${tx('在试衣间')}</span>`;
-    else if (linesDone(order) && order.svc && order.sv === 'none') status = `<button type="button" class="ml-list-go" data-ml="go-counter" data-n="${order.n}">${order.svc === 'fit' ? `${icon('hanger')}${tx('→ 试衣间')}` : `${icon('till')}${tx('→ 收银')}`}</button>`;
+    else if (linesDone(order) && order.svc && order.sv === 'none') status = `<button type="button" class="ml-list-go is-talk" data-ml="go-counter" data-n="${order.n}">${order.svc === 'fit' ? `${icon('hanger')}${tx('→ 试衣间')}` : `${icon('till')}${tx('→ 收银')}`}</button>`;
     const lines = order.lines.map((line,l) => {
+      const text = phrase(line.i,line.q,line.any,line.z);
+      if (ghost) return `<span class="ml-line">${novice ? pic(line.i,'is-tiny') : ''}<span class="ml-line-text"><b lang="nb">${e(text)}</b>${novice ? `<small>${e(phraseZh(line.i,line.q,line.any,line.z))}</small>` : ''}</span><small class="ml-line-count">${line.q}/${line.q}</small></span>`;
       if (line.hide) return `<span class="ml-line is-hidden">${tx('？先在柜台问清楚')}</span>`;
       const have = Math.min(line.q,line.got.length), done = line.s === 'struck' || have >= line.q && !line.swap;
-      const text = phrase(line.i,line.q,line.any,line.z);
       const shown = tier !== 'expert' || done;
-      const flash = since(game,`flash:${order.n}.${l}`,600) || since(game,`got:${order.n}.${l}`,600);
+      const got = since(game,`got:${order.n}.${l}`,600), flash = since(game,`flash:${order.n}.${l}`,600) || got;
       const theirs = game.room && !done && line.s === 'open' && !mine(game.state,{id:game.me},line.i,game.scene);
-      return `<button type="button" class="ml-line${theirs ? ' is-theirs' : ''}${done ? ' is-done' : ''}${line.s === 'struck' ? ' is-struck' : ''}${line.s === 'out' ? ' is-out' : ''}${flash ? ' is-flash' : ''}" data-ml="line" data-n="${order.n}" data-l="${l}" ${flash ? `style="--ml-fx:${flash}"` : ''} aria-label="${shown ? e(text) : tx('点一下听这一样')}">
+      return `<button type="button" class="ml-line${theirs ? ' is-theirs' : ''}${done ? ' is-done' : ''}${line.s === 'struck' ? ' is-struck' : ''}${line.s === 'out' ? ' is-out' : ''}${flash ? ' is-flash' : ''}${got && done ? ' is-ticked' : ''}" data-ml="line" data-n="${order.n}" data-l="${l}" ${flash ? `style="--ml-fx:${flash}"` : ''} aria-label="${shown ? e(text) : tx('点一下听这一样')}">
         ${novice ? pic(line.i,'is-tiny') : ''}${shown ? `<span class="ml-line-text"><b lang="nb">${e(text)}</b>${novice ? `<small>${e(phraseZh(line.i,line.q,line.any,line.z))}</small>` : ''}</span>` : `<span class="ml-line-ear">${icon('speaker')}</span>`}
         ${theirs ? `<span class="ml-line-call" aria-hidden="true">${icon('chat')}</span>` : ''}${line.s === 'out' ? `<small class="ml-line-count" lang="nb">Utsolgt</small>` : `<small class="ml-line-count">${line.s === 'struck' ? '—' : done ? icon('check') : `${have}/${line.q}`}</small>`}</button>`;
     }).join('');
     // A customer who needs nothing from the shelves (a question, a wrong price) is served at the counter only.
     const nothing = order.lines.length ? '' : `<span class="ml-line is-hidden">${tx('不用拿货，在柜台回应')}</span>`;
-    return `<section class="ml-list" aria-label="${tx('购物单')}">${who}<div class="ml-list-lines" data-scroll="list-${order.n}">${lines}${nothing}${status}</div></section>`;
+    // Everything in the basket: the basket has gone to the counter, and the whole slip says where to go.
+    const go = ready ? `<button type="button" class="ml-ticket-go" data-ml="go-counter" data-n="${order.n}" style="--ml-fx:${since(game,`bag:${order.n}`,900) || OVER}"><span class="ml-ticket-go-pill">${icon('check')}${tx('去柜台交付')}</span></button>` : '';
+    const basket = ghost ? '' : `<div class="ml-ticket-basket${ready ? ' is-sent' : ''}">${basketHTML(game,order)}</div>`;
+    const cls = `ml-ticket${ghost ? ' is-ghost' : ''}${ready ? ' is-ready' : ''}${since(game,`slip:${order.n}`,400) ? ' is-new' : ''}`;
+    const head = `<header class="ml-ticket-head">${who}${status}</header>`;
+    const patience = `<i class="ml-patience is-ticket" style="${ghost ? '' : patienceStyle(order,now)}"><i></i></i>`;
+    return `<div class="${cls}" data-n="${ghost ? 'ghost' : order.n}"${ghost ? ' aria-hidden="true" inert' : ''}><span class="ml-ticket-clip" aria-hidden="true"></span>${head}${basket}
+      <div class="ml-ticket-lines">${lines}${nothing}</div>${patience}${go}</div>`;
   }
   // The size tags of a garment just lifted: one row over it; a tap on one puts that size in the basket.
   function tagsMarkup(game) {
@@ -2473,6 +2670,20 @@
     return `<div class="ml-tags" role="group" aria-label="${tx('选尺码')}">${item.sizes.map((size,i) => `<button type="button" class="ml-size" data-ml="size" data-value="${e(size)}" style="--ml-i:${i}">${e(size)}</button>`).join('')}</div>`;
   }
 
+  /* Going deeper (building → floor, corridor → shop): the page leans in towards what was tapped and fades, then the
+     next page arrives. Taps wait meanwhile. */
+  function zoomInto(node,then) {
+    const shell = ui.content?.querySelector('.ml-shell');
+    if (ui.zooming) return;
+    if (!shell || !node || reduceMotion() || typeof shell.animate !== 'function') { then(); return; }
+    const box = node.getBoundingClientRect(), own = shell.getBoundingClientRect();
+    shell.style.transformOrigin = `${Math.round(box.left+box.width/2-own.left)}px ${Math.round(box.top+box.height/2-own.top)}px`;
+    ui.zooming = true;
+    const lean = shell.animate([{transform:'none',opacity:1},{transform:'scale(1.28)',opacity:0}],{duration:240,easing:'cubic-bezier(.45,0,.8,.55)',fill:'forwards'});
+    const go = () => { if (!ui.zooming) return; ui.zooming = false; then(); };
+    lean.onfinish = go; lean.oncancel = go;
+    setTimeout(go,400);
+  }
   /* ---------- Taps ---------- */
   function onClick(event) {
     const target = event.target.closest('[data-ml]');
@@ -2494,7 +2705,7 @@
       case 'floor':
         ui.place.floor = Number(value);
         if (Array.isArray(ui.prefs.floorsSeen) && floorState(floorById(value)).open && !ui.prefs.floorsSeen.includes(Number(value))) { ui.prefs.floorsSeen.push(Number(value)); savePrefs(); }
-        play('lift'); show('floor',{move:'in'}); break;
+        play('lift'); zoomInto(target.querySelector('.ml-floor-plate') || target,() => show('floor',{move:'in'})); break;
       case 'goto-theme': {
         const theme = themeById(value), shop = shopById(theme?.shop);
         if (!shop) break;
@@ -2503,7 +2714,15 @@
         openSheet('board',{theme:value});
         break;
       }
-      case 'shop': ui.place.shop = value; ui.place.page = 'disken'; play('doorbell'); show('shop',{move:'door'}); break;
+      case 'shop': ui.place.shop = value; ui.place.page = 'disken'; play('doorbell'); zoomInto(target,() => show('shop',{move:'door'})); break;
+      // From the corridor straight to work (the board opens on the counter) or straight to the shelves.
+      case 'shop-work': case 'shop-browse': {
+        const front = target.closest('.ml-store')?.querySelector('.ml-store-front') || target;
+        ui.place.shop = value; ui.place.page = kind === 'shop-work' ? 'disken' : 'hylla';
+        play('doorbell');
+        zoomInto(front,() => { show('shop',{move:'door'}); if (kind === 'shop-work') openSheet('board'); else { ui.prefs.lastBrowse = {shop:value,page:'hylla',section:ui.place.section[value] || ''}; savePrefs(); } });
+        break;
+      }
       case 'resume-work': { const theme = themeById(ui.prefs.lastTheme); if (theme) { ui.place.shop = theme.shop; ui.place.floor = shopById(theme.shop).floor; ui.place.page = 'disken'; show('shop',{quiet:true}); openSheet('board',{theme:theme.id}); } break; }
       case 'resume-browse': { const last = ui.prefs.lastBrowse; const shop = shopById(last?.shop); if (shop) { ui.place.shop = shop.id; ui.place.floor = shop.floor; ui.place.page = 'hylla'; if (last.section) ui.place.section[shop.id] = last.section; show('shop',{quiet:true}); } break; }
       case 'daily': show('daily'); break;
@@ -2580,7 +2799,7 @@
       case 'line': { const n = Number(target.dataset.n), l = Number(target.dataset.l), order = game.state.orders[n], line = order?.lines[l]; if (!line) break;
         if (game.room && line.s === 'open' && !line.hide && line.got.length < line.q && !mine(game.state,{id:game.me},line.i,game.scene)) { game.fresh.set('call',Date.now()); openCall(game,n,l); break; }
         sayLine(phrase(line.i,line.q,line.any,line.z),'f'); break; }
-      case 'next-guest': { const here = settleGuest(game); const at = here.findIndex(order => order.n === game.guest); game.guest = here[(at+1) % Math.max(1,here.length)]?.n ?? -1; drawGame(); break; }
+      case 'next-guest': { const here = settleGuest(game); const at = here.findIndex(order => order.n === game.guest); game.guest = here[(at+1) % Math.max(1,here.length)]?.n ?? -1; game.fresh.set(`slip:${game.guest}`,Date.now()); drawGame(); break; }
       case 'go-counter': game.guest = Number(target.dataset.n); game.page = 'disken'; drawGame(); break;
       case 'note': if (target.dataset.id) sayWord(target.dataset.id); game.note = null; drawGame(); break;
       // Results
@@ -2722,6 +2941,8 @@
     const state = game.state, player = state.players[0], theme = game.theme, daily = game.themeId === 'daily';
     const target = targetFor(theme,state.minutes,state.tier), passed = passes(state.score,target,player.correct,player.wrong,false);
     const bit = {novice:1,standard:2,expert:4}[state.tier];
+    // The coach's hints are for the first three games played to the end.
+    if (game.coach) { ui.prefs.coach = (ui.prefs.coach || 0)+1; savePrefs(); }
     const openBefore = [...openSet()], starsBefore = daily ? 0 : starsOf(theme.id);
     if (!daily) {
       // Played here: shown at once (and while offline) until the server's progress replaces it.
