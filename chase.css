@@ -425,6 +425,20 @@ body.pc-open{overflow:hidden}
 .pc-char.is-next{color:#7d725a}
 .pc-char.is-next::after{content:"";position:absolute;left:0;right:0;bottom:.06em;height:2px;background:#d9bf86}
 .pc-char.is-next.is-pass::after{display:none}
+/* While my voice is heard the underline of the word to read brightens: the page answers at once, before the
+   recogniser has made the word out. */
+.pc-char.is-next::after{transition:background .12s ease-out,box-shadow .12s ease-out}
+.pc-panel-type.is-voice .pc-char.is-next::after{background:var(--pc-gold);box-shadow:0 0 6px #d9b25f}
+/* A word of the line can be tapped to hear how it is said: a faint gold ground under the pointer and while it
+   sounds (drawn as a shadow around the letters, so nothing moves). */
+.pc-word{border-radius:.28em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .18s ease-out,box-shadow .18s ease-out}
+.pc-word.is-said{background:#f3e5c2;box-shadow:0 0 0 .14em #f3e5c2}
+.pc-word.is-said .pc-char{color:#5d4a20}
+.pc-line.is-words .pc-entry.pc-word.is-said{background:#f3e5c2;box-shadow:inset 0 0 0 1px #e3cf9f}
+@media (hover:hover){
+  .pc-word:hover{background:#f6eedc;box-shadow:0 0 0 .14em #f6eedc}
+  .pc-line.is-words .pc-entry.pc-word:hover{box-shadow:inset 0 0 0 1px #ecdcb6}
+}
 .pc-mic{display:inline-flex;align-items:center;gap:6px;flex:none;height:30px;padding:0 12px 0 9px;border-radius:15px;background:var(--pc-gold-soft);color:#7a5d27;font-size:12.5px;white-space:nowrap;
   box-shadow:0 0 0 calc(var(--level,0)*5px) #efe1bf;transition:box-shadow .14s ease-out}
 .pc-mic .pc-icon{width:16px;height:16px;color:var(--pc-green)}

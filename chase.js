@@ -51,7 +51,8 @@
   // (朗读 elsewhere on the site means playing a recording, hence the note on the English key.)
   const READ_NAME = EN ? tx('朗读（玩法）') : '朗读';
   const INPUTS = {type:{name:tx('打字'),hint:tx('用键盘')},read:{name:READ_NAME,hint:tx('念出课文')}};
-  const STUCK_MS = 7000;             // reading but no word heard this long: offer to pass the word
+  const STUCK_MS = 5000;             // reading but no word heard this long: offer to pass the word
+  const HEAR_TAIL_MS = 300;          // after a tapped word's reading has ended, the microphone waits this long
   // How the 3D scene is drawn: each player chooses for their own picture (it changes nothing in the game, so a room's
   // players may each see their own). chase-brunstad.mjs builds all three; the cast follows the look.
   const LOOKS = {pixel:{name:tx('像素'),hint:tx('复古像素画')},town:{name:tx('Q版'),hint:tx('手绘贴图')},anime:{name:'3D',hint:tx('动画风建模')}};
@@ -1237,6 +1238,7 @@
 
   /* ---------- Clicks and keys ---------- */
   function onClick(event) {
+    if (ui.view === 'game' && ui.game?.read && event.target.closest?.('#pc-line')) { hearWord(event.target); return; }
     const target = event.target.closest('[data-pc]');
     if (!target || !ui.root.contains(target)) return;
     // A tap inside the sheet is not a tap on the dimmed layer around it.
@@ -1736,7 +1738,7 @@
         // The microphone was opened at 准备 (a tap); without it the mic chip asks for a tap (see syncMic).
         const me = game.players.find(player => player.me);
         if (me) me.read = {pos:0,word:0,carry:0,passed:0,soft:0,movedAt:0};
-        Object.assign(ui,{mic:ui.roomMic || null,micStarted:false,micOn:false,voiceAt:0});
+        Object.assign(ui,{mic:ui.roomMic || null,micStarted:false,micOn:false,voiceAt:0,heardAt:0,hearing:false});
         ui.roomMic = null;
       }
       ui.game = game;
@@ -2052,7 +2054,7 @@
       if (reading) {
         game.read = true;
         game.players.find(player => player.me).read = {pos:0,word:0,carry:0,passed:0,soft:0,movedAt:0};
-        Object.assign(ui,{mic,micStarted:false,micOn:false,voiceAt:0});
+        Object.assign(ui,{mic,micStarted:false,micOn:false,voiceAt:0,heardAt:0,hearing:false});
       }
       ui.game = game;
       // No background music while reading: the microphone would hear it.
@@ -2104,15 +2106,16 @@
         <textarea class="pc-input" id="pc-input" aria-label="${tx('在这里打字')}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" rows="1"${own ? ' inputmode="none"' : ''}></textarea>
       </div>`}</div>`;
   }
-  // The reading panel: the sentence to read, its meaning, and below it the microphone (its dot breathes with my voice),
-  // where I am, what the recogniser last heard, and — when a word will not get through — a button to pass it.
+  // The reading panel: the sentence to read (a tap on a word plays its reading), its meaning, and below it the microphone
+  // (its dot breathes with my voice), where I am, what the recogniser last heard, and — when a word will not get
+  // through — a button to pass it.
   function readPanel() {
     return `<div class="pc-panel-type is-read" id="pc-type">
         <div class="pc-line-wrap" id="pc-line-wrap"><p class="pc-line" id="pc-line" lang="nb"></p></div>
         <p class="pc-zh" id="pc-zh"></p>
         <div class="pc-type-foot"><span class="pc-mic" id="pc-mic" role="status">${icon('mic')}<span id="pc-mic-text">${tx('出发后开始听')}</span></span><span class="pc-progress" id="pc-progress"></span>
           <button type="button" class="pc-skip" id="pc-skip" data-pc="skip-word" hidden>${tx('跳过这个词')}</button></div>
-        <p class="pc-heard" id="pc-heard" lang="nb" aria-live="off"></p>
+        <p class="pc-heard" id="pc-heard" aria-live="off">${tx('不会念的词，点一下听读音')}</p>
       </div>`;
   }
   // On a touch screen the system keyboard would cover half the picture (and some phones shrink or shift the page for
@@ -2349,7 +2352,8 @@
     const r = ui.reading || {status:'unknown'};
     if (r.status === 'unsupported') return tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。');
     if (r.status === 'failed') return tx('语音识别没有准备好，请检查网络后再试。');
-    if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。');
+    // (the page becomes cross-origin isolated from the load after isolate-sw.js took over; the recogniser then has threads)
+    if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。')+(document.documentElement.dataset.isolate === 'next' && navigator.serviceWorker?.controller ? tx('刷新一次页面，识别会更快。') : '');
     if (r.status === 'loading') return r.total && r.loaded < r.total ? tx('正在下载语音识别 {loaded} / {total} MB…',{loaded:Math.round(r.loaded/1e6),total:Math.round(r.total/1e6)}) : tx('正在准备语音识别…');
     if (r.status === 'idle') return tx('第一次要下载语音识别（约 120 MB，建议用 Wi-Fi），之后存在这台设备上。');
     return tx('正在检查语音识别…');
@@ -2406,12 +2410,18 @@
     const want = Boolean(game?.read && game.status === 'playing' && !game.paused && !game.over && !ui.confirming);
     if (want !== ui.micOn) {
       ui.micOn = want;
-      if (want && !ui.micStarted) { ui.micStarted = true; ui.mic.start(onHeard,onLevel); }
+      if (want && !ui.micStarted) { ui.micStarted = true; ui.mic.start(onHeard,onLevel,expectedWords); }
       else if (want) ui.mic.resume();
       else ui.mic.pause();
       micLabel(want ? tx('在听，请念上面的句子') : tx('暂停'));
     }
     if (!want) return;
+    // Nothing heard for a while: the faint line goes back to its hint.
+    if (ui.heardAt && performance.now()-ui.heardAt > 6000) {
+      ui.heardAt = 0;
+      const heard = $('#pc-heard');
+      if (heard) { heard.textContent = tx('不会念的词，点一下听读音'); heard.removeAttribute('lang'); }
+    }
     // Reading without a word getting through for a while: offer to pass the word.
     const me = game.players.find(player => player.me), stuck = gameNow(game)-(me.read.movedAt || 0) > STUCK_MS && performance.now()-(ui.voiceAt || 0) < 2500;
     const skip = $('#pc-skip');
@@ -2425,6 +2435,14 @@
     if (level > .02) ui.voiceAt = performance.now();
     const dot = $('#pc-mic');
     if (dot) dot.style.setProperty('--level',Math.min(1,level*12).toFixed(2));
+    // The underline of the word to read answers my voice at once (the recogniser needs a moment longer).
+    $('#pc-type')?.classList.toggle('is-voice',performance.now()-(ui.voiceAt || 0) < 320);
+  }
+  // What the recogniser may lean towards: the last words read (it hears the last second again) and the next dozen.
+  function expectedWords() {
+    const game = ui.game, me = game?.players.find(player => player.me);
+    if (!game?.read || !me?.read) return [];
+    return game.text.words.slice(Math.max(0,me.read.word-4),me.read.word+12).map(word => word.text);
   }
   // A transcript of the last few seconds: how many of the words still to read does it hold?
   function onHeard(text,info) {
@@ -2435,8 +2453,10 @@
     // Proper nouns (the reader lexicon's 专名, or capitalised inside a sentence) may be spelt any way by the recogniser.
     const want = words.map(word => ({text:word.text,soft:Boolean(word.name) || (word.start > 0 && /^\p{Lu}/u.test(word.text))}));
     const heard = $('#pc-heard');
-    if (heard) heard.textContent = tx('听到：{text}',{text});
-    const {count,skipped} = speech.matchWords(want,text);
+    if (heard) { heard.textContent = tx('听到：{text}',{text}); heard.lang = 'nb'; }
+    // (the words just read come along: the recogniser hears the last second again, see matchWords)
+    const {count,skipped} = speech.matchWords(want,text,game.text.words.slice(Math.max(0,from-6),from).map(word => word.text));
+    ui.heardAt = performance.now();
     if (!count) return;
     const now = gameNow(game);
     for (const word of words.slice(0,count)) readWord(game,me,word,now);
@@ -2481,6 +2501,33 @@
     } catch (error) {
       notify(error?.code === 'denied' ? tx('没有允许使用麦克风。请在浏览器设置里允许这个网站使用麦克风，再开始。') : tx('没有找到麦克风，请检查后再开始。'),6000);
     }
+  }
+  // A tap on a word of the line: its reading plays, for a reader who is not sure how the word is said. The microphone
+  // would hear the reading as if I had said it, so listening holds until the reading has ended (and a moment more, for
+  // the room and for wireless earphones). The speaker button does not silence it: the tap asks for exactly this sound.
+  function hearWord(target) {
+    const game = ui.game, mark = target.closest?.('.pc-word');
+    if (!game?.read || game.watch || game.over || !mark) return;
+    const s = mark.classList.contains('pc-entry') ? ui.lineFrom+(ui.lineEntries || []).indexOf(mark) : ui.lineFrom;
+    const word = game.text.sentences[s]?.words[mark.classList.contains('pc-entry') ? 0 : Number(mark.dataset.word)];
+    if (!word?.clip) return;
+    const token = ui.hearToken = (ui.hearToken || 0)+1;
+    const done = () => {
+      if (token !== ui.hearToken || !ui.hearing) return;
+      ui.hearing = false;
+      $('#pc-line')?.querySelector('.pc-word.is-said')?.classList.remove('is-said');
+      ui.mic?.release();
+      if (ui.micOn) micLabel(tx('在听，请念上面的句子'));
+    };
+    $('#pc-line')?.querySelector('.pc-word.is-said')?.classList.remove('is-said');
+    mark.classList.add('is-said');
+    ui.hearing = true;
+    ui.mic?.hold();
+    if (ui.micOn) micLabel(tx('听读音…'));
+    clearTimeout(ui.hearTimer);
+    // (a reading that never reports its end — a failed download — gives the microphone back all the same)
+    ui.hearTimer = later(done,3500);
+    ui.opts.pronounce?.({word:word.text,audio:word.clip},{onEnded:() => later(done,HEAR_TAIL_MS)});
   }
   // 跳过这个词: the word the recogniser keeps missing is passed; the text moves on, the runner does not.
   function passWord() {
@@ -2562,9 +2609,9 @@
   }
   function prefetchAhead() {
     const game = ui.game, me = game?.players.find(player => player.me);
-    // A reader hears no word readings (the microphone would hear them too).
-    if (!me || game.read) return;
-    const words = game.text.words.slice(me.wordIndex,me.wordIndex+16).filter(word => word.clip).map(word => ({word:word.text,audio:word.clip}));
+    if (!me) return;
+    // (A reader hears a word only when it is tapped; the words of the line are fetched all the same, so it sounds at once.)
+    const words = game.text.words.slice(wordAt(me),wordAt(me)+16).filter(word => word.clip).map(word => ({word:word.text,audio:word.clip}));
     if (words.length) ui.opts.prefetch?.(words);
   }
   // The current sentence as one span per character: typed letters dark, the rest grey, a gold caret under the next.
@@ -2579,7 +2626,17 @@
     if (!letter) return;
     if (!reset && letter.s >= ui.lineFrom && letter.s < ui.lineTo) return;
     const sentences = game.text.sentences, sentence = sentences[letter.s];
-    const chars = text => text.split('').map((char,index) => `<span class="pc-char${TYPEABLE.test(char) ? '' : ' is-pass'}" data-i="${index}">${char === ' ' ? ' ' : e(char)}</span>`).join('');
+    const char = (char,index) => `<span class="pc-char${TYPEABLE.test(char) ? '' : ' is-pass'}" data-i="${index}">${char === ' ' ? ' ' : e(char)}</span>`;
+    // A reader's words that have a reading are spans of their own: a tap plays the reading (hearWord).
+    const chars = (text,item) => {
+      const list = text.split('').map(char);
+      if (!game.read || !item) return list.join('');
+      for (const [index,word] of item.words.entries()) if (word.clip && list[word.start] != null) {
+        list[word.start] = `<span class="pc-word" data-word="${index}">${list[word.start]}`;
+        list[word.end-1] += '</span>';
+      }
+      return list.join('');
+    };
     const words = sentence.section === 'words', turning = words && ui.lineWords && ui.lineFrom != null && letter.s !== ui.lineFrom;
     ui.lineFrom = letter.s;
     ui.lineTo = letter.s+1;
@@ -2590,9 +2647,9 @@
     $('#pc-line-wrap')?.classList.toggle('is-words',words);
     $('#pc-type')?.classList.toggle('is-words',words);
     if (!words) {
-      line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}<span class="pc-entry">${chars(sentence.text)}</span>`;
+      line.innerHTML = `${sentence.speaker ? `<span class="pc-speaker">${e(sentence.speaker)}</span>` : ''}<span class="pc-entry">${chars(sentence.text,sentence)}</span>`;
     } else {
-      const entry = item => `<span class="pc-entry"><span class="pc-no">${chars(item.text)}</span><span class="pc-gloss" lang="${EN && item.en ? 'en' : 'zh'}">${e(meaningOf(item))}</span></span>`;
+      const entry = item => `<span class="pc-entry${game.read && item.words[0]?.clip ? ' pc-word' : ''}"><span class="pc-no">${chars(item.text)}</span><span class="pc-gloss" lang="${EN && item.en ? 'en' : 'zh'}">${e(meaningOf(item))}</span></span>`;
       line.innerHTML = entry(sentence);
       const room = line.clientWidth;
       while (ui.lineTo-ui.lineFrom < 16 && sentences[ui.lineTo]?.section === 'words') {

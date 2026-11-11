@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261111-practice-focus';
-import {createReadingLibrary} from './reading-library.mjs?v=20261111-practice-focus';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-practice-focus';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-practice-focus';
-import * as notesModel from './notes-store.mjs?v=20261111-practice-focus';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-practice-focus';
+import {createDataLoader} from './loader.mjs?v=20261111-chase-instant';
+import {createReadingLibrary} from './reading-library.mjs?v=20261111-chase-instant';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-chase-instant';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-chase-instant';
+import * as notesModel from './notes-store.mjs?v=20261111-chase-instant';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-chase-instant';
 
-const VERSION = '20261111-practice-focus';
+const VERSION = '20261111-chase-instant';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -1100,7 +1100,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-practice-focus').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-chase-instant').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -2049,7 +2049,28 @@ async function loadAudioMetadata() {
   }
   if (state.ready && state.view === 'compare') window.NorskCompare?.refreshAudio();
 }
+// A cross-origin isolated page lets 朗读's speech recogniser use several threads (see isolate-sw.js, which adds the
+// two headers the hosts cannot send). The worker takes over quietly: this visit stays as it is, pages opened from the
+// next load on are isolated. ?isolate=off removes it from this device (and ?isolate=on brings it back).
+function isolatePage() {
+  if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+  let off = false;
+  try {
+    const asked = new URLSearchParams(window.location.search).get('isolate');
+    if (asked === 'off' || asked === 'on') localStorage.setItem('norsk-isolate',asked);
+    off = localStorage.getItem('norsk-isolate') === 'off';
+  } catch {}
+  if (off) {
+    navigator.serviceWorker.getRegistration().then(found => { if (/\/isolate-sw\.js$/.test(found?.active?.scriptURL || found?.waiting?.scriptURL || found?.installing?.scriptURL || '')) found.unregister(); }).catch(() => {});
+    return;
+  }
+  // This page came without the worker: a reload would make it isolated (朗读's setup page says so once the worker is
+  // in control). A page that came through the worker and still is not isolated never will be on this browser.
+  if (!window.crossOriginIsolated && !navigator.serviceWorker.controller) document.documentElement.dataset.isolate = 'next';
+  navigator.serviceWorker.register('isolate-sw.js').catch(error => console.warn('页面隔离没有启用',error));
+}
 async function initialize() {
+  isolatePage();
   await i18n.ready;
   localizeShell();
   startPresence();
