@@ -1,5 +1,6 @@
 /* 听音选义 · 开口跟读 (2026-11-12, docs/exam-interview-plan.md): after a word sounds, the learner says it; the page's
-   own recogniser (chase-speech.mjs, shared with 警察抓小偷's 朗读) must hear it before the meanings can be chosen.
+   own recogniser (chase-speech.mjs, shared with 警察抓小偷's 朗读) must hear roughly that before the meanings can be
+   chosen (差不多对就过: the recogniser is neither exact nor quick).
    Loaded by practice.js only when 开口 is chosen. The word's own reading is never heard: the microphone is held while
    it sounds. Nothing here touches the page; scripts/check_practice_speak.mjs exercises the matching. */
 
@@ -17,6 +18,7 @@ export const prepare = onProgress => loaded.then(module => module.prepare(onProg
 
 const VOICE = .02;          // a block louder than this is someone speaking (chase-speech's VOICE_RMS)
 const QUIET_MS = 2000;      // after the voice stops this long without the word heard, that try missed
+const ROUGH = .5;           // how alike (1 = the same letters) a stretch of what was heard must be to the entry
 
 /** The words of an entry as they are said: "Jeg heter ..." → ['Jeg','heter'], "et kjøkken" → ['et','kjøkken']. */
 export function wordsOf(entry) {
@@ -32,6 +34,37 @@ export function saysEntry(entry,text,matchWords = speech?.matchWords,light = spe
   if (count >= words.length) return true;
   // "Hvordan går det?" said with the last det swallowed (the matcher passes light words only before other words).
   return words.length >= 2 && count === words.length-1 && Boolean(light?.has(fold?.(words.at(-1))));
+}
+
+function letterDistance(a,b) {
+  const row = Array.from({length:b.length+1},(_,i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const keep = row[j];
+      row[j] = Math.min(row[j]+1,row[j-1]+1,prev+(a[i-1] === b[j-1] ? 0 : 1));
+      prev = keep;
+    }
+  }
+  return row[b.length];
+}
+/** Whether `text` says roughly the entry (2026-11-12, the teacher: 差不多对就过). Besides saysEntry, a try passes when
+ *  some stretch of what was heard, run together, is at most about half its letters off the entry run together
+ *  (Musik for musikk, ne for nei, Hvordan går for Hvordan går det?). */
+export function roughlySays(entry,text,tokens = speech?.spokenTokens) {
+  if (saysEntry(entry,text)) return true;
+  if (!tokens) return false;
+  const want = tokens(wordsOf(entry).join(' ')).join(''), heard = tokens(text);
+  if (!want) return false;
+  for (let i = 0; i < heard.length; i++) {
+    let joined = '';
+    for (let j = i; j < heard.length && joined.length < want.length+4; j++) {
+      joined += heard[j];
+      if (1-letterDistance(joined,want)/Math.max(joined.length,want.length) >= ROUGH) return true;
+    }
+  }
+  return false;
 }
 
 /** What was heard, fit to show: a short clip makes Whisper repeat itself ("Kaffe kaffe kaffe") or write letters that
@@ -65,7 +98,7 @@ export function createCoach(listener,{onLevel,onText,onPass,onMiss} = {}) {
     if (!on || passed) return;
     last = text;
     onText?.(text);
-    if (saysEntry(entry,text)) { passed = true; on = false; listener.pause(); onPass?.(text); }
+    if (roughlySays(entry,text)) { passed = true; on = false; listener.pause(); onPass?.(text); }
   },level => {
     if (!on || passed) return;
     onLevel?.(level);

@@ -13,6 +13,13 @@ export const load = () => loaded;
 export const supported = () => Boolean(speech?.supported());
 export const isReady = () => Boolean(speech?.isReady());
 export const prepare = onProgress => loaded.then(module => module.prepare(onProgress));
+/** Whether the model is in this browser already (then preparing it needs no download, only a few seconds). */
+export const cached = () => loaded.then(module => module.cached()).catch(() => false);
+/** Start the recogniser in the background when it is downloaded already: it takes several seconds on a phone each
+ *  time the page opens, and nobody should wait for that. Never starts the first 118 MB download. */
+export function warm() {
+  return loaded.then(module => module.isReady() || (module.supported() && module.cached().then(yes => yes && module.prepare()))).catch(() => false);
+}
 
 const RATE = 16000;
 export const SEGMENT = {
@@ -136,7 +143,8 @@ export async function record({onText,onLevel,onPause} = {}) {
     busy = true;
     const {samples,index,gen} = queue.shift();
     let out = {text:''};
-    try { out = await module.transcribeAudio(samples,{bonus:0}); } catch {}
+    // Speech recorded while the recogniser was still starting waits for it here.
+    try { if (!module.isReady()) await module.prepare(); out = await module.transcribeAudio(samples,{bonus:0}); } catch {}
     if (gen === generation) pieces[index] = cleanPiece(out.text);   // an answer started over drops older pieces
     busy = false;
     if (!closed) onText?.(text());
@@ -180,6 +188,8 @@ export async function record({onText,onLevel,onPause} = {}) {
       held = true;
       // A recogniser that stopped answering (its worker died) must not keep the answer waiting: 20 s at most.
       if (busy || queue.length) {
+        // The recogniser may still be starting (the learner could speak at once): wait for it first.
+        if (!module.isReady()) await module.prepare();
         let limit;
         await Promise.race([new Promise(done => { idle = done; pump(); }),new Promise(done => { limit = setTimeout(done,20000); })]);
         clearTimeout(limit);

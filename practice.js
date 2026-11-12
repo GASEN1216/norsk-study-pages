@@ -349,18 +349,30 @@
 
   /* ---------- 听音选义 · 开口跟读 (practice-speak.mjs, docs/exam-interview-plan.md) ----------
      With 作答方式 开口, every listening item is said back after it sounds; the meanings can be chosen once the page's
-     own recogniser heard the word (or after 跳过跟读). The microphone is held while the word itself sounds. */
-  const say = {module:null,loading:null,listener:null,coach:null,opening:null,status:'idle',progress:null,mic:'',key:null,playing:false,playTimer:null,stuckKey:null,stuckTimer:null};
+     own recogniser heard roughly the word, or after a second try (or 跳过跟读). The microphone is held while the word
+     itself sounds. */
+  const say = {module:null,loading:null,listener:null,coach:null,opening:null,status:'idle',progress:null,mic:'',key:null,playing:false,playTimer:null,stuckKey:null,stuckTimer:null,freeKey:null};
   // Tests run this file without timers.
   const sayClear = id => { if (id != null && typeof clearTimeout === 'function') clearTimeout(id); };
   const speakPref = () => state.store.listenAnswer === 'speak';
   const speaking = session => Boolean(session?.speak) && activityOf(session) === 'listen';
   const sayKey = session => `${session.phase}:${currentKey(session)}`;
-  const sayOf = session => (session.speak[sayKey(session)] ||= {passed:false,skipped:false,misses:0,heard:''});
+  const sayOf = session => (session.speak[sayKey(session)] ||= {passed:false,skipped:false,misses:0});
   function sayPending(session) {
     if (!speaking(session) || session.paused || !['first','review'].includes(session.phase) || answered(session)) return false;
     const entry = session.speak[sayKey(session)];
     return !(entry?.passed || entry?.skipped);
+  }
+  // The answers wait for 跟读 only once the microphone is open and the recogniser ready. It takes several seconds to
+  // start each time the page opens (longer on a phone): until then the learner chooses as usual, and the item shown
+  // meanwhile stays open (freeKey); 跟读 begins with the next one.
+  function sayLocked(session) {
+    return sayPending(session) && Boolean(say.listener) && say.status === 'ready' && say.freeKey !== sayKey(session);
+  }
+  // Downloaded already: start it in the background when the practice page opens, before anyone waits for it.
+  function warmSay() {
+    if (!speakPref() || say.status !== 'idle') return;
+    loadSay().then(module => module.cached()).then(yes => { if (yes) prepareSay(); }).catch(() => {});
   }
   function loadSay() {
     say.loading ||= import(`./practice-speak.mjs${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`)
@@ -383,8 +395,8 @@
   function sayProgress() {
     const status = state.root?.querySelector('#pr-say-state');
     if (status) status.textContent = sayStateLine();
-    const small = state.root?.querySelector('#pr-say #pr-say-heard'), p = say.progress;
-    if (small && say.listener && say.status === 'loading') small.textContent = p?.downloading ? tx('正在下载识别器 {n}%',{n:p.total ? Math.round(p.loaded/p.total*100) : 0}) : tx('识别器准备中…');
+    const small = state.root?.querySelector('#pr-say #pr-say-heard');
+    if (small && say.listener && say.status === 'loading') small.textContent = sayWaitNote();
   }
   // Inside a tap (iOS opens audio only there): with the module loaded the request starts synchronously.
   function openSayMic() {
@@ -444,16 +456,12 @@
     const meter = state.root?.querySelector('#pr-say-meter');
     if (meter) meter.style.setProperty('--level',Math.min(1,level*12).toFixed(2));
   }
-  // Passes over half a word write half-words ("Som som som"): they are kept, not shown. The meter shows the page is
-  // hearing; a miss shows what was heard, a pass what was said.
-  function sayText(text) {
-    const session = currentSession();
-    if (sayPending(session)) sayOf(session).heard = text;
-  }
+  // What the recogniser writes is neither kept nor shown: only the meter shows that the page is hearing.
+  function sayText() {}
   function sayPass(text) {
     const session = currentSession();
     if (!sayPending(session)) return;
-    Object.assign(sayOf(session),{passed:true,heard:say.module?.tidy(text) || ''});
+    sayOf(session).passed = true;
     sayClear(say.stuckTimer);
     persist(); renderSession();
     state.root?.querySelector('.pr-choice:not([disabled])')?.focus?.({preventScroll:true});
@@ -463,7 +471,14 @@
     if (!sayPending(session)) return;
     const entry = sayOf(session);
     entry.misses += 1;
-    entry.heard = say.module?.tidy(text) || '';
+    // The recogniser is neither exact nor quick: a second try counts as said (念过了), and the meanings open.
+    if (entry.misses >= 2) {
+      Object.assign(entry,{passed:true,tried:true});
+      say.coach?.stop(); sayClear(say.stuckTimer);
+      persist(); renderSession();
+      state.root?.querySelector('.pr-choice:not([disabled])')?.focus?.({preventScroll:true});
+      return;
+    }
     persist(); sayUpdate();
   }
   function saySkip() {
@@ -472,29 +487,35 @@
     sayOf(session).skipped = true;
     sayHalt(); persist(); renderSession();
   }
-  // The 跟读 line of the current item: what to do, what was heard, the way past it.
+  // The 跟读 line of the current item: what to do and the way past it.
   function sayRow(session,question) {
     const entry = session.speak[sayKey(session)] || {}, choice = question.type === 'choice';
-    if (entry.passed) return `<div class="pr-say is-passed" id="pr-say" role="status"><span class="pr-say-mic">${icon('check')}</span><span class="pr-say-copy"><strong>${tx('念对了')}</strong>${choice && entry.heard ? `<small lang="nb">${e(entry.heard)}</small>` : ''}</span></div>`;
+    // What the recogniser wrote is never shown (it is often not quite what was said, 2026-11-12).
+    if (entry.passed) return `<div class="pr-say is-passed" id="pr-say" role="status"><span class="pr-say-mic">${icon('check')}</span><span class="pr-say-copy"><strong>${entry.tried ? tx('念过了') : tx('念对了')}</strong></span></div>`;
     if (entry.skipped) return '';
     return `<div class="pr-say${say.listener ? '' : ' is-off'}" id="pr-say" role="status" aria-live="polite">${sayCopy(session,entry,choice)}</div>`;
   }
+  // One quiet line under the speaker (no panel): what to do now, and a mic that breathes with the voice.
   function sayCopy(session,entry,choice) {
-    const skip = button('say-skip',tx('跳过跟读'),'','pr-small pr-quiet pr-say-skip');
+    const skip = sayLocked(session) ? button('say-skip',tx('跳过跟读'),'','pr-say-link') : '';
     const line = (title,small = '',action = '',extra = '') => `<span class="pr-say-mic${extra}">${icon('mic')}<span class="pr-say-meter" id="pr-say-meter"></span></span><span class="pr-say-copy"><strong>${title}</strong><small id="pr-say-heard" ${choice ? 'lang="nb"' : ''}>${small}</small></span>${action}`;
-    if (say.status === 'unsupported') return line(tx('这个浏览器用不了开口跟读'),tx('可以换新版 Chrome、Edge 或 Safari'),skip);
-    if (say.mic === 'denied') return line(tx('麦克风没有打开'),tx('在浏览器设置里允许使用麦克风后再试'),button('say-mic',tx('再试一次'),'','pr-small pr-secondary')+skip);
-    if (say.mic === 'none') return line(tx('没有找到麦克风'),'',button('say-mic',tx('再试一次'),'','pr-small pr-secondary')+skip);
-    if (!say.listener) return line(tx('开口跟读'),tx('点一下打开麦克风'),button('say-mic',tx('打开麦克风'),'','pr-small pr-primary')+skip);
+    if (say.status === 'unsupported') return line(tx('这个浏览器用不了开口跟读'),tx('可以换新版 Chrome、Edge 或 Safari'),'',' is-quiet');
+    if (say.mic === 'denied') return line(tx('麦克风没有打开'),tx('在浏览器设置里允许使用麦克风后再试'),button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    if (say.mic === 'none') return line(tx('没有找到麦克风'),'',button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    if (say.mic === 'opening') return line(tx('正在打开麦克风…'),'','',' is-quiet');
+    if (!say.listener) return button('say-mic',`${icon('mic')}<span>${tx('开口跟读')}</span>`,'','pr-say-open');
     if (say.status !== 'ready') {
-      const p = say.progress, percent = p?.total ? Math.round(p.loaded/p.total*100) : 0;
-      const small = say.status === 'failed' ? tx('识别器没有准备好，请检查网络') : p?.downloading ? tx('正在下载识别器 {n}%',{n:percent}) : tx('识别器准备中…');
-      return line(tx('稍等一下'),small,say.status === 'failed' ? button('say-retry',tx('重试'),'','pr-small pr-secondary')+skip : skip);
+      if (say.status === 'failed') return line(tx('识别器没有准备好'),'',button('say-retry',tx('重试'),'','pr-say-link'),' is-quiet');
+      return line(tx('识别器准备中…'),sayWaitNote(),'',' is-quiet');
     }
     if (say.playing) return line(tx('先听读音'),'','',' is-quiet');
     const stuck = entry.misses >= 2 || say.stuckKey === sayKey(session);
-    const heard = entry.misses && choice && entry.heard ? tx('听到：{text}',{text:e(entry.heard)}) : '';
-    return line(entry.misses ? tx('没听出来，再念一遍') : tx('跟着念一遍'),heard || (entry.misses ? '' : tx('听完读音，跟着说出这个词')),stuck ? skip : '',' is-live');
+    return line(entry.misses ? tx('再念一遍') : tx('跟着念一遍'),'',stuck ? skip : '',' is-live');
+  }
+  // While the recogniser starts, the item is open: say so (or how far the first download is).
+  function sayWaitNote() {
+    const p = say.progress;
+    return p?.downloading ? tx('正在下载识别器 {n}%',{n:p.total ? Math.round(p.loaded/p.total*100) : 0}) : tx('这一题直接选就好');
   }
   function sayUpdate() {
     const status = state.root?.querySelector('#pr-say-state');
@@ -511,7 +532,7 @@
     if (!speakPref()) return tx('听读音，在四个意思里选一个。');
     if (say.status === 'unsupported') return tx('这个浏览器用不了开口跟读，可以换新版 Chrome、Edge 或 Safari。');
     if (say.status === 'failed') return tx('识别器没有准备好，请检查网络后再点一次「开口」。');
-    if (say.status === 'ready') return tx('每个词听完后跟着念一遍，念对了再选意思。');
+    if (say.status === 'ready') return tx('每个词听完后跟着念一遍，再选意思。');
     const p = say.progress;
     if (p?.downloading && p.total) return tx('正在下载识别器 {n}%（第一次约 118 MB，之后不用再下）',{n:Math.round(p.loaded/p.total*100)});
     return tx('识别器准备中…（第一次要下载约 118 MB）');
@@ -1467,7 +1488,7 @@
     if (!session || session.paused || !['first','review'].includes(session.phase) || answered(session) || !['learn','quiz','listen'].includes(activityOf(session))) return;
     const key=currentKey(session), item=activeItem(), question=session.questions?.[key];
     if (!item || !question) return;
-    if (!unknown && sayPending(session)) return;
+    if (!unknown && sayLocked(session)) return;
     let correct=false, submitted=String(value ?? ''), matchedKey=key;
     const gap=question.type === 'spell' ? gapOf(session,question,item) : null;
     if (unknown) submitted='不知道';
@@ -1501,7 +1522,8 @@
     const toZh=question.direction === 'to-zh', promptText=toZh ? item.word : item.meaning;
     let prompt;
     // 开口跟读: the answers wait until the word was said (or 跳过跟读).
-    const locked=sayPending(session);
+    const locked=sayLocked(session);
+    if (!locked && sayPending(session)) say.freeKey=sayKey(session);
     if (question.audio) prompt=`<button type="button" class="pr-listen-button" data-practice-action="replay" aria-label="${tx('播放读音')}">${icon('speaker')}</button>${done ? `<p class="pr-listen-reveal" lang="nb">${e(item.word)}</p>` : ''}${speaking(session) && !done ? sayRow(session,question) : ''}`;
     else if (question.type === 'judge') prompt=`<div class="pr-judge"><span class="${toZh ? 'pr-prompt-word' : 'pr-prompt-text'}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</span><span class="pr-judge-equals" aria-label="${tx('是否等于')}">=</span><span class="${toZh ? 'pr-prompt-text' : 'pr-prompt-word'}" ${toZh ? '' : 'lang="nb"'}>${e(question.proposed)}</span></div>`;
     else prompt=`<div class="pr-prompt-row"><h2 class="pr-prompt${toZh ? ' is-word' : ''}" ${toZh ? 'lang="nb"' : ''}>${e(promptText)}</h2>${toZh || activity === 'learn' ? iconButton('replay','speaker',toZh ? tx('朗读') : tx('听读音'),'','pr-prompt-speaker') : ''}</div>`;
@@ -1824,7 +1846,7 @@
   function resultSummary(result) {
     const activity=activityOf(result), correct=result.answers.filter(answer => answer.points === 2).length;
     if (activity === 'match') return {score:(result.timeMs/1000).toFixed(1),unit:tx('秒'),headline:result.newBest ? tx('新纪录！') : tx('全部配对完成'),note:tx('一次配对成功 {done} / {n}',{done:correct,n:result.total})};
-    if (isObjective(result)) return {score:scoreOf(result),unit:'%',headline:tx('答对 {done} / {n}',{done:correct,n:result.total}),note:[result.speak ? tx('跟读念对 {done} / {n}',{done:result.speak.passed,n:result.speak.total}) : '',result.reviewed ? tx('重练 {n} 词，全部答对',{n:result.reviewed}) : ''].filter(Boolean).join(' · ')};
+    if (isObjective(result)) return {score:scoreOf(result),unit:'%',headline:tx('答对 {done} / {n}',{done:correct,n:result.total}),note:[result.speak ? tx('开口跟读 {done} / {n}',{done:result.speak.passed,n:result.speak.total}) : '',result.reviewed ? tx('重练 {n} 词，全部答对',{n:result.reviewed}) : ''].filter(Boolean).join(' · ')};
     const counts=[2,1,0].map(points => result.answers.filter(answer => answer.points === points).length);
     return {score:scoreOf(result),unit:tx('分'),headline:tx('认识 {known} · 模糊 {unsure} · 不认识 {unknown}',{known:counts[0],unsure:counts[1],unknown:counts[2]}),note:result.reviewed ? tx('重练 {n} 词',{n:result.reviewed}) : ''};
   }
@@ -2267,6 +2289,7 @@
   function show() {
     if (!state.initialized) return;
     state.visible=true; syncCommunity();
+    warmSay();
     const session=currentSession();
     if (state.screen === 'session' && session?.paused && activityOf(session) !== 'match') resume();
     else if (state.screen === 'session') renderSession();

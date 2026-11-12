@@ -651,7 +651,9 @@ export function createExam(deps = {}) {
     stopSound(); stopClock();
     partKey = key; ui.error = ''; ui.confirm = null; intro.set = null;
     screen = 'intro'; render('#ex-intro-title');
-    if (key === 'speaking') return;
+    // The recogniser takes several seconds to start each time the page opens: when it is downloaded already, it
+    // starts now in the background, while the intro is read.
+    if (key === 'speaking') { import(`./dictation.mjs${suffix}`).then(module => module.load().then(() => module.warm())).catch(() => {}); return; }
     try { await loadPart(key); }
     catch { ui.error = '题目暂时无法载入，请检查网络后重试。'; render(); }
   }

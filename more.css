@@ -717,38 +717,52 @@ button.ai-card:hover{border-color:#acbd97;box-shadow:0 6px 22px #2c4b2b0d}
 @keyframes ex-dot{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
 @media(max-width:720px){.ex-oral-card{padding:26px 18px 22px}.ex-oral-speak{grid-template-columns:auto 1fr;padding:14px}.ex-oral-speak .ex-primary{grid-column:1/-1}.ex-turn{max-width:92%}}
 @media(prefers-reduced-motion:reduce){.ex-oral-mic::before{transition:none}.ex-turn.is-busy i{animation:none}}
-/* A-team 面试 · 开口回答 (interview.mjs) */
-.ai-answer{display:grid;justify-items:center;gap:8px;margin:18px auto 0;width:min(100%,640px);text-align:center}
-.ai-answer-start{display:inline-flex;align-items:center;gap:9px;min-height:48px;padding:10px 24px;border-radius:999px;border:1px solid #d9b9ab;background:#fbf1ec;color:#8a4632;font-size:15px;font-weight:600;transition:background .2s,transform .12s}
-.ai-answer-start:hover{background:#f6e6df}.ai-answer-start:active{transform:translateY(1px)}
-.ai-answer-start svg{width:20px;height:20px}
-.ai-answer-note{margin:0;font-size:12.5px;color:#879180}
-.ai-answer.is-busy,.ai-answer.is-error,.ai-answer.is-live,.ai-answer.is-done{justify-items:stretch;padding:16px 18px;border:1px solid #e2e6da;border-radius:18px;background:#fffef9;text-align:left}
-.ai-answer.is-busy{grid-template-columns:auto 1fr;align-items:center}
-.ai-answer.is-busy .ai-answer-text{grid-column:1/-1}
-.ai-answer p{margin:0;font-size:14px;line-height:1.7;color:#4c5d51}
-.ai-answer-spinner{width:24px;height:24px;border-radius:50%;border:2.5px solid #dfe7da;border-top-color:#5d8a6b;animation:spin .9s linear infinite}
-.ai-answer.is-live{border-color:#d9b9ab;box-shadow:0 0 0 4px #f6e6df80}
-.ai-answer-row{display:flex;align-items:center;gap:14px}
-.ai-answer-mic{--level:0;position:relative;display:grid;place-items:center;flex-shrink:0;width:48px;height:48px;border-radius:50%;background:#f6e6df;color:#9b4f3a}
-.ai-answer-mic::before{content:"";position:absolute;inset:-5px;border-radius:50%;background:#f0d3c6;opacity:calc(var(--level)*1.2);transform:scale(calc(.8 + var(--level)*.45));transition:transform .08s linear,opacity .12s linear}
-.ai-answer-mic svg{position:relative;width:24px;height:24px}
-.ai-answer-meta{flex:1;display:grid}.ai-answer-meta strong{font-size:15px}.ai-answer-meta span{font-size:13px;color:#7c8878;font-variant-numeric:tabular-nums}
-.ai-answer-text{padding:10px 12px;border-radius:12px;background:#f8f8f3;font:16px/1.7 var(--serif)!important;color:#3c4d42!important}
-.ai-answer.is-error{border-color:#f0d6cc;background:#fdf6f2}.ai-answer.is-error>p:first-child{color:#9b4f3a}
+/* A-team 面试 · 开口回答 (interview.mjs): one warm strip under the question that changes in place */
+.ai-answer{--ai-warm:#c4683f;display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;margin:18px 0 0;padding:14px 16px;border:1px solid #ece3cf;border-radius:18px;background:linear-gradient(180deg,#fffdf7,#fbf6ea);text-align:left;transition:border-color .25s,box-shadow .25s}
+.ai-answer.is-idle{padding:0;border:0;background:none}
+.ai-answer-start{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;border:1px solid #ece3cf;border-radius:18px;background:linear-gradient(180deg,#fffdf7,#fbf6ea);color:inherit;font:inherit;text-align:left;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .12s}
+.ai-answer-start:hover{border-color:#e3cfa5;box-shadow:0 6px 18px #8a6a2a14}
+.ai-answer-start:active{transform:translateY(1px)}
+.ai-answer-start:focus-visible{outline:2px solid #d9b46a;outline-offset:2px}
+.ai-answer-mic{--level:0;position:relative;display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#f9ebe0;color:var(--ai-warm)}
+.ai-answer-mic::before{content:"";position:absolute;inset:-5px;border-radius:50%;background:#f4d9c6;opacity:calc(var(--level)*1.2);transform:scale(calc(.8 + var(--level)*.45));transition:transform .08s linear,opacity .12s linear}
+.ai-answer-mic svg{position:relative;width:21px;height:21px}
+.ai-answer-mic.is-quiet{background:#f3efe4;color:#a39a86}
+.ai-answer-label{display:grid;gap:2px;flex:1;min-width:0}
+.ai-answer-label strong{font-size:15px;font-weight:600;color:var(--ink,#2d3d36)}
+.ai-answer-label small{font-size:12.5px;line-height:1.5;color:#8d8a78}
+.ai-answer-label small b{font-weight:500;color:#6d6a58;font-variant-numeric:tabular-nums}
+.ai-answer.is-live{border-color:#efd3bf;box-shadow:0 0 0 4px #fbeee680}
+.ai-answer.is-live .ai-answer-label strong{color:#8a4a2c}
+.ai-answer-done.ai-start-button{flex-shrink:0;min-height:40px;padding:8px 18px;font-size:14px}
+.ai-answer-spinner{flex-shrink:0;width:26px;height:26px;margin:9px;border-radius:50%;border:2.5px solid #eadfc6;border-top-color:#b9934a;animation:spin .9s linear infinite}
+.ai-answer.is-error{border-color:#f0dccf;background:#fdf7f2}
+.ai-answer.is-error .ai-answer-label strong{font-weight:500;font-size:14px;color:#8a4a2c}
+.ai-answer-again{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;min-height:34px;padding:5px 14px;border:1px solid #e6dcc5;border-radius:999px;background:#fffdf6;color:#6b5a3a;font-size:13px;cursor:pointer;transition:border-color .2s,background .2s}
+.ai-answer-again:hover{border-color:#d9c39a;background:#fbf4e3}
+.ai-answer-again svg{width:15px;height:15px}
+.ai-answer.is-done{display:grid;gap:12px;padding:16px 18px 14px}
+.ai-answer-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .ai-answer-verdict{display:flex;align-items:center;gap:8px;font-size:15px}
 .ai-answer-verdict svg{width:22px;height:22px;padding:3px;border-radius:50%;stroke-width:2.6}
-.ai-answer-verdict.is-yes svg{background:#e1efe5;color:#1f6043}.ai-answer-verdict.is-no svg{background:#f4e6e0;color:#9b4f3a}
-.ai-answer-comment{padding:10px 12px;border-radius:12px;background:#f3f6ef}
+.ai-answer-verdict.is-yes svg{background:#e1efe5;color:#1f6043}.ai-answer-verdict.is-no svg{background:#f6e7dc;color:var(--ai-warm)}
+.ai-answer-comment{margin:0;font-size:14.5px;line-height:1.8;color:#4c5d51}
+.ai-answer-better{margin:0;padding:12px 16px;border-left:3px solid #d9b46a;border-radius:4px 14px 14px 4px;background:#fbf4e3}
+.ai-answer-better figcaption{margin:0 0 4px;font-size:12px;letter-spacing:.04em;color:#a07a2c}
+.ai-answer-better p{margin:0;font:16.5px/1.7 var(--serif)!important;color:#2f3f36!important}
+.ai-answer-more{padding-top:10px;border-top:1px solid #efe8d8}
+.ai-answer-more summary{width:max-content;max-width:100%;font-size:13px;color:#8d8a78;cursor:pointer;list-style-position:inside}
+.ai-answer-more summary:hover{color:#5f5a46}
+.ai-answer-more[open] summary{margin:0 0 10px}
 .ai-answer-compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
-.ai-answer-compare>div{padding:10px 12px;border-radius:12px;background:#f7f4ea}.ai-answer-compare>div.is-better{background:#eef5ef}
+.ai-answer-compare>div{padding:10px 12px;border-radius:12px;background:#f7f2e6}
 .ai-answer-compare small{display:block;margin:0 0 2px;font-size:12px;color:#8a8a72}
-.ai-answer-compare p{font:15px/1.7 var(--serif)!important;color:#2f3f36!important}
-.ai-answer-mistakes{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.ai-answer-compare p{margin:0;font:15px/1.7 var(--serif)!important;color:#2f3f36!important}
+.ai-answer-mistakes{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:8px}
 .ai-answer-mistakes li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:13.5px}
-.ai-answer-mistakes s{color:#9b4f3a}.ai-answer-mistakes b{color:#1f6043}.ai-answer-mistakes small{flex-basis:100%;color:#6b7867}
-.ai-answer .ai-text-button{justify-self:start}
-@media(prefers-reduced-motion:reduce){.ai-answer-mic::before{transition:none}}
+.ai-answer-mistakes s{color:#a5603f}.ai-answer-mistakes b{font-weight:500;color:#1f6043}.ai-answer-mistakes small{flex-basis:100%;color:#6b7867}
+@media(max-width:560px){.ai-answer,.ai-answer-start{gap:12px;padding:12px 14px}.ai-answer.is-idle{padding:0}.ai-answer.is-done{padding:14px 14px 12px}.ai-answer-mic{width:40px;height:40px}.ai-answer-done.ai-start-button{padding:8px 14px}}
+@media(prefers-reduced-motion:reduce){.ai-answer-mic::before{transition:none}.ai-answer-spinner{animation-duration:2s}}
 .ex-last{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 18px;font-size:13.5px;color:#5f6d5a}
 .ex-last>span{display:inline-flex;align-items:center;gap:6px}
 .ex-last.is-pending{color:#87601b}

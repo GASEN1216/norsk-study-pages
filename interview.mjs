@@ -252,23 +252,31 @@ export function createInterview(deps = {}) {
     </section>`;
   }
   /* ----- 开口回答 ----- */
+  // 开口回答 is one warm strip under the question that changes in place: 开口回答 → 正在听你说 → 正在整理 → the feedback.
   function answerMarkup() {
     const a = answer;
-    if (a.status === 'idle') return `<div class="ai-answer"><button type="button" class="ai-answer-start" data-interview="answer-start">${icon('mic')}<span>开口回答</span></button><p class="ai-answer-note">说完后 AI 会点评：答到问题没有、哪里要改、怎样说更自然。</p></div>`;
+    const label = (title,note = '') => `<span class="ai-answer-label"><strong>${title}</strong>${note ? `<small>${note}</small>` : ''}</span>`;
+    const mic = (extra = '') => `<span class="ai-answer-mic${extra}" aria-hidden="true">${icon('mic')}</span>`;
+    const spinner = '<span class="ai-answer-spinner" aria-hidden="true"></span>';
+    if (a.status === 'idle') return `<div class="ai-answer is-idle"><button type="button" class="ai-answer-start" data-interview="answer-start">${mic()}${label('开口回答','说完后 AI 告诉你答到没有、怎样说更自然')}</button></div>`;
     if (a.status === 'loading') {
       const p = a.progress, percent = p?.total ? Math.round(p.loaded/p.total*100) : 0;
-      return `<div class="ai-answer is-busy" role="status"><span class="ai-answer-spinner" aria-hidden="true"></span><p>${p?.downloading ? `正在下载识别器 ${percent}%（第一次约 118 MB）` : '正在准备识别器…'}</p></div>`;
+      return `<div class="ai-answer is-busy" role="status">${spinner}${p?.downloading ? label(`正在下载识别器 ${percent}%`,'只有第一次要下载，约 118 MB') : label('马上就好…')}</div>`;
     }
-    if (a.status === 'recording') return `<div class="ai-answer is-live"><div class="ai-answer-row"><span class="ai-answer-mic" aria-hidden="true">${icon('mic')}</span><div class="ai-answer-meta"><strong>请回答</strong><span data-ai-answer-clock>0:00</span></div><button type="button" class="ai-start-button" data-interview="answer-done">说完了</button></div><p class="ai-answer-text" data-ai-answer-text lang="nb" aria-live="polite">${escape(a.text) || '…'}</p></div>`;
-    if (a.status === 'writing' || a.status === 'grading') return `<div class="ai-answer is-busy" role="status"><span class="ai-answer-spinner" aria-hidden="true"></span><p>${a.status === 'writing' ? '正在整理文字…' : 'AI 点评中…'}</p>${a.text ? `<p class="ai-answer-text" lang="nb">${escape(a.text)}</p>` : ''}</div>`;
-    if (a.status === 'error') return `<div class="ai-answer is-error" role="alert"><p>${escape(a.error)}</p>${a.text ? `<p class="ai-answer-text" lang="nb">${escape(a.text)}</p>` : ''}<button type="button" class="ai-text-button" data-interview="${a.text ? 'answer-retry' : 'answer-start'}">${a.text ? '重新点评' : '再试一次'}</button></div>`;
+    // What the recogniser writes is not shown while the learner speaks: it is often not quite what was said, and it
+    // comes a moment late (2026-11-12). The ring shows that the page is hearing.
+    if (a.status === 'recording') return `<div class="ai-answer is-live">${mic(' is-live')}${label('正在听你说','<b data-ai-answer-clock>0:00</b> · 停一会儿会自动结束')}<button type="button" class="ai-start-button ai-answer-done" data-interview="answer-done">说完了</button></div>`;
+    if (a.status === 'writing' || a.status === 'grading') return `<div class="ai-answer is-busy" role="status">${spinner}${a.status === 'writing' ? label('正在整理你说的话…') : label('AI 正在点评…','通常几秒钟，最长半分钟')}</div>`;
+    if (a.status === 'error') return `<div class="ai-answer is-error" role="alert">${mic(' is-quiet')}${label(escape(a.error))}<button type="button" class="ai-answer-again" data-interview="${a.text ? 'answer-retry' : 'answer-start'}">${a.text ? '重新点评' : '再试一次'}</button></div>`;
     const r = a.result || {};
     const mistakes = (r.mistakes || []).map(item => `<li><s lang="nb">${escape(item.wrong)}</s><b lang="nb">${escape(item.right)}</b><small>${escape(item.why)}</small></li>`).join('');
-    return `<div class="ai-answer is-done"><div class="ai-answer-verdict ${r.answered ? 'is-yes' : 'is-no'}">${icon(r.answered ? 'check' : 'close')}<strong>${r.answered ? '答到问题了' : '还没答到这个问题'}</strong></div>
+    // First what matters: did it answer the question, and how to say it. The transcript (which may be off), the
+    // corrected version and the single mistakes wait behind 看识别到的文字.
+    const heard = `<div class="ai-answer-compare"><div><small>识别到的文字（可能不准）</small><p lang="nb">${escape(a.text)}</p></div>${r.corrected ? `<div><small>改正后</small><p lang="nb">${escape(r.corrected)}</p></div>` : ''}</div>${mistakes ? `<ul class="ai-answer-mistakes">${mistakes}</ul>` : ''}`;
+    return `<div class="ai-answer is-done"><div class="ai-answer-head"><div class="ai-answer-verdict ${r.answered ? 'is-yes' : 'is-no'}">${icon(r.answered ? 'check' : 'close')}<strong>${r.answered ? '答到问题了' : '还没答到这个问题'}</strong></div><button type="button" class="ai-answer-again" data-interview="answer-start">${icon('mic')}再答一次</button></div>
       ${r.comment ? `<p class="ai-answer-comment">${escape(r.comment)}</p>` : ''}
-      <div class="ai-answer-compare"><div><small>你说的</small><p lang="nb">${escape(a.text)}</p></div>${r.corrected ? `<div><small>改正后</small><p lang="nb">${escape(r.corrected)}</p></div>` : ''}${r.better ? `<div class="is-better"><small>更自然的说法</small><p lang="nb">${escape(r.better)}</p></div>` : ''}</div>
-      ${mistakes ? `<ul class="ai-answer-mistakes">${mistakes}</ul>` : ''}
-      <button type="button" class="ai-text-button" data-interview="answer-start">再答一次</button></div>`;
+      ${r.better ? `<figure class="ai-answer-better"><figcaption>可以这样说</figcaption><p lang="nb">${escape(r.better)}</p></figure>` : ''}
+      <details class="ai-answer-more"><summary>看识别到的文字${mistakes ? '和改错' : ''}</summary>${heard}</details></div>`;
   }
   function updateAnswer(focus = '') {
     const slot = root?.querySelector('.ai-answer');
@@ -285,6 +293,11 @@ export function createInterview(deps = {}) {
     answer = {status:'idle'};
   }
   function closeRecorder() { resetAnswer(); recorder?.close(); recorder = null; }
+  // The recogniser takes several seconds to start each time the page opens: once it is downloaded, it starts in the
+  // background as soon as a practice begins, so 开口回答 rarely waits for it.
+  function warmRecogniser() {
+    import(versioned('./dictation.mjs')).then(module => { dictation ||= module; return module.load().then(() => module.warm()); }).catch(() => {});
+  }
   // Inside the tap: the microphone opens first (iOS opens audio only there), then the recogniser loads.
   async function startAnswer() {
     stopAudio();
@@ -299,7 +312,7 @@ export function createInterview(deps = {}) {
       if (!dictation.supported()) { fail('这个浏览器用不了语音识别，可以换新版 Chrome、Edge 或 Safari。'); return; }
       if (!recorder) {
         const opened = await dictation.record({
-          onText:text => { if (answer.status === 'recording') { answer.text = text; const box = root?.querySelector('[data-ai-answer-text]'); if (box) box.textContent = text || '…'; } },
+          onText:text => { if (answer.status === 'recording') answer.text = text; },
           onLevel:level => { root?.querySelector('.ai-answer-mic')?.style.setProperty('--level',Math.min(1,level*14).toFixed(2)); },
           onPause:seconds => { if (answer.status === 'recording' && seconds >= 3.2 && recorder?.stats.speech > .6) finishAnswer(); }
         });
@@ -309,9 +322,16 @@ export function createInterview(deps = {}) {
         recorder = opened;
       }
       recorder.hold();
-      const ready = await dictation.prepare(progress => { if (run === answerRun && answer.status === 'loading') { answer.progress = progress; updateAnswer(); } });
-      if (run !== answerRun) return;
-      if (!ready) { fail('识别器没有准备好，请检查网络后再试。'); return; }
+      // Downloaded already: the learner speaks at once and the recogniser catches up (dictation.mjs waits for it).
+      // Only the first time, with 118 MB to download, does the answer wait and show how far it is.
+      if (!dictation.isReady() && !(await dictation.cached())) {
+        const ready = await dictation.prepare(progress => { if (run === answerRun && answer.status === 'loading') { answer.progress = progress; updateAnswer(); } });
+        if (run !== answerRun) return;
+        if (!ready) { fail('识别器没有准备好，请检查网络后再试。'); return; }
+      } else {
+        dictation.prepare();
+        if (run !== answerRun) return;
+      }
       recorder.reset(); recorder.release();
       answer = {status:'recording',text:'',started:Date.now(),question:question.id};
       updateAnswer('[data-interview="answer-done"]');
@@ -332,7 +352,7 @@ export function createInterview(deps = {}) {
     updateAnswer();
     const {text} = await recorder.stop();
     if (run !== answerRun) return;
-    if (!text.trim()) { answer = {status:'error',error:'没有听到你的回答。靠近麦克风，再试一次。'}; updateAnswer(); return; }
+    if (!text.trim()) { answer = {status:'error',error:dictation.isReady() ? '没有听到你的回答。靠近麦克风，再试一次。' : '识别器没有准备好，请检查网络后再试。'}; updateAnswer(); return; }
     answer = {status:'grading',text,question:id};
     updateAnswer();
     grade(run);
@@ -360,6 +380,7 @@ export function createInterview(deps = {}) {
     deck = createDeck(items);
     card = deck.next();
     screen = 'session';
+    warmRecogniser();
     closeDialog();
     // The host moves the module onto its own page; standalone use renders in place.
     if (deps.onStart) { deps.onStart(); if (mode === 'audio') listen(); return; }
