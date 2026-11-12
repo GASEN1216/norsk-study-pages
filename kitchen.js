@@ -1365,9 +1365,10 @@
   function glossaryRow(item) {
     const state = isMastered(item.id) ? 'is-known' : ui.progress?.words?.[item.id] ? 'is-learning' : '';
     const forms = (item.forms || []).filter(Boolean).join(' · ');
-    return `<li class="kc-entry ${state}">${item.kind === 'situation' ? '' : pic(item.id,'is-small')}<div class="kc-entry-text"><p>${wordHTML(item.id)}${forms ? `<span class="kc-forms" lang="nb">${e(forms)}</span>` : ''}</p>
+    const action = item.kind === 'situation' && (item.voices || ui.data?.lines?.situation?.[item.id]) ? 'say-line' : 'hear';
+    return `<li class="kc-entry ${state}" data-kc="${action}" data-word="${e(item.id)}">${item.kind === 'situation' ? '' : pic(item.id,'is-small')}<div class="kc-entry-text"><p>${wordHTML(item.id)}${forms ? `<span class="kc-forms" lang="nb">${e(forms)}</span>` : ''}</p>
       <p class="kc-entry-zh">${e(meaningOf(item))}</p>${noteOf(item) ? `<p class="kc-entry-note">${e(noteOf(item))}</p>` : ''}${item.ex ? `<p class="kc-entry-ex"><span lang="nb">${e(item.ex)}</span>${exampleZh(item) ? ` <span>${e(exampleZh(item))}</span>` : ''}<small>${tx('学习例句')}</small></p>` : ''}</div>
-      <button type="button" class="kc-icon-button is-small" data-kc="${item.kind === 'situation' && (item.voices || ui.data?.lines?.situation?.[item.id]) ? 'say-line' : 'hear'}" data-word="${e(item.id)}" aria-label="${tx('听 {word}',{word:e(item.word)})}">${icon('speaker')}</button><i class="kc-dot" aria-hidden="true"></i></li>`;
+      <button type="button" class="kc-icon-button is-small" aria-label="${tx('听 {word}',{word:e(item.word)})}">${icon('speaker')}</button><i class="kc-dot" aria-hidden="true"></i></li>`;
   }
   function helpPage() {
     const steps = [

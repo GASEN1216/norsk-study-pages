@@ -78,7 +78,7 @@ body.practice-focus:is([data-view=practice],[data-view=more]) .workspace{min-hei
  #reading-view .reader-toolbar{flex-wrap:wrap;padding:5px 8px;gap:2px;min-height:44px}
  #reading-view .reader-location{min-width:70px;font-size:10px}
  #reading-view .reader-location #reader-book-title{display:none}
- #reading-view .reader-tools{gap:2px}
+ #reading-view .reader-tools{gap:2px;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;min-width:0}
  #reading-view .reader-tools .icon-button{width:24px;height:26px;padding:4px}
  #reading-view .reader-tools .icon-button svg{width:16px;height:16px}
  #reading-view .zoom-control select{width:83px;font-size:11px;max-width:83px}
@@ -319,7 +319,7 @@ body.read-text #reading-view .reader-tip{display:none}
   .read-mode button{padding:4px 9px;font-size:11px}
 }
 @media(max-width:400px){.nav-button svg{display:none}.nav-button{font-size:11px}}
-/* With the 原页/听读 switch the PDF tools need tighter spacing to stay on one row on phones. */
+/* Leave room for the PDF tools on phones before wrapping them. */
 @media(max-width:420px){#reading-view .reader-tools{gap:1px}#reading-view .reader-tools .icon-button{width:28px;padding:5px}#reading-view .compare-launch{padding:6px 7px;margin-right:0}.read-mode{padding:2px}.read-mode button{padding:4px 7px}#reading-view .zoom-control select{width:80px;max-width:80px;padding:8px 2px}}
 @media(max-width:380px){#reading-view .reader-tools .icon-button{width:26px;padding:4px}.read-mode button{padding:4px 6px}#reading-view .compare-launch{padding:6px 5px}}
 @media(max-width:720px){.basics-grid.is-wide{grid-template-columns:minmax(0,1fr)}.basic-card .word-spelling{hyphens:auto}}

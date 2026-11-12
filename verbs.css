@@ -229,4 +229,5 @@
   .vb-answer-actions .vb-primary{flex:1}
   .vb-result-stats dd{font-size:26px}
 }
+@media(max-width:380px){.vb-rail{margin-inline:-13px;padding-inline:13px}}
 @media(prefers-reduced-motion:reduce){.vb-meter i,.vb-progress i,.vb-choice,.vb-chev svg{transition:none}}

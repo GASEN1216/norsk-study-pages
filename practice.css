@@ -492,7 +492,7 @@ body[data-view="practice"]:has(.pr-session-bar) .main{padding-top:16px}
   .pr-goal.is-week .pr-goal-sub{display:block;flex:1}
   .pr-goal-meter{display:none}
 }
-@media(max-width:420px){.pr-goal.is-week .pr-goal-sub{display:none}.pr-goal-meter{display:block}}
+@media(max-width:420px){.pr-goal.is-week .pr-goal-label{min-width:0;white-space:normal}.pr-goal.is-week .pr-goal-sub{display:none}.pr-goal-meter{display:block}}
 /* 2026-10-28 audit: on portrait tablets the five modes fill both rows (three, then two wider); the challenge strip keeps
    the week's goal readable; phone sheets keep their buttons clear of the home indicator. */
 @media(min-width:641px) and (max-width:900px){.pr-mode-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.pr-mode-grid>.pr-mode-card{grid-column:span 2}.pr-mode-grid>.pr-mode-card:nth-child(n+4){grid-column:span 3}}

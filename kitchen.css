@@ -223,6 +223,10 @@ button.kc-daily-dishes{padding:0;border:0;background:transparent;cursor:pointer;
 .kc-entry{position:relative;display:flex;align-items:center;gap:12px;padding:10px 4px;border-top:1px solid #efeee4}
 .kc-entry:first-child{border-top:0}
 .kc-entry-text{flex:1;min-width:0}
+.kc-shell.is-words .kc-tabs{flex-wrap:wrap}
+.kc-glossary .kc-entries{grid-template-columns:minmax(0,1fr)}
+.kc-glossary .kc-entry{cursor:pointer}
+.kc-glossary .kc-entry-text{overflow-wrap:anywhere}
 .kc-entry-text p:first-child .kc-no{font-size:17px;color:var(--kc-green)}
 .kc-forms{margin-left:8px;font-size:12.5px;color:var(--kc-muted);font-family:var(--serif,Georgia,serif)}
 .kc-entry-zh{font-size:13.5px;color:var(--kc-ink)}
