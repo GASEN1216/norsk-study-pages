@@ -251,7 +251,7 @@ export function createExam(deps = {}) {
     listening:['先做两个预测验（各 7 题），再做主测验（16 题）。主测验的难度按预测验的成绩分配，和真实考试一样。','每题的问题和录音自动播放两遍，播完有 12 秒作答时间，然后自动进入下一题。','答过的题不能回头。中途退出，回来时从这一题重新播放。','请戴好耳机，先点「试听」调好音量。'],
     reading:['先做两个预测验（各 7 题），再做主测验（16 题）。三部分一共 75 分钟。','同一部分里可以前后翻看、修改答案；进入下一部分后不能回到前一部分。','建议每个预测验不超过 15 分钟，把时间留给主测验。中途退出，计时会暂停。'],
     writing:['90 分钟写三篇：一条短消息、一段看图描述（约 50–80 词）、一篇熟悉话题的短文（80 词以上）。','三篇可以来回切换，草稿自动保存。字数只是参考，写多不扣分。','交卷后由 AI 按官方评分标准评分：看是否完成任务，以及结构、拼写和标点、词汇、语法，等级取最低的一项。'],
-    speaking:['四个任务：介绍自己、描述图片、和同伴交换信息、讲一个熟悉的话题，约 20 分钟。','考官的话会一句句播放。轮到你时开口说，说完点「说完了」。第 3 个任务由 AI 扮演同伴和你对话。','你说的话在这台设备上识别成文字，只把文字发给 AI 评分；发音不评。第一次要下载约 118 MB 的识别器。']
+    speaking:['四个任务：介绍自己、描述图片、和同伴交换信息、讲一个熟悉的话题，约 20 分钟。','考官的话会一句句播放。轮到你时开口说，说完点「说完了」。第 3 个任务由 AI 扮演同伴和你对话。','你说的话边说边识别成文字（录音只用来识别，不保存），文字交给 AI 评分；发音不评。']
   };
   function introMarkup() {
     const part = PARTS[partKey], run = active(), sets = ['writing','speaking'].includes(partKey);
@@ -651,9 +651,8 @@ export function createExam(deps = {}) {
     stopSound(); stopClock();
     partKey = key; ui.error = ''; ui.confirm = null; intro.set = null;
     screen = 'intro'; render('#ex-intro-title');
-    // The recogniser takes several seconds to start each time the page opens: when it is downloaded already, it
-    // starts now in the background, while the intro is read.
-    if (key === 'speaking') { import(`./dictation.mjs${suffix}`).then(module => module.load().then(() => module.warm())).catch(() => {}); return; }
+    // Whether the server writes speech down is asked now, while the intro is read.
+    if (key === 'speaking') { import(`./dictation.mjs${suffix}`).then(module => module.load().then(() => module.serverASR(deps.request))).catch(() => {}); return; }
     try { await loadPart(key); }
     catch { ui.error = '题目暂时无法载入，请检查网络后重试。'; render(); }
   }

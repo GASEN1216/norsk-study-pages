@@ -677,8 +677,10 @@ html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
 .pr-say .pr-button.pr-say-open{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:5px 15px 5px 11px;border:1px solid #eedccb;border-radius:999px;background:#fffaf4;box-shadow:none;color:#a85a36;font-size:13.5px;font-weight:500}
 .pr-say .pr-button.pr-say-open:hover{border-color:#e4c4a9;background:#fcf1e7}
 .pr-say-open svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.pr-say.is-passed .pr-say-mic{background:var(--pr-right-bg);color:var(--pr-right)}
-.pr-say.is-passed strong{color:var(--pr-right)}
+.pr-say.is-passed .pr-say-mic{background:var(--pr-soft);color:var(--pr-muted)}
+.pr-say.is-passed strong{font-weight:500;color:var(--pr-muted)}
+.pr-say.is-right .pr-say-mic{background:var(--pr-right-bg);color:var(--pr-right)}
+.pr-say.is-right strong{font-weight:600;color:var(--pr-right)}
 .pr-say.is-passed{animation:pr-say-in .3s ease-out}
 @keyframes pr-say-in{from{opacity:0;transform:translateY(3px)}}
 .pr-choice-grid .pr-choice{transition:opacity .25s ease,filter .25s ease}

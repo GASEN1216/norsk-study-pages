@@ -259,10 +259,7 @@ export function createInterview(deps = {}) {
     const mic = (extra = '') => `<span class="ai-answer-mic${extra}" aria-hidden="true">${icon('mic')}</span>`;
     const spinner = '<span class="ai-answer-spinner" aria-hidden="true"></span>';
     if (a.status === 'idle') return `<div class="ai-answer is-idle"><button type="button" class="ai-answer-start" data-interview="answer-start">${mic()}${label('开口回答','说完后 AI 告诉你答到没有、怎样说更自然')}</button></div>`;
-    if (a.status === 'loading') {
-      const p = a.progress, percent = p?.total ? Math.round(p.loaded/p.total*100) : 0;
-      return `<div class="ai-answer is-busy" role="status">${spinner}${p?.downloading ? label(`正在下载识别器 ${percent}%`,'只有第一次要下载，约 118 MB') : label('马上就好…')}</div>`;
-    }
+    if (a.status === 'loading') return `<div class="ai-answer is-busy" role="status">${spinner}${label('马上就好…')}</div>`;
     // What the recogniser writes is not shown while the learner speaks: it is often not quite what was said, and it
     // comes a moment late (2026-11-12). The ring shows that the page is hearing.
     if (a.status === 'recording') return `<div class="ai-answer is-live">${mic(' is-live')}${label('正在听你说','<b data-ai-answer-clock>0:00</b> · 停一会儿会自动结束')}<button type="button" class="ai-start-button ai-answer-done" data-interview="answer-done">说完了</button></div>`;
@@ -295,8 +292,9 @@ export function createInterview(deps = {}) {
   function closeRecorder() { resetAnswer(); recorder?.close(); recorder = null; }
   // The recogniser takes several seconds to start each time the page opens: once it is downloaded, it starts in the
   // background as soon as a practice begins, so 开口回答 rarely waits for it.
+  // The speech module and the server's answer to /ai/status come in while the first question is read.
   function warmRecogniser() {
-    import(versioned('./dictation.mjs')).then(module => { dictation ||= module; return module.load().then(() => module.warm()); }).catch(() => {});
+    import(versioned('./dictation.mjs')).then(module => { dictation ||= module; return module.load().then(() => module.serverASR(deps.request)); }).catch(() => {});
   }
   // Inside the tap: the microphone opens first (iOS opens audio only there), then the recogniser loads.
   async function startAnswer() {
@@ -309,12 +307,16 @@ export function createInterview(deps = {}) {
     try {
       dictation ||= await import(versioned('./dictation.mjs'));
       await dictation.load();
-      if (!dictation.supported()) { fail('这个浏览器用不了语音识别，可以换新版 Chrome、Edge 或 Safari。'); return; }
+      if (!dictation.supported()) { fail('这个浏览器用不了开口回答，可以换新版 Chrome、Edge 或 Safari。'); return; }
+      // The server writes speech down (dictation.mjs); without it there is nothing to grade.
+      if (!(await dictation.serverASR(deps.request))) { fail('开口回答暂时用不了（语音识别没有开启），请稍后再试。'); return; }
       if (!recorder) {
         const opened = await dictation.record({
           onText:text => { if (answer.status === 'recording') answer.text = text; },
           onLevel:level => { root?.querySelector('.ai-answer-mic')?.style.setProperty('--level',Math.min(1,level*14).toFixed(2)); },
-          onPause:seconds => { if (answer.status === 'recording' && seconds >= 3.2 && recorder?.stats.speech > .6) finishAnswer(); }
+          onPause:seconds => { if (answer.status === 'recording' && seconds >= 3.2 && recorder?.stats.speech > .6) finishAnswer(); },
+          // The server writes each stretch down as it comes (the question helps it spell what is said).
+          transcribe:dictation.serverTranscriber(deps.request,() => answer.question || card?.question?.id)
         });
         // Ended, moved on or went to the background while the browser asked for the microphone: close it again.
         if (run !== answerRun || !root) { opened.close(); return; }
@@ -322,16 +324,6 @@ export function createInterview(deps = {}) {
         recorder = opened;
       }
       recorder.hold();
-      // Downloaded already: the learner speaks at once and the recogniser catches up (dictation.mjs waits for it).
-      // Only the first time, with 118 MB to download, does the answer wait and show how far it is.
-      if (!dictation.isReady() && !(await dictation.cached())) {
-        const ready = await dictation.prepare(progress => { if (run === answerRun && answer.status === 'loading') { answer.progress = progress; updateAnswer(); } });
-        if (run !== answerRun) return;
-        if (!ready) { fail('识别器没有准备好，请检查网络后再试。'); return; }
-      } else {
-        dictation.prepare();
-        if (run !== answerRun) return;
-      }
       recorder.reset(); recorder.release();
       answer = {status:'recording',text:'',started:Date.now(),question:question.id};
       updateAnswer('[data-interview="answer-done"]');
@@ -350,9 +342,12 @@ export function createInterview(deps = {}) {
     clearInterval(answerTimer); answerTimer = null;
     answer = {status:'writing',text:answer.text};
     updateAnswer();
-    const {text} = await recorder.stop();
+    const {text,failed} = await recorder.stop();
     if (run !== answerRun) return;
-    if (!text.trim()) { answer = {status:'error',error:dictation.isReady() ? '没有听到你的回答。靠近麦克风，再试一次。' : '识别器没有准备好，请检查网络后再试。'}; updateAnswer(); return; }
+    if (!text.trim()) {
+      const error = failed ? '语音识别暂时没有回应，请稍后再试。' : '没有听到你的回答。靠近麦克风，再试一次。';
+      answer = {status:'error',error}; updateAnswer(); return;
+    }
     answer = {status:'grading',text,question:id};
     updateAnswer();
     grade(run);

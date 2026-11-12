@@ -1,31 +1,40 @@
 /* Free speech for 考试与面试 (docs/exam-interview-plan.md): the speaking test and the A-team interview record what
-   the learner says and write it down with the page's own recogniser (chase-speech.mjs, nb-whisper in a worker).
-   Whisper hears at most 6 s and needs about 2 s of silence after the last word, so the speech is cut into stretches
-   of at most 3.5 s at its pauses (createSegmenter, pure), and each stretch is transcribed in turn while the learner
-   goes on talking. The same pass measures what fluency needs: seconds spoken, long pauses. Nothing leaves the
-   device but the text. Loaded only when 考试与面试 asks for it; scripts/check_dictation.mjs runs the segmenter. */
+   the learner says and have it written down by the server (chase-speech.mjs → POST /ai/transcribe, Cloudflare's
+   Whisper; since 2026-11-12 nothing is recognised on the phone, which took many seconds to start). The speech is cut
+   into stretches of at most 8 s at its pauses (createSegmenter, pure), and each stretch is sent while the learner goes
+   on talking, so little is left to wait for when they finish. The same pass measures what fluency needs: seconds
+   spoken, long pauses. Loaded only when 考试与面试 asks for it; scripts/check_dictation.mjs runs the segmenter. */
 
-const suffix = new URL(import.meta.url).search;   // ?v=… : one recogniser module for the whole site
+const suffix = new URL(import.meta.url).search;   // ?v=… : one speech module for the whole site
 let speech = null;
 const loaded = import(`./chase-speech.mjs${suffix}`).then(module => (speech = module));
 
 export const load = () => loaded;
+/** A microphone and Web Audio are all that is needed on the page. */
 export const supported = () => Boolean(speech?.supported());
-export const isReady = () => Boolean(speech?.isReady());
-export const prepare = onProgress => loaded.then(module => module.prepare(onProgress));
-/** Whether the model is in this browser already (then preparing it needs no download, only a few seconds). */
-export const cached = () => loaded.then(module => module.cached()).catch(() => false);
-/** Start the recogniser in the background when it is downloaded already: it takes several seconds on a phone each
- *  time the page opens, and nobody should wait for that. Never starts the first 118 MB download. */
-export function warm() {
-  return loaded.then(module => module.isReady() || (module.supported() && module.cached().then(yes => yes && module.prepare()))).catch(() => false);
+/** Whether the community API writes speech down (GET /ai/status → asr). Asked once per request function. */
+const serverStatus = new WeakMap();
+export function serverASR(request) {
+  if (typeof request !== 'function') return Promise.resolve(false);
+  if (!serverStatus.has(request)) {
+    serverStatus.set(request,loaded.then(module => { module.useServer(request); return module.prepare(); }).catch(() => { serverStatus.delete(request); return false; }));
+  }
+  return serverStatus.get(request);
+}
+/** transcribe(samples, before) for record(): one stretch to the server. task() → the id of the task being answered
+ *  (the server builds Whisper's prompt from it), before = the answer's words so far. */
+export function serverTranscriber(request,task) {
+  return (samples,before) => loaded.then(module => { module.useServer(request); return module.transcribe(samples,{kind:'exam',task:task?.(),before}); }).then(out => out.text);
 }
 
 const RATE = 16000;
+// Stretches sent to the server may be longer: its Whisper hears 30 s, and longer stretches give it more of the
+// sentence, while shorter ones come back sooner.
+const RECORD_LONGEST = 8;
 export const SEGMENT = {
   voice: .015,          // a block louder than this (RMS) is speech
   gap: .55,             // a pause this long closes a stretch
-  longest: 3.5,         // a stretch never grows longer (the model's window minus the silence it needs)
+  longest: 3.5,         // a stretch never grows longer (record() allows RECORD_LONGEST)
   shortest: .3,         // stretches with less speech than this are breath and clicks, not words
   longPause: 2          // pauses this long count against fluency
 };
@@ -119,7 +128,11 @@ export const countWords = text => String(text || '').split(/\s+/).filter(word =>
 /** Ask for the microphone inside the learner's tap and start writing down what is said.
  *  onText(fullText) as pieces come in; onLevel(rms); onPause(seconds of silence after speech).
  *  Resolves to {stop(): Promise<{text, metrics}>, close(), hold(), release()}. Rejects with code 'denied'|'none'. */
-export async function record({onText,onLevel,onPause} = {}) {
+// transcribe(samples, before) writes each stretch down (serverTranscriber). A stretch that fails is lost (the answer
+// goes on); stop() says so when nothing at all was written down.
+export async function record({onText,onLevel,onPause,transcribe} = {}) {
+  const server = typeof transcribe === 'function';
+  let serverFailed = false;
   const module = speech || await loaded;
   const {context,stream} = await module.openInput();
   const rate = context.sampleRate;
@@ -135,23 +148,22 @@ export async function record({onText,onLevel,onPause} = {}) {
     context.close?.().catch(() => {});
     throw error;
   }
-  const pieces = [], queue = [];
-  let busy = false, held = false, closed = false, idle = null, generation = 0;
+  const pieces = [], inflight = new Set();
+  let held = false, closed = false, generation = 0;
   const text = () => pieces.filter(Boolean).join(' ').replace(/\s+([.,!?])/g,'$1').trim();
-  async function pump() {
-    if (busy || !queue.length) { if (!busy && !queue.length) idle?.(); return; }
-    busy = true;
-    const {samples,index,gen} = queue.shift();
-    let out = {text:''};
-    // Speech recorded while the recogniser was still starting waits for it here.
-    try { if (!module.isReady()) await module.prepare(); out = await module.transcribeAudio(samples,{bonus:0}); } catch {}
-    if (gen === generation) pieces[index] = cleanPiece(out.text);   // an answer started over drops older pieces
-    busy = false;
-    if (!closed) onText?.(text());
-    pump();
+  // Each stretch goes to the server as soon as it ends, while the next is still being said (a round trip takes a
+  // second or more); the pieces take their places by number, so the answer reads in order.
+  function write(samples,index,gen) {
+    if (!server) return;
+    const job = Promise.resolve().then(() => transcribe(samples,text())).then(out => out,() => { serverFailed = true; return ''; }).then(out => {
+      if (gen === generation) pieces[index] = cleanPiece(out);   // an answer started over drops older pieces
+      if (!closed) onText?.(text());
+    });
+    inflight.add(job);
+    job.finally(() => inflight.delete(job));
   }
   let count = 0;
-  const fresh = () => createSegmenter({onSegment:samples => { queue.push({samples,index:count++,gen:generation}); pump(); },onPause});
+  const fresh = () => createSegmenter({onSegment:samples => write(samples,count++,generation),onPause,options:{...SEGMENT,longest:RECORD_LONGEST}});
   let segmenter = fresh();
   const resample = block => {
     if (rate === RATE) return new Float32Array(block);
@@ -177,6 +189,8 @@ export async function record({onText,onLevel,onPause} = {}) {
   }
   return {
     get stats() { return segmenter.stats; },
+    /** Whether the server writes this recording down (record's transcribe). */
+    get server() { return server; },
     get text() { return text(); },
     /** The page is about to speak (a question, the partner): what the microphone hears is not the learner. */
     hold() { held = true; segmenter.flush(); },
@@ -186,23 +200,20 @@ export async function record({onText,onLevel,onPause} = {}) {
     async stop() {
       segmenter.flush();
       held = true;
-      // A recogniser that stopped answering (its worker died) must not keep the answer waiting: 20 s at most.
-      if (busy || queue.length) {
-        // The recogniser may still be starting (the learner could speak at once): wait for it first.
-        if (!module.isReady()) await module.prepare();
+      // The stretches still on their way: a server that stopped answering must not keep the answer waiting (20 s).
+      if (inflight.size) {
         let limit;
-        await Promise.race([new Promise(done => { idle = done; pump(); }),new Promise(done => { limit = setTimeout(done,20000); })]);
+        await Promise.race([Promise.all([...inflight]),new Promise(done => { limit = setTimeout(done,20000); })]);
         clearTimeout(limit);
       }
-      idle = null;
       const final = text(), stats = segmenter.stats, words = countWords(final);
       const metrics = {seconds:Math.round(stats.total),speechSeconds:Math.round(stats.speech*10)/10,words,
         wordsPerMinute:stats.speech >= 1 ? Math.round(words/(stats.total/60)) : 0,longPauses:stats.longPauses};
-      return {text:final,metrics};
+      return {text:final,metrics,failed:server && serverFailed && !final};
     },
     /** A new answer on the same microphone: forget what was heard. */
     reset() {
-      generation += 1; pieces.length = 0; queue.length = 0; count = 0;
+      generation += 1; pieces.length = 0; count = 0;
       segmenter = fresh();
       held = false;
     },

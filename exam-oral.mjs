@@ -19,36 +19,38 @@ export function createOral(ctx) {
   const task = () => list()[run().task];
   let dictation = null, recorder = null, closed = false, audio = null, audioRun = 0, timer = null, flowId = 0, opening = false, between = null;
   let view = {phase:'prepare',lines:0,speaking:null,text:'',level:0,error:'',partnerBusy:false,followup:-1,zh:false};
-  // downloaded: the model is in the browser already, so the test starts at once while the recogniser starts behind it.
-  let progress = null, recogniser = 'loading', downloaded = false;
+  // recogniser: 'loading' (asking the server), 'server' (it writes speech down), 'unavailable', 'unsupported'.
+  let recogniser = 'loading';
   // A step that waited (a recording, the transcript, the partner, a pause) goes on only in the flow that started it:
   // leaving the test, or the page going to the background, starts a new flow.
   const live = id => !closed && id === flowId;
 
   /* ----- recogniser and microphone ----- */
   const loaded = import(`./dictation.mjs${suffix}`).then(module => module.load().then(() => (dictation = module)));
+  // The community API writes speech down (/ai/status → asr): nothing starts on the phone, so the test can begin at once.
   function prepareRecogniser() {
     loaded.then(module => {
       if (!module.supported()) { recogniser = 'unsupported'; draw(); return; }
-      module.cached().then(yes => { downloaded = yes; if (!closed && ['prepare','waiting'].includes(view.phase)) { showProgress(); if (yes && view.phase === 'waiting') beginTask(); } });
-      module.prepare(p => { progress = p; showProgress(); }).then(ok => {
-        recogniser = ok ? 'ready' : 'failed';
-        if (closed) return;
-        if (ok && view.phase === 'waiting') { beginTask(); return; }
-        // Waiting with the microphone open for a recogniser that failed: close it and offer 再试一次.
-        if (!ok && view.phase === 'waiting') { recorder?.close(); recorder = null; view.phase = 'prepare'; }
-        draw();
+      return module.serverASR(deps.request).then(server => {
+        recogniser = server ? 'server' : 'unavailable';
+        if (!closed && view.phase === 'prepare') draw();
       });
-    }).catch(() => { recogniser = 'failed'; draw(); });
+    }).catch(() => { recogniser = 'unavailable'; draw(); });
   }
   async function openMic() {
     if (opening || recorder || closed) return;
-    // A failed recogniser (no network) gets another try with this tap.
-    if (recogniser === 'failed') { recogniser = 'loading'; progress = null; prepareRecogniser(); }
+    // Not available a moment ago (no network): this tap asks again.
+    if (recogniser !== 'server') {
+      const module = dictation || await loaded.catch(() => null);
+      recogniser = module?.supported() ? (await module.serverASR(deps.request) ? 'server' : 'unavailable') : 'unsupported';
+      if (recogniser !== 'server') { draw(); return; }
+    }
     view.error = ''; opening = true; draw();
     try {
       const module = dictation || await loaded;
       const opened = await module.record({
+        // The server writes each stretch down as it comes; the task helps it spell what is said.
+        transcribe:module.serverTranscriber(deps.request,() => task()?.id),
         onText:text => { view.text = text; const box = root.querySelector('[data-oral-text]'); if (box) box.textContent = text || '…'; },
         onLevel:level => { view.level = level; const ring = root.querySelector('.ex-oral-mic'); if (ring) ring.style.setProperty('--level',Math.min(1,level*14).toFixed(2)); },
         onPause:seconds => { if (view.speaking?.endOnPause && seconds >= view.speaking.endOnPause && view.speaking.heard !== false) finishSpeaking(); }
@@ -58,8 +60,7 @@ export function createOral(ctx) {
       if (closed || document.hidden) { opened.close(); draw(); return; }
       recorder = opened;
       recorder.hold();
-      // Speech recorded while the recogniser still starts is written down once it is ready (dictation.mjs).
-      if (recogniser === 'ready' || (downloaded && recogniser === 'loading')) beginTask(); else { view.phase = 'waiting'; draw(); }
+      beginTask();
     } catch (error) {
       opening = false;
       view.error = error?.code === 'denied' ? '麦克风没有打开。请在浏览器设置里允许使用麦克风，再点一次。' : error?.code === 'none' ? '没有找到麦克风。' : '麦克风暂时打不开，请再试一次。';
@@ -219,20 +220,16 @@ export function createOral(ctx) {
   /* ----- drawing ----- */
   const clockText = seconds => `${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
   function stateText() {
-    const p = progress, percent = p?.total ? Math.round(p.loaded/p.total*100) : 0;
-    return recogniser === 'ready' || (downloaded && recogniser === 'loading') ? '准备好了，可以开始。' : recogniser === 'unsupported' ? '这个浏览器用不了语音识别，请换新版 Chrome、Edge 或 Safari。' : recogniser === 'failed' ? '识别器没有准备好，请检查网络后再点一次。' : p?.downloading ? `正在下载识别器 ${percent}%（第一次约 118 MB，之后不用再下）` : '识别器准备中…';
-  }
-  function showProgress() {
-    const line = root?.querySelector('.ex-oral-state');
-    if (line && !closed) line.textContent = stateText(); else draw();
+    return recogniser === 'server' ? '准备好了，可以开始。' : recogniser === 'unsupported' ? '这个浏览器用不了录音，请换新版 Chrome、Edge 或 Safari。'
+      : recogniser === 'unavailable' ? '语音识别暂时没有开启，口语考试先做不了。请稍后再试。' : '马上就好…';
   }
   function prepareMarkup() {
-    const label = opening ? '正在打开麦克风…' : recogniser === 'failed' ? '再试一次' : '打开麦克风，开始考试';
+    const label = opening ? '正在打开麦克风…' : recogniser === 'unavailable' ? '再试一次' : '打开麦克风，开始考试';
     return `<div class="ex-oral-card"><span class="ex-part-icon is-large">${icon('speaking')}</span><h2 tabindex="-1">口语 · 第 ${run().set} 套</h2>
-      <p class="ex-oral-note">考试时你说的话会在这台设备上识别成文字，最后连同说话时长一起交给 AI 评分。请找一个安静的地方，最好戴耳机。</p>
-      <p class="ex-oral-state${recogniser === 'ready' || (downloaded && recogniser === 'loading') ? ' is-ready' : ''}" role="status">${stateText()}</p>
+      <p class="ex-oral-note">你说的话会边说边识别成文字，最后连同说话时长一起交给 AI 评分；录音只用来识别，不会保存。请找一个安静的地方，最好戴耳机。</p>
+      <p class="ex-oral-state${recogniser === 'server' ? ' is-ready' : ''}" role="status">${stateText()}</p>
       ${view.error ? `<p class="ex-error" role="alert">${e(view.error)}</p>` : ''}
-      ${view.phase === 'waiting' ? '<p class="ex-oral-note">麦克风已打开，识别器准备好就开始。</p>' : `<button type="button" class="ex-primary" data-oral="mic"${recogniser === 'unsupported' || opening ? ' disabled' : ''}>${icon('speaking')}${label}</button>`}
+      <button type="button" class="ex-primary" data-oral="mic"${recogniser === 'unsupported' || opening ? ' disabled' : ''}>${icon('speaking')}${label}</button>
       ${run().task ? `<p class="ex-oral-note">从任务 ${run().task+1} 接着考，这个任务会从头开始。</p>` : ''}</div>`;
   }
   function examinerMarkup(current) {
@@ -246,7 +243,6 @@ export function createOral(ctx) {
     return `<div class="ex-oral-speak${recording ? ' is-live' : ''}">
       <span class="ex-oral-mic" aria-hidden="true">${icon('speaking')}</span>
       <div class="ex-oral-meta"><strong>${recording ? '请说' : view.phase === 'writing' ? '正在整理文字…' : ''}</strong><span><b data-oral-clock>${clockText(seconds)}</b>${goal ? ` · ${goal}` : ''}</span></div>
-      <p class="ex-oral-text" data-oral-text lang="nb" aria-live="polite">${e(view.text) || '…'}</p>
       ${recording ? `<button type="button" class="ex-primary" data-oral="done">说完了</button>` : ''}
     </div>`;
   }
@@ -272,8 +268,8 @@ export function createOral(ctx) {
   }
   function draw() {
     if (closed || !root) return;
-    document.body?.classList.toggle('practice-focus',!['prepare','waiting'].includes(view.phase));
-    const prepare = ['prepare','waiting'].includes(view.phase);
+    document.body?.classList.toggle('practice-focus',view.phase !== 'prepare');
+    const prepare = view.phase === 'prepare';
     root.innerHTML = `<section class="ex-app ex-oral">${prepare ? `<div class="ex-bar"><button type="button" class="ex-exit" data-oral="exit">${icon('close')}<span>退出</span></button></div>${prepareMarkup()}` : view.phase === 'between' ? `<div class="ex-oral-card"><p class="ex-oral-note">进入下一个任务…</p></div>` : taskMarkup()}</section>`;
   }
 

@@ -1,24 +1,13 @@
-/* 警察抓小偷's 朗读 mode: the player reads the text aloud instead of typing it. Loaded by chase.js only when 朗读 is chosen.
-   The recogniser is the page's own (dist/asr: nb-whisper-base, built by scripts/build_asr.py, run by transformers.js
-   in a worker): browsers' built-in recognition mostly fails in China (Google) or ignores Norwegian.
-   While the player reads, the audio since the words last heard (a second or two) is transcribed whenever the model is
-   free, and the transcript is matched against the words still to read (matchWords). Words should light up as they are
-   said (user, 2026-11-11: 即时). What that took, measured with the textbook recordings played as the microphone:
-   a word used to light up 0.6 s after it was said on a 2025 laptop (2 s and more at a phone's speed), and names at a
-   sentence's end only with the next sentence. Now the microphone hands over 64 ms blocks, a pass encodes the audio
-   plus 3 s of silence instead of a fixed 6 s, ends a text that repeats itself, leans towards the words expected next
-   (asr-worker.js), and the matcher passes names, numbers and a single misheard word without waiting (matchWords):
-   about 0.4 s on that laptop. The model itself is the limit: nb-whisper-tiny is twice as quick but misses too much
-   (13 of 162 words of the recordings against 5), and a Whisper pass cannot be made incremental.
+/* Speech for the whole site: 警察抓小偷's 朗读 (chase.js), 听音选义's 跟读 (practice-speak.mjs) and 考试与面试's dictation
+   (dictation.mjs) all hear the learner through this module.
+   Since 2026-11-12 the words are written down by the community API (POST /ai/transcribe → Cloudflare's Whisper
+   large-v3 turbo), not by a model on the phone: that one (nb-whisper-base, 118 MB) took many seconds to start on every
+   page load and was not exact. The microphone's audio is cut at the speaker's pauses into short stretches (16 kHz),
+   each goes to the server as a WAV, and its transcript is matched against the words expected (matchWords). A word
+   lights up a second or two after the pause that ends it; the underline answers the voice at once (chase.js).
    Nothing here touches the page at load; the pure matcher is exercised by scripts/check_chase_speech.mjs. */
 
-export const MODEL = 'nb-whisper-base-6s-2';   // scripts/build_asr.py's MODEL (the folder in dist/asr)
-const WINDOW_SECONDS = 4;            // the most a pass hears: a reader who is stuck on a word is heard as quickly
-                                     // as one who reads on (the encoder takes up to 6 s)
-const OVERLAP_SECONDS = 1;           // after words are matched, audio before this much ahead of that moment is dropped
-const STEP_SECONDS = .2;             // a new pass needs at least this much new audio
 const VOICE_RMS = .02;               // a block louder than this is someone speaking
-const VOICE_HOLD = 1.6;              // passes run until this long after the last voice
 
 /* ---------- Matching (pure) ---------- */
 
@@ -131,81 +120,57 @@ export function matchWords(want,heardText,before = []) {
   return {count:k,skipped};
 }
 
-/* ---------- The recogniser (worker) ---------- */
+/* ---------- The recogniser: the community API's speech to text ---------- */
 
-const base = new URL('./asr/',import.meta.url);
-const recogniser = {worker:null,ready:false,loading:null,files:{},listeners:new Set(),runs:new Map(),seq:0,loadMs:0};
+const RATE = 16000;
+const PAUSE_SECONDS = .35;           // a pause this long ends a stretch of speech
+const STRETCH_SECONDS = 4;           // a stretch never grows longer: someone reading on still sees words come
+const SHORTEST_SECONDS = .25;        // less voice than this is a click or a breath, not a word
+const PAD_SECONDS = .15;             // a little of the quiet before and after the voice goes along (word edges)
+const server = {request:null,status:null,ready:false};
 
-function onWorker({data}) {
-  if (data.type === 'progress') {
-    const p = data.p || {};
-    if (p.file && p.total) recogniser.files[p.file] = {loaded:p.loaded || 0,total:p.total};
-    if (p.status === 'done' && p.file && recogniser.files[p.file]) recogniser.files[p.file].loaded = recogniser.files[p.file].total;
-    const list = Object.values(recogniser.files), loaded = list.reduce((a,f) => a+f.loaded,0), total = list.reduce((a,f) => a+f.total,0);
-    for (const listen of recogniser.listeners) listen({loaded,total,downloading:list.some(f => f.total > 5e6) && loaded < total});
-  } else if (data.type === 'loaded' || data.type === 'error') {
-    recogniser.done?.(data);
-  } else if (data.type === 'text') {
-    const done = recogniser.runs.get(data.id);
-    recogniser.runs.delete(data.id);
-    done?.(data);
-  }
+/** The community API's request function (community.js, through chase.js, practice.js and 考试与面试). Speech is written
+ *  down only when GET /ai/status says asr. */
+export function useServer(request) {
+  if (typeof request !== 'function' || request === server.request) return;
+  Object.assign(server,{request,status:null,ready:false});
 }
-/** Whether this browser can run the recogniser at all. */
+/** A microphone and Web Audio are all that is needed on the page. */
 export function supported() {
-  return typeof Worker === 'function' && typeof WebAssembly === 'object' && Boolean(navigator.mediaDevices?.getUserMedia)
-    && Boolean(window.AudioContext || window.webkitAudioContext) && typeof caches === 'object';
+  return typeof navigator === 'object' && Boolean(navigator.mediaDevices?.getUserMedia) && typeof window === 'object'
+    && Boolean(window.AudioContext || window.webkitAudioContext);
 }
-/** Whether the model is already in this browser's cache (then preparing it needs no download). */
-export async function cached() {
-  try {
-    const keys = await (await caches.open('transformers-cache')).keys();
-    return keys.some(request => request.url.includes(`/${MODEL}/onnx/decoder`));
-  } catch { return false; }
+export const isReady = () => server.ready;
+/** Whether speech can be written down now (asks the server once). Resolves true or false; never downloads anything. */
+export function prepare() {
+  if (!server.request) return Promise.resolve(false);
+  server.status ||= Promise.resolve().then(() => server.request('/ai/status',{timeout:8000}))
+    .then(reply => (server.ready = Boolean(reply?.asr))).catch(() => { server.status = null; return false; });
+  return server.status;
 }
-export const isReady = () => recogniser.ready;
-/** Download (first time) and start the model. onProgress({loaded,total,downloading}) while files come in.
- *  Several callers share one load. Resolves true when ready, false on failure. */
-export function prepare(onProgress) {
-  if (onProgress) recogniser.listeners.add(onProgress);
-  if (recogniser.ready) return Promise.resolve(true);
-  recogniser.loading ||= (async () => {
-    try {
-      if (!supported()) return false;
-      recogniser.worker ||= new Worker(new URL('runtime/asr-worker.js?v=3',base),{type:'module'});
-      recogniser.worker.onmessage = onWorker;
-      recogniser.worker.onerror = event => recogniser.done?.({type:'error',message:event.message || 'worker'});
-      // Test models of other windows (the 2026-11 phone trials) and the first release's encoder (a fixed 6 s window,
-      // replaced by encoder_model_uint8) are dead weight in the cache.
-      try {
-        const cache = await caches.open('transformers-cache');
-        await Promise.all((await cache.keys()).filter(r => /\/asr\/nb-whisper-/.test(r.url) && (!r.url.includes(`/${MODEL}/`) || r.url.includes('/encoder_model_quantized.onnx'))).map(r => cache.delete(r)));
-      } catch {}
-      const reply = await new Promise(done => { recogniser.done = done; recogniser.worker.postMessage({type:'load',model:MODEL}); });
-      recogniser.done = null;
-      if (reply.type !== 'loaded') { console.warn('朗读识别没有准备好',reply.message); return false; }
-      recogniser.loadMs = reply.ms;
-      recogniser.ready = true;
-      return true;
-    } catch (error) {
-      console.warn('朗读识别没有准备好',error);
-      return false;
-    } finally {
-      recogniser.loading = null;
-    }
-  })();
-  return recogniser.loading.finally(() => { if (onProgress) recogniser.listeners.delete(onProgress); });
+/** 16 kHz float samples → a 16-bit mono PCM WAV, base64 (what /ai/transcribe takes). */
+export function wavBase64(samples) {
+  const view = new DataView(new ArrayBuffer(44+samples.length*2));
+  const tag = (at,text) => { for (let i = 0; i < 4; i++) view.setUint8(at+i,text.charCodeAt(i)); };
+  tag(0,'RIFF'); view.setUint32(4,36+samples.length*2,true); tag(8,'WAVE');
+  tag(12,'fmt '); view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,RATE,true); view.setUint32(28,RATE*2,true); view.setUint16(32,2,true); view.setUint16(34,16,true);
+  tag(36,'data'); view.setUint32(40,samples.length*2,true);
+  for (let i = 0; i < samples.length; i++) { const v = Math.max(-1,Math.min(1,samples[i])); view.setInt16(44+i*2,v < 0 ? v*0x8000 : v*0x7fff,true); }
+  const bytes = new Uint8Array(view.buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+  return btoa(binary);
 }
-// expect: the words of the text the reader is about to say (the worker leans towards them a little).
-function transcribe(audio,expect,options) {
-  const id = ++recogniser.seq;
-  return new Promise(done => { recogniser.runs.set(id,done); recogniser.worker.postMessage({type:'run',id,audio,expect,...(options ? {options} : {})},[audio.buffer]); });
-}
-/** One stretch of free speech (16 kHz samples, at most about 3.5 s so the model still hears 2 s of silence after it),
- *  for 考试与面试's dictation (dictation.mjs). Resolves {text, ms}; '' when the recogniser is not ready. */
-export function transcribeAudio(audio,options) {
-  if (!recogniser.ready) return Promise.resolve({text:'',ms:0});
-  return transcribe(audio,[],options);
+/** One stretch of speech written down: {text, ms}. kind: 'read' (朗读), 'word' (跟读) or 'exam' (考试与面试's own
+ *  allowance); hint: words the speaker is about to say; task, before: see /ai/transcribe. Rejects when it fails. */
+export async function transcribe(samples,{kind = 'exam',hint = [],task,before} = {}) {
+  if (!server.request) throw new Error('no server');
+  const started = performance.now();
+  const words = (hint || []).map(word => String(word || '').trim()).filter(Boolean).join(' ').slice(0,200);
+  const reply = await server.request('/ai/transcribe',{method:'POST',timeout:20000,body:{audio:wavBase64(samples),kind,
+    ...(words ? {hint:words} : {}),...(task ? {task} : {}),...(before ? {before:String(before).slice(-300)} : {})}});
+  return {text:String(reply?.text || ''),ms:Math.round(performance.now()-started)};
 }
 
 /* ---------- The microphone ---------- */
@@ -234,82 +199,92 @@ export async function openInput() {
   return {context,stream};
 }
 
+// The speech of a listener, cut at pauses. Each stretch goes to the server as soon as it ends (they travel side by
+// side: a round trip takes a second or more), and their transcripts are reported in the order they were said. What
+// was heard before hold() or cut() is never reported.
 function listener(context,stream) {
-  const rate = context.sampleRate, source = context.createMediaStreamSource(stream);
-  // Blocks of about 50 ms (a 16 kHz context gives 64 ms): what was said reaches the recogniser without waiting.
-  const processor = context.createScriptProcessor(rate <= 24000 ? 1024 : 2048,1,1), mute = context.createGain();
-  mute.gain.value = 0;
-  source.connect(processor);
-  processor.connect(mute);
-  mute.connect(context.destination);
-  // Audio is kept as 16 kHz samples since the last cut, at most a window and a half (older audio is never needed).
-  const keep = Math.round(WINDOW_SECONDS*1.5*16000);
-  let samples = new Float32Array(0), heardTo = 0, ranTo = 0, voiceAt = -Infinity, total = 0;
-  let on = false, closed = false, busy = false, held = false, onText = null, onLevel = null, expected = null, timer = 0;
-  const stats = {passes:0,ms:0,slowest:0};
+  const rate = context.sampleRate;
+  let source, processor, mute;
+  try {
+    source = context.createMediaStreamSource(stream);
+    // Blocks of about 64 ms at 16 kHz: the level answers the voice at once.
+    processor = context.createScriptProcessor(rate <= 24000 ? 1024 : 2048,1,1); mute = context.createGain();
+    mute.gain.value = 0;
+    source.connect(processor); processor.connect(mute); mute.connect(context.destination);
+  } catch (error) {
+    stream.getTracks().forEach(track => track.stop());
+    context.close?.().catch(() => {});
+    throw error;
+  }
+  let on = false, closed = false, held = false, onText = null, onLevel = null, expected = null, kind = 'read', gen = 0;
+  let parts = [], length = 0, voiced = 0, quiet = 0, lead = [], total = 0, queue = Promise.resolve();
+  const stats = {passes:0,ms:0,slowest:0,failed:0};
   const resample = block => {
-    if (rate === 16000) return new Float32Array(block);
-    const out = new Float32Array(Math.floor(block.length*16000/rate)), step = rate/16000;
+    if (rate === RATE) return new Float32Array(block);
+    const out = new Float32Array(Math.floor(block.length*RATE/rate)), step = rate/RATE;
     for (let i = 0; i < out.length; i++) { const x = i*step, j = Math.floor(x), f = x-j; out[i] = block[j]*(1-f)+(block[j+1] ?? block[j])*f; }
     return out;
   };
+  const drop = () => { parts = []; length = 0; voiced = 0; quiet = 0; lead = []; };
+  function send() {
+    const samples = new Float32Array(length);
+    let at = 0;
+    for (const part of parts) { samples.set(part,at); at += part.length; }
+    const enough = voiced >= SHORTEST_SECONDS, mine = gen, end = total/RATE;
+    drop();
+    if (!enough || !onText || !server.ready) return;
+    let hint = [];
+    try { hint = expected?.() || []; } catch {}
+    const job = transcribe(samples,{kind,hint});
+    job.catch(() => {});
+    queue = queue.then(() => job).then(out => {
+      if (!out || closed || mine !== gen) return;
+      stats.passes++; stats.ms += out.ms; stats.slowest = Math.max(stats.slowest,out.ms);
+      if (out.text) onText?.(out.text,{ms:out.ms,at:end,hint});
+    },() => { stats.failed++; });
+  }
   processor.onaudioprocess = event => {
-    if (!on || held) return;
+    if (!on || held || closed) return;
     const block = event.inputBuffer.getChannelData(0);
     let sum = 0;
     for (const v of block) sum += v*v;
-    const level = Math.sqrt(sum/block.length);
-    const fresh = resample(block);
+    const level = Math.sqrt(sum/block.length), fresh = resample(block), seconds = fresh.length/RATE;
     total += fresh.length;
-    if (level > VOICE_RMS) voiceAt = total/16000;
-    const next = new Float32Array(Math.min(keep,samples.length+fresh.length));
-    const from = samples.length+fresh.length-next.length;
-    next.set(samples.subarray(Math.max(0,from)),0);
-    next.set(fresh,next.length-fresh.length);
-    samples = next;
     onLevel?.(level);
-  };
-  const now = () => total/16000;
-  async function pump() {
-    timer = 0;
-    if (!on || closed || busy) return;
-    const t = now();
-    if (recogniser.ready && !held && t-voiceAt <= VOICE_HOLD && t-ranTo >= STEP_SECONDS && samples.length > 4800) {
-      busy = true;
-      ranTo = t;
-      // The last WINDOW_SECONDS, but nothing from before the last cut (words already read).
-      const want = Math.min(samples.length,Math.round(WINDOW_SECONDS*16000),Math.max(4800,Math.round((t-heardTo)*16000)));
-      const audio = samples.slice(samples.length-want);
-      let expect = [];
-      try { expect = expected?.() || []; } catch {}
-      const out = await transcribe(audio,expect);
-      busy = false;
-      stats.passes++;
-      stats.ms += out.ms;
-      stats.slowest = Math.max(stats.slowest,out.ms);
-      if (on && !closed && !held && out.text) onText?.(out.text,{ms:out.ms,at:t});
+    if (level > VOICE_RMS) {
+      if (!length) { for (const piece of lead) { parts.push(piece); length += piece.length; } lead = []; }
+      parts.push(fresh); length += fresh.length; voiced += seconds; quiet = 0;
+      if (length/RATE >= STRETCH_SECONDS) send();
+      return;
     }
-    if (on && !closed) timer = setTimeout(pump,30);
-  }
+    if (length) {
+      parts.push(fresh); length += fresh.length; quiet += seconds;
+      if (quiet >= PAUSE_SECONDS) send();
+      return;
+    }
+    // Before any voice: keep the last moment of quiet, so the first sound of a word is not cut off.
+    lead.push(fresh);
+    while (lead.reduce((sum,piece) => sum+piece.length,0) > PAD_SECONDS*RATE && lead.length > 1) lead.shift();
+  };
   return {
     stats,
-    /** Begin listening: onText(text,{ms,at}) for each transcript, onLevel(rms) for each block (about 16 a second),
-     *  expect() → the words of the text the reader is about to say, asked before each pass. */
-    start(textHandler,levelHandler,expect) { onText = textHandler; onLevel = levelHandler; expected = expect || null; on = true; context.resume?.().catch(() => {}); if (!timer) timer = setTimeout(pump,30); },
-    /** Stop hearing (pause): what was heard so far is dropped. */
-    pause() { on = false; samples = new Float32Array(0); heardTo = ranTo = now(); clearTimeout(timer); timer = 0; },
-    resume() { if (closed) return; on = true; context.resume?.().catch(() => {}); if (!timer) timer = setTimeout(pump,30); },
-    /** Words were matched in the transcript of audio heard up to `at`: later passes start a little before that. */
-    mark(at) { heardTo = Math.max(heardTo,at-OVERLAP_SECONDS); },
-    /** A word was passed by hand: later passes hear only what comes after now. */
-    cut() { heardTo = ranTo = now(); },
-    /** The page itself is about to make a sound (a word's reading): nothing is heard until release(). */
-    hold() { held = true; samples = new Float32Array(0); },
-    release() { if (!held) return; held = false; samples = new Float32Array(0); heardTo = ranTo = now(); voiceAt = -Infinity; },
+    /** Begin listening: onText(text,{ms,at,hint}) for each stretch written down (none when onText is null: then only the
+     *  level is heard), onLevel(rms) for each block (about 16 a second), expect() → words the speaker is about to say.
+     *  kind: whose allowance it counts against on the server ('read' for 朗读, 'word' for 跟读). */
+    start(textHandler,levelHandler,expect,use = 'read') { onText = textHandler; onLevel = levelHandler; expected = expect || null; kind = use; on = true; context.resume?.().catch(() => {}); },
+    /** Stop hearing: a stretch under way is sent if it holds a word, then nothing more until resume(). */
+    pause() { if (length) send(); on = false; },
+    resume() { if (closed) return; on = true; context.resume?.().catch(() => {}); },
+    /** Words were matched up to `at`: nothing to do since stretches never overlap (kept for chase.js). */
+    mark() {},
+    /** A word was passed by hand: what was heard so far, and transcripts still on their way, are dropped. */
+    cut() { gen++; drop(); },
+    /** The page itself is about to make a sound (a word's reading): nothing is heard, or reported, until release(). */
+    hold() { held = true; gen++; drop(); },
+    release() { if (!held) return; held = false; gen++; drop(); },
     close() {
       closed = true;
       on = false;
-      clearTimeout(timer);
       try { processor.disconnect(); source.disconnect(); mute.disconnect(); } catch {}
       stream.getTracks().forEach(track => track.stop());
       context.close?.().catch(() => {});

@@ -1254,7 +1254,7 @@
       else ui.prefs[key] = Number.isNaN(number) ? value : number;
       if (key === 'look') ui.prefs.lookPicked = true;
       savePrefs();
-      // Choosing 朗读 starts getting the recogniser at once (a download the first time; the setup page says so).
+      // Choosing 朗读 asks the server at once whether it writes speech down (the setup page says so).
       if (key === 'input' && value === 'read') void prepareSpeech();
       // (the picture's look is mine alone, never the room's)
       if (ui.view === 'room' && key !== 'look') pushRoomSettings();
@@ -2341,21 +2341,25 @@
   }
 
   /* ---------- 朗读: reading the text aloud ---------- */
-  // The recogniser (chase-speech.mjs + dist/asr) loads only for 朗读. Its state for the setup page and the loading screen:
-  // 'unknown' (not looked yet), 'unsupported', 'idle' (not downloaded), 'loading' (downloading or starting), 'ready', 'failed'.
+  // What is read is written down by the community API (chase-speech.mjs → /ai/transcribe; nothing to download, nothing
+  // starts on the phone). Its state for the setup page and the loading screen: 'unknown' (not asked yet),
+  // 'unsupported' (no microphone in this browser), 'loading' (asking the server), 'ready', 'failed' (not available now).
   const speechOf = () => ui.speech;
   function loadSpeech() {
-    ui.speechLoad ||= import(versioned('./chase-speech.mjs')).then(module => (ui.speech = module)).catch(error => { ui.speechLoad = null; throw error; });
+    ui.speechLoad ||= import(versioned('./chase-speech.mjs')).then(module => {
+      module.useServer((path,options) => Promise.resolve(ui.opts.community?.()).then(community => {
+        if (!community?.request) throw new Error('no community');
+        return community.request(path,options);
+      }));
+      return (ui.speech = module);
+    }).catch(error => { ui.speechLoad = null; throw error; });
     return ui.speechLoad;
   }
   function readState() {
     const r = ui.reading || {status:'unknown'};
     if (r.status === 'unsupported') return tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。');
-    if (r.status === 'failed') return tx('语音识别没有准备好，请检查网络后再试。');
-    // (the page becomes cross-origin isolated from the load after isolate-sw.js took over; the recogniser then has threads)
-    if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。')+(document.documentElement.dataset.isolate === 'next' && navigator.serviceWorker?.controller ? tx('刷新一次页面，识别会更快。') : '');
-    if (r.status === 'loading') return r.total && r.loaded < r.total ? tx('正在下载语音识别 {loaded} / {total} MB…',{loaded:Math.round(r.loaded/1e6),total:Math.round(r.total/1e6)}) : tx('正在准备语音识别…');
-    if (r.status === 'idle') return tx('第一次要下载语音识别（约 120 MB，建议用 Wi-Fi），之后存在这台设备上。');
+    if (r.status === 'failed') return tx('语音识别暂时用不了，请稍后再试。');
+    if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。');
     return tx('正在检查语音识别…');
   }
   function showReadState() {
@@ -2364,26 +2368,18 @@
     const loading = $('#pc-loading');
     if (loading && ui.view === 'game' && ui.reading?.status === 'loading') loading.textContent = readState();
   }
-  // On the setup page with 朗读 chosen: find out whether the model is here (then start it: no download, only a few seconds).
+  // On the setup page with 朗读 chosen: ask the server whether it writes speech down (a moment, nothing to download).
   async function checkSpeech() {
     if (ui.reading && ui.reading.status !== 'unknown' && ui.reading.status !== 'failed') return;
-    ui.reading = {status:'unknown'};
-    try {
-      const speech = await loadSpeech();
-      if (!speech.supported()) { ui.reading = {status:'unsupported'}; showReadState(); return; }
-      if (speech.isReady()) { ui.reading = {status:'ready'}; showReadState(); return; }
-      ui.reading = {status:'idle'};
-      showReadState();
-      if (await speech.cached()) void prepareSpeech();
-    } catch { ui.reading = {status:'failed'}; showReadState(); }
+    await prepareSpeech();
   }
-  // Download (once) and start the recogniser. Resolves true when it can listen.
+  // Resolves true when what is read can be written down.
   async function prepareSpeech() {
     try {
       const speech = await loadSpeech();
       if (!speech.supported()) { ui.reading = {status:'unsupported'}; showReadState(); return false; }
-      if (!speech.isReady()) { ui.reading = {status:'loading',loaded:0,total:0}; showReadState(); }
-      const ok = await speech.prepare(({loaded,total}) => { ui.reading = {status:'loading',loaded,total}; showReadState(); });
+      if (!speech.isReady()) { ui.reading = {status:'loading'}; showReadState(); }
+      const ok = await speech.prepare();
       ui.reading = {status:ok ? 'ready' : 'failed'};
       showReadState();
       return ok;
@@ -2452,9 +2448,7 @@
     const words = game.text.words.slice(from,from+12);
     // Proper nouns (the reader lexicon's 专名, or capitalised inside a sentence) may be spelt any way by the recogniser.
     const want = words.map(word => ({text:word.text,soft:Boolean(word.name) || (word.start > 0 && /^\p{Lu}/u.test(word.text))}));
-    const heard = $('#pc-heard');
-    if (heard) { heard.textContent = tx('听到：{text}',{text}); heard.lang = 'nb'; }
-    // (the words just read come along: the recogniser hears the last second again, see matchWords)
+    // (what the server wrote is never shown: it is often not quite what was said)
     const {count,skipped} = speech.matchWords(want,text,game.text.words.slice(Math.max(0,from-6),from).map(word => word.text));
     ui.heardAt = performance.now();
     if (!count) return;
@@ -2768,7 +2762,7 @@
     const minutes = Math.max(now,1)/60000;
     const typed = typedSentences(game,me);
     // `synced` turns true once the server has the game (my average speed and its XP).
-    // A reading game keeps how many words were passed by hand and how long a recognition took (its letters are already
+    // A reading game keeps how many words were passed by hand and how long writing a stretch down took (its letters are already
     // WORD_STEP a word, see readWord); it has no accuracy.
     const stats = ui.mic?.stats, read = game.read ? {input:'read'} : {};
     const heard = game.read ? {passed:me.read.passed,heardMs:stats?.passes ? Math.round(stats.ms/stats.passes) : 0} : {};
