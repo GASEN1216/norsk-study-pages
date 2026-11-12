@@ -1,0 +1,48 @@
+{
+  "set": 3,
+  "tasks": [
+    {
+      "id": "W3-1",
+      "kind": "melding",
+      "prompt": {
+        "nb": "Du skal male soverommet ditt i helgen, og du trenger en stige. Naboen din, Bjørn, har en stige. Skriv en melding til Bjørn.",
+        "zh": "这个周末你要粉刷卧室，需要一把梯子。你的邻居比约恩有一把梯子。给比约恩写一条消息。"
+      },
+      "bullets": [
+        {"nb": "Spør om du kan låne stigen.", "zh": "问能不能借他的梯子。"},
+        {"nb": "Skriv hvor lenge du trenger den.", "zh": "写你需要借多久。"},
+        {"nb": "Foreslå en dag og et klokkeslett da du kan hente den.", "zh": "提议一个你去拿梯子的日子和时间。"}
+      ],
+      "words": [20, 50]
+    },
+    {
+      "id": "W3-2",
+      "kind": "bilde",
+      "prompt": {
+        "nb": "Se på bildet fra en togstasjon. Skriv om det du ser. Hva gjør menneskene?",
+        "zh": "看这张火车站的图片。写一写你看到了什么。图里的人在做什么？"
+      },
+      "words": [50, 80],
+      "art": {
+        "id": "W3-2",
+        "brief": "火车站的站台和候车区，横版 4:3。一列红色火车停在站台边，车门开着。天花板下挂着一个大钟。站台上有一块发车信息屏，屏上只画色块和符号，不要能读的文字。画 8 个人，分布开、互不遮挡，肤色和年龄各不相同：① 一个男人拖着行李箱朝火车跑；② 一个女人在自动售票机前买票；③ 一个穿制服的列车员站在火车门边看手表；④⑤ 长椅上，一个妈妈和一个小女孩坐着等车，小女孩在吃香蕉；⑥ 一个年轻男人站着抬头看发车信息屏；⑦⑧ 一对老年夫妇在拥抱告别，旁边放着一个小行李箱。",
+        "scene": "En togstasjon. Et rødt tog står ved plattformen, og dørene er åpne. En stor klokke henger under taket. Det er åtte personer på bildet. En mann med en koffert løper mot toget. En kvinne kjøper billett i en billettautomat. En konduktør i uniform står ved døra til toget og ser på klokka si. En mor og en liten jente sitter på en benk og venter. Jenta spiser en banan. En ung mann står og ser opp på skjermen med avgangstider. Et eldre par klemmer hverandre og sier ha det. Ved siden av dem står en liten koffert."
+      }
+    },
+    {
+      "id": "W3-3",
+      "kind": "tema",
+      "prompt": {
+        "nb": "Skriv om en vanlig dag for deg.",
+        "zh": "写一写你平常的一天。"
+      },
+      "bullets": [
+        {"nb": "Når står du opp, og hva gjør du om morgenen?", "zh": "你几点起床，早上做什么？"},
+        {"nb": "Hva gjør du om dagen?", "zh": "白天你做什么？"},
+        {"nb": "Hva gjør du om kvelden?", "zh": "晚上你做什么？"},
+        {"nb": "Hva liker du best med dagen din?", "zh": "你一天里最喜欢什么？"}
+      ],
+      "words": [80, null]
+    }
+  ]
+}

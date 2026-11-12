@@ -111,7 +111,9 @@ const ICONS = {
   next:'<path d="M4 12h16m-6-6 6 6-6 6"/>',
   flip:'<path d="M4 10a8 8 0 0 1 14-4l2 2M20 3v5h-5M20 14A8 8 0 0 1 6 20l-2-2M4 23v-5h5"/>',
   chat:'<path d="M23 12c0 4.4-3.6 8-8 8H7l-5 3 1.2-6A8 8 0 1 1 23 12Z"/><path d="M8 11h8M8 15h5"/>',
-  close:'<path d="m7 7 12 12M19 7 7 19"/>'
+  close:'<path d="m7 7 12 12M19 7 7 19"/>',
+  mic:'<rect x="10" y="3" width="6" height="12.5" rx="3"/><path d="M6 12.5a7 7 0 0 0 14 0M13 19.5v3"/>',
+  check:'<path d="m5.5 13.5 5 5 10-11"/>'
 };
 const icon = name => `<svg viewBox="0 0 26 26" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 const MODES = [
@@ -127,6 +129,10 @@ export function createInterview(deps = {}) {
   let deck = null, card = null, transition = '';
   let flipped = false, revealed = false, root = null, listened = false;
   let audioFiles = {}, audioState = 'idle', audioMessage = '', loading = null, loaded = false;
+  // 开口回答 (2026-11-12): the learner answers aloud; dictation.mjs writes it down on the device and the site's AI
+  // (POST /ai/grade, part interview) says whether it answers the question and how to say it better.
+  let answer = {status:'idle'}, recorder = null, dictation = null, answerTimer = null, answerRun = 0;
+  const versioned = path => `${path}${deps.version ? `?v=${encodeURIComponent(deps.version)}` : ''}`;
   const active = () => ['loading','playing'].includes(audioState);
   function updateAudio(value) {
     audioState = value.status;
@@ -240,14 +246,116 @@ export function createInterview(deps = {}) {
         ${cardMarkup(q,motion)}
         <div class="ai-controls"><div class="ai-audio-controls">${mode !== 'audio' ? playButton() : ''}<button type="button" class="ai-stop" data-interview="stop" aria-label="停止播放"${active() ? '' : ' hidden'}>${icon('stop')}<span>停止</span></button></div><button type="button" class="ai-next" data-interview="next" title="按右方向键${mode === 'audio' ? '随机播放' : '进入'}下一题">${end ? (single ? '再练一遍' : '再练一轮') : mode === 'audio' ? '随机下一题' : '下一题'}${icon('next')}</button></div>
         <p class="ai-audio-status" data-state="${audioState}" role="status" aria-live="polite">${escape(audioMessage)}</p>
+        ${mode !== 'bilingual' && deps.request ? answerMarkup() : ''}
         ${end ? `<p class="ai-round-note">${single ? '这一题练完了，可以再练一遍，或结束回到更多。' : '这轮最后一题，回答后可以再练一轮。'}</p>` : ''}
       </div>
     </section>`;
+  }
+  /* ----- 开口回答 ----- */
+  function answerMarkup() {
+    const a = answer;
+    if (a.status === 'idle') return `<div class="ai-answer"><button type="button" class="ai-answer-start" data-interview="answer-start">${icon('mic')}<span>开口回答</span></button><p class="ai-answer-note">说完后 AI 会点评：答到问题没有、哪里要改、怎样说更自然。</p></div>`;
+    if (a.status === 'loading') {
+      const p = a.progress, percent = p?.total ? Math.round(p.loaded/p.total*100) : 0;
+      return `<div class="ai-answer is-busy" role="status"><span class="ai-answer-spinner" aria-hidden="true"></span><p>${p?.downloading ? `正在下载识别器 ${percent}%（第一次约 118 MB）` : '正在准备识别器…'}</p></div>`;
+    }
+    if (a.status === 'recording') return `<div class="ai-answer is-live"><div class="ai-answer-row"><span class="ai-answer-mic" aria-hidden="true">${icon('mic')}</span><div class="ai-answer-meta"><strong>请回答</strong><span data-ai-answer-clock>0:00</span></div><button type="button" class="ai-start-button" data-interview="answer-done">说完了</button></div><p class="ai-answer-text" data-ai-answer-text lang="nb" aria-live="polite">${escape(a.text) || '…'}</p></div>`;
+    if (a.status === 'writing' || a.status === 'grading') return `<div class="ai-answer is-busy" role="status"><span class="ai-answer-spinner" aria-hidden="true"></span><p>${a.status === 'writing' ? '正在整理文字…' : 'AI 点评中…'}</p>${a.text ? `<p class="ai-answer-text" lang="nb">${escape(a.text)}</p>` : ''}</div>`;
+    if (a.status === 'error') return `<div class="ai-answer is-error" role="alert"><p>${escape(a.error)}</p>${a.text ? `<p class="ai-answer-text" lang="nb">${escape(a.text)}</p>` : ''}<button type="button" class="ai-text-button" data-interview="${a.text ? 'answer-retry' : 'answer-start'}">${a.text ? '重新点评' : '再试一次'}</button></div>`;
+    const r = a.result || {};
+    const mistakes = (r.mistakes || []).map(item => `<li><s lang="nb">${escape(item.wrong)}</s><b lang="nb">${escape(item.right)}</b><small>${escape(item.why)}</small></li>`).join('');
+    return `<div class="ai-answer is-done"><div class="ai-answer-verdict ${r.answered ? 'is-yes' : 'is-no'}">${icon(r.answered ? 'check' : 'close')}<strong>${r.answered ? '答到问题了' : '还没答到这个问题'}</strong></div>
+      ${r.comment ? `<p class="ai-answer-comment">${escape(r.comment)}</p>` : ''}
+      <div class="ai-answer-compare"><div><small>你说的</small><p lang="nb">${escape(a.text)}</p></div>${r.corrected ? `<div><small>改正后</small><p lang="nb">${escape(r.corrected)}</p></div>` : ''}${r.better ? `<div class="is-better"><small>更自然的说法</small><p lang="nb">${escape(r.better)}</p></div>` : ''}</div>
+      ${mistakes ? `<ul class="ai-answer-mistakes">${mistakes}</ul>` : ''}
+      <button type="button" class="ai-text-button" data-interview="answer-start">再答一次</button></div>`;
+  }
+  function updateAnswer(focus = '') {
+    const slot = root?.querySelector('.ai-answer');
+    if (!slot) return;
+    const box = document.createElement('div');
+    box.innerHTML = answerMarkup();
+    slot.replaceWith(box.firstElementChild);
+    if (focus) root.querySelector(focus)?.focus?.({preventScroll:true});
+  }
+  function resetAnswer() {
+    answerRun += 1;
+    clearInterval(answerTimer); answerTimer = null;
+    recorder?.hold();
+    answer = {status:'idle'};
+  }
+  function closeRecorder() { resetAnswer(); recorder?.close(); recorder = null; }
+  // Inside the tap: the microphone opens first (iOS opens audio only there), then the recogniser loads.
+  async function startAnswer() {
+    stopAudio();
+    const run = ++answerRun, question = card?.question;
+    if (!question) return;
+    answer = {status:'loading',progress:null};
+    updateAnswer();
+    const fail = message => { if (run === answerRun) { answer = {status:'error',error:message}; updateAnswer(); } };
+    try {
+      dictation ||= await import(versioned('./dictation.mjs'));
+      await dictation.load();
+      if (!dictation.supported()) { fail('这个浏览器用不了语音识别，可以换新版 Chrome、Edge 或 Safari。'); return; }
+      if (!recorder) {
+        const opened = await dictation.record({
+          onText:text => { if (answer.status === 'recording') { answer.text = text; const box = root?.querySelector('[data-ai-answer-text]'); if (box) box.textContent = text || '…'; } },
+          onLevel:level => { root?.querySelector('.ai-answer-mic')?.style.setProperty('--level',Math.min(1,level*14).toFixed(2)); },
+          onPause:seconds => { if (answer.status === 'recording' && seconds >= 3.2 && recorder?.stats.speech > .6) finishAnswer(); }
+        });
+        // Ended, moved on or went to the background while the browser asked for the microphone: close it again.
+        if (run !== answerRun || !root) { opened.close(); return; }
+        if (document.hidden) { opened.close(); resetAnswer(); updateAnswer(); return; }
+        recorder = opened;
+      }
+      recorder.hold();
+      const ready = await dictation.prepare(progress => { if (run === answerRun && answer.status === 'loading') { answer.progress = progress; updateAnswer(); } });
+      if (run !== answerRun) return;
+      if (!ready) { fail('识别器没有准备好，请检查网络后再试。'); return; }
+      recorder.reset(); recorder.release();
+      answer = {status:'recording',text:'',started:Date.now(),question:question.id};
+      updateAnswer('[data-interview="answer-done"]');
+      answerTimer = setInterval(() => {
+        const seconds = (Date.now()-answer.started)/1000, clock = root?.querySelector('[data-ai-answer-clock]');
+        if (clock) clock.textContent = `${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
+        if (seconds >= 120) finishAnswer();
+      },250);
+    } catch (error) {
+      fail(error?.code === 'denied' ? '麦克风没有打开。请在浏览器设置里允许使用麦克风后再试。' : error?.code === 'none' ? '没有找到麦克风。' : '暂时无法开口回答，请再试一次。');
+    }
+  }
+  async function finishAnswer() {
+    if (answer.status !== 'recording') return;
+    const run = answerRun, id = answer.question;
+    clearInterval(answerTimer); answerTimer = null;
+    answer = {status:'writing',text:answer.text};
+    updateAnswer();
+    const {text} = await recorder.stop();
+    if (run !== answerRun) return;
+    if (!text.trim()) { answer = {status:'error',error:'没有听到你的回答。靠近麦克风，再试一次。'}; updateAnswer(); return; }
+    answer = {status:'grading',text,question:id};
+    updateAnswer();
+    grade(run);
+  }
+  async function grade(run) {
+    const {text,question} = answer;
+    try {
+      const result = await deps.request('/ai/grade',{method:'POST',body:{part:'interview',task:question,answer:text},timeout:90000});
+      if (run !== answerRun) return;
+      answer = {status:'done',text,question,result};
+      updateAnswer();
+      deps.submitResult?.({id:`interview-${question}-${Date.now().toString(36)}`,activity:'interview',total:1,answers:[{points:result.answered ? 2 : 0}]});
+    } catch (error) {
+      if (run !== answerRun) return;
+      answer = {status:'error',text,question,error:error?.code === 'ai_quota' ? '今天的 AI 点评次数用完了，明天再来。' : error?.code === 'ai_unavailable' ? 'AI 点评暂时没有开启。' : 'AI 点评没有成功，请检查网络后重试。'};
+      updateAnswer();
+    }
   }
   function startSession() {
     const items = selectedItems();
     if (!items.length) return;
     stopAudio();
+    resetAnswer();
     flipped = revealed = listened = false;
     deck = createDeck(items);
     card = deck.next();
@@ -310,12 +418,15 @@ export function createInterview(deps = {}) {
       if (action === 'resume' && card) { screen = 'session'; closeDialog(); if (deps.onStart) { deps.onStart(); return; } render(mode === 'audio' ? 'play' : 'card'); }
       return;
     }
-    if (action === 'exit') { stopAudio(); card = null; deck = null; screen = 'idle'; leave(); return; }
+    if (action === 'exit') { stopAudio(); closeRecorder(); card = null; deck = null; screen = 'idle'; leave(); return; }
+    if (action === 'answer-start') { startAnswer(); return; }
+    if (action === 'answer-done') { finishAnswer(); return; }
+    if (action === 'answer-retry') { answer = {...answer,status:'grading'}; updateAnswer(); grade(answerRun); return; }
     if (action === 'flip' && mode === 'bilingual') { flipped = !flipped; render('card','flipping'); return; }
-    if (action === 'next') { stopAudio(); card = deck.next(); flipped = revealed = listened = false; render(mode === 'audio' ? 'play' : 'card','entering'); if (mode === 'audio') return listen(); return; }
+    if (action === 'next') { stopAudio(); resetAnswer(); card = deck.next(); flipped = revealed = listened = false; render(mode === 'audio' ? 'play' : 'card','entering'); if (mode === 'audio') return listen(); return; }
     if (action === 'reveal') { revealed = !revealed; render('reveal'); return; }
     if (action === 'stop') { stopAudio(); focusTarget('play')?.focus({preventScroll:true}); return; }
-    if (action === 'play') return listen();
+    if (action === 'play') { if (answer.status === 'recording') { resetAnswer(); updateAnswer(); } return listen(); }
   }
   function onChange(event) {
     const id = event.target?.dataset?.question;
@@ -333,10 +444,18 @@ export function createInterview(deps = {}) {
     closeDialog();
     leave();
   }
-  function visibility() { if (document.hidden) stopAudio(); }
+  // In the background the microphone closes. An answer being recorded starts again when the learner is back; one
+  // already being written down or graded goes on (closing keeps what was heard), and its feedback waits on the page.
+  function visibility() {
+    if (!document.hidden) return;
+    stopAudio();
+    if (['loading','recording'].includes(answer.status)) { closeRecorder(); updateAnswer(); }
+    else { recorder?.close(); recorder = null; }
+  }
   function unmount() {
     document.body?.classList.remove('practice-focus');
     stopAudio();
+    closeRecorder();
     closeDialog();
     if (!root) return;
     root.removeEventListener('click',onClick); root.removeEventListener('change',onChange); root.removeEventListener('keydown',onKey); root.removeEventListener('cancel',onCancel);

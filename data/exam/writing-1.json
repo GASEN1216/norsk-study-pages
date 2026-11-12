@@ -1,0 +1,48 @@
+{
+  "set": 1,
+  "tasks": [
+    {
+      "id": "W1-1",
+      "kind": "melding",
+      "prompt": {
+        "nb": "Du er syk og kan ikke komme på norskkurset i kveld. Skriv en melding til læreren din, Ingrid.",
+        "zh": "你生病了，今晚不能去上挪威语课。给你的老师英格丽写一条消息。"
+      },
+      "bullets": [
+        {"nb": "Skriv at du ikke kan komme, og hvorfor.", "zh": "写你不能来，以及为什么。"},
+        {"nb": "Skriv når du tror du kan komme igjen.", "zh": "写你觉得什么时候能再来上课。"},
+        {"nb": "Foreslå noe, for eksempel at Ingrid sender deg leksene på e-post.", "zh": "提一个建议，比如请英格丽把作业用邮件发给你。"}
+      ],
+      "words": [20, 50]
+    },
+    {
+      "id": "W1-2",
+      "kind": "bilde",
+      "prompt": {
+        "nb": "Se på bildet. Det er en fin vårdag i parken. Skriv om det du ser. Hva gjør menneskene?",
+        "zh": "看图。这是公园里一个晴朗的春日。写一写你看到了什么。图里的人在做什么？"
+      },
+      "words": [50, 80],
+      "art": {
+        "id": "W1-2",
+        "brief": "春天的城市公园，横版 4:3，阳光很好。树刚长出嫩绿的叶子，有一棵开满白粉色花的樱桃树，草地上有黄色的小花，画面中间有一个小池塘，池塘里有几只鸭子。画 8 个人，分布开、互不遮挡，肤色和年龄各不相同：① 左前方长椅上，一位白发老爷爷在给鸭子撒面包屑；② 小路上，一个年轻女人戴着耳机在跑步；③④ 草地中间，一个男孩和一个女孩在放风筝；⑤ 小路另一段，一个爸爸推着婴儿车散步；⑥⑦ 樱桃树下，一对年轻情侣坐在野餐垫上吃三明治；⑧ 画面右边，一个女孩牵着一只小狗在散步。图里不要文字。",
+        "scene": "En solrik vårdag i en park i byen. Trærne har fått små, grønne blader, og et kirsebærtre blomstrer. Det er gule blomster i gresset og en liten dam med noen ender. Det er åtte personer på bildet. En gammel mann med hvitt hår sitter på en benk og gir brødsmuler til endene. En ung kvinne med hodetelefoner jogger på stien. En gutt og en jente flyr drage på gresset. En far triller en barnevogn på stien. Et ungt par sitter på et pledd under kirsebærtreet og spiser smørbrød. En jente går tur med en liten hund."
+      }
+    },
+    {
+      "id": "W1-3",
+      "kind": "tema",
+      "prompt": {
+        "nb": "Skriv om familien din.",
+        "zh": "写一写你的家庭。"
+      },
+      "bullets": [
+        {"nb": "Hvem er i familien din?", "zh": "你家里有哪些人？"},
+        {"nb": "Hvor bor familien din?", "zh": "你的家人住在哪里？"},
+        {"nb": "Hva liker dere å gjøre sammen?", "zh": "你们喜欢一起做什么？"},
+        {"nb": "Hvor ofte treffer du familien din eller snakker med dem?", "zh": "你多久和家人见一次面或说一次话？"}
+      ],
+      "words": [80, null]
+    }
+  ]
+}

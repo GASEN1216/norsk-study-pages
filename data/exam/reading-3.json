@@ -1,0 +1,385 @@
+{
+  "set": 3,
+  "groups": [
+    {
+      "id": "R3-G1",
+      "text": {
+        "kind": "epost",
+        "from": "Styret i Bjørkelia borettslag",
+        "title": "Ny heis i oppgang B",
+        "nb": "Hei, alle beboere i oppgang B!\nHeisen i oppgangen vår er over 40 år gammel og går ofte i stykker. Derfor får vi en ny heis i vår. Arbeidet begynner mandag 12. april og tar omtrent seks uker. I denne tiden kan dere ikke bruke heisen.\nVi vet at dette blir vanskelig for noen. Hvis du har problemer med å gå i trappene, kan du få hjelp til å bære varer opp. Ungdommer fra idrettslaget hjelper til hver tirsdag og torsdag kl. 17–19. De gjør det gratis. Si fra til styret hvis du vil ha hjelp.\nDet kommer til å bli mye støy, særlig de to første ukene. Arbeiderne jobber bare mellom kl. 8 og 16 på hverdager.\nHvis du har spørsmål, kan du komme på beboermøtet torsdag 1. april kl. 19 i fellesrommet.\nHilsen styret",
+        "zh": "B单元的各位住户好！\n我们单元的电梯已经用了40多年，经常坏。所以今年春天我们要换一部新电梯。工程4月12日星期一开始，大约要六个星期。这段时间大家不能用电梯。\n我们知道这对有些人来说会很不方便。如果你爬楼梯有困难，可以请人帮你把买的东西搬上楼。体育俱乐部的年轻人每周二和周四17点到19点来帮忙，不收钱。需要帮忙的话请告诉管委会。\n施工会很吵，特别是头两个星期。工人只在工作日8点到16点干活。\n如果有问题，可以来参加4月1日星期四晚上7点在公共活动室开的住户会。\n管委会"
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "R3-01", "set": 3, "level": "A1", "type": "click", "skill": "finne", "topic": "jobb",
+      "text": {"kind": "oppslag", "from": "", "title": "Velkommen til kjøkkenet!", "nb": "Kopper og glass står i skapet over vasken. Tallerkener står i skapet ved siden av kjøleskapet. Husk å vaske koppen din etterpå!", "zh": "杯子和玻璃杯在水槽上方的柜子里。盘子在冰箱旁边的柜子里。用完记得洗你的杯子！"},
+      "question": {"nb": "Du vil ha en kopp kaffe. Klikk på skapet med kopper.", "zh": "你想喝杯咖啡。点出放杯子的柜子。"},
+      "art": {
+        "id": "R3-01",
+        "brief": "公司员工休息室的小厨房，横版 4:3，正面看一面墙。从左到右：最左边是一台高高的冰箱；冰箱右边墙上有一个吊柜；中间是水槽，水槽上方有一个吊柜，水槽下方有一个地柜；右边是灶台和一台咖啡机，灶台上方也有一个吊柜。所有柜门都关着，看不见里面。图里不要文字（告示的文字在题目里单独给出）。",
+        "hotspots": [
+          {"id": "a", "label": "冰箱旁边的吊柜", "x": 20, "y": 8, "w": 16, "h": 26},
+          {"id": "b", "label": "水槽上方的吊柜", "x": 40, "y": 8, "w": 20, "h": 26},
+          {"id": "c", "label": "灶台上方的吊柜", "x": 64, "y": 8, "w": 18, "h": 26},
+          {"id": "d", "label": "水槽下方的地柜", "x": 40, "y": 60, "w": 20, "h": 30},
+          {"id": "e", "label": "冰箱", "x": 2, "y": 8, "w": 16, "h": 82}
+        ]
+      },
+      "answer": "b",
+      "explain": "告示说杯子在水槽上方（over vasken）的柜子里。冰箱旁边的柜子放盘子，水槽下方的是地柜。"
+    },
+    {
+      "id": "R3-02", "set": 3, "level": "A1", "type": "click", "skill": "detalj", "topic": "familie",
+      "text": {"kind": "fortelling", "from": "Leila", "title": "", "nb": "Dette er familien min. Broren min heter Karim. Han er høy og har briller. På bildet holder han en liten hund.", "zh": "这是我的家人。我兄弟叫卡里姆。他个子高，戴眼镜。照片上他抱着一只小狗。"},
+      "question": {"nb": "Les teksten. Klikk på Karim.", "zh": "读短文，点出卡里姆。"},
+      "art": {
+        "id": "R3-02",
+        "brief": "花园里的全家福，横版 4:3。五个人从左到右站成一排，彼此分开：a 高个子男人，不戴眼镜，抱着一只小狗；b 女人，戴眼镜，抱着一只小狗；c 高个子男人，戴眼镜，抱着一只猫；d 高个子男人，戴眼镜，抱着一只小狗（正确答案）；e 矮个子的十几岁男孩，戴眼镜，手里什么也没拿。三个高个子男人一样高，三只小狗看起来一样。图里不要文字。",
+        "hotspots": [
+          {"id": "a", "label": "不戴眼镜、抱小狗的高个子男人", "x": 4, "y": 14, "w": 16, "h": 76},
+          {"id": "b", "label": "戴眼镜、抱小狗的女人", "x": 23, "y": 14, "w": 16, "h": 76},
+          {"id": "c", "label": "戴眼镜、抱猫的高个子男人", "x": 42, "y": 14, "w": 16, "h": 76},
+          {"id": "d", "label": "戴眼镜、抱小狗的高个子男人", "x": 61, "y": 14, "w": 16, "h": 76},
+          {"id": "e", "label": "戴眼镜的矮个子男孩", "x": 80, "y": 30, "w": 16, "h": 60}
+        ]
+      },
+      "answer": "d",
+      "explain": "卡里姆个子高、戴眼镜、抱着小狗。最左边的没戴眼镜，中间那个抱的是猫，女人和矮个子男孩也不对。"
+    },
+    {
+      "id": "R3-03", "set": 3, "level": "A1", "type": "calendar", "skill": "finne", "topic": "jobb",
+      "text": {"kind": "sms", "from": "Ali", "title": "", "nb": "Hei! Jeg har ferie fra mandag 5. juli. Jeg er tilbake på jobben mandag 26. juli. God sommer!", "zh": "嗨！我从7月5日星期一开始休假，7月26日星期一回来上班。夏天愉快！"},
+      "question": {"nb": "Hvilken dag er Ali tilbake på jobben?", "zh": "阿里哪天回来上班？"},
+      "calendar": {"month": "2027-07", "pick": "day"},
+      "answer": "2027-07-26",
+      "explain": "5. juli 是开始休假的日子，26. juli 他回来上班。"
+    },
+    {
+      "id": "R3-04", "set": 3, "level": "A1", "type": "picture", "skill": "detalj", "topic": "hverdag",
+      "text": {"kind": "fortelling", "from": "", "title": "", "nb": "Lisa sitter på kjøkkenet. Hun drikker kaffe og leser avisen.", "zh": "丽莎坐在厨房里，边喝咖啡边看报纸。"},
+      "question": {"nb": "Hvilket bilde passer til teksten?", "zh": "哪张图和文字相符？"},
+      "art": {"id": "R3-04", "layout": "2x2", "panels": [
+        "厨房餐桌边，一个女人边喝咖啡边看手机",
+        "客厅沙发上，一个女人边喝咖啡边看报纸",
+        "厨房里，一个女人站在灶台前做饭，报纸放在桌上",
+        "厨房餐桌边，一个女人边喝咖啡边看报纸"
+      ]},
+      "answer": 3,
+      "explain": "要在厨房、坐着、喝咖啡、看报纸，四点都对上的只有最后一张。"
+    },
+    {
+      "id": "R3-05", "set": 3, "level": "A1", "type": "picture", "skill": "detalj", "topic": "vær",
+      "text": {"kind": "fortelling", "from": "", "title": "", "nb": "Det snør. Mannen venter på trikken.", "zh": "下着雪。那个男人在等有轨电车。"},
+      "question": {"nb": "Hvilket bilde passer til teksten?", "zh": "哪张图和文字相符？"},
+      "art": {"id": "R3-05", "layout": "2x2", "panels": [
+        "下雨天，一个男人打着伞在电车站等车，一辆有轨电车开过来（画出铁轨和车顶的电线）",
+        "下雪天，一个男人在电车站等车，一辆有轨电车开过来（画出铁轨和车顶的电线）",
+        "下雪天，一个男人在路上骑自行车",
+        "下雪天，一个男人在公交站等车，一辆公交车开过来（没有铁轨和电线，一看就是公交车）"
+      ]},
+      "answer": 1,
+      "explain": "要下雪、在等有轨电车（trikk）。第一张是下雨，第三张在骑车，第四张等的是公交车。"
+    },
+    {
+      "id": "R3-06", "set": 3, "level": "A1", "type": "text", "skill": "finne", "topic": "helse",
+      "question": {"nb": "Du har vondt i en tann. Hvor skal du gå?", "zh": "你牙疼。应该去哪里？"},
+      "options": [
+        {"nb": "Legekontor – 1. etasje. Åpent mandag til fredag.", "zh": "诊所——一楼。周一到周五开门。"},
+        {"nb": "Tannlege Bakke – 2. etasje. Ring på døra.", "zh": "巴克牙医——二楼。请按门铃。"},
+        {"nb": "Frisør – 3. etasje. Du kan komme uten time.", "zh": "理发店——三楼。不用预约。"},
+        {"nb": "Optiker – 1. etasje. Nye briller på salg.", "zh": "眼镜店——一楼。新眼镜打折。"}
+      ],
+      "answer": 1,
+      "explain": "牙疼要去看牙医（tannlege）。诊所看一般的病，理发店和眼镜店都不对。"
+    },
+    {
+      "id": "R3-07", "set": 3, "level": "A1", "type": "text", "skill": "finne", "topic": "mat",
+      "question": {"nb": "Hvem liker å lage mat?", "zh": "谁喜欢做饭？"},
+      "options": [
+        {"nb": "Jeg heter Ola. Jeg liker å spise på restaurant, for jeg er ikke flink på kjøkkenet.", "zh": "我叫奥拉。我喜欢去餐馆吃饭，因为我不太会下厨。"},
+        {"nb": "Jeg heter Jan. Jeg leser mange kokebøker, men jeg lager nesten aldri mat.", "zh": "我叫扬。我看很多菜谱书，但我几乎从不做饭。"},
+        {"nb": "Jeg heter Mei. Jeg jobber i en butikk som selger mat.", "zh": "我叫梅。我在一家卖食品的商店工作。"},
+        {"nb": "Jeg heter Fatima. Jeg lager middag hver dag, og det synes jeg er gøy.", "zh": "我叫法蒂玛。我每天做晚饭，我觉得很有意思。"}
+      ],
+      "answer": 3,
+      "explain": "法蒂玛每天做饭，而且觉得 gøy（有意思）。扬只看菜谱不做饭，奥拉喜欢去餐馆，梅只是在食品店工作。"
+    },
+    {
+      "id": "R3-08", "set": 3, "level": "A1", "type": "choice", "skill": "finne", "topic": "butikk",
+      "text": {"kind": "oppslag", "from": "Nærbutikken", "title": "Nye åpningstider", "nb": "Fra 1. februar har vi nye åpningstider:\nMandag–fredag: kl. 7–23\nLørdag: kl. 8–22\nSøndag: stengt", "zh": "从2月1日起，我们的营业时间改为：\n周一至周五：7点到23点\n周六：8点到22点\n周日：不营业"},
+      "question": {"nb": "Du vil handle kl. 22.30. Hvilke dager kan du gjøre det?", "zh": "你想在晚上10点半去买东西。哪几天可以？"},
+      "options": [
+        {"nb": "Mandag til fredag", "zh": "周一到周五"},
+        {"nb": "Bare på lørdag", "zh": "只有周六"},
+        {"nb": "Bare på søndag", "zh": "只有周日"},
+        {"nb": "Hver dag", "zh": "每天"}
+      ],
+      "answer": 0,
+      "explain": "22:30 时只有周一到周五还开着（开到23点）。周六22点就关门，周日不营业。"
+    },
+    {
+      "id": "R3-09", "set": 3, "level": "A1", "type": "choice", "skill": "hovedpunkt", "topic": "familie",
+      "text": {"kind": "sms", "from": "Kristian", "title": "", "nb": "Hei! Jeg må jobbe lenge i dag. Kan du hente Noah på skolen kl. 15? Jeg handler mat på vei hjem.", "zh": "嗨！我今天要加班。你能下午3点去学校接诺亚吗？我回家路上买菜。"},
+      "question": {"nb": "Hva spør Kristian om?", "zh": "克里斯蒂安在问什么？"},
+      "options": [
+        {"nb": "Om du kan handle mat", "zh": "你能不能买菜"},
+        {"nb": "Om du kan jobbe lenge", "zh": "你能不能加班"},
+        {"nb": "Om du kan hente Noah", "zh": "你能不能去接诺亚"},
+        {"nb": "Om Noah kan gå hjem alene", "zh": "诺亚能不能自己回家"}
+      ],
+      "answer": 2,
+      "explain": "他问你能不能3点去学校接诺亚。买菜是他自己回家路上去做。"
+    },
+    {
+      "id": "R3-10", "set": 3, "level": "A1", "type": "choice", "skill": "detalj", "topic": "bolig",
+      "text": {"kind": "annonse", "from": "", "title": "Hybel til leie", "nb": "Hybel til leie i Bodø sentrum. 18 m² med eget bad. 5500 kr i måneden. Strøm er med i prisen, men internett må du betale selv. Ledig fra 1. oktober.", "zh": "博德市中心单间出租。18平方米，带独立卫生间。每月5500克朗。房租包括电费，但网费要自己付。10月1日起可入住。"},
+      "question": {"nb": "Hva er med i prisen?", "zh": "房租里包括什么？"},
+      "options": [
+        {"nb": "Strøm", "zh": "电费"},
+        {"nb": "Internett", "zh": "网费"},
+        {"nb": "Parkering", "zh": "停车"},
+        {"nb": "Mat", "zh": "伙食"}
+      ],
+      "answer": 0,
+      "explain": "广告说电费（strøm）包括在房租里，网费要自己付。"
+    },
+    {
+      "id": "R3-11", "set": 3, "level": "A1", "type": "choice", "skill": "detalj", "topic": "fritid",
+      "text": {"kind": "annonse", "from": "", "title": "Strikkekafé", "nb": "Liker du å strikke? Kom på strikkekafé på biblioteket hver onsdag kl. 18–20. Ta med garn og pinner. Vi har kaffe og te.", "zh": "你喜欢织毛线吗？每周三晚上6点到8点来图书馆的编织咖啡会吧。请带上毛线和毛衣针。我们这里有咖啡和茶。"},
+      "question": {"nb": "Hva må du ta med?", "zh": "你要带什么？"},
+      "options": [
+        {"nb": "Kaffe og te", "zh": "咖啡和茶"},
+        {"nb": "Bøker fra biblioteket", "zh": "图书馆的书"},
+        {"nb": "Garn og pinner", "zh": "毛线和毛衣针"},
+        {"nb": "Kake til de andre", "zh": "给别人吃的蛋糕"}
+      ],
+      "answer": 2,
+      "explain": "要带毛线和毛衣针。咖啡和茶那里已经有了。"
+    },
+    {
+      "id": "R3-12", "set": 3, "level": "A1", "type": "choice", "skill": "detalj", "topic": "reise",
+      "text": {"kind": "sms", "from": "Nora", "title": "", "nb": "Hei! Toget mitt er 30 minutter forsinket. Jeg er i Oslo kl. 18.30, ikke kl. 18. Kan vi spise middag litt senere?", "zh": "嗨！我的火车晚点30分钟。我18:30到奥斯陆，不是18点。我们晚饭能晚一点吃吗？"},
+      "question": {"nb": "Når kommer Nora til Oslo?", "zh": "诺拉几点到奥斯陆？"},
+      "options": [
+        {"nb": "Kl. 18.00", "zh": "18:00"},
+        {"nb": "Kl. 18.30", "zh": "18:30"},
+        {"nb": "Kl. 17.30", "zh": "17:30"},
+        {"nb": "Kl. 19.00", "zh": "19:00"}
+      ],
+      "answer": 1,
+      "explain": "火车晚点30分钟，所以她18:30到，不是原来的18点。"
+    },
+    {
+      "id": "R3-13", "set": 3, "level": "A1", "type": "choice", "skill": "hovedpunkt", "topic": "jobb",
+      "text": {"kind": "epost", "from": "Tor Hansen", "title": "Ny kollega", "nb": "Hei alle!\nI morgen får vi en ny kollega. Han heter Daniel og skal jobbe i resepsjonen. Vi spiser kake sammen kl. 12 for å ønske ham velkommen.\nHilsen Tor", "zh": "大家好！\n明天我们会来一位新同事。他叫丹尼尔，会在前台工作。中午12点我们一起吃蛋糕欢迎他。\n托尔"},
+      "question": {"nb": "Hvorfor skal de spise kake?", "zh": "他们为什么要吃蛋糕？"},
+      "options": [
+        {"nb": "Tor har bursdag.", "zh": "托尔过生日。"},
+        {"nb": "Daniel slutter i jobben.", "zh": "丹尼尔要离职。"},
+        {"nb": "Det er fredag.", "zh": "今天是星期五。"},
+        {"nb": "De vil si velkommen til Daniel.", "zh": "他们要欢迎丹尼尔。"}
+      ],
+      "answer": 3,
+      "explain": "吃蛋糕是为了欢迎新同事丹尼尔（ønske ham velkommen）。"
+    },
+    {
+      "id": "R3-14", "set": 3, "level": "A1", "type": "choice", "skill": "detalj", "topic": "apotek",
+      "text": {"kind": "sms", "from": "Apoteket", "title": "", "nb": "Hei! Vi har bestilt medisinen din. Den kommer i morgen, og du kan hente den fra kl. 12. Husk legitimasjon.", "zh": "您好！您的药我们已经订了，明天到货，中午12点起可以来取。请带身份证件。"},
+      "question": {"nb": "Når kan du hente medisinen?", "zh": "你什么时候可以去取药？"},
+      "options": [
+        {"nb": "Nå med en gang", "zh": "现在马上"},
+        {"nb": "I morgen før kl. 12", "zh": "明天12点以前"},
+        {"nb": "I morgen fra kl. 12", "zh": "明天中午12点起"},
+        {"nb": "Neste uke", "zh": "下周"}
+      ],
+      "answer": 2,
+      "explain": "药明天才到，从明天中午12点起（fra kl. 12）可以领取。"
+    },
+    {
+      "id": "R3-15", "set": 3, "level": "A1", "type": "choice", "skill": "detalj", "topic": "vær",
+      "text": {"kind": "oppslag", "from": "Skisenteret", "title": "Stengt i dag", "nb": "Skisenteret er stengt i dag. Det blåser for mye. Vi åpner igjen i morgen kl. 9.", "zh": "滑雪场今天关闭，风太大了。我们明天早上9点重新开放。"},
+      "question": {"nb": "Hvorfor er skisenteret stengt?", "zh": "滑雪场为什么关闭？"},
+      "options": [
+        {"nb": "Det er sterk vind.", "zh": "风很大。"},
+        {"nb": "Det er for lite snø.", "zh": "雪太少。"},
+        {"nb": "Det er for kaldt.", "zh": "太冷了。"},
+        {"nb": "Det er søndag.", "zh": "今天是星期天。"}
+      ],
+      "answer": 0,
+      "explain": "Det blåser for mye 就是风太大。"
+    },
+    {
+      "id": "R3-16", "set": 3, "level": "A2", "type": "picture", "skill": "koble", "topic": "bolig",
+      "text": {"kind": "fortelling", "from": "", "title": "", "nb": "Ahmed har nettopp flyttet. Han har ikke kjøpt sofa ennå, så han sitter på en stol og spiser middag mellom alle eskene.", "zh": "艾哈迈德刚搬了家。他还没买沙发，所以他坐在一把椅子上，在一堆纸箱中间吃晚饭。"},
+      "question": {"nb": "Hvilket bilde passer til teksten?", "zh": "哪张图和文字相符？"},
+      "art": {"id": "R3-16", "layout": "2x2", "panels": [
+        "新家里堆着搬家纸箱，一个男人坐在新沙发上吃晚饭",
+        "一个男人抱着纸箱上楼梯",
+        "新家里堆着搬家纸箱，没有沙发，一个男人坐在一把椅子上吃晚饭",
+        "新家里堆着搬家纸箱，没有任何家具，一个男人坐在地板上吃晚饭"
+      ]},
+      "answer": 2,
+      "explain": "他还没买沙发（ikke ... ennå），所以坐在椅子上吃饭。第一张有沙发，第四张坐在地上，第二张在搬箱子。"
+    },
+    {
+      "id": "R3-17", "set": 3, "level": "A2", "type": "text", "skill": "koble", "topic": "språk",
+      "question": {"nb": "Du jobber på dagtid, og du har ikke bil. Du vil gå på norskkurs. Hvilket kurs passer?", "zh": "你白天上班，没有车。你想上挪威语课。哪个课程合适？"},
+      "options": [
+        {"nb": "Norskkurs på dagtid, mandag til fredag kl. 9–14. Kurset er i sentrum, rett ved busstasjonen.", "zh": "白天的挪威语课，周一到周五9点到14点。上课地点在市中心，就在汽车站旁边。"},
+        {"nb": "Kveldskurs i norsk på Bakken gård, tirsdag og torsdag kl. 18–20. Det går ingen buss dit, men det er god parkering.", "zh": "巴肯农庄的挪威语晚班，周二和周四18点到20点。那里不通公交车，但停车很方便。"},
+        {"nb": "Nettkurs i engelsk på kveldstid. Du trenger bare en datamaskin.", "zh": "晚上的英语网课。只需要一台电脑。"},
+        {"nb": "Kveldskurs i norsk, mandag og onsdag kl. 18–20. Kurset er fem minutter fra stasjonen.", "zh": "挪威语晚班，周一和周三18点到20点。上课地点离车站五分钟。"}
+      ],
+      "answer": 3,
+      "explain": "要晚上上课、不用开车、而且是挪威语课。白天班和上班冲突，巴肯农庄不通公交车，网课是英语。"
+    },
+    {
+      "id": "R3-18", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "post",
+      "text": {"kind": "sms", "from": "Ivar (naboen)", "title": "", "nb": "Hei! Det kom en pakke til deg i dag mens du var på jobb. Postbudet ville ikke la den stå utenfor døra, så jeg tok den inn til meg. Nå skal jeg på trening, men jeg er hjemme igjen etter kl. 20. Bare ring på!", "zh": "嗨！今天你上班的时候来了一个你的包裹。邮递员不想把它放在门外，所以我先拿到我家了。我现在要去锻炼，晚上8点以后回家。直接按门铃就行！"},
+      "question": {"nb": "Hvor er pakken nå?", "zh": "包裹现在在哪里？"},
+      "options": [
+        {"nb": "Hjemme hos naboen", "zh": "在邻居家"},
+        {"nb": "Utenfor døra di", "zh": "在你家门外"},
+        {"nb": "Hos postbudet", "zh": "在邮递员那里"},
+        {"nb": "På treningssenteret", "zh": "在健身房"}
+      ],
+      "answer": 0,
+      "explain": "邮递员不想把包裹放在门外，伊瓦尔就把它拿到了自己家（tok den inn til meg）。他去锻炼了，但包裹在他家。"
+    },
+    {
+      "id": "R3-19", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "jobb",
+      "text": {"kind": "annonse", "from": "", "title": "Vi søker medarbeider", "nb": "Kafé Solsiden søker en blid medarbeider til helgene. Du må kunne jobbe lørdager og søndager fra kl. 9 til 17. Det er fint om du har jobbet på kafé før, men det er ikke et krav. Du må kunne snakke litt norsk. Send en kort søknad på e-post innen 15. mars.", "zh": "阳光咖啡馆招一名开朗的周末员工。你必须能在周六和周日9点到17点上班。以前在咖啡馆工作过更好，但不是必须的。你要会说一点挪威语。请在3月15日之前用电子邮件发一份简短的申请。"},
+      "question": {"nb": "Hva må du kunne for å få jobben?", "zh": "要得到这份工作，你必须能做到什么？"},
+      "options": [
+        {"nb": "Du må ha jobbet på kafé før.", "zh": "必须在咖啡馆工作过。"},
+        {"nb": "Du må kunne jobbe i helgene.", "zh": "必须能在周末上班。"},
+        {"nb": "Du må snakke flytende norsk.", "zh": "必须说一口流利的挪威语。"},
+        {"nb": "Du må kunne begynne 15. mars.", "zh": "必须能在3月15日开始上班。"}
+      ],
+      "answer": 1,
+      "explain": "广告说必须能在周六和周日上班。咖啡馆经验「不是必须的」，挪威语只要会一点，3月15日是申请截止日期。"
+    },
+    {
+      "id": "R3-20", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "nærmiljø",
+      "text": {"kind": "notis", "from": "", "title": "Storgata stengt for biler", "nb": "Fra mandag til fredag neste uke er Storgata stengt for biler mellom kl. 9 og 15, fordi kommunen skal legge ny asfalt. Bussene kjører en annen vei, og holdeplassen ved torget blir flyttet til Kirkegata. De som går eller sykler, kan bruke gata som vanlig.", "zh": "下周一到周五，每天9点到15点，大街禁止汽车通行，因为市政府要重铺沥青。公交车改走别的路，广场旁的车站临时搬到教堂街。步行和骑车的人可以照常走这条街。"},
+      "question": {"nb": "Hva er riktig?", "zh": "哪一项是对的？"},
+      "options": [
+        {"nb": "Ingen kan bruke Storgata neste uke.", "zh": "下周谁都不能走大街。"},
+        {"nb": "Bussene stopper ved torget som vanlig.", "zh": "公交车照常在广场停。"},
+        {"nb": "Du kan gå til fots i Storgata neste uke.", "zh": "下周你可以步行走大街。"},
+        {"nb": "Storgata er stengt hele døgnet.", "zh": "大街全天封闭。"}
+      ],
+      "answer": 2,
+      "explain": "只是9点到15点不许汽车走，步行和骑车照常。广场的车站搬到了教堂街。"
+    },
+    {
+      "id": "R3-21", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "skole",
+      "text": {"kind": "epost", "from": "SFO på Vika skole", "title": "Henting av barn", "nb": "Hei, alle foreldre!\nFra 1. november stenger SFO kl. 16.30, så alle barn må hentes før det. Hvis andre enn foreldrene skal hente et barn, må dere si fra til oss på forhånd. Vi lar ikke barna gå hjem med noen vi ikke vet om.\nHilsen SFO", "zh": "各位家长好！\n从11月1日起，课后托管班16:30关门，所有孩子都要在这之前接走。如果不是父母来接孩子，请提前告诉我们。我们不会让孩子跟我们不知道的人回家。\n课后托管班"},
+      "question": {"nb": "Bestemor skal hente Omar på SFO på fredag. Hva må foreldrene gjøre?", "zh": "星期五奶奶要去课后托管班接奥马尔。父母该做什么？"},
+      "options": [
+        {"nb": "Gi beskjed til SFO før bestemor henter Omar", "zh": "在奶奶接奥马尔之前通知托管班"},
+        {"nb": "Hente Omar selv før kl. 16.30", "zh": "自己在16:30前去接奥马尔"},
+        {"nb": "Sende en melding til bestemor", "zh": "给奶奶发短信"},
+        {"nb": "Komme sammen med bestemor", "zh": "和奶奶一起来"}
+      ],
+      "answer": 0,
+      "explain": "如果由别人来接孩子，父母要提前（på forhånd）通知托管班。因此，只要在奶奶接奥马尔之前通知托管班即可。"
+    },
+    {
+      "id": "R3-22", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "fritid",
+      "text": {"kind": "fortelling", "from": "", "title": "", "nb": "Forrige helg var Sana og Tom på hytta til foreldrene til Tom. De hadde tenkt å dra på fisketur, men det regnet hele lørdagen. I stedet ble de inne, spilte kort og bakte boller. På søndag var været fint, og da plukket de blåbær i skogen. Neste helg skal de prøve å fiske igjen.", "zh": "上个周末，萨娜和汤姆去了汤姆父母的小木屋。他们本来打算去钓鱼，可是星期六下了一整天雨。于是他们待在屋里，打牌、烤小面包。星期天天气很好，他们就去树林里摘蓝莓。下个周末他们要再去试试钓鱼。"},
+      "question": {"nb": "Hva gjorde Sana og Tom på lørdag?", "zh": "萨娜和汤姆星期六做了什么？"},
+      "options": [
+        {"nb": "De fisket i regnet.", "zh": "他们冒雨钓鱼。"},
+        {"nb": "De plukket bær i skogen.", "zh": "他们在树林里摘浆果。"},
+        {"nb": "De reiste hjem tidlig.", "zh": "他们提早回家了。"},
+        {"nb": "De var inne og bakte.", "zh": "他们待在屋里烤面包。"}
+      ],
+      "answer": 3,
+      "explain": "星期六下雨，他们没去钓鱼，而是在屋里打牌、烤面包。摘蓝莓是星期天，钓鱼是下个周末的计划。"
+    },
+    {
+      "id": "R3-23", "set": 3, "level": "A2", "type": "choice", "skill": "detalj", "topic": "bolig", "group": "R3-G1",
+      "question": {"nb": "Hvorfor får oppgang B en ny heis?", "zh": "B单元为什么要换新电梯？"},
+      "options": [
+        {"nb": "Fordi det bor mange eldre der.", "zh": "因为那里住着很多老人。"},
+        {"nb": "Fordi idrettslaget vil hjelpe.", "zh": "因为体育俱乐部愿意帮忙。"},
+        {"nb": "Fordi den gamle heisen ofte ikke virker.", "zh": "因为旧电梯经常不能用。"},
+        {"nb": "Fordi beboerne har bedt om det på et møte.", "zh": "因为住户在会上提出了要求。"}
+      ],
+      "answer": 2,
+      "explain": "邮件说旧电梯40多年了，经常坏（går ofte i stykker）。住户会是4月1日才开，体育俱乐部只是来帮忙搬东西。"
+    },
+    {
+      "id": "R3-24", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "bolig", "group": "R3-G1",
+      "question": {"nb": "Hvem kan få hjelp av ungdommene?", "zh": "谁可以得到年轻人的帮助？"},
+      "options": [
+        {"nb": "Alle som jobber mellom kl. 8 og 16", "zh": "所有8点到16点上班的人"},
+        {"nb": "De som synes det er tungt å gå i trappene", "zh": "觉得爬楼梯很吃力的人"},
+        {"nb": "Ungdommer i idrettslaget", "zh": "体育俱乐部的年轻人"},
+        {"nb": "Alle som kommer på beboermøtet", "zh": "所有来开住户会的人"}
+      ],
+      "answer": 1,
+      "explain": "邮件说爬楼梯有困难的人可以请年轻人帮忙把东西搬上楼。8点到16点是工人干活的时间。"
+    },
+    {
+      "id": "R3-25", "set": 3, "level": "A2", "type": "choice", "skill": "detalj", "topic": "bolig", "group": "R3-G1",
+      "question": {"nb": "Hva må du gjøre hvis du vil ha hjelp til å bære varer?", "zh": "如果你需要人帮忙搬东西，要做什么？"},
+      "options": [
+        {"nb": "Gi beskjed til styret", "zh": "告诉管委会"},
+        {"nb": "Betale ungdommene", "zh": "付钱给年轻人"},
+        {"nb": "Ringe idrettslaget", "zh": "给体育俱乐部打电话"},
+        {"nb": "Komme til fellesrommet på tirsdag", "zh": "星期二去公共活动室"}
+      ],
+      "answer": 0,
+      "explain": "要帮忙就告诉管委会（Si fra til styret）。年轻人是免费帮忙的，不用付钱。"
+    },
+    {
+      "id": "R3-26", "set": 3, "level": "A2", "type": "choice", "skill": "koble", "topic": "bolig", "group": "R3-G1",
+      "question": {"nb": "Hva er riktig om arbeidet med heisen?", "zh": "关于换电梯的工程，哪一项是对的？"},
+      "options": [
+        {"nb": "Arbeiderne jobber også i helgene.", "zh": "工人周末也干活。"},
+        {"nb": "Det er ferdig etter seks dager.", "zh": "六天就完工。"},
+        {"nb": "Det begynner torsdag 1. april.", "zh": "4月1日星期四开工。"},
+        {"nb": "Det blir mest støy i begynnelsen.", "zh": "刚开始的时候最吵。"}
+      ],
+      "answer": 3,
+      "explain": "邮件说头两个星期特别吵（særlig de to første ukene）。工人只在工作日干活，工程大约六个星期，4月1日是开住户会的日子。"
+    },
+    {
+      "id": "R3-27", "set": 3, "level": "A2", "type": "word", "skill": "ord", "topic": "venner",
+      "text": {"kind": "sms", "from": "Marius", "title": "", "nb": "Hei! Er du ledig på lørdag? Jeg skal male stua og trenger litt hjelp. Hvis du ikke jobber den dagen, kan du kanskje komme hit kl. 10? Jeg lager lunsj til oss.", "zh": "嗨！你星期六有空吗？我要刷客厅的墙，需要人帮忙。如果你那天不上班，能不能10点过来？我给我们做午饭。"},
+      "question": {"nb": "Klikk på ordet i teksten som betyr omtrent det samme som «fri».", "zh": "在文中点出意思和 fri（有空、不上班）差不多的词。"},
+      "target": {"nb": "fri", "zh": "有空的；不上班的"},
+      "answer": "ledig",
+      "explain": "后面说「如果你那天不上班」，可以猜出 ledig 是「有空、不忙」。"
+    },
+    {
+      "id": "R3-28", "set": 3, "level": "A2", "type": "word", "skill": "ord", "topic": "bolig",
+      "text": {"kind": "fortelling", "from": "", "title": "", "nb": "Naboen min spiller høy musikk hver natt. Først syntes jeg ikke at det var så farlig, men nå er jeg veldig irritert. Jeg får ikke sove, og jeg er trøtt på jobben. I morgen skal jeg snakke med ham.", "zh": "我的邻居每天夜里都放很大声的音乐。一开始我觉得没什么大不了，可现在我很恼火。我睡不着觉，上班时也很累。明天我要去找他谈谈。"},
+      "question": {"nb": "Klikk på ordet i teksten som betyr omtrent det samme som «sint».", "zh": "在文中点出意思和 sint（生气）差不多的词。"},
+      "target": {"nb": "sint", "zh": "生气的"},
+      "answer": "irritert",
+      "explain": "邻居天天夜里吵，写的人睡不着、上班累，还打算去找邻居谈，可以猜出 irritert 是「生气、烦」。"
+    },
+    {
+      "id": "R3-29", "set": 3, "level": "A2", "type": "word", "skill": "ord", "topic": "mat",
+      "text": {"kind": "sms", "from": "Hege", "title": "", "nb": "Takk for middagen i går! Maten var nydelig, særlig fiskesuppa. Alle spiste to porsjoner. Kan du sende meg oppskriften? Neste gang er det jeg som lager middag til dere.", "zh": "谢谢你昨天的晚饭！饭菜太好吃了，特别是鱼汤。大家都吃了两份。你能把做法发给我吗？下次轮到我给你们做晚饭。"},
+      "question": {"nb": "Klikk på ordet i teksten som betyr omtrent det samme som «god».", "zh": "在文中点出意思和 god（好吃）差不多的词。"},
+      "target": {"nb": "god", "zh": "好吃的"},
+      "answer": "nydelig",
+      "explain": "大家都吃了两份，海格还想要做法。nydelig 在这里表示「非常好吃」。"
+    },
+    {
+      "id": "R3-30", "set": 3, "level": "A2", "type": "word", "skill": "ord", "topic": "skole",
+      "text": {"kind": "oppslag", "from": "Biblioteket", "title": "Leksehjelp", "nb": "Hver mandag og onsdag kl. 15–17 kan skoleelever få gratis hjelp med leksene på biblioteket. Studenter hjelper med matte, norsk og engelsk. Du behøver ikke å melde deg på – bare kom! Husk å ta med bøkene dine.", "zh": "每周一和周三下午3点到5点，中小学生可以在图书馆免费得到作业辅导。大学生帮忙辅导数学、挪威语和英语。不需要报名，直接来就行！记得带上你的书。"},
+      "question": {"nb": "Klikk på ordet i teksten som betyr omtrent det samme som «trenger».", "zh": "在文中点出意思和 trenger（需要）差不多的词。"},
+      "target": {"nb": "trenger", "zh": "需要"},
+      "answer": "behøver",
+      "explain": "后面说「直接来就行」，可以猜出 behøver ikke 就是「不需要」。"
+    }
+  ]
+}

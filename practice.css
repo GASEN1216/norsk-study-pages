@@ -653,3 +653,33 @@ html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
   .pr-jul-banner-title{font-size:21px}
 }
 @media(prefers-reduced-motion:reduce){.pr-jul-banner-link{transition:none}}
+
+/* 听音选义 · 开口跟读: the 作答方式 switch in the range dialog and the 跟读 line under the speaker */
+.pr-answer-mode{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 12px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--pr-line)}
+.pr-answer-mode .pr-setting-label{font-size:13px;color:var(--pr-muted)}
+.pr-segment{display:inline-flex;justify-self:start;gap:4px;padding:3px;border-radius:12px;background:var(--pr-soft)}
+.pr-segment .pr-button{min-height:32px;padding:4px 14px;border-color:transparent;background:transparent;color:var(--pr-muted)}
+.pr-segment .pr-button svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pr-segment .pr-button[aria-pressed="true"]{background:var(--pr-paper);color:var(--pr-green);box-shadow:0 1px 2px rgba(30,60,45,.14)}
+.pr-say-state{grid-column:1/-1;margin:0;font-size:13px;line-height:1.5;color:var(--pr-muted)}
+.pr-say{display:flex;align-items:center;gap:12px;max-width:440px;margin:14px auto 0;padding:10px 12px 10px 10px;border:1px solid var(--pr-line);border-radius:16px;background:var(--pr-paper);text-align:left}
+.pr-say-mic{position:relative;flex-shrink:0;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--pr-soft);color:var(--pr-green)}
+.pr-say-mic svg{position:relative;z-index:1;width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pr-say-meter{position:absolute;inset:0;border-radius:50%;background:var(--pr-right-bg);transform:scale(calc(.55 + var(--level,0)*.6));opacity:calc(var(--level,0)*1.4);transition:transform .08s linear,opacity .12s linear}
+.pr-say-mic.is-live{background:#e3efe7}
+.pr-say-mic.is-quiet{opacity:.55}
+.pr-say-copy{display:grid;flex:1;min-width:0;gap:1px}
+.pr-say-copy strong{font-size:15px;font-weight:600;color:var(--pr-ink)}
+.pr-say-copy small{min-height:1.4em;font-size:13px;color:var(--pr-muted);overflow-wrap:anywhere}
+.pr-say .pr-button{flex-shrink:0}
+.pr-say-skip{margin-left:-4px}
+.pr-say.is-passed{border-color:#cfe6d6;background:var(--pr-right-bg)}
+.pr-say.is-passed .pr-say-mic{background:var(--pr-right);color:#fff}
+.pr-say.is-passed .pr-say-copy small{color:var(--pr-right)}
+.pr-choice-grid.is-locked .pr-choice{opacity:.42}
+@media(max-width:560px){
+  .pr-say{flex-wrap:wrap;margin-top:10px}
+  .pr-say .pr-say-copy{flex-basis:calc(100% - 56px)}
+  .pr-say .pr-button{margin-left:auto}
+}
+@media(prefers-reduced-motion:reduce){.pr-say-meter{transition:none}}

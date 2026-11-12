@@ -1,0 +1,1336 @@
+{
+ "files": {
+  "L1-01": {
+   "kind": "synthetic",
+   "sha256": "4f924a146357493132fb59ec06411b85df81d63ec59eb72161042338029e9dbf",
+   "seconds": 14.79,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-02": {
+   "kind": "synthetic",
+   "sha256": "fc4c3d4b9d27b29aa1a13bd7aa2d53222c43eaa622c30900d4791e813aec6093",
+   "seconds": 17.06,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-03": {
+   "kind": "synthetic",
+   "sha256": "115c73174d414aa12eba1e21e01c0f9298555bb409e06e0b3aed582380f4d1fa",
+   "seconds": 14.52,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-04": {
+   "kind": "synthetic",
+   "sha256": "00c6552327cb9f4cb8f15376689146ba1013a06e321859459378df5cca6b488f",
+   "seconds": 14.31,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-05": {
+   "kind": "synthetic",
+   "sha256": "cb5d62374ad9cf0f4601ed33d53fb7b628a95a9c28d1c5e44ce22692aacdff51",
+   "seconds": 13.93,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-06": {
+   "kind": "synthetic",
+   "sha256": "32ffc263ea9ba2f206563340a747b25ea6ac09399407e61c69eb46e31228ae6b",
+   "seconds": 21.31,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-07": {
+   "kind": "synthetic",
+   "sha256": "604d27d6128b98a6f0d045778c412670b3da4faaf68a9e562b9c47e5e08e6329",
+   "seconds": 12.61,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-08": {
+   "kind": "synthetic",
+   "sha256": "53740453e7b617b89e434341ac4a5ed8259fe20f6fef708bdeae8adb1cb41c66",
+   "seconds": 13.7,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-09": {
+   "kind": "synthetic",
+   "sha256": "d6f96df0757b84c286100eeb81f8dec673cbfc79dfb893d0923e7b2e38c8b706",
+   "seconds": 12.45,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-10": {
+   "kind": "synthetic",
+   "sha256": "bd5feb139f6ff1f561a42693dd65c03a75e2e73e0a3698026caad15405caa9f9",
+   "seconds": 14.41,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-11": {
+   "kind": "synthetic",
+   "sha256": "ca524ea68aca7191e2177e897756b89bfe7d78dc391c6dff546fcaeed7c8ce26",
+   "seconds": 18.06,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-12": {
+   "kind": "synthetic",
+   "sha256": "e297bcc66134f15ddd66e10484e8b18f39e12d417dace72e2eabe80ed6848667",
+   "seconds": 13.93,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-13": {
+   "kind": "synthetic",
+   "sha256": "b487ed891b684ac07502af3bbaf5057d6209e61971f887eac6e5a59094f49b87",
+   "seconds": 14.97,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-14": {
+   "kind": "synthetic",
+   "sha256": "6c764a41683f7f231d92c737a74711ae6502067e0f39d724d18106d8f69103c8",
+   "seconds": 12.72,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-15": {
+   "kind": "synthetic",
+   "sha256": "1dd4c82931472d1906f76a02b5e45ae4639a3a7c74eb171c19c24582e4017a2d",
+   "seconds": 20.0,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-16": {
+   "kind": "synthetic",
+   "sha256": "695ead3750edc016d4207c5752cd372edb31fa6a18e6bfcaa6e7b01023f32219",
+   "seconds": 28.5,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-17": {
+   "kind": "synthetic",
+   "sha256": "cea734900ea5f848f6e70092590f5fa6442c4f17e1bd8f9d8e595fe0826b1d74",
+   "seconds": 20.98,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-18": {
+   "kind": "synthetic",
+   "sha256": "f4b72f2e45c2ce61b18bb9bb066bda3d19614bf54b4cf8d85bab899d81bb9e96",
+   "seconds": 28.15,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-19": {
+   "kind": "synthetic",
+   "sha256": "698b319d64810dfd90f98b3b6201c5cfadc40bb495729dde2d34fe2ff22dd6f4",
+   "seconds": 22.97,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-20": {
+   "kind": "synthetic",
+   "sha256": "cb00920c4ab15f10fd8b247242f79c230b85c93451e7604f8bc64391d48b75d4",
+   "seconds": 25.5,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-21": {
+   "kind": "synthetic",
+   "sha256": "3834c58145a0e65aa9a8673637b87ec4b00fd113d165f3629cb9adddfd187c8f",
+   "seconds": 24.66,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-22": {
+   "kind": "synthetic",
+   "sha256": "ac55c3173be5348df2a33f9fad6d5cad7c245213ec42de58279e9ff5e52c919a",
+   "seconds": 20.55,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-23": {
+   "kind": "synthetic",
+   "sha256": "646d413f9ceada6ec0c218ab8d0949d0a9cc8c449f2efa8b147a57469117dc64",
+   "seconds": 25.31,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-24": {
+   "kind": "synthetic",
+   "sha256": "75d978eee54b76eb7c3c4b793dfa8f290a422ea0735aef8582ede6b00526e351",
+   "seconds": 19.91,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-25": {
+   "kind": "synthetic",
+   "sha256": "0accab61fab5ebd9ba45dcd4e6418314a872d807ab10f381077266ac7a59e10e",
+   "seconds": 22.25,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-26": {
+   "kind": "synthetic",
+   "sha256": "637f502aeca9182691c28b31a863a5e4fa53628d915726d8a2486cbad7789b50",
+   "seconds": 23.23,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-27": {
+   "kind": "synthetic",
+   "sha256": "8ff99e4a06197798f5e9f40b64b551cf36649bd9c902a4776443c10804431b33",
+   "seconds": 21.37,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L1-28": {
+   "kind": "synthetic",
+   "sha256": "a7973bbc6da97c9544098142ae4fc25861d6ea15ee2b2ebe7a45b4c263eefd1b",
+   "seconds": 20.2,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L1-29": {
+   "kind": "synthetic",
+   "sha256": "1f31333a639b826594db93b80e66c3852a224af287e187fa7df6d2600cf151de",
+   "seconds": 20.15,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L1-30": {
+   "kind": "synthetic",
+   "sha256": "113ddc2ff90a5cd348c9ccc3a83e3a46d9049eca5bdf88afd8f69b0e8f7f93de",
+   "seconds": 21.65,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-01": {
+   "kind": "synthetic",
+   "sha256": "613ad9289fe6899d56d367b54d2fc286017a741172e03eede00e30796cadd6c7",
+   "seconds": 13.52,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-02": {
+   "kind": "synthetic",
+   "sha256": "48e145b7679f3963e2e24091deb574a2c961d5a9a83a94228044c675d3ee1811",
+   "seconds": 15.6,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-03": {
+   "kind": "synthetic",
+   "sha256": "e82a03a4206cff2c277fa3bf789920e615d19e60df788931807be31a18ada129",
+   "seconds": 12.02,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-04": {
+   "kind": "synthetic",
+   "sha256": "245f4e580e30204c9c1a5157d3e1f528555d37ad32c95dadb4c05de04f48647c",
+   "seconds": 18.06,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-05": {
+   "kind": "synthetic",
+   "sha256": "cd691274c7cfad4dd9deeef81036a18d404d3039aa02cc38edc75ef3abcdc510",
+   "seconds": 15.62,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-06": {
+   "kind": "synthetic",
+   "sha256": "16b88359af31ebdab86f52ba0c201d861ad1ed7bee0acd1858f16b08948bf0ff",
+   "seconds": 17.61,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-07": {
+   "kind": "synthetic",
+   "sha256": "e9f326280e3ea2606d9f4d307f79adf3b49a2c9ba522bc3853338a7d5a08df93",
+   "seconds": 12.35,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-08": {
+   "kind": "synthetic",
+   "sha256": "628af636426e0ccdc3f3e8e911231af7b8dfd2bb5cd4b0fa18a4826e45388aca",
+   "seconds": 15.9,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-09": {
+   "kind": "synthetic",
+   "sha256": "3b4933c1818c06f69dbea980a62f00d0cfde94114fec108d508c0ffc3cd1d6f4",
+   "seconds": 13.26,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-10": {
+   "kind": "synthetic",
+   "sha256": "48b69240ba96e28f584841f748ecf8b35a1d97843c5cce74ff31bf0a6638ef65",
+   "seconds": 18.74,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-11": {
+   "kind": "synthetic",
+   "sha256": "e33bce2bd7280a734e4f21d25c348aa219b3cf068fe869e09e4eb4cbdf07eef4",
+   "seconds": 18.65,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-12": {
+   "kind": "synthetic",
+   "sha256": "10c906f30bdfff4ade68b33c284aa5d6aab83dd8b06c8870fa066cc4f9212980",
+   "seconds": 12.97,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-13": {
+   "kind": "synthetic",
+   "sha256": "4e682f98acd3765e94578455f7d238f2537fd68eeea78ad023030d0321ffa843",
+   "seconds": 14.0,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-14": {
+   "kind": "synthetic",
+   "sha256": "b262c396670cd097047a73f7953035950a5d29a44c447013d38344256a2a2923",
+   "seconds": 19.27,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-15": {
+   "kind": "synthetic",
+   "sha256": "dad3058aa3616f95f10b7269d6c132a2e9b78aa793011e1da55611bbf312a8e5",
+   "seconds": 20.89,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-16": {
+   "kind": "synthetic",
+   "sha256": "79c125607a3ba5576fe5e56f799e6b39e186a2da1cf8439c4f50c413ac612865",
+   "seconds": 25.21,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-17": {
+   "kind": "synthetic",
+   "sha256": "0355748a4163ab958a4e1a3cafda122836730098bb0f34eeeb1167b58848b9a8",
+   "seconds": 20.12,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-18": {
+   "kind": "synthetic",
+   "sha256": "8da583caf4d69de6b45268e832ed938c51e39c5938e7fc12fae5fa148375654f",
+   "seconds": 26.95,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-19": {
+   "kind": "synthetic",
+   "sha256": "a2ec1c476ece6abf0401ad48dab77edb4b3aa54d0544176ff6534e15566a6c32",
+   "seconds": 26.87,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-20": {
+   "kind": "synthetic",
+   "sha256": "cb9c614ec65984659598d4144becfb04760e9aa877a2ca95feb7678563759b3b",
+   "seconds": 22.57,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-21": {
+   "kind": "synthetic",
+   "sha256": "b5ff8c5b378ae17fa1b4b2bb243c7817fd88c78cd767655ef86c16802231d85a",
+   "seconds": 21.05,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-22": {
+   "kind": "synthetic",
+   "sha256": "262a662d06f5ce9b86097d2ab438ade1b11d7b31d7429aefc3f4a1067a1ec533",
+   "seconds": 23.02,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-23": {
+   "kind": "synthetic",
+   "sha256": "0c55acc86069012929706f1410b4b1086f9e93ef0b2d6e27c020d0651288e3ba",
+   "seconds": 21.82,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-24": {
+   "kind": "synthetic",
+   "sha256": "d5d69daa7fd02cb4dd4daa73728c654e5a1ea6d3510b1ccb0352ee66b2d4ffb7",
+   "seconds": 25.95,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-25": {
+   "kind": "synthetic",
+   "sha256": "2b4dcef8c0975f8fb506e28e649b625f24419fcc68d1151453b4431709fd51a9",
+   "seconds": 23.39,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-26": {
+   "kind": "synthetic",
+   "sha256": "0ccff405a7d18097d21e4a0af05abf65e033358b45656fdf1aee872321f6659f",
+   "seconds": 27.98,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-27": {
+   "kind": "synthetic",
+   "sha256": "f0398ec80f7c48fa361e91eea5e29061bc8a86cd03e115a58debeefaa3be777e",
+   "seconds": 18.51,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L2-28": {
+   "kind": "synthetic",
+   "sha256": "50643030da3aa01bee6b41fb463d80c76b1cfa39839d6e6db13a8a01cfb168b7",
+   "seconds": 21.73,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L2-29": {
+   "kind": "synthetic",
+   "sha256": "f3d49fb607ac2094e566d8dade898efde75c02f57383723854fc7771e66d2de1",
+   "seconds": 19.99,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L2-30": {
+   "kind": "synthetic",
+   "sha256": "be63cb1120760ae3f8f549541160837c3a278b13fabc0009261d1bdfd15c87a5",
+   "seconds": 19.54,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-01": {
+   "kind": "synthetic",
+   "sha256": "3d78300e985d0facf4a46ef3de99d5a888fe1f74941c3c8ffa7b805401083b0c",
+   "seconds": 17.82,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-02": {
+   "kind": "synthetic",
+   "sha256": "c7a7ff6d5932a5112b22559c9354ff692a8d8d2afe767922eb38e6bee54f3aa5",
+   "seconds": 16.79,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-03": {
+   "kind": "synthetic",
+   "sha256": "f3251a3b9a6624db6e668ab1122c0066755de49ceacc2320e54babee00f64ce7",
+   "seconds": 16.61,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-04": {
+   "kind": "synthetic",
+   "sha256": "ab7b92db17ab20099128888222aeaab6a32f9dbcdcbf5a98d7f0c2d23f7d94bc",
+   "seconds": 14.87,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-05": {
+   "kind": "synthetic",
+   "sha256": "abb8f306092000c927091bc3c15313d8bcb087e953fa939a0cd74262ce288ed4",
+   "seconds": 13.97,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-06": {
+   "kind": "synthetic",
+   "sha256": "db7136dc2d544bc99fc06af041e2d1133ce660e3a29b2e418c9fb1d3c0a92820",
+   "seconds": 15.27,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-07": {
+   "kind": "synthetic",
+   "sha256": "dae5ca18ad24c720d58bdcf3a661600afb19bef8ac2fdb1ee1e6378d624e1eb9",
+   "seconds": 18.38,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-08": {
+   "kind": "synthetic",
+   "sha256": "c62ba4d529f452cc5c37d4bb8d024287783c63600318dd5e8d3aaa2ceb3cea38",
+   "seconds": 15.32,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-09": {
+   "kind": "synthetic",
+   "sha256": "371c145eee5da0044eae31be440e729266db59e43b9ba97a2ed39768f94cce0d",
+   "seconds": 14.6,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-10": {
+   "kind": "synthetic",
+   "sha256": "5a4b7b7952e278296d4c17537e6216321c0aef5eb6f9b3a00eade2cb177a900a",
+   "seconds": 12.4,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-11": {
+   "kind": "synthetic",
+   "sha256": "8bd92630dfc1a0ef905b8edf6751a671459cf96054a2591cbd3e4ce35882cbe8",
+   "seconds": 11.35,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-12": {
+   "kind": "synthetic",
+   "sha256": "70b3024c18001eb4a560de6cf2035104fa0e9648b87cb18d9f953118a44ac648",
+   "seconds": 17.64,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-13": {
+   "kind": "synthetic",
+   "sha256": "4c0c9969cb65cefe184318fd1f1c1d27bf0ba8923c916e10e41d8d9950ae2290",
+   "seconds": 13.16,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-14": {
+   "kind": "synthetic",
+   "sha256": "7b5cb98ceca41c5f3286f29baafa8935827a6f8e05eccd1cd89aa5b7633e349e",
+   "seconds": 14.06,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-15": {
+   "kind": "synthetic",
+   "sha256": "86b433fbb40ecbc4326356afc79521b7221ea28f1a2b197b1a46c78eca946685",
+   "seconds": 18.03,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-16": {
+   "kind": "synthetic",
+   "sha256": "7abfab072b2b27dfa440994be8a6e6184f8e555997573c697b40e9534c926c13",
+   "seconds": 30.19,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-17": {
+   "kind": "synthetic",
+   "sha256": "67ae524ba1ec465d05e1d733bcb0526575b41be584bdf15899338319175b9c4e",
+   "seconds": 22.11,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-18": {
+   "kind": "synthetic",
+   "sha256": "87b428978204fb70e7f2a9d35a720ff8eb2d813b0c1894af2898cef826cb92d5",
+   "seconds": 27.37,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-19": {
+   "kind": "synthetic",
+   "sha256": "2420cff48cfa00ca7b4ef3186d6f883d9540d69699680c0758fa933bf66a26bd",
+   "seconds": 23.84,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-20": {
+   "kind": "synthetic",
+   "sha256": "fd65d9694498528c7d58183c8f628ad7ba912f7b5c09c792464b490f80e4808e",
+   "seconds": 20.8,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-21": {
+   "kind": "synthetic",
+   "sha256": "8336bbd7c970584d576b18777fe1a86b5decdb355840372b141f551287898f1c",
+   "seconds": 26.43,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-22": {
+   "kind": "synthetic",
+   "sha256": "2759228c236f7339ee911fe425011c3d9291085cbd24d491fce9dc1371cb8669",
+   "seconds": 21.39,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-23": {
+   "kind": "synthetic",
+   "sha256": "0c591a102acf5d22d0b9f1cc6203e94fc36a75f030f2227d577cdfa83b622197",
+   "seconds": 24.29,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-24": {
+   "kind": "synthetic",
+   "sha256": "316317812a0f6ef0304422633cde24edfc2897950812ebed450f143c81020dec",
+   "seconds": 24.19,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-25": {
+   "kind": "synthetic",
+   "sha256": "bbc1600c0758ffb010d86778562c54f9a72c9f94ca8c56fa246cb66c4603d38e",
+   "seconds": 20.85,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-26": {
+   "kind": "synthetic",
+   "sha256": "b8d1ce0f16c700732ed8e75c3fe7c17b4d643eb5787c2b983b5de7bebec234f9",
+   "seconds": 22.15,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-27": {
+   "kind": "synthetic",
+   "sha256": "e73f5cbaed7fc0350d2b00780597ea12d725f071cd2e610bb64894ee4dca0cc7",
+   "seconds": 22.52,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "L3-28": {
+   "kind": "synthetic",
+   "sha256": "39cad8636641548b5963cdfcb09957d25432ac9bd933834f91bf3a9f7d7b5206",
+   "seconds": 20.81,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "L3-29": {
+   "kind": "synthetic",
+   "sha256": "421498fcf4b3dc6fec449a347bae33f094351b053dfad3771d8771a0d4002fed",
+   "seconds": 20.8,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz",
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "L3-30": {
+   "kind": "synthetic",
+   "sha256": "c530be4243b22ec66f6d38d27ac10df6954d7893a88a6cebaea936eb485eff67",
+   "seconds": 18.64,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  },
+  "S1-1-e1": {
+   "kind": "synthetic",
+   "sha256": "b7f851f260deffcd6141d7b25972ba0a0962e923227b4a35a06b5377e839bb1b",
+   "seconds": 2.52,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-1-e2": {
+   "kind": "synthetic",
+   "sha256": "fcafc5a996166422ea30e02e60912f325cb97deb79a5aafaf24d0596e111e618",
+   "seconds": 5.11,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-1-e3": {
+   "kind": "synthetic",
+   "sha256": "74d45b84383ca3dd28ca04a9d14a0300fe1c1458e0e7614fcadd8eb9b2e73dba",
+   "seconds": 1.52,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-1-e4": {
+   "kind": "synthetic",
+   "sha256": "78e0e671d880805ea34241eeb2a479e7ee6b22fddab3c5569656475df4005f24",
+   "seconds": 3.93,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-1-e5": {
+   "kind": "synthetic",
+   "sha256": "be3faeaea8f00188d3bffb2b46444319601c0441e08e39b8f43d55e3a88b5335",
+   "seconds": 4.15,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-2-e1": {
+   "kind": "synthetic",
+   "sha256": "bfeedb19e2e889eec255bad1bef3b13749eb9f04c56697bf745d840ebb799dff",
+   "seconds": 3.79,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-2-e2": {
+   "kind": "synthetic",
+   "sha256": "6cb974b94edaf98e54a44ce0982e3df5994bc2ff507887dcb25ffb26aa438c8c",
+   "seconds": 5.33,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-2-e3": {
+   "kind": "synthetic",
+   "sha256": "666469df2fd3b354e9b4eaa94bfeac73a4af9c20aaa330d7d40e9adb3bbeb4d5",
+   "seconds": 4.31,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-2-e4": {
+   "kind": "synthetic",
+   "sha256": "f878ea6b3e3ea89f9659b6eb6d9167775fd646e845e82e67a9c0fa70b6bc5d24",
+   "seconds": 4.23,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-2-f1": {
+   "kind": "synthetic",
+   "sha256": "97faed95e855d74a5dd2c7105d61b33263577043ab42c8132ce9dcf50d227f06",
+   "seconds": 1.74,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-2-f2": {
+   "kind": "synthetic",
+   "sha256": "948fc00774e6c696bf346a04e2d97f8688321246392ce99d1f48aa0563b109a1",
+   "seconds": 2.93,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-3-e1": {
+   "kind": "synthetic",
+   "sha256": "4a27a1b6187715313cf6d3a6a29e367a2e7bfeee619dc170b2af56f9db69b149",
+   "seconds": 4.21,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-3-e2": {
+   "kind": "synthetic",
+   "sha256": "901fc8e765e55beaebfa8ec649f2c9281d1e762607419eb3d692d0d83c07fd45",
+   "seconds": 4.55,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-3-e3": {
+   "kind": "synthetic",
+   "sha256": "780e03b47b95e0fcd9b5723bb41341ae222a5dca90c5d8d24d3b3f8db30fdaee",
+   "seconds": 3.42,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-3-e4": {
+   "kind": "synthetic",
+   "sha256": "e7a3c5412451519d19df11183f8e2a1e5bdcf93c01c48cb205209f61efade682",
+   "seconds": 4.1,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-3-o": {
+   "kind": "synthetic",
+   "sha256": "3b1b7d4bf76d27868936fb2e1118d6b100e00e5763ad0097fbf6261b79ff0ecb",
+   "seconds": 7.6,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "S1-4-e1": {
+   "kind": "synthetic",
+   "sha256": "0f4756eb4879a1bc7ca15933c03d27ebd9dd2ae6d534c5835cbfc570ba7f2225",
+   "seconds": 3.35,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-4-e2": {
+   "kind": "synthetic",
+   "sha256": "63c9e686c44c302b9dd840342cf079b7d8a0ab67fe2c0b4fcaa94b3bd9e5bfd6",
+   "seconds": 2.84,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-4-e3": {
+   "kind": "synthetic",
+   "sha256": "1c42dbb4970bcc3b9be61d05b1093b8e1df553d368600103081af6891f896fda",
+   "seconds": 3.42,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S1-4-e4": {
+   "kind": "synthetic",
+   "sha256": "9eca3e0b02346f5ad7aa48e8dae4e3dcd2d44d3490bed73f78a4522bb1a70de9",
+   "seconds": 4.28,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-1-e1": {
+   "kind": "synthetic",
+   "sha256": "c05d4429b9c9d4462f0f232fcbbdd474130a8aa5e1149e36442e91250f671471",
+   "seconds": 3.67,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-1-e2": {
+   "kind": "synthetic",
+   "sha256": "040894cffd1fa8478e415ccb1bf5100f931c56527a204249c5a9af0408e3cbe5",
+   "seconds": 2.05,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-1-e3": {
+   "kind": "synthetic",
+   "sha256": "74d45b84383ca3dd28ca04a9d14a0300fe1c1458e0e7614fcadd8eb9b2e73dba",
+   "seconds": 1.52,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-1-e4": {
+   "kind": "synthetic",
+   "sha256": "83126a45b05742cb2b8a7a5d7b23ec5cdb35ee373cd868d8e41a722d75109dc2",
+   "seconds": 4.16,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-1-e5": {
+   "kind": "synthetic",
+   "sha256": "6dc6a5ac97bb563b47b630076712785eecd3d8dc7b1ed4953674030ed50d154c",
+   "seconds": 3.82,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-2-e1": {
+   "kind": "synthetic",
+   "sha256": "78aa8c4ee23b1e468662a48920168a0c0fe8431de636de88de22794fc77894ff",
+   "seconds": 3.79,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-2-e2": {
+   "kind": "synthetic",
+   "sha256": "b3a62999716012f59da6a807fba306f3876910ef9c0013b2fc1cf2a5b8a4389a",
+   "seconds": 2.25,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-2-e3": {
+   "kind": "synthetic",
+   "sha256": "d71fc20ce75046b80f45d85b95533ae0ed3278dd8ad50c14c6ce974f33498c25",
+   "seconds": 4.29,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-2-e4": {
+   "kind": "synthetic",
+   "sha256": "d999913a301d7706af1fed662c0797a051ea5e2901bcddfa5caeb46f0fd3affb",
+   "seconds": 3.9,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-2-f1": {
+   "kind": "synthetic",
+   "sha256": "9baf323ca0e0722d89264296c33fd937ad6b5851bdee71151c1cf516abc96fcc",
+   "seconds": 1.64,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-2-f2": {
+   "kind": "synthetic",
+   "sha256": "a90f05c62451401cb1c5f99b7adf52e9c5bb14bc5261286285bb8b12a734ca8b",
+   "seconds": 2.14,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-3-e1": {
+   "kind": "synthetic",
+   "sha256": "59f46f77d76c0b42e867d1e974f6963102500dae289ed378c1ced114a80b74d1",
+   "seconds": 1.59,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-3-e2": {
+   "kind": "synthetic",
+   "sha256": "d93e7265182c6493e67156277bec3e28e434f9fdb8b06a66bbb1e966e2ee1d94",
+   "seconds": 2.81,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-3-e3": {
+   "kind": "synthetic",
+   "sha256": "f7311904ddd850a6b651ec5b8daa0a7514fa17eb451ed7486490dc0c6439342a",
+   "seconds": 5.82,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-3-e4": {
+   "kind": "synthetic",
+   "sha256": "b1e635e51db93635063f137131667a3a8d66d1db8461a29bbb032a70a1c8b4de",
+   "seconds": 4.22,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-3-o": {
+   "kind": "synthetic",
+   "sha256": "2b22033b0d2569bf1d2aafb1c1b269686e3462fb16259984248a22240f55dcc0",
+   "seconds": 7.26,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-4-e1": {
+   "kind": "synthetic",
+   "sha256": "563e6959362acad7463823186bb1b0cc986cb3abf5c459077339038154dea979",
+   "seconds": 3.64,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-4-e2": {
+   "kind": "synthetic",
+   "sha256": "c034dae03cbfc9754c13fa49edcee550c65e490f4d4c397b475d542c98401754",
+   "seconds": 2.74,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-4-e3": {
+   "kind": "synthetic",
+   "sha256": "9fc9f1661c5741371dc343e961226211484b559ddf87eb83b2d89bc132b09e5a",
+   "seconds": 2.81,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S2-4-e4": {
+   "kind": "synthetic",
+   "sha256": "038532949b0cf06d2f6f787ab2493d847f73fe98bd73763c91a4e4d476efee59",
+   "seconds": 3.91,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-1-e1": {
+   "kind": "synthetic",
+   "sha256": "a631245d32d74fb17d4f98b9e553ef6e74c0c25c0c952014fe125f11d34cc799",
+   "seconds": 2.06,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-1-e2": {
+   "kind": "synthetic",
+   "sha256": "54771f5f3fced3d85a69fb8596d504b424e7f41bc188917dfc7e65ef5ecb42f6",
+   "seconds": 5.15,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-1-e3": {
+   "kind": "synthetic",
+   "sha256": "74d45b84383ca3dd28ca04a9d14a0300fe1c1458e0e7614fcadd8eb9b2e73dba",
+   "seconds": 1.52,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-1-e4": {
+   "kind": "synthetic",
+   "sha256": "6c75dcd0581a79aed7969de04fdda0893cd98fab5fc23ecdf6d30f8b3100506c",
+   "seconds": 3.67,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-1-e5": {
+   "kind": "synthetic",
+   "sha256": "6dc6a5ac97bb563b47b630076712785eecd3d8dc7b1ed4953674030ed50d154c",
+   "seconds": 3.82,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-2-e1": {
+   "kind": "synthetic",
+   "sha256": "20f27681886660f567803cc71761ad79ef0428e917fb95ee479103b2359ae5eb",
+   "seconds": 3.7,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-2-e2": {
+   "kind": "synthetic",
+   "sha256": "befc27877df14178282c519de4eca260444aaa7423f8d7308a6ea8a05c220288",
+   "seconds": 2.47,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-2-e3": {
+   "kind": "synthetic",
+   "sha256": "1c9d0196f0edaacbcdae60c23009493ed8b8e94ac2afdb5add157df7e1c01b64",
+   "seconds": 3.65,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-2-e4": {
+   "kind": "synthetic",
+   "sha256": "f878ea6b3e3ea89f9659b6eb6d9167775fd646e845e82e67a9c0fa70b6bc5d24",
+   "seconds": 4.23,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-2-f1": {
+   "kind": "synthetic",
+   "sha256": "a26c578cc48fb1a1ddefb7151c873be3f1c730b9f5bb3f03173a4949ec696cde",
+   "seconds": 1.56,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-2-f2": {
+   "kind": "synthetic",
+   "sha256": "4272fe159d2476529b83329ff2844e8ec3c532e0a00d9bcdc5fbb09f690240af",
+   "seconds": 3.69,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-3-e1": {
+   "kind": "synthetic",
+   "sha256": "d582a4cf24c354baf304fddbb6e384c9dd9454d16b493f15ff417835eded59b8",
+   "seconds": 3.0,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-3-e2": {
+   "kind": "synthetic",
+   "sha256": "f8919adef78f6aae6ab371350419084e2210cd7fc5c62a0011940054815999c1",
+   "seconds": 3.29,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-3-e3": {
+   "kind": "synthetic",
+   "sha256": "86c0f6accd9de7a22d35f368cde85ac3d9928c904e347276d4707ca1d1283f97",
+   "seconds": 1.75,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-3-e4": {
+   "kind": "synthetic",
+   "sha256": "2efec0f03e14105095720a7969964ec7060246080db32c603727d5ea451d5603",
+   "seconds": 4.09,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-3-o": {
+   "kind": "synthetic",
+   "sha256": "91cef0cb13dff4c43dcdf9c9713064e36eee86bcab8e421e0ec7b5b11a01b838",
+   "seconds": 8.41,
+   "voices": [
+    "nb-NO-PernilleNeural|-22Hz"
+   ]
+  },
+  "S3-4-e1": {
+   "kind": "synthetic",
+   "sha256": "fcb536f11285771a6d3816ef9b621e1d883a3e1f57832f36a6a1ee1f17c0455b",
+   "seconds": 3.54,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-4-e2": {
+   "kind": "synthetic",
+   "sha256": "c034dae03cbfc9754c13fa49edcee550c65e490f4d4c397b475d542c98401754",
+   "seconds": 2.74,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-4-e3": {
+   "kind": "synthetic",
+   "sha256": "646e9db796661d146d45dcce193ed4a0966d854a48bf65ac50579e4c968bd76b",
+   "seconds": 2.03,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "S3-4-e4": {
+   "kind": "synthetic",
+   "sha256": "62be73effb09098462839e85118fc8f0bce2957702bfb6de7118bb100f1bbfb2",
+   "seconds": 4.09,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "sound-check": {
+   "kind": "synthetic",
+   "sha256": "ed33141a4f173fdcdcd131b02b58dc630881e7a5d0a8ce72f98f65d8701c4fe0",
+   "seconds": 8.41,
+   "voices": [
+    "nb-NO-FinnNeural|-6Hz"
+   ]
+  }
+ }
+}

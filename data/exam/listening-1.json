@@ -1,0 +1,551 @@
+{
+  "set": 1,
+  "groups": [
+    {
+      "id": "L1-G1",
+      "question": {"nb": "Hvorfor ringer personen til legekontoret?", "zh": "这个人为什么给诊所打电话？"},
+      "options": [
+        {"nb": "Personen vil ha en time hos legen.", "zh": "想约时间看医生。"},
+        {"nb": "Personen kan ikke komme til timen sin.", "zh": "没法按约好的时间来看病。"},
+        {"nb": "Personen trenger mer medisin.", "zh": "需要再开一些药。"},
+        {"nb": "Personen vil vite svaret på en prøve.", "zh": "想知道检查的结果。"}
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "L1-01", "set": 1, "level": "A1", "type": "choice", "skill": "detalj", "topic": "butikk",
+      "question": {"nb": "Hva skal Ali kjøpe?", "zh": "阿里要买什么？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Hei, Ali, det er Marte.", "zh": "喂，阿里，我是玛尔特。"},
+        {"who": "A", "voice": "f1", "nb": "Kan du handle litt på vei hjem fra jobben?", "zh": "你下班回家的路上能去买点东西吗？"},
+        {"who": "A", "voice": "f1", "nb": "Vi trenger melk og egg.", "zh": "我们需要牛奶和鸡蛋。"},
+        {"who": "A", "voice": "f1", "nb": "Brød har vi nok av.", "zh": "面包家里还够。"},
+        {"who": "A", "voice": "f1", "nb": "Takk! Vi ses i kveld.", "zh": "谢谢！晚上见。"}
+      ]},
+      "options": [
+        {"nb": "Melk og brød", "zh": "牛奶和面包"},
+        {"nb": "Egg og brød", "zh": "鸡蛋和面包"},
+        {"nb": "Brød, melk og egg", "zh": "面包、牛奶和鸡蛋"},
+        {"nb": "Melk og egg", "zh": "牛奶和鸡蛋"}
+      ],
+      "answer": 3,
+      "explain": "玛尔特说需要牛奶和鸡蛋，面包家里还够（Brød har vi nok av），所以不用买面包。"
+    },
+    {
+      "id": "L1-02", "set": 1, "level": "A1", "type": "picture", "skill": "detalj", "topic": "familie",
+      "question": {"nb": "Hvilket bilde viser familien til Sara?", "zh": "哪张图是萨拉一家？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Hei! Jeg heter Sara, og dette er familien min.", "zh": "你好！我叫萨拉，这是我的家人。"},
+        {"who": "A", "voice": "f2", "nb": "Vi er fire i familien. Jeg har en mann og to barn.", "zh": "我们家有四口人。我有丈夫和两个孩子。"},
+        {"who": "A", "voice": "f2", "nb": "Vi har en gutt og en jente.", "zh": "我们有一个男孩和一个女孩。"},
+        {"who": "A", "voice": "f2", "nb": "Og så har vi en liten hund.", "zh": "另外我们还有一只小狗。"}
+      ]},
+      "art": {"id": "L1-02", "layout": "2x2", "panels": [
+        "一家人站在家门口：一个女人、一个男人和两个男孩，脚边一只小狗",
+        "一家人站在家门口：一个女人、一个男人和一个女孩，脚边一只小狗",
+        "一家人站在家门口：一个女人、一个男人、一个男孩和一个女孩，脚边一只小猫",
+        "一家人站在家门口：一个女人、一个男人、一个男孩和一个女孩，脚边一只小狗"
+      ]},
+      "answer": 3,
+      "explain": "萨拉家四口人：她、丈夫、一个男孩和一个女孩，还有一只小狗，是右下图。左上是两个男孩，右上只有一个孩子，左下是猫。"
+    },
+    {
+      "id": "L1-03", "set": 1, "level": "A1", "type": "clock", "skill": "detalj", "topic": "kurs",
+      "question": {"nb": "Når begynner kurset?", "zh": "课几点开始？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Når begynner norskkurset i morgen?", "zh": "明天的挪威语课几点开始？"},
+        {"who": "B", "voice": "f1", "nb": "Det begynner halv ni.", "zh": "八点半开始。"},
+        {"who": "A", "voice": "m1", "nb": "Halv ni? Ikke ni?", "zh": "八点半？不是九点吗？"},
+        {"who": "B", "voice": "f1", "nb": "Nei, halv ni. Ikke kom for sent!", "zh": "不是，是八点半。别迟到！"}
+      ]},
+      "options": [
+        {"nb": "09:00", "zh": "9:00"},
+        {"nb": "08:30", "zh": "8:30"},
+        {"nb": "09:30", "zh": "9:30"},
+        {"nb": "08:00", "zh": "8:00"}
+      ],
+      "answer": 1,
+      "explain": "halv ni 是八点半：挪威语的 halv 加钟点，表示离那个钟点还差半小时。所以不是九点，也不是九点半。"
+    },
+    {
+      "id": "L1-04", "set": 1, "level": "A1", "type": "choice", "skill": "detalj", "topic": "buss",
+      "question": {"nb": "Hvor går bussen fra i dag?", "zh": "今天这路公交车从哪里发车？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Informasjon om buss nummer tolv til sykehuset.", "zh": "关于开往医院的12路公交车的通知。"},
+        {"who": "A", "voice": "m1", "nb": "I dag går bussen fra jernbanestasjonen, ikke fra torget.", "zh": "今天公交车从火车站发车，不从广场发车。"},
+        {"who": "A", "voice": "m1", "nb": "Den stopper heller ikke ved skolen.", "zh": "它也不在学校停。"},
+        {"who": "A", "voice": "m1", "nb": "Vi beklager.", "zh": "非常抱歉。"}
+      ]},
+      "options": [
+        {"nb": "Fra torget", "zh": "从广场"},
+        {"nb": "Fra skolen", "zh": "从学校"},
+        {"nb": "Fra sykehuset", "zh": "从医院"},
+        {"nb": "Fra jernbanestasjonen", "zh": "从火车站"}
+      ],
+      "answer": 3,
+      "explain": "广播说今天从火车站发车，不从广场发车。学校是今天不停的站，医院是这路车的终点。"
+    },
+    {
+      "id": "L1-05", "set": 1, "level": "A1", "type": "picture", "skill": "detalj", "topic": "bolig",
+      "question": {"nb": "Hvor er nøklene?", "zh": "钥匙在哪里？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Vet du hvor nøklene mine er?", "zh": "你知道我的钥匙在哪儿吗？"},
+        {"who": "B", "voice": "m1", "nb": "Ligger de ikke på bordet?", "zh": "不在桌子上吗？"},
+        {"who": "A", "voice": "f1", "nb": "Nei, der er de ikke.", "zh": "不在，那里没有。"},
+        {"who": "B", "voice": "m1", "nb": "Å, jeg ser dem! De ligger på stolen, under jakka di.", "zh": "噢，我看见了！在椅子上，你的外套下面。"}
+      ]},
+      "art": {"id": "L1-05", "layout": "2x2", "panels": [
+        "同一个房间角落：左边一张小桌子，右边一把椅子，椅子上搭着一件外套。一串钥匙放在桌面上",
+        "同一个房间角落：左边一张小桌子，右边一把椅子，椅子上搭着一件外套。一串钥匙在椅子上，被外套压住，只露出一半",
+        "同一个房间角落：左边一张小桌子，右边一把椅子，椅子上搭着一件外套。一串钥匙掉在椅子下面的地板上",
+        "同一个房间角落：左边一张小桌子，右边一把椅子，椅子上搭着一件外套。一串钥匙放在外套上面，看得很清楚"
+      ]},
+      "answer": 1,
+      "explain": "男人说钥匙在椅子上、外套下面（under jakka），是右上图。左上在桌上，左下在地上，右下在外套上面。"
+    },
+    {
+      "id": "L1-06", "set": 1, "level": "A1", "type": "choice", "skill": "hovedpunkt", "topic": "lege",
+      "question": {"nb": "Hvorfor ringer legekontoret?", "zh": "诊所为什么打电话？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Hei, dette er Solsiden legekontor. Vi ringer til Jan Olsen.", "zh": "你好，这里是索尔西登诊所。我们找扬·奥尔森。"},
+        {"who": "A", "voice": "f2", "nb": "Du har time hos legen i morgen klokka ti.", "zh": "你明天十点约了医生。"},
+        {"who": "A", "voice": "f2", "nb": "Men legen er dessverre syk, så du kan ikke komme i morgen.", "zh": "但很遗憾，医生生病了，你明天不能来就诊了。"},
+        {"who": "A", "voice": "f2", "nb": "Kan du komme på fredag i stedet?", "zh": "你能改成星期五来吗？"},
+        {"who": "A", "voice": "f2", "nb": "Ring oss, er du snill. Takk!", "zh": "请给我们回个电话。谢谢！"}
+      ]},
+      "options": [
+        {"nb": "Jan må få en ny time.", "zh": "扬需要换一个看病的时间。"},
+        {"nb": "Jan er syk.", "zh": "扬生病了。"},
+        {"nb": "Jan har time i dag.", "zh": "扬今天有预约。"},
+        {"nb": "Legekontoret er stengt på fredag.", "zh": "诊所星期五不开门。"}
+      ],
+      "answer": 0,
+      "explain": "生病的是医生，不是扬。原来的预约是明天，诊所请他改到星期五，所以是要换时间。星期五诊所是开门的。"
+    },
+    {
+      "id": "L1-07", "set": 1, "level": "A1", "type": "clock", "skill": "detalj", "topic": "buss",
+      "question": {"nb": "Når tar Pål bussen i morgen?", "zh": "帕尔明天坐几点的公交车？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, det er Pål.", "zh": "喂，我是帕尔。"},
+        {"who": "A", "voice": "m1", "nb": "I morgen tar jeg bussen kvart over sju.", "zh": "明天我坐七点一刻的公交车。"},
+        {"who": "A", "voice": "m1", "nb": "Ikke den som går kvart på sju – den er for tidlig.", "zh": "不坐六点三刻那趟，那趟太早了。"},
+        {"who": "A", "voice": "m1", "nb": "Vi ses på holdeplassen!", "zh": "车站见！"}
+      ]},
+      "options": [
+        {"nb": "07:15", "zh": "7:15"},
+        {"nb": "06:45", "zh": "6:45"},
+        {"nb": "07:45", "zh": "7:45"},
+        {"nb": "06:15", "zh": "6:15"}
+      ],
+      "answer": 0,
+      "explain": "kvart over sju 是七点过一刻，即 7:15。kvart på sju（差一刻七点）是 6:45，帕尔说那趟太早，不坐。"
+    },
+    {
+      "id": "L1-08", "set": 1, "level": "A1", "type": "calendar", "skill": "detalj", "topic": "avtale",
+      "question": {"nb": "Hvilken dag kan du gå til frisøren?", "zh": "你哪一天可以去理发店？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Hei, dette er Lise på Frisørhjørnet.", "zh": "你好，我是“理发角”的莉瑟。"},
+        {"who": "A", "voice": "f1", "nb": "Tirsdag den niende mars er det dessverre fullt hos oss.", "zh": "很遗憾，三月九号星期二我们已经约满了。"},
+        {"who": "A", "voice": "f1", "nb": "Men du kan komme onsdag den tiende.", "zh": "不过你可以十号星期三来。"},
+        {"who": "A", "voice": "f1", "nb": "Ring meg hvis det ikke passer.", "zh": "如果不合适就给我打电话。"}
+      ]},
+      "calendar": {"month": "2027-03", "pick": "day"},
+      "answer": "2027-03-10",
+      "explain": "九号星期二已经约满，莉瑟说可以十号星期三来，所以选三月十日。"
+    },
+    {
+      "id": "L1-09", "set": 1, "level": "A1", "type": "choice", "skill": "detalj", "topic": "vær",
+      "question": {"nb": "Hvordan blir været i morgen?", "zh": "明天天气怎么样？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Her er været for i morgen.", "zh": "下面是明天的天气。"},
+        {"who": "A", "voice": "f2", "nb": "I dag regner det, men i morgen kommer sola.", "zh": "今天下雨，但明天会出太阳。"},
+        {"who": "A", "voice": "f2", "nb": "Det blir kaldt, bare to grader.", "zh": "天会很冷，只有两度。"},
+        {"who": "A", "voice": "f2", "nb": "Ta på deg en varm jakke!", "zh": "穿上暖和的外套吧！"}
+      ]},
+      "options": [
+        {"nb": "Regn og kaldt vær", "zh": "下雨，天冷"},
+        {"nb": "Sol og varmt vær", "zh": "晴天，暖和"},
+        {"nb": "Sol og kaldt vær", "zh": "晴天，天冷"},
+        {"nb": "Regn og varmt vær", "zh": "下雨，暖和"}
+      ],
+      "answer": 2,
+      "explain": "下雨的是今天。明天出太阳，但只有两度，很冷，所以是晴天、天冷。"
+    },
+    {
+      "id": "L1-10", "set": 1, "level": "A1", "type": "click", "skill": "detalj", "topic": "bolig",
+      "question": {"nb": "Klikk der katten sover.", "zh": "点击猫睡觉的地方。"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Hvor er katten? Den er ikke på sofaen.", "zh": "猫在哪儿？它不在沙发上。"},
+        {"who": "B", "voice": "m1", "nb": "Nei, se der! Den sover i vinduet.", "zh": "对，你看那儿！它在窗台上睡觉呢。"},
+        {"who": "A", "voice": "f1", "nb": "Å ja. Den liker sola.", "zh": "哦，对。它喜欢晒太阳。"}
+      ]},
+      "art": {
+        "id": "L1-10",
+        "brief": "一间温馨的客厅，4:3 横图，画面里不要画猫。左边靠墙是一张长沙发；后墙中间偏右有一扇大窗户，窗台很宽，阳光照进来；右边是一把扶手椅；画面中间靠前是一张矮茶几；左下角门边的地上放着一个空的猫篮。五处都要清楚、互不遮挡。",
+        "hotspots": [
+          {"id": "a", "label": "左边的长沙发", "x": 4, "y": 42, "w": 34, "h": 30},
+          {"id": "b", "label": "后墙大窗户的窗台", "x": 48, "y": 30, "w": 28, "h": 12},
+          {"id": "c", "label": "右边的扶手椅", "x": 78, "y": 44, "w": 20, "h": 32},
+          {"id": "d", "label": "中间靠前的矮茶几", "x": 40, "y": 70, "w": 24, "h": 16},
+          {"id": "e", "label": "左下角的空猫篮", "x": 6, "y": 78, "w": 14, "h": 16}
+        ]
+      },
+      "answer": "b",
+      "explain": "录音里的 i vinduet 在这里指窗台。猫在窗台上晒着太阳睡觉。"
+    },
+    {
+      "id": "L1-11", "set": 1, "level": "A1", "type": "choice", "skill": "detalj", "topic": "mat",
+      "question": {"nb": "Hvor mye betaler mannen?", "zh": "男人付了多少钱？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Hei! Hva skal det være?", "zh": "你好！要点什么？"},
+        {"who": "B", "voice": "m1", "nb": "En kaffe og en bolle, takk.", "zh": "一杯咖啡和一个小面包，谢谢。"},
+        {"who": "A", "voice": "f2", "nb": "Det blir femti kroner.", "zh": "一共五十克朗。"},
+        {"who": "B", "voice": "m1", "nb": "Å, jeg har bare førti kroner. Da tar jeg bare kaffen.", "zh": "哦，我只有四十克朗。那我只要咖啡。"},
+        {"who": "A", "voice": "f2", "nb": "Da blir det tretti kroner.", "zh": "那就是三十克朗。"}
+      ]},
+      "options": [
+        {"nb": "50 kroner", "zh": "50 克朗"},
+        {"nb": "40 kroner", "zh": "40 克朗"},
+        {"nb": "20 kroner", "zh": "20 克朗"},
+        {"nb": "30 kroner", "zh": "30 克朗"}
+      ],
+      "answer": 3,
+      "explain": "咖啡加面包要 50 克朗，他只有 40 克朗，所以只买咖啡，付 30 克朗。"
+    },
+    {
+      "id": "L1-12", "set": 1, "level": "A1", "type": "choice", "skill": "detalj", "topic": "jobb",
+      "question": {"nb": "Hva vil Daniel at kollegaen skal gjøre?", "zh": "达尼埃尔想让同事做什么？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, det er Daniel.", "zh": "喂，我是达尼埃尔。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg er syk og kommer ikke på jobb i dag.", "zh": "我病了，今天不来上班。"},
+        {"who": "A", "voice": "m1", "nb": "Kan du gå på møtet klokka tolv for meg?", "zh": "你能替我去开十二点的会吗？"},
+        {"who": "A", "voice": "m1", "nb": "Jeg er tilbake på torsdag, tror jeg.", "zh": "我想我星期四能回来。"}
+      ]},
+      "options": [
+        {"nb": "Ringe ham på torsdag", "zh": "星期四给他打电话"},
+        {"nb": "Være på et møte i stedet for ham", "zh": "代替他去开会"},
+        {"nb": "Komme på jobb klokka tolv", "zh": "十二点来上班"},
+        {"nb": "Være hjemme i dag", "zh": "今天待在家里"}
+      ],
+      "answer": 1,
+      "explain": "达尼埃尔请同事替他去开十二点的会。星期四是他自己回来上班的日子，待在家里的是他自己。"
+    },
+    {
+      "id": "L1-13", "set": 1, "level": "A1", "type": "choice", "skill": "detalj", "topic": "fritid",
+      "question": {"nb": "Hva gjør Mina på søndager nå?", "zh": "米娜现在每个星期天做什么？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Hei, jeg heter Mina. Jeg kommer fra Iran, og jeg bor i Drammen.", "zh": "你好，我叫米娜。我来自伊朗，住在德拉门。"},
+        {"who": "A", "voice": "f1", "nb": "Om sommeren liker jeg å bade og spille tennis.", "zh": "夏天我喜欢游泳和打网球。"},
+        {"who": "A", "voice": "f1", "nb": "Nå er det vinter, så nå går jeg på ski hver søndag.", "zh": "现在是冬天，所以我每个星期天都去滑雪。"}
+      ]},
+      "options": [
+        {"nb": "Hun går på ski.", "zh": "她去滑雪。"},
+        {"nb": "Hun bader.", "zh": "她去游泳。"},
+        {"nb": "Hun spiller tennis.", "zh": "她打网球。"},
+        {"nb": "Hun besøker familien i Iran.", "zh": "她去伊朗看家人。"}
+      ],
+      "answer": 0,
+      "explain": "游泳和打网球是夏天的活动。现在是冬天，她每个星期天去滑雪。"
+    },
+    {
+      "id": "L1-14", "set": 1, "level": "A1", "type": "choice", "skill": "hovedpunkt", "topic": "skole",
+      "question": {"nb": "Hva skal barna gjøre i morgen?", "zh": "孩子们明天要做什么？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Hei, alle foreldre i andre klasse!", "zh": "二年级的各位家长好！"},
+        {"who": "A", "voice": "f2", "nb": "I morgen går vi på tur i skogen.", "zh": "明天我们去树林里远足。"},
+        {"who": "A", "voice": "f2", "nb": "Barna må ha med matpakke og noe å drikke.", "zh": "孩子们要自带便当和饮料。"},
+        {"who": "A", "voice": "f2", "nb": "Og husk regntøy!", "zh": "还有，别忘了雨衣雨裤！"}
+      ]},
+      "options": [
+        {"nb": "Gå på tur", "zh": "去远足"},
+        {"nb": "Lage mat på skolen", "zh": "在学校做饭"},
+        {"nb": "Kjøpe regntøy", "zh": "买雨衣雨裤"},
+        {"nb": "Ha fri fra skolen", "zh": "不上学，放假"}
+      ],
+      "answer": 0,
+      "explain": "老师说明天去树林里远足。孩子们要自带便当，还要记得带上雨衣雨裤。"
+    },
+    {
+      "id": "L1-15", "set": 1, "level": "A1", "type": "choice", "skill": "hovedpunkt", "topic": "nabo",
+      "question": {"nb": "Hvorfor kommer Erik til Amina?", "zh": "埃里克为什么来找阿米娜？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, jeg heter Erik. Jeg bor i leiligheten over deg.", "zh": "你好，我叫埃里克，住在你楼上。"},
+        {"who": "B", "voice": "f1", "nb": "Hei! Jeg heter Amina.", "zh": "你好！我叫阿米娜。"},
+        {"who": "A", "voice": "m1", "nb": "Vi har fest på lørdag, så det blir kanskje litt bråk.", "zh": "我们星期六开派对，可能会有点吵。"},
+        {"who": "B", "voice": "f1", "nb": "Det går fint. Takk for at du sier ifra!", "zh": "没关系。谢谢你提前告诉我！"}
+      ]},
+      "options": [
+        {"nb": "Han vil invitere henne på fest.", "zh": "他想请她去参加派对。"},
+        {"nb": "Han synes at hun bråker.", "zh": "他觉得她太吵。"},
+        {"nb": "Han vil fortelle at det kan bli litt bråk på lørdag.", "zh": "他想告诉她星期六可能会有点吵。"},
+        {"nb": "Han vil låne noe til festen.", "zh": "他想为派对借点东西。"}
+      ],
+      "answer": 2,
+      "explain": "埃里克是来提前打招呼：星期六他家开派对，可能会吵。他没有邀请阿米娜，也没有说她吵。"
+    },
+    {
+      "id": "L1-16", "set": 1, "level": "A2", "type": "choice", "skill": "koble", "topic": "tannlege",
+      "question": {"nb": "Når skal Tariq til tannlegen?", "zh": "塔里克什么时候去看牙？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Tannlegekontoret, du snakker med Hilde.", "zh": "牙科诊所，我是希尔德。"},
+        {"who": "B", "voice": "m1", "nb": "Hei, jeg heter Tariq Khan. Jeg har time på torsdag, men jeg må dessverre jobbe den dagen.", "zh": "你好，我叫塔里克·汗。我星期四有预约，可惜那天我得上班。"},
+        {"who": "A", "voice": "f2", "nb": "Det går fint. Kan du komme på mandag morgen i stedet?", "zh": "没关系。你能改成星期一早上来吗？"},
+        {"who": "B", "voice": "m1", "nb": "Morgenen passer dårlig, for jeg kjører barna i barnehagen. Har dere noe etter klokka to?", "zh": "早上不太方便，我要开车送孩子去幼儿园。你们两点以后有空吗？"},
+        {"who": "A", "voice": "f2", "nb": "Ja, mandag klokka halv tre er ledig.", "zh": "有，星期一两点半有空位。"},
+        {"who": "B", "voice": "m1", "nb": "Supert, da tar jeg den.", "zh": "太好了，那就约这个。"}
+      ]},
+      "options": [
+        {"nb": "På torsdag", "zh": "星期四"},
+        {"nb": "På mandag formiddag", "zh": "星期一上午"},
+        {"nb": "På mandag ettermiddag", "zh": "星期一下午"},
+        {"nb": "På torsdag ettermiddag", "zh": "星期四下午"}
+      ],
+      "answer": 2,
+      "explain": "星期四他要上班，星期一早上要送孩子，最后约在星期一两点半（halv tre），也就是星期一下午。"
+    },
+    {
+      "id": "L1-17", "set": 1, "level": "A2", "type": "picture", "skill": "koble", "topic": "fritid",
+      "question": {"nb": "Hva gjorde kvinnen og datteren på lørdag?", "zh": "这个女人和女儿星期六做了什么？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "På lørdag skulle jeg gå på tur i skogen med datteren min.", "zh": "星期六我本来要和女儿去树林里散步。"},
+        {"who": "A", "voice": "f1", "nb": "Vi hadde pakket sekken med matpakker og kakao.", "zh": "我们连背包都装好了，里面放了便当和热可可。"},
+        {"who": "A", "voice": "f1", "nb": "Men det regnet hele dagen, så vi ble hjemme.", "zh": "可是下了一整天雨，所以我们待在家里。"},
+        {"who": "A", "voice": "f1", "nb": "Datteren min ville se på TV, men jeg sa nei.", "zh": "女儿想看电视，但我没同意。"},
+        {"who": "A", "voice": "f1", "nb": "I stedet bakte vi boller sammen. Det var veldig koselig, og bollene ble kjempegode!", "zh": "我们改成一起烤小面包。非常温馨，面包也特别好吃！"}
+      ]},
+      "art": {"id": "L1-17", "layout": "2x2", "panels": [
+        "一个女人和一个小女孩穿着雨衣，在下雨的树林里散步",
+        "一个女人和一个小女孩坐在沙发上看电视，窗外下雨",
+        "一个女人和一个小女孩在厨房里一起做小面包，窗外下雨",
+        "一个女人独自在厨房里做小面包，窗外下雨"
+      ]},
+      "answer": 2,
+      "explain": "因为下雨，她们没去树林；女儿想看电视，妈妈没同意；最后母女俩一起烤了小面包，是左下图。右下图只有女人一个人。"
+    },
+    {
+      "id": "L1-18", "set": 1, "level": "A2", "type": "click", "skill": "koble", "topic": "avtale",
+      "question": {"nb": "Klikk på huset de skal møtes utenfor.", "zh": "点击他们约好在外面见面的那栋房子。"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, Linn! Skal vi møtes på kafeen på torget i morgen?", "zh": "嗨，林恩！我们明天在广场的咖啡馆见面好吗？"},
+        {"who": "B", "voice": "f1", "nb": "Kafeen er stengt på mandager. Kan vi heller møtes utenfor biblioteket?", "zh": "咖啡馆星期一不开门。我们改在图书馆门口见面行吗？"},
+        {"who": "A", "voice": "m1", "nb": "Biblioteket? Ligger det ikke ved siden av apoteket?", "zh": "图书馆？不是在药店旁边吗？"},
+        {"who": "B", "voice": "f1", "nb": "Ikke lenger. Det har flyttet til det gule huset, mellom banken og blomsterbutikken.", "zh": "现在不在了。它搬到了那栋黄色的房子里，在银行和花店中间。"},
+        {"who": "A", "voice": "m1", "nb": "Å ja, nå skjønner jeg. Vi ses!", "zh": "哦，明白了。到时候见！"}
+      ]},
+      "art": {
+        "id": "L1-18",
+        "brief": "小镇广场的街景，4:3 横图。六栋两层小房子从左到右排成一排，正面朝向观众，前面是铺石子的广场。招牌上不要写字，只用图案表示。从左到右：1 红色房子，咖啡馆，门口摆着小桌椅，招牌画着咖啡杯；2 药店，招牌是绿色十字；3 白色房子，空着，窗户里什么都没有；4 蓝色房子，银行，招牌画着硬币；5 黄色房子，窗户里看不出是什么，门口也没有招牌；6 花店，门口摆满了花盆。每栋房子宽度差不多，中间留出空隙。",
+        "hotspots": [
+          {"id": "a", "label": "最左边的红色咖啡馆", "x": 2, "y": 20, "w": 14, "h": 55},
+          {"id": "b", "label": "绿色十字的药店", "x": 18, "y": 20, "w": 14, "h": 55},
+          {"id": "c", "label": "药店旁边空着的白色房子", "x": 34, "y": 20, "w": 14, "h": 55},
+          {"id": "d", "label": "蓝色的银行", "x": 50, "y": 20, "w": 14, "h": 55},
+          {"id": "e", "label": "银行和花店之间的黄色房子", "x": 66, "y": 20, "w": 14, "h": 55},
+          {"id": "f", "label": "最右边的花店", "x": 82, "y": 20, "w": 14, "h": 55}
+        ]
+      },
+      "answer": "e",
+      "explain": "咖啡馆星期一不开门，所以改在图书馆门口见。图书馆已经不在药店旁边了，搬到了银行和花店中间的黄色房子。"
+    },
+    {
+      "id": "L1-19", "set": 1, "level": "A2", "type": "clock", "skill": "koble", "topic": "reise",
+      "question": {"nb": "Når må Sondre være på flyplassen?", "zh": "松德雷几点必须到机场？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, det er Sondre.", "zh": "喂，我是松德雷。"},
+        {"who": "A", "voice": "m1", "nb": "Flyet mitt til Trondheim går ti over elleve i morgen formiddag.", "zh": "我飞特隆赫姆的航班明天上午十一点十分起飞。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg må være på flyplassen en time før.", "zh": "我得提前一个小时到机场。"},
+        {"who": "A", "voice": "m1", "nb": "Kan du kjøre meg? Det tar omtrent en halvtime å kjøre dit.", "zh": "你能开车送我吗？开过去大概要半小时。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg har mye bagasje, så jeg vil ikke ta bussen. Ring meg i kveld, så avtaler vi!", "zh": "我行李很多，不想坐大巴。今晚给我打电话，我们再商量！"}
+      ]},
+      "options": [
+        {"nb": "11:10", "zh": "11:10"},
+        {"nb": "10:10", "zh": "10:10"},
+        {"nb": "10:40", "zh": "10:40"},
+        {"nb": "09:40", "zh": "9:40"}
+      ],
+      "answer": 1,
+      "explain": "飞机 11:10 起飞，他要提前一小时到机场，所以是 10:10。9:40 是他们大概要出发的时间，不是到机场的时间。"
+    },
+    {
+      "id": "L1-20", "set": 1, "level": "A2", "type": "calendar", "skill": "koble", "topic": "barnehage",
+      "question": {"nb": "Hvilken dag er foreldremøtet?", "zh": "家长会在哪一天？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Hei, alle foreldre på avdeling Blåbær.", "zh": "蓝莓班的各位家长好。"},
+        {"who": "A", "voice": "f2", "nb": "Foreldremøtet skulle egentlig være torsdag den fjortende oktober.", "zh": "家长会原定在十月十四日星期四。"},
+        {"who": "A", "voice": "f2", "nb": "Men den dagen har barnehagen planleggingsdag og er stengt.", "zh": "但那天幼儿园有员工计划日，不开门。"},
+        {"who": "A", "voice": "f2", "nb": "Derfor flytter vi møtet til uka etter, samme dag og samme tid.", "zh": "所以我们把会改到下一周的同一天、同一时间。"},
+        {"who": "A", "voice": "f2", "nb": "Vi skal blant annet snakke om vinterklær og turdager.", "zh": "我们会谈到冬天的衣服和户外活动日等事情。"},
+        {"who": "A", "voice": "f2", "nb": "Vi begynner klokka seks og er ferdige rundt halv åtte. Velkommen!", "zh": "六点开始，七点半左右结束。欢迎参加！"}
+      ]},
+      "calendar": {"month": "2027-10", "pick": "day"},
+      "answer": "2027-10-21",
+      "explain": "原定 10 月 14 日星期四，因为幼儿园那天关门，改到下一周的同一天，也就是 10 月 21 日星期四。"
+    },
+    {
+      "id": "L1-21", "set": 1, "level": "A2", "type": "choice", "skill": "hovedpunkt", "topic": "bolig",
+      "question": {"nb": "Hva må beboerne gjøre på mandag og tirsdag?", "zh": "星期一和星期二住户必须怎么做？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, dette er en melding fra styret i borettslaget.", "zh": "大家好，这是住房合作社理事会的通知。"},
+        {"who": "A", "voice": "m1", "nb": "Neste uke skal vi male trappeoppgangen.", "zh": "下周我们要粉刷楼梯间。"},
+        {"who": "A", "voice": "m1", "nb": "På mandag og tirsdag kan dere ikke bruke hovedinngangen.", "zh": "星期一和星期二大家不能走正门。"},
+        {"who": "A", "voice": "m1", "nb": "Bruk døra ved sykkelboden i stedet.", "zh": "请改走自行车储藏室旁边的门。"},
+        {"who": "A", "voice": "m1", "nb": "Heisen virker som vanlig hele uka.", "zh": "电梯整个星期照常使用。"},
+        {"who": "A", "voice": "m1", "nb": "Malingen lukter litt, så det kan være lurt å lufte godt.", "zh": "油漆有点味道，最好多开窗通风。"},
+        {"who": "A", "voice": "m1", "nb": "Takk for at dere er tålmodige!", "zh": "谢谢大家的耐心！"}
+      ]},
+      "options": [
+        {"nb": "Gå inn og ut en annen vei", "zh": "从另一个门进出"},
+        {"nb": "La være å bruke heisen", "zh": "不要用电梯"},
+        {"nb": "Male trappeoppgangen selv", "zh": "自己粉刷楼梯间"},
+        {"nb": "Sette syklene sine i boden", "zh": "把自行车放进储藏室"}
+      ],
+      "answer": 0,
+      "explain": "这两天正门不能用，要改走自行车储藏室旁边的门，也就是换一条路进出。电梯照常能用；楼梯由理事会安排粉刷；储藏室只是用来说明那扇门的位置。"
+    },
+    {
+      "id": "L1-22", "set": 1, "level": "A2", "type": "picture", "skill": "koble", "topic": "helse",
+      "question": {"nb": "Hva slags trening driver mannen med nå?", "zh": "这个男人现在做什么运动？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "For tre uker siden falt jeg på fotballtreningen og skadet kneet.", "zh": "三个星期前我在足球训练时摔了一跤，伤了膝盖。"},
+        {"who": "A", "voice": "m1", "nb": "Legen sa at jeg ikke må spille fotball på en måned.", "zh": "医生说我一个月内不能踢足球。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg får ikke jogge, og sykling er heller ikke bra for kneet.", "zh": "我也不能跑步，骑自行车对膝盖也不好。"},
+        {"who": "A", "voice": "m1", "nb": "Men svømming er helt fint, sa hun. Så nå går jeg i svømmehallen to ganger i uka.", "zh": "但她说游泳完全没问题。所以我现在每周去两次游泳馆。"}
+      ]},
+      "art": {"id": "L1-22", "layout": "2x2", "panels": [
+        "同一个男人（短黑发，有胡子）在室内游泳池里游泳",
+        "同一个男人（短黑发，有胡子）在公园小路上跑步",
+        "同一个男人（短黑发，有胡子）在球场上踢足球",
+        "同一个男人（短黑发，有胡子）在路上骑自行车"
+      ]},
+      "answer": 0,
+      "explain": "医生不让他踢球、跑步，骑车对膝盖也不好，只有游泳可以，他现在每周去游泳馆两次，是左上图。"
+    },
+    {
+      "id": "L1-23", "set": 1, "level": "A2", "type": "choice", "skill": "hovedpunkt", "topic": "jobb",
+      "question": {"nb": "Hvorfor ringer Ingrid til Kofi?", "zh": "英格丽德为什么给科菲打电话？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Hei, er det Kofi Mensah?", "zh": "你好，是科菲·门萨吗？"},
+        {"who": "B", "voice": "m1", "nb": "Ja, det er meg.", "zh": "是我。"},
+        {"who": "A", "voice": "f1", "nb": "Jeg heter Ingrid, og jeg ringer fra Lier Byggvare. Du har søkt på jobben på lageret vårt.", "zh": "我叫英格丽德，从利尔建材店打来。你申请了我们仓库的工作。"},
+        {"who": "A", "voice": "f1", "nb": "Vi likte søknaden din godt, og vi vil gjerne møte deg til en samtale.", "zh": "我们很喜欢你的申请，想约你来面谈。"},
+        {"who": "B", "voice": "m1", "nb": "Så hyggelig! Når passer det?", "zh": "太好了！什么时候方便？"},
+        {"who": "A", "voice": "f1", "nb": "Kan du komme på fredag klokka ni?", "zh": "你星期五九点能来吗？"},
+        {"who": "B", "voice": "m1", "nb": "Ja, det passer fint.", "zh": "可以，很合适。"}
+      ]},
+      "options": [
+        {"nb": "Kofi har fått jobben på lageret.", "zh": "科菲得到了仓库的工作。"},
+        {"nb": "Hun trenger hjelp på lageret på fredag.", "zh": "她星期五需要人在仓库帮忙。"},
+        {"nb": "Kofi må sende en ny søknad.", "zh": "科菲要重新寄一份申请。"},
+        {"nb": "Hun vil møte Kofi for å snakke om jobben.", "zh": "她想和科菲见面谈谈这份工作。"}
+      ],
+      "answer": 3,
+      "explain": "英格丽德约科菲星期五来面谈（en samtale），也就是面试。他还没有得到这份工作，星期五是面谈的时间，不是去仓库帮忙。"
+    },
+    {
+      "id": "L1-24", "set": 1, "level": "A2", "type": "choice", "skill": "koble", "topic": "tog",
+      "question": {"nb": "Hvordan kommer de reisende til Lillehammer i dag?", "zh": "今天旅客怎么去利勒哈默尔？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Informasjon til reisende med toget til Lillehammer.", "zh": "前往利勒哈默尔的旅客请注意。"},
+        {"who": "A", "voice": "f2", "nb": "På grunn av arbeid på sporet går det ikke tog mellom Hamar og Lillehammer i dag.", "zh": "由于铁轨施工，今天哈马尔和利勒哈默尔之间没有火车。"},
+        {"who": "A", "voice": "f2", "nb": "Toget går som vanlig fra Oslo til Hamar.", "zh": "从奥斯陆到哈马尔的火车照常运行。"},
+        {"who": "A", "voice": "f2", "nb": "På Hamar står det busser som tar dere videre til Lillehammer.", "zh": "在哈马尔有大巴送大家继续前往利勒哈默尔。"},
+        {"who": "A", "voice": "f2", "nb": "Reisen tar omtrent en halvtime lenger enn vanlig.", "zh": "全程大约比平时多半小时。"}
+      ]},
+      "options": [
+        {"nb": "Med tog hele veien", "zh": "全程坐火车"},
+        {"nb": "Med buss hele veien fra Oslo", "zh": "从奥斯陆起全程坐大巴"},
+        {"nb": "Først med tog og så med buss", "zh": "先坐火车，再换大巴"},
+        {"nb": "De kan ikke reise i dag", "zh": "今天走不了"}
+      ],
+      "answer": 2,
+      "explain": "奥斯陆到哈马尔照常坐火车，哈马尔到利勒哈默尔这一段没有火车，改坐大巴。所以是先坐火车再换大巴。"
+    },
+    {
+      "id": "L1-25", "set": 1, "level": "A2", "type": "choice", "skill": "koble", "topic": "familie",
+      "question": {"nb": "Hva gjør Yonas på dagene han har fri?", "zh": "约纳斯休息的日子做什么？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Jeg heter Hanna, og jeg har bodd i Norge i to år.", "zh": "我叫汉娜，在挪威住了两年了。"},
+        {"who": "A", "voice": "f1", "nb": "Mannen min, Yonas, jobber på et hotell, og han jobber ofte om kvelden.", "zh": "我丈夫约纳斯在一家酒店工作，常常上晚班。"},
+        {"who": "A", "voice": "f1", "nb": "Derfor er det jeg som henter barna i barnehagen.", "zh": "所以是我去幼儿园接孩子。"},
+        {"who": "A", "voice": "f1", "nb": "I helgene har han fri. Da lager han middag til oss alle, og jeg går på trening.", "zh": "他周末休息。那时他给我们全家做晚饭，我去健身。"},
+        {"who": "A", "voice": "f1", "nb": "Han er mye flinkere til å lage mat enn meg!", "zh": "他做饭比我厉害多了！"}
+      ]},
+      "options": [
+        {"nb": "Han henter barna i barnehagen.", "zh": "他去幼儿园接孩子。"},
+        {"nb": "Han går på trening.", "zh": "他去健身。"},
+        {"nb": "Han jobber på hotellet.", "zh": "他在酒店上班。"},
+        {"nb": "Han lager mat til familien.", "zh": "他给家里人做饭。"}
+      ],
+      "answer": 3,
+      "explain": "约纳斯周末休息，那时他给全家做晚饭。接孩子和去健身的都是汉娜，酒店是他上班的地方。"
+    },
+    {
+      "id": "L1-26", "set": 1, "level": "A2", "type": "choice", "skill": "koble", "topic": "butikk",
+      "question": {"nb": "Hva må du gjøre for å få noe gratis?", "zh": "要怎样才能免费得到东西？"},
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Kjære kunder, velkommen inn!", "zh": "亲爱的顾客，欢迎光临！"},
+        {"who": "A", "voice": "m1", "nb": "I dag er alle epler og pærer på tilbud. De koster halv pris – men bare i dag.", "zh": "今天所有苹果和梨都打折，半价，但只限今天。"},
+        {"who": "A", "voice": "m1", "nb": "Og kjøper du to pakker kaffe, får du den tredje gratis.", "zh": "买两包咖啡，第三包免费。"},
+        {"who": "A", "voice": "m1", "nb": "I bakeriet har vi ferske boller rett fra ovnen.", "zh": "面包房有刚出炉的新鲜小面包。"},
+        {"who": "A", "voice": "m1", "nb": "Husk at vi stenger klokka seks i dag. God handel!", "zh": "请注意，我们今天六点关门。祝您购物愉快！"}
+      ]},
+      "options": [
+        {"nb": "Kjøpe epler og pærer", "zh": "买苹果和梨"},
+        {"nb": "Kjøpe to pakker kaffe", "zh": "买两包咖啡"},
+        {"nb": "Handle før klokka seks", "zh": "六点以前来买东西"},
+        {"nb": "Kjøpe boller i bakeriet", "zh": "在面包房买小面包"}
+      ],
+      "answer": 1,
+      "explain": "买两包咖啡，第三包免费（gratis）。苹果和梨只是半价，不是免费；六点是关门时间；小面包只说新鲜，没有优惠。"
+    },
+    {
+      "id": "L1-27", "set": 1, "level": "A2", "type": "shared", "skill": "hovedpunkt", "topic": "lege", "group": "L1-G1",
+      "audio": {"script": [
+        {"who": "A", "voice": "f1", "nb": "Hei, det er Grete Lund.", "zh": "你好，我是格蕾特·伦德。"},
+        {"who": "A", "voice": "f1", "nb": "Jeg var hos legen for to uker siden og fikk medisin mot astma.", "zh": "两个星期前我来看过医生，开了治哮喘的药。"},
+        {"who": "A", "voice": "f1", "nb": "Nå er det nesten ikke mer igjen.", "zh": "现在药快用完了。"},
+        {"who": "A", "voice": "f1", "nb": "Jeg trenger ikke time, for legen vet hvilken medisin jeg bruker.", "zh": "我不需要预约，医生知道我用的是什么药。"},
+        {"who": "A", "voice": "f1", "nb": "Kan legen skrive ut en ny resept, så jeg kan hente medisinen på apoteket? Tusen takk.", "zh": "医生能不能再开一张处方，让我去药店取药？非常感谢。"}
+      ]},
+      "answer": 2,
+      "explain": "格蕾特的哮喘药快用完了，想请医生再开处方，她特意说不需要预约。"
+    },
+    {
+      "id": "L1-28", "set": 1, "level": "A2", "type": "shared", "skill": "hovedpunkt", "topic": "lege", "group": "L1-G1",
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, dette er Viktor Novak.", "zh": "你好，我是维克多·诺瓦克。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg har time hos doktor Berg i morgen klokka ni, for å sjekke blodtrykket.", "zh": "我明天九点约了伯格医生，要检查血压。"},
+        {"who": "A", "voice": "m1", "nb": "Men sønnen min ble syk i natt, og jeg må være hjemme med ham.", "zh": "可是我儿子昨晚病了，我得在家陪他。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg ringer igjen neste uke for å bestille en ny time.", "zh": "我下周再打电话约新的时间。"},
+        {"who": "A", "voice": "m1", "nb": "Beklager at jeg sier fra så sent.", "zh": "抱歉这么晚才通知。"}
+      ]},
+      "answer": 1,
+      "explain": "维克多明天的预约去不了，因为要在家照顾生病的儿子。新的预约他下周才打电话约，这次电话是来取消的。"
+    },
+    {
+      "id": "L1-29", "set": 1, "level": "A2", "type": "shared", "skill": "hovedpunkt", "topic": "lege", "group": "L1-G1",
+      "audio": {"script": [
+        {"who": "A", "voice": "f2", "nb": "Hei, jeg heter Fatima Ali.", "zh": "你好，我叫法蒂玛·阿里。"},
+        {"who": "A", "voice": "f2", "nb": "Jeg har hatt vondt i ryggen i en uke nå, og det blir ikke bedre.", "zh": "我背疼一个星期了，一直不见好。"},
+        {"who": "A", "voice": "f2", "nb": "Jeg har prøvd tabletter fra apoteket, men de hjelper ikke.", "zh": "我试过药店买的药片，但没用。"},
+        {"who": "A", "voice": "f2", "nb": "Kan jeg få komme til legen denne uka? Jeg kan komme når som helst.", "zh": "我这周能来看医生吗？什么时间都可以。"},
+        {"who": "A", "voice": "f2", "nb": "Ring meg gjerne på dette nummeret.", "zh": "请打这个号码给我回电话。"}
+      ]},
+      "answer": 0,
+      "explain": "法蒂玛背疼不见好，想这周来看医生，也就是要约一个时间。药店的药片她已经试过了，她没有要药。"
+    },
+    {
+      "id": "L1-30", "set": 1, "level": "A2", "type": "shared", "skill": "hovedpunkt", "topic": "lege", "group": "L1-G1",
+      "audio": {"script": [
+        {"who": "A", "voice": "m1", "nb": "Hei, det er Hassan Omar.", "zh": "你好，我是哈桑·奥马尔。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg tok en blodprøve hos dere på mandag.", "zh": "我星期一在你们那儿验了血。"},
+        {"who": "A", "voice": "m1", "nb": "Legen sa at dere skulle ringe meg når svaret kom, men jeg har ikke hørt noe ennå.", "zh": "医生说结果出来后会给我打电话，可是我到现在还没接到。"},
+        {"who": "A", "voice": "m1", "nb": "Jeg trenger ikke en ny time. Jeg vil bare vite om alt er i orden.", "zh": "我不需要再预约，只想知道一切是否正常。"},
+        {"who": "A", "voice": "m1", "nb": "Kan noen ringe meg tilbake? Takk!", "zh": "能请人给我回个电话吗？谢谢！"}
+      ]},
+      "answer": 3,
+      "explain": "哈桑星期一验了血，一直没等到结果的电话，想知道结果是否正常。他说不需要新的预约。"
+    }
+  ]
+}

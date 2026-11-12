@@ -1,0 +1,88 @@
+{
+  "set": 2,
+  "tasks": [
+    {
+      "id": "S2-1", "kind": "presentasjon", "seconds": [60, 120],
+      "examiner": [
+        {"nb": "Hei, og velkommen. Fint at du er her.", "zh": "你好，欢迎。很高兴你来了。"},
+        {"nb": "Først vil jeg gjerne bli litt kjent med deg.", "zh": "首先我想稍微认识你一下。"},
+        {"nb": "Kan du fortelle litt om deg selv?", "zh": "你能介绍一下自己吗？"},
+        {"nb": "Du kan for eksempel fortelle hvor lenge du har bodd i Norge, og hva du gjør til vanlig.", "zh": "比如可以说说你在挪威住了多久，平时做什么。"},
+        {"nb": "Du har ett til to minutter. Vær så god.", "zh": "你有一到两分钟。请开始。"}
+      ],
+      "bullets": [
+        {"nb": "Navnet ditt", "zh": "你的名字"},
+        {"nb": "Hvor du kommer fra", "zh": "你来自哪里"},
+        {"nb": "Hvilke språk du snakker", "zh": "你会说哪些语言"},
+        {"nb": "Hvor lenge du har bodd i Norge", "zh": "你在挪威住了多久"},
+        {"nb": "Hva du gjør til vanlig", "zh": "你平时做什么"},
+        {"nb": "Hvorfor du lærer norsk", "zh": "你为什么学挪威语"}
+      ]
+    },
+    {
+      "id": "S2-2", "kind": "bilde", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Takk. Da går vi videre til oppgave to.", "zh": "谢谢。那我们进入第二个任务。"},
+        {"nb": "Her er et bilde fra et bibliotek.", "zh": "这是一张图书馆里的图。"},
+        {"nb": "Hva ser du på bildet? Fortell om personene og hva de gjør.", "zh": "你在图上看到了什么？说说图上的人，以及他们在做什么。"},
+        {"nb": "Du har to til tre minutter. Vær så god.", "zh": "你有两到三分钟。请开始。"}
+      ],
+      "art": {
+        "id": "S2-2",
+        "brief": "一个明亮的公共图书馆，4:3 横图。书架上的书只画彩色书脊，不写字。窗外在下雨。画面里有八个人：1 右前方借还书台后面：一位女图书管理员，正在帮一位拄着拐杖的老先生借书，台面上放着三本书（算两个人）。2 左前方儿童角：一位妈妈坐在彩色地垫上，给一个小孩读图画书（算两个人）。3 中间靠后：一个年轻男人坐在电脑前打字，戴着耳机。4 左后方：一个女人站在一个小梯凳上，从最高一层书架上拿一本书。5 中间的大桌子旁：一个学生趴在一堆书上睡着了。6 窗边：一个男人坐在扶手椅上看报纸，窗外下雨。",
+        "scene": "Et lyst bibliotek. Ute regner det. 1) Til høyre foran står en bibliotekar bak skranken. Hun hjelper en eldre mann med stokk som skal låne tre bøker. 2) Til venstre foran, i barnehjørnet, sitter en mor på en fargerik matte og leser en bildebok for et lite barn. 3) Midt i bildet, litt bak, sitter en ung mann foran en datamaskin. Han har hodetelefoner og skriver. 4) Bak til venstre står en kvinne på en liten trapp og tar ned en bok fra den øverste hylla. 5) Ved et stort bord i midten har en student sovnet over en bunke bøker. 6) Ved vinduet sitter en mann i en lenestol og leser avis."
+      },
+      "followups": [
+        {"nb": "Hva gjør mannen ved vinduet?", "zh": "窗边的男人在做什么？"},
+        {"nb": "Hva tror du kvinnen på trappa leter etter?", "zh": "你觉得站在梯凳上的女人在找什么？"}
+      ]
+    },
+    {
+      "id": "S2-3", "kind": "samtale", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Nå skal dere snakke sammen.", "zh": "现在你们要一起交谈。"},
+        {"nb": "Du skal snakke med Ahmad om været og årstidene.", "zh": "你要和艾哈迈德聊天气和季节。"},
+        {"nb": "Fortell hvordan været er der du bor. Spør også Ahmad hvilken årstid han liker best.", "zh": "说说你住的地方天气怎么样，也问问艾哈迈德最喜欢哪个季节。"},
+        {"nb": "Dere har to til tre minutter. Ahmad begynner.", "zh": "你们有两到三分钟。艾哈迈德先开始。"}
+      ],
+      "topic": {"nb": "Hvordan er været der dere bor, og hvilken årstid liker dere best?", "zh": "你们住的地方天气怎么样？你们最喜欢哪个季节？"},
+      "partner": {
+        "name": "Ahmad", "voice": "m1",
+        "facts": [
+          "Jeg heter Ahmad, og jeg kommer fra Syria.",
+          "Jeg har bodd i Trondheim i tre år.",
+          "I Syria er sommeren veldig varm, ofte over førti grader.",
+          "Den første vinteren i Norge var vanskelig, fordi det var mørkt og kaldt.",
+          "Nå liker jeg vinteren bedre, fordi jeg har lært å gå på ski.",
+          "Jeg liker våren best. Da blir dagene lengre og lysere.",
+          "Jeg liker ikke høsten, for da regner det mye i Trondheim."
+        ]
+      },
+      "opener": {"nb": "Hei, jeg heter Ahmad. Hvordan er været der du bor? Hvilken årstid liker du best?", "zh": "你好，我叫艾哈迈德。你住的地方天气怎么样？你最喜欢哪个季节？"},
+      "goals": [
+        {"nb": "Si hvordan været er der du bor nå.", "zh": "说出你现在住的地方天气怎么样。"},
+        {"nb": "Si hvilken årstid du liker best, og hvorfor.", "zh": "说出你最喜欢哪个季节，以及为什么。"},
+        {"nb": "Sammenlign gjerne med været i hjemlandet ditt.", "zh": "可以和家乡的天气比较一下。"},
+        {"nb": "Spør Ahmad minst ett spørsmål om været eller årstidene.", "zh": "至少问艾哈迈德一个关于天气或季节的问题。"},
+        {"nb": "Svar på spørsmålene til Ahmad.", "zh": "回答艾哈迈德的问题。"}
+      ]
+    },
+    {
+      "id": "S2-4", "kind": "tema", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Takk. Nå er vi kommet til den siste oppgaven.", "zh": "谢谢。现在到了最后一个任务。"},
+        {"nb": "Du skal snakke alene i to til tre minutter.", "zh": "你要一个人说两到三分钟。"},
+        {"nb": "Kan du fortelle om boligen din og nabolaget der du bor?", "zh": "你能讲讲你的住处和你住的那一片街区吗？"},
+        {"nb": "Punktene på skjermen kan hjelpe deg. Vær så god.", "zh": "屏幕上的提示可以帮你。请开始。"}
+      ],
+      "prompt": {"nb": "Fortell om boligen din og nabolaget der du bor.", "zh": "讲讲你的住处和你住的街区。"},
+      "bullets": [
+        {"nb": "Bor du i et hus eller i en leilighet? Hvor mange rom har boligen din?", "zh": "你住的是一栋房子还是公寓？你的住处有几个房间？"},
+        {"nb": "Hvem bor du sammen med?", "zh": "你和谁一起住？"},
+        {"nb": "Hva er det i nærheten, for eksempel butikk, buss, skole eller park?", "zh": "附近有什么？比如商店、公交、学校或公园。"},
+        {"nb": "Kjenner du naboene dine?", "zh": "你认识你的邻居吗？"},
+        {"nb": "Hva liker du, og hva vil du gjerne forandre?", "zh": "你喜欢什么，又想改变什么？"}
+      ]
+    }
+  ]
+}

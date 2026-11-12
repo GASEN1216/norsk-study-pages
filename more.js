@@ -9,7 +9,9 @@
   const tx = L10N.t;
   const EN_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const TOOLS = {
-    interview:{title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
+    exam:{title:'考试与面试',note:'A1–A2 模考和 A-team 面试，开口练、AI 点评',meta:'模考 · 面试',icon:'<path d="M7 3.5h8l4 4v13H7z"/><path d="M15 3.5v4h4M10 12h6M10 15.5h6M10 19h3"/><path d="m3.5 9 1.5 1.5 2.5-3"/>'},
+    // The interview lives inside 考试与面试 now; its page keeps its own tab for the session.
+    interview:{hidden:true,title:'A-team 面试',note:'15 个常见问题，挑几题开口练',meta:'15 题',icon:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>'},
     playlist:{title:'播放列表',note:'把课文录音排成清单，锁屏也能听',meta:'随身听',icon:'<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="2" y="12" width="5" height="9" rx="2"/><rect x="17" y="12" width="5" height="9" rx="2"/>'},
     honors:{title:'荣誉',note:'赛季徽章、全勤奖章、奖杯和长期成就',meta:'20 周赛季',icon:'<circle cx="12" cy="9" r="6"/><path d="m8 14-2 9 6-3 6 3-2-9m-6-5 1.4 1.5L15 7"/>'},
     notes:{title:'笔记',note:'我的手写与划线，和大家分享的笔记广场',meta:'笔记广场',icon:'<path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M15 3.5V7.5h4M9 11h7M9 14.5h7M9 18h4"/>'},
@@ -17,7 +19,7 @@
   };
   const DAYS = ['一','二','三','四','五','六','日'];
   const RANKS = {1:'金杯',2:'银杯',3:'铜杯'};
-  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,makeupBusy:false,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,verbs:null,verbsLoading:null,renderRun:0};
+  const state = {deps:{},root:null,tab:'home',visible:false,honors:null,status:'idle',request:0,makeupBusy:false,dialog:null,revealing:false,queue:[],interview:null,interviewLoading:null,verbs:null,verbsLoading:null,exam:null,examLoading:null,renderRun:0};
   const $ = (selector,root = document) => root.querySelector(selector);
   const e = value => state.deps.escapeHTML ? state.deps.escapeHTML(value) : String(value ?? '').replace(/[&<>"']/g,c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const art = name => `assets/honors/${name}.webp`;
@@ -88,8 +90,8 @@
     if (slot) slot.innerHTML = weekMarkup();
   }
   function hubMarkup() {
-    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">动词本、面试练习、随身听、读书笔记和这一季的荣誉，都在这里。</p></header>
-      ${featureMarkup()}<div class="mh-tools">${Object.entries(TOOLS).filter(([,tool]) => !tool.feature).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
+    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">动词本、考试与面试、随身听、读书笔记和这一季的荣誉，都在这里。</p></header>
+      ${featureMarkup()}<div class="mh-tools">${Object.entries(TOOLS).filter(([,tool]) => !tool.feature && !tool.hidden).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
       <div id="mh-hub-week">${weekMarkup()}</div></div>`;
   }
   // The verb book is a daily habit, so it sits above the shelf with today's numbers instead of in it.
@@ -113,6 +115,20 @@
       }).catch(error => { state.verbsLoading = null; throw error; });
     }
     return state.verbsLoading;
+  }
+  // 考试与面试 (exam.mjs): the self-test and the door to the interview.
+  function ensureExam() {
+    if (state.exam) return Promise.resolve(state.exam);
+    if (!state.examLoading) {
+      const v = state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : '';
+      state.examLoading = import(`./exam.mjs${v}`).then(module => {
+        state.exam = module.createExam({version:state.deps.version,stopAudio:() => state.deps.stopAudio?.(),openInterview:openPicker,
+          request:(path,options) => state.deps.community().then(community => community.request(path,options)),
+          submitResult:result => state.deps.submitResult?.(result)});
+        return state.exam;
+      }).catch(error => { state.examLoading = null; throw error; });
+    }
+    return state.examLoading;
   }
   function backBar() {
     return `<div class="mh-tool-bar"><button type="button" class="mh-back" data-more="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>更多</span></button></div>`;
@@ -278,7 +294,8 @@
     if (state.interview) return Promise.resolve(state.interview);
     if (!state.interviewLoading) {
       state.interviewLoading = import(`./interview.mjs${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`).then(module => {
-        state.interview = module.createInterview({version:state.deps.version,stopAudio:() => state.deps.stopAudio?.(),onExit:closeInterview,onStart:openInterviewSession});
+        state.interview = module.createInterview({version:state.deps.version,stopAudio:() => state.deps.stopAudio?.(),onExit:closeInterview,onStart:openInterviewSession,
+          request:(path,options) => state.deps.community().then(community => community.request(path,options)),submitResult:result => state.deps.submitResult?.(result)});
         return state.interview;
       }).catch(error => { state.interviewLoading = null; throw error; });
     }
@@ -294,20 +311,20 @@
     }
     return layer;
   }
-  // The picker floats over the shelf, the way practice opens its range dialog over the mode cards.
+  // The picker floats over 考试与面试 (or the shelf), the way practice opens its range dialog over the mode cards.
   function openPicker() {
     ensureInterview().then(interview => {
-      if (!state.visible || state.tab !== 'home') return;
+      if (!state.visible || !['home','exam'].includes(state.tab)) return;
       interview.openPicker();
       interview.mount(pickerLayer());
     }).catch(() => state.deps.notify?.('面试暂时无法载入，请检查网络后重试。'));
   }
   function closeInterview() {
     const layer = document.getElementById?.('mh-interview-picker');
-    show('home');
-    state.deps.setTab?.('home');
+    // The interview opens from 考试与面试 and closes back onto it, from the picker or from a finished session.
+    if (state.tab !== 'exam') { show('exam'); state.deps.setTab?.('exam'); }
     layer?.remove();
-    state.root?.querySelector('.mh-tools [data-tab="interview"]')?.focus?.({preventScroll:true});
+    state.exam?.focusInterview?.();
   }
   function openInterviewSession() {
     show('interview');
@@ -319,6 +336,7 @@
     const run = ++state.renderRun;
     if (state.tab !== 'interview') state.interview?.unmount();
     if (state.tab !== 'verbs') state.verbs?.unmount();
+    if (state.tab !== 'exam') state.exam?.unmount();
     if (state.tab === 'home') {
       state.root.innerHTML = hubMarkup();
       ensureVerbs().then(() => { const slot = document.getElementById?.('mh-verbs-status'); if (slot && run === state.renderRun) slot.innerHTML = verbsStatus(); }).catch(() => {});
@@ -330,6 +348,15 @@
       ensureVerbs().then(verbs => { const slot = $('.mh-verbs',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'verbs') return verbs.mount(slot); }).catch(() => {
         const slot = $('.mh-verbs',state.root);
         if (run === state.renderRun && slot && state.visible && state.tab === 'verbs') slot.innerHTML = '<div class="mh-offline"><p>动词本暂时无法载入，请检查网络后重试。</p></div>';
+      });
+      return;
+    }
+    if (state.tab === 'exam') {
+      // The exam draws its own way back: 更多 on its page, 退出 inside a test.
+      state.root.innerHTML = `<div class="mh-app"><div class="mh-exam"></div></div>`;
+      ensureExam().then(exam => { const slot = $('.mh-exam',state.root); if (run === state.renderRun && slot && state.visible && state.tab === 'exam') exam.mount(slot); }).catch(() => {
+        const slot = $('.mh-exam',state.root);
+        if (run === state.renderRun && slot && state.visible && state.tab === 'exam') slot.innerHTML = `${backBar()}<div class="mh-offline"><p>考试与面试暂时无法载入，请检查网络后重试。</p></div>`;
       });
       return;
     }
@@ -436,6 +463,9 @@
     // Keep new honors queued while a game owns the screen and focus (翻翻乐, 抓小偷, 开饭啦, 百货超市): a card over a game
     // in play covers the shop or the kitchen mid-shift. They show when the game is closed (its exit refreshes honors).
     if (['NorskDuel','NorskChase','NorskKitchen','NorskMall'].some(name => window[name]?.isOpen?.())) { state.revealing = false; return; }
+    // Likewise a test or an interview under way in 考试与面试 (or any practice that took the screen): the card waits
+    // for the result page or the way out, which call reveal again.
+    if (document.body?.classList?.contains('practice-focus')) { state.revealing = false; setTimeout(() => { if (!state.revealing && state.queue.length) { state.revealing = true; nextReveal(); } },4000); return; }
     const item = state.queue.shift();
     if (!item || !document.body) {
       state.revealing = false;
@@ -514,8 +544,8 @@
     if (next === 'honors' || next === 'home') load();
     if (focus) state.root?.querySelector(focus)?.focus({preventScroll:true});
   }
-  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.verbs?.unmount(); state.dialog?.close?.(); window.NorskNotes?.hideOverview?.(); }
-  function stopAudio() { state.interview?.stopAudio(); state.verbs?.stopAudio(); }
+  function hide() { state.visible = false; ++state.renderRun; state.interview?.unmount(); state.verbs?.unmount(); state.exam?.unmount(); state.dialog?.close?.(); window.NorskNotes?.hideOverview?.(); }
+  function stopAudio() { state.interview?.stopAudio(); state.verbs?.stopAudio(); state.exam?.stopAudio(); }
 
   window.NorskMore = {init,show,hide,reveal,stopAudio};
   window.dispatchEvent(new Event('norskmoreready'));

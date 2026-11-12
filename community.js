@@ -9,11 +9,15 @@
   const QUEUE_PREFIX = 'norsk-community-results-v1:';
   const RESULT_PREFIX = 'norsk-community-result-v2:';
   const TIMEOUT_MS = 12000;
+  // AI feedback (考试与面试) grades a whole paper: allow it up to three minutes.
+  const AI_TIMEOUT_MS = 180000;
   const PRESENCE_MS = 60000;
   const HONORS_TTL_MS = 20000;
   const CEREMONY_KEY = 'norsk-community-ceremony-v1';
   const WEEK = /^\d{4}-\d{2}-\d{2}$/;
-  const ACTIVITIES = ['learn','quiz','match','cards','listen'];
+  // 考试与面试's test parts and interview answers earn XP like practice; an exam result carries its estimated level.
+  const ACTIVITIES = ['learn','quiz','match','cards','listen','exam-listen','exam-read','exam-write','exam-speak','interview'];
+  const EXAM_LEVELS = ['under-A1','A1','A2'];
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/u;
   const state = {
@@ -128,10 +132,11 @@
     if (result.partial === true) return {sessionId:result.id,activity:result.activity,total:result.total,correct:Number.isInteger(result.correct) ? Math.max(0,Math.min(result.total,result.correct)) : correct,partial:true};
     const credited=result.credited || {}, before=Math.max(0,Math.min(result.total,Number.isInteger(credited.total) ? credited.total : 0));
     const total=result.total-before;
-    return {sessionId:result.id,activity:result.activity,total,correct:Math.max(0,Math.min(total,correct-(Number.isInteger(credited.correct) ? credited.correct : 0)))};
+    const level=result.activity.startsWith('exam-') && EXAM_LEVELS.includes(result.level) ? {level:result.level} : {};
+    return {sessionId:result.id,activity:result.activity,total,correct:Math.max(0,Math.min(total,correct-(Number.isInteger(credited.correct) ? credited.correct : 0))),...level};
   }
   function validQueued(item) {
-    return item && typeof item.sessionId === 'string' && item.sessionId.trim() && count(item.sessionId) <= 80 && !CONTROL.test(item.sessionId) && ACTIVITIES.includes(item.activity) && (item.partial === undefined || item.partial === true) && Number.isInteger(item.total) && item.total >= (item.partial ? 1 : 0) && item.total <= 3000 && Number.isInteger(item.correct) && item.correct >= 0 && item.correct <= item.total;
+    return item && typeof item.sessionId === 'string' && item.sessionId.trim() && count(item.sessionId) <= 80 && !CONTROL.test(item.sessionId) && ACTIVITIES.includes(item.activity) && (item.level === undefined || EXAM_LEVELS.includes(item.level)) && (item.partial === undefined || item.partial === true) && Number.isInteger(item.total) && item.total >= (item.partial ? 1 : 0) && item.total <= 3000 && Number.isInteger(item.correct) && item.correct >= 0 && item.correct <= item.total;
   }
   const resultKey = sessionId => RESULT_PREFIX+currentIdentity().deviceId+':'+encodeURIComponent(sessionId);
   function storeEntry(key,entry) {
@@ -168,7 +173,7 @@
       else if (item.status === 'pending' && validQueued(item)) pending.push(item);
     }
     pending.sort((a,b) => (a.queuedAt || 0)-(b.queuedAt || 0) || a.sessionId.localeCompare(b.sessionId));
-    const items=pending.map(item => ({sessionId:item.sessionId,activity:item.activity,total:item.total,correct:item.correct,...(item.partial ? {partial:true} : {})}));
+    const items=pending.map(item => ({sessionId:item.sessionId,activity:item.activity,total:item.total,correct:item.correct,...(item.partial ? {partial:true} : {}),...(item.level ? {level:item.level} : {})}));
     state.pending=items.length;
     return {version:2,deviceId,items,completed};
   }
@@ -189,7 +194,7 @@
     const controller=new AbortController();
     let timer;
     try {
-      const timeout=new Promise((_,reject) => { timer=setTimeout(() => { controller.abort(); reject(issue('timeout')); },Math.min(TIMEOUT_MS,Math.max(1000,Number(limit) || TIMEOUT_MS))); });
+      const timeout=new Promise((_,reject) => { timer=setTimeout(() => { controller.abort(); reject(issue('timeout')); },Math.min(path.startsWith('/ai/') ? AI_TIMEOUT_MS : TIMEOUT_MS,Math.max(1000,Number(limit) || TIMEOUT_MS))); });
       const operation=(async () => {
         const response=await fetch(base()+path,{method,headers,credentials:'same-origin',signal:controller.signal,...(body ? {body:JSON.stringify(body)} : {})});
         let data;

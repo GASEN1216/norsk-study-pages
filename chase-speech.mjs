@@ -197,9 +197,15 @@ export function prepare(onProgress) {
   return recogniser.loading.finally(() => { if (onProgress) recogniser.listeners.delete(onProgress); });
 }
 // expect: the words of the text the reader is about to say (the worker leans towards them a little).
-function transcribe(audio,expect) {
+function transcribe(audio,expect,options) {
   const id = ++recogniser.seq;
-  return new Promise(done => { recogniser.runs.set(id,done); recogniser.worker.postMessage({type:'run',id,audio,expect},[audio.buffer]); });
+  return new Promise(done => { recogniser.runs.set(id,done); recogniser.worker.postMessage({type:'run',id,audio,expect,...(options ? {options} : {})},[audio.buffer]); });
+}
+/** One stretch of free speech (16 kHz samples, at most about 3.5 s so the model still hears 2 s of silence after it),
+ *  for 考试与面试's dictation (dictation.mjs). Resolves {text, ms}; '' when the recogniser is not ready. */
+export function transcribeAudio(audio,options) {
+  if (!recogniser.ready) return Promise.resolve({text:'',ms:0});
+  return transcribe(audio,[],options);
 }
 
 /* ---------- The microphone ---------- */
@@ -207,6 +213,12 @@ function transcribe(audio,expect) {
 /** Ask for the microphone (call inside the player's tap: iOS starts audio only there). Resolves to a listener, or
  *  rejects with an Error whose `code` is 'denied' or 'none'. The listener hears nothing until start(). */
 export async function openMic() {
+  const {context,stream} = await openInput();
+  return listener(context,stream);
+}
+/** The microphone as an audio context (16 kHz where the browser allows) and its stream, for other listeners
+ *  (dictation.mjs). Same rules as openMic: call it inside a tap; rejects with code 'denied' or 'none'. */
+export async function openInput() {
   const Context = window.AudioContext || window.webkitAudioContext;
   let context;
   try { context = new Context({sampleRate:16000}); } catch { context = new Context(); }
@@ -219,7 +231,7 @@ export async function openMic() {
     failure.code = error?.name === 'NotAllowedError' || error?.name === 'SecurityError' ? 'denied' : 'none';
     throw failure;
   }
-  return listener(context,stream);
+  return {context,stream};
 }
 
 function listener(context,stream) {

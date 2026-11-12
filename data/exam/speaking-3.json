@@ -1,0 +1,89 @@
+{
+  "set": 3,
+  "tasks": [
+    {
+      "id": "S3-1", "kind": "presentasjon", "seconds": [60, 120],
+      "examiner": [
+        {"nb": "God dag, og velkommen til prøven.", "zh": "你好，欢迎参加考试。"},
+        {"nb": "Vi har fire oppgaver i dag. Den første er en kort presentasjon.", "zh": "今天我们有四个任务。第一个是简短的自我介绍。"},
+        {"nb": "Kan du fortelle litt om deg selv?", "zh": "你能介绍一下自己吗？"},
+        {"nb": "Du kan for eksempel fortelle hvem du bor sammen med, og hva du liker å gjøre.", "zh": "比如可以说说你和谁一起住，喜欢做什么。"},
+        {"nb": "Du har ett til to minutter. Vær så god.", "zh": "你有一到两分钟。请开始。"}
+      ],
+      "bullets": [
+        {"nb": "Navnet ditt", "zh": "你的名字"},
+        {"nb": "Hjemlandet ditt", "zh": "你的祖国"},
+        {"nb": "Hvor du bor, og hvem du bor sammen med", "zh": "你住在哪里，和谁一起住"},
+        {"nb": "Jobb eller utdanning", "zh": "工作或学习经历"},
+        {"nb": "Hva du liker å gjøre", "zh": "你喜欢做什么"},
+        {"nb": "Hva du vil gjøre i framtiden", "zh": "你将来想做什么"}
+      ]
+    },
+    {
+      "id": "S3-2", "kind": "bilde", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Takk skal du ha. Nå skal du se på et bilde.", "zh": "谢谢你。现在请你看一张图。"},
+        {"nb": "Bildet er fra en strand en varm sommerdag.", "zh": "这张图画的是夏天一个炎热日子里的海滩。"},
+        {"nb": "Hva ser du? Fortell hva folk på bildet gjør.", "zh": "你看到了什么？说说图上的人在做什么。"},
+        {"nb": "Du kan snakke i to til tre minutter. Vær så god.", "zh": "你可以说两到三分钟。请开始。"}
+      ],
+      "art": {
+        "id": "S3-2",
+        "brief": "夏天晴朗的海滩，4:3 横图。远处是蓝色的海和一艘白色小帆船，天上有太阳和两只海鸥。画面里不要有文字。画面里有八个人：1 左前方：一位爸爸蹲在一个一次性烧烤炉旁边烤香肠，一只海鸥正从烤炉上叼走一根香肠。2 中间沙滩上：两个小孩（一个男孩、一个女孩）用小桶和小铲子堆沙堡。3 右前方：一个女人躺在大遮阳伞下的毛巾上看书，戴着太阳镜。4 中间偏右：一个小女孩拿着冰淇淋，冰淇淋化了，滴到她手上。5 后方海水里：一位老爷爷在游泳。6 右后方沙滩上：一个年轻男人和一个年轻女人在互相扔飞盘。",
+        "scene": "En strand en varm og solrik sommerdag. Langt ute på sjøen er det en liten seilbåt, og på himmelen flyr noen måker. 1) Foran til venstre sitter en far på huk ved en engangsgrill og griller pølser. En måke stjeler en pølse fra grillen. 2) Midt på stranda bygger to små barn, en gutt og en jente, et sandslott med bøtte og spade. 3) Foran til høyre ligger en kvinne på et håndkle under en stor parasoll. Hun har solbriller og leser en bok. 4) Litt til høyre for midten står en liten jente med en is. Isen smelter og renner ned på hånda hennes. 5) Ute i vannet bader en eldre mann. 6) Bak til høyre kaster en ung mann og en ung kvinne frisbee til hverandre."
+      },
+      "followups": [
+        {"nb": "Hva gjør barna på stranda?", "zh": "沙滩上的孩子们在做什么？"},
+        {"nb": "Tror du vannet er varmt eller kaldt? Hvorfor?", "zh": "你觉得海水是暖的还是冷的？为什么？"}
+      ]
+    },
+    {
+      "id": "S3-3", "kind": "samtale", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Nå kommer oppgave tre, og nå skal dere snakke sammen.", "zh": "现在是第三个任务，你们要一起交谈。"},
+        {"nb": "Du skal snakke med Linh om hvordan dere kommer dere til jobb eller skole.", "zh": "你要和琳聊聊你们是怎么去上班或上学的。"},
+        {"nb": "Husk å spørre Linh om noe også.", "zh": "记得也要问琳一些问题。"},
+        {"nb": "Dere har to til tre minutter. Linh begynner.", "zh": "你们有两到三分钟。琳先开始。"}
+      ],
+      "topic": {"nb": "Hvordan kommer dere dere til jobb eller skole?", "zh": "你们怎么去上班或上学？"},
+      "partner": {
+        "name": "Linh", "voice": "f2",
+        "facts": [
+          "Jeg heter Linh, og jeg kommer fra Vietnam.",
+          "Jeg bor i Lillestrøm og jobber på et hotell i Oslo.",
+          "Jeg tar toget til jobben. Det tar omtrent tjue minutter.",
+          "Jeg går hjemmefra klokka halv sju om morgenen.",
+          "Om sommeren sykler jeg til stasjonen, men om vinteren går jeg.",
+          "Jeg har ikke bil, fordi det er dyrt å parkere i Oslo.",
+          "I Vietnam kjørte jeg moped overalt.",
+          "Noen ganger er toget forsinket, og det liker jeg ikke."
+        ]
+      },
+      "opener": {"nb": "Hei! Jeg heter Linh. Vi skal snakke om hvordan vi kommer oss til jobb eller skole. Hvordan kommer du deg dit?", "zh": "你好！我叫琳。我们来聊聊怎么去上班或上学。你是怎么去的？"},
+      "goals": [
+        {"nb": "Fortell hvordan du kommer deg til jobb eller skole.", "zh": "说出你怎么去上班或上学。"},
+        {"nb": "Si hvor lang tid det tar, og når du drar hjemmefra.", "zh": "说出路上要多久、你几点出门。"},
+        {"nb": "Si hva du liker eller ikke liker med reisen.", "zh": "说说这段路上你喜欢或不喜欢什么。"},
+        {"nb": "Spør Linh minst ett spørsmål om reisen hennes.", "zh": "至少问琳一个关于她上班路上的问题。"},
+        {"nb": "Svar på spørsmålene til Linh.", "zh": "回答琳的问题。"}
+      ]
+    },
+    {
+      "id": "S3-4", "kind": "tema", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Takk. Nå er det bare én oppgave igjen.", "zh": "谢谢。现在只剩最后一个任务了。"},
+        {"nb": "Du skal snakke alene i to til tre minutter.", "zh": "你要一个人说两到三分钟。"},
+        {"nb": "Kan du fortelle om hvordan du handler mat?", "zh": "你能讲讲你平时怎么买吃的吗？"},
+        {"nb": "Se gjerne på punktene på skjermen. Vær så god.", "zh": "可以看看屏幕上的提示。请开始。"}
+      ],
+      "prompt": {"nb": "Fortell om hvordan du handler mat.", "zh": "讲讲你平时怎么买吃的。"},
+      "bullets": [
+        {"nb": "Hvor handler du mat?", "zh": "你在哪里买吃的？"},
+        {"nb": "Hvor ofte handler du, og sammen med hvem?", "zh": "你多久买一次，和谁一起去？"},
+        {"nb": "Hva kjøper du vanligvis?", "zh": "你一般买什么？"},
+        {"nb": "Hva synes du er dyrt eller billig i Norge?", "zh": "你觉得在挪威什么贵、什么便宜？"},
+        {"nb": "Handler du mat på samme måte her som i hjemlandet ditt? Kan du gi et eksempel?", "zh": "你在这里和在自己国家买食品的方式一样吗？能举个例子吗？"}
+      ]
+    }
+  ]
+}

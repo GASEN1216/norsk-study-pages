@@ -1,0 +1,88 @@
+{
+  "set": 1,
+  "tasks": [
+    {
+      "id": "S1-1", "kind": "presentasjon", "seconds": [60, 120],
+      "examiner": [
+        {"nb": "Hei, og velkommen til den muntlige prøven.", "zh": "你好，欢迎参加口语考试。"},
+        {"nb": "Prøven har fire oppgaver. Vi begynner med en kort presentasjon.", "zh": "考试一共有四个任务。我们先从简短的自我介绍开始。"},
+        {"nb": "Kan du fortelle litt om deg selv?", "zh": "你能介绍一下自己吗？"},
+        {"nb": "Du kan for eksempel si hva du heter, hvor du kommer fra, og hvor du bor nå.", "zh": "比如可以说说你叫什么、从哪里来、现在住在哪里。"},
+        {"nb": "Du har omtrent ett til to minutter. Vær så god.", "zh": "你大约有一到两分钟。请开始。"}
+      ],
+      "bullets": [
+        {"nb": "Navnet ditt", "zh": "你的名字"},
+        {"nb": "Hvor du kommer fra", "zh": "你来自哪里"},
+        {"nb": "Hvor du bor nå", "zh": "你现在住在哪里"},
+        {"nb": "Familien din", "zh": "你的家人"},
+        {"nb": "Jobb eller skole", "zh": "工作或学习"},
+        {"nb": "Hva du liker å gjøre på fritiden", "zh": "你业余时间喜欢做什么"}
+      ]
+    },
+    {
+      "id": "S1-2", "kind": "bilde", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Takk. Nå går vi videre til oppgave to.", "zh": "谢谢。现在我们进入第二个任务。"},
+        {"nb": "Se på bildet. Her er en familie som har bursdagsselskap på kjøkkenet.", "zh": "请看这张图。这一家人在厨房里办生日聚会。"},
+        {"nb": "Fortell hva du ser. Hvem er på bildet, og hva gjør de?", "zh": "说说你看到了什么。图上有谁，他们在做什么？"},
+        {"nb": "Du kan snakke i to til tre minutter. Vær så god.", "zh": "你可以说两到三分钟。请开始。"}
+      ],
+      "art": {
+        "id": "S1-2",
+        "brief": "一个温馨的家庭厨房，正在办一个小小的生日聚会，4:3 横图。墙上挂着彩色三角小旗和几个气球，画面里不要有文字。窗外在下雪，是冬天的傍晚。画面里有七个人和一只狗：1 中间：一个七岁左右的女孩戴着生日纸帽，坐在餐桌旁，面前是一个插着七根蜡烛的蛋糕。2 女孩身后：她的妈妈站着，用长火柴点蜡烛。3 餐桌右边：奶奶坐着，把一个系着红色蝴蝶结的礼物递给女孩。4 左边厨房台面旁：爸爸站着，往几个杯子里倒果汁。5 爸爸旁边：一个三岁左右的小男孩站在椅子上，伸手去够挂在天花板下的气球。6 餐桌左边：一个十几岁的女孩用手机给过生日的女孩拍照。7 厨房门口：爷爷刚进门，手里拿着一束花，外套上还有雪。8 桌子底下：一只狗在吃一根掉在地上的香肠。",
+        "scene": "Et koselig kjøkken med et lite bursdagsselskap. Det henger flagg og ballonger på veggen. Ute snør det, og det er vinterkveld. 1) Midt i bildet sitter en jente på omtrent sju år ved bordet. Hun har bursdagshatt, og foran henne står en kake med sju lys. 2) Bak jenta står moren og tenner lysene med en lang fyrstikk. 3) Til høyre ved bordet sitter bestemoren og gir jenta en gave med rød sløyfe. 4) Til venstre ved kjøkkenbenken står faren og heller saft i noen glass. 5) Ved siden av faren står en liten gutt på omtrent tre år på en stol og prøver å ta en ballong. 6) På venstre side av bordet tar en tenåringsjente bilde av bursdagsbarnet med mobilen. 7) I døra står bestefaren. Han har nettopp kommet inn med en bukett blomster, og han har snø på jakka. 8) Under bordet spiser en hund en pølse som har falt på gulvet."
+      },
+      "followups": [
+        {"nb": "Hvor mange lys er det på kaka?", "zh": "蛋糕上有几根蜡烛？"},
+        {"nb": "Hva tror du familien skal gjøre etter at de har spist kaka?", "zh": "你觉得这家人吃完蛋糕以后要做什么？"}
+      ]
+    },
+    {
+      "id": "S1-3", "kind": "samtale", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Nå kommer oppgave tre. Her skal dere snakke sammen.", "zh": "现在是第三个任务。这个任务你们要一起交谈。"},
+        {"nb": "Du skal snakke med Marta. Dere skal snakke om middag.", "zh": "你要和玛尔塔交谈，话题是晚饭。"},
+        {"nb": "Fortell hva du pleier å spise, og spør Marta hva hun spiser.", "zh": "说说你平时吃什么，也问问玛尔塔吃什么。"},
+        {"nb": "Dere har to til tre minutter. Marta begynner.", "zh": "你们有两到三分钟。玛尔塔先开始。"}
+      ],
+      "topic": {"nb": "Hva spiser dere til middag?", "zh": "你们晚饭吃什么？"},
+      "partner": {
+        "name": "Marta", "voice": "f1",
+        "facts": [
+          "Jeg heter Marta, og jeg kommer fra Polen.",
+          "Jeg bor i Bergen med mannen min og sønnen vår på ti år.",
+          "Vi spiser middag rundt klokka fem, når alle har kommet hjem.",
+          "Jeg lager ofte suppe, fordi det er billig, sunt og godt.",
+          "På fredager spiser vi taco, som mange familier i Norge.",
+          "Mannen min lager middag i helgene, og han lager ofte fisk.",
+          "Noen ganger lager jeg pierogi, som er en polsk rett. Da blir sønnen min veldig glad."
+        ]
+      },
+      "opener": {"nb": "Hei! Jeg heter Marta. Vi skal snakke om middag. Hva spiser du vanligvis til middag?", "zh": "你好！我叫玛尔塔。我们来聊聊晚饭吧。你晚饭一般吃什么？"},
+      "goals": [
+        {"nb": "Fortell hva du ofte spiser til middag.", "zh": "说出你晚饭常吃什么。"},
+        {"nb": "Si når og sammen med hvem du spiser middag.", "zh": "说出你几点吃晚饭、和谁一起吃。"},
+        {"nb": "Fortell om en rett fra hjemlandet ditt, eller om noe du liker eller ikke liker.", "zh": "讲一道家乡的菜，或者说说你喜欢、不喜欢吃什么。"},
+        {"nb": "Spør Marta minst ett spørsmål om middagen hennes.", "zh": "至少问玛尔塔一个关于她晚饭的问题。"},
+        {"nb": "Svar på spørsmålene til Marta.", "zh": "回答玛尔塔的问题。"}
+      ]
+    },
+    {
+      "id": "S1-4", "kind": "tema", "seconds": [120, 180],
+      "examiner": [
+        {"nb": "Takk. Nå kommer den siste oppgaven.", "zh": "谢谢。现在是最后一个任务。"},
+        {"nb": "Her skal du snakke alene i to til tre minutter.", "zh": "这个任务你要一个人说两到三分钟。"},
+        {"nb": "Kan du fortelle om fritiden din, og hva du pleier å gjøre i helgene?", "zh": "你能讲讲你的业余生活，以及周末一般做什么吗？"},
+        {"nb": "Du kan se på punktene på skjermen hvis du vil. Vær så god.", "zh": "需要的话可以看看屏幕上的提示。请开始。"}
+      ],
+      "prompt": {"nb": "Fortell om fritiden din og hva du pleier å gjøre i helgene.", "zh": "讲讲你的业余生活和周末一般做什么。"},
+      "bullets": [
+        {"nb": "Hva gjør du på lørdager og søndager?", "zh": "你星期六和星期天做什么？"},
+        {"nb": "Hvem er du sammen med?", "zh": "你和谁在一起？"},
+        {"nb": "Hva liker du å gjøre når du har fri?", "zh": "休息的时候你喜欢做什么？"},
+        {"nb": "Hva gjorde du forrige helg?", "zh": "你上个周末做了什么？"},
+        {"nb": "Hva har du lyst til å gjøre neste helg?", "zh": "你下个周末想做什么？"}
+      ]
+    }
+  ]
+}

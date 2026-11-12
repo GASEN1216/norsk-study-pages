@@ -1,0 +1,48 @@
+{
+  "set": 2,
+  "tasks": [
+    {
+      "id": "W2-1",
+      "kind": "melding",
+      "prompt": {
+        "nb": "Du har bursdag på lørdag og vil invitere venninnen din Sara på middag hjemme hos deg. Skriv en melding til henne.",
+        "zh": "你星期六过生日，想邀请朋友萨拉来你家吃晚饭。给她写一条消息。"
+      },
+      "bullets": [
+        {"nb": "Inviter Sara på middag og si at du har bursdag.", "zh": "邀请萨拉来吃晚饭，告诉她你过生日。"},
+        {"nb": "Skriv når middagen begynner, og hvor du bor.", "zh": "写晚饭几点开始，以及你住在哪里。"},
+        {"nb": "Skriv hva dere skal spise, eller hva Sara kan ta med.", "zh": "写你们要吃什么，或者萨拉可以带什么来。"}
+      ],
+      "words": [20, 50]
+    },
+    {
+      "id": "W2-2",
+      "kind": "bilde",
+      "prompt": {
+        "nb": "Se på bildet fra et kjøpesenter. Skriv om det du ser. Hva gjør menneskene?",
+        "zh": "看这张购物中心的图片。写一写你看到了什么。图里的人在做什么？"
+      },
+      "words": [50, 80],
+      "art": {
+        "id": "W2-2",
+        "brief": "大型购物中心内部，横版 4:3，有两层楼和一部扶梯，地面亮亮的，中间有一个小喷泉和几张长椅。店铺招牌只用图案（鞋子、玩具熊），不要文字。画 8 个人，分布开、互不遮挡，肤色和年龄各不相同：① 左边鞋店里，一个女人坐着试穿一双红色的鞋；② 她面前，一个店员蹲着，手里拿着鞋盒；③ 扶梯上，一个男人提着很多购物袋；④ 玩具店橱窗前，一个小男孩在哭；⑤ 他妈妈拉着他的手；⑥⑦ 喷泉旁的长椅上，两个十几岁的女孩边吃冰淇淋边看手机；⑧ 喷泉旁，一个清洁工在拖地。",
+        "scene": "Et stort kjøpesenter med to etasjer, en rulletrapp, en liten fontene og noen benker. Det er åtte personer på bildet. I en skobutikk til venstre sitter en kvinne og prøver et par røde sko. En ekspeditør sitter på huk foran henne og holder en skoeske. En mann med mange handleposer står i rulletrappen. Foran vinduet til en lekebutikk gråter en liten gutt. Moren hans holder ham i hånden. To tenåringsjenter sitter på en benk ved fontenen. De spiser is og ser på mobilen. En renholder vasker gulvet ved fontenen."
+      }
+    },
+    {
+      "id": "W2-3",
+      "kind": "tema",
+      "prompt": {
+        "nb": "Skriv om jobben din eller skolen din.",
+        "zh": "写一写你的工作或你的学校。"
+      },
+      "bullets": [
+        {"nb": "Hvor jobber du, eller hvor går du på skole?", "zh": "你在哪里工作，或者在哪里上学？"},
+        {"nb": "Hva gjør du på jobben eller på skolen?", "zh": "你在工作或学校里做什么？"},
+        {"nb": "Hva liker du, og hva liker du ikke så godt?", "zh": "你喜欢什么，不太喜欢什么？"},
+        {"nb": "Hva vil du gjøre i framtiden?", "zh": "你将来想做什么？"}
+      ],
+      "words": [80, null]
+    }
+  ]
+}
