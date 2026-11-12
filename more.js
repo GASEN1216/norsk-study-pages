@@ -24,6 +24,9 @@
   const weekArt = (n,perfect = false) => art(`week-${String(n).padStart(2,'0')}${perfect ? '-perfect' : ''}`);
   // One-day event medals (双11): art is named by the event id without its year.
   const eventArt = (event,gold = false) => art(`event-${String(event.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}`);
+  // Advent calendar medals (圣诞倒数日历), named the same way.
+  const calendarArt = (calendar,gold = false) => art(`calendar-${String(calendar.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}`);
+  const calendarShown = calendar => calendar.earned || calendar.active;
   // A medal the whole site completed together glows (styles.css .nk-radiant); the light is masked by the picture itself.
   const radiant = (inner,src,{on = true,epic = false,fit = 'cover'} = {}) => `<span class="nk-radiant${on ? ' is-on' : ''}${epic ? ' is-epic' : ''}" style="--art:url('${e(src)}');--fit:${fit}">${epic ? '<i class="nk-radiant-rays" aria-hidden="true"></i>' : ''}${inner}<i class="nk-radiant-sheen" aria-hidden="true"></i></span>`;
   const pct = (progress,target) => target ? Math.max(0,Math.min(100,Math.round(Number(progress)/Number(target)*100))) : 0;
@@ -219,7 +222,16 @@
         <div><small>${e(dayLabel(event.day))} · ${e(event.title || '')}</small><strong lang="nb">${e(event.theme || '')}</strong><p>${e(line)}</p>
         ${event.gold || !event.active ? '' : `${bar(goal.progress,goal.target,false)}<span class="mh-event-count">${number(Math.min(goal.progress,goal.target))} / ${number(goal.target)}${event.earned ? ' 词' : ' XP'}</span>`}
         <span class="mh-event-site">${e(site)}${!event.site?.done && event.active ? ` / ${number(event.site?.target)}` : ''}</span></div></li>`;
-    }).join('')}</ol>`;
+    }).join('')}${(h.calendars || []).filter(calendarShown).reverse().map(calendarItem).join('')}</ol>`;
+  }
+  // The advent calendar's medal: unlit while its doors are still opening, earned at `medal` doors, gold with all of them.
+  function calendarItem(calendar) {
+    const total = calendar.doors?.length || 0, target = calendar.earned ? total : calendar.medal;
+    const line = calendar.gold ? '金色纪念章 · 每一扇门都打开了' : calendar.earned ? (calendar.active ? `纪念章已获得 · 开满 ${total} 扇升级金色` : '纪念章') : `每天获得 ${number(calendar.xp?.target)} XP 打开当天的门，开满 ${number(calendar.medal)} 扇得纪念章`;
+    const src = calendarArt(calendar,calendar.gold);
+    return `<li class="mh-event${calendar.earned ? ' is-earned' : ''}${calendar.gold ? ' is-gold' : ''}">${radiant(img(src,`${calendar.theme || ''} 纪念章`),src,{on:false})}
+        <div><small>${e(dayLabel(calendar.start))} – ${e(dayLabel(calendar.end))} · ${e(calendar.title || '')}</small><strong lang="nb">${e(calendar.theme || '')}</strong><p>${e(line)}</p>
+        ${calendar.gold || !calendar.active ? '' : `${bar(calendar.opened,target,false)}<span class="mh-event-count">已开 ${number(calendar.opened)} / ${number(target)} 扇</span>`}</div></li>`;
   }
   function trophyShelf(h) {
     const trophies = [...(h.trophies || [])].sort((a,b) => String(b.weekStart).localeCompare(String(a.weekStart)));
@@ -240,8 +252,8 @@
     const perfect = (h.weeks || []).filter(w => w.perfect).length;
     const achievements = (h.achievements || []).filter(a => a.earned).length;
     const stat = (target,value,label) => `<button type="button" data-more="jump" data-target="${target}"><strong>${value}</strong><span>${label}</span></button>`;
-    const eventSection = (h.events || []).some(event => event.earned || event.active) ? `<section class="mh-section" aria-labelledby="mh-events-title"><div class="mh-panel-head"><h3 id="mh-events-title" tabindex="-1">纪念章</h3><span>特别的日子限定一天，拿到就永久收藏</span></div>${eventShelf(h)}</section>` : '';
-    const eventToday = (h.events || []).some(event => event.active);
+    const eventSection = (h.events || []).some(event => event.earned || event.active) || (h.calendars || []).some(calendarShown) ? `<section class="mh-section" aria-labelledby="mh-events-title"><div class="mh-panel-head"><h3 id="mh-events-title" tabindex="-1">纪念章</h3><span>特别的日子限定，拿到就永久收藏</span></div>${eventShelf(h)}</section>` : '';
+    const eventToday = (h.events || []).some(event => event.active) || (h.calendars || []).some(calendar => calendar.active);
     return `${challengeCard(h)}${eventToday ? eventSection : ''}
       <div class="mh-split">
         <section class="mh-panel" aria-labelledby="mh-quests-title"><div class="mh-panel-head"><h3 id="mh-quests-title">今日任务</h3><span>${e(dayLabel(h.today?.date))} · 每天北京时间零点更新</span></div><ol class="mh-quests">${questRows(h.today?.quests)}</ol></section>
@@ -395,6 +407,11 @@
       // The whole site reached its goal: everyone who practised that day shares the moment, earned medal or not.
       if (event.site?.done && event.joined) keys.push({key:`event-${event.id}-site`,image:eventArt(event,event.gold),radiant:true,kicker:tx('全站达成'),title:tx('{n} 个词 · 一起做到',{n:Number(event.site.target || 0).toLocaleString('en-US')}),text:tx('{day}全站 {people} 人一起练满 {n} 个词，你也在其中。',{day:dayLabel(event.day),people:event.site.people,n:Number(event.site.target || 0).toLocaleString('en-US')})});
       if (event.gold) keys.push({key:`event-${event.id}-gold`,image:eventArt(event,true),kicker:tx('金色纪念章'),title,text:tx('{day}练了 {n} 个词，纪念章升级为金色。',{day:dayLabel(event.day),n:Number(event.words?.target || 0).toLocaleString('en-US')})});
+    }
+    for (const calendar of h?.calendars || []) {
+      const title = `${calendar.theme || ''} ${tx('纪念章')}`.trim();
+      if (calendar.earned) keys.push({key:`calendar-${calendar.id}`,image:calendarArt(calendar),kicker:tx('圣诞倒数日历'),title,text:tx('打开了 {n} 扇门，纪念章已收入荣誉。',{n:calendar.medal})});
+      if (calendar.gold) keys.push({key:`calendar-${calendar.id}-gold`,image:calendarArt(calendar,true),kicker:tx('金色纪念章'),title,text:tx('{n} 扇门全部打开，纪念章升级为金色。',{n:calendar.doors?.length || 24})});
     }
     for (const t of h?.trophies || []) keys.push({key:`trophy-${t.weekStart}`,image:art(`trophy-${t.rank}`),kicker:tx('周榜奖杯'),title:tx('第 {n} 名 · {cup}',{n:t.rank,cup:tx(RANKS[t.rank] || '')}),text:weekRange(t.weekStart)});
     for (const a of h?.achievements || []) if (a.earned) keys.push({key:`achievement-${a.id}`,image:art(`achievement-${a.id}`),kicker:tx('成就'),title:tx(a.title || ''),text:tx(a.description || '')});

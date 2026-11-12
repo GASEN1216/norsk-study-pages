@@ -532,3 +532,124 @@ html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
   html[lang="en"] .pr-mode-card .pr-mode-description{font-size:12.5px}
   html[lang="en"] .pr-source-tabs .pr-button{flex:1 1 auto;padding-inline:6px;font-size:13px;white-space:nowrap;overflow-wrap:normal}
 }
+
+/* 圣诞倒数日历 (Julekalender): the home card is the event card with a paper door on the left and 24 door dots. */
+.pr-jul{background:linear-gradient(100deg,#fffef9 0%,#fbf4e4 52%,#f5e6c8 100%)}
+.pr-jul-door{position:relative;width:52px;height:68px;margin:-4px 3px;perspective:240px}
+.pr-jul-door-light{position:absolute;inset:3px;border-radius:9px 9px 4px 4px;background:radial-gradient(circle at 50% 46%,#fff4d2 0,#f3cf7f 48%,#d9a443 100%);box-shadow:inset 0 0 8px #b07c2a80}
+.pr-jul-door-leaf{position:absolute;inset:0;display:grid;place-items:center;border:1px solid #d6bd86;border-radius:10px 10px 5px 5px;background:linear-gradient(165deg,#fffaf0 0%,#f6e8c9 100%);box-shadow:inset 0 0 0 4px #fbf3e2,inset 0 0 0 5px #e4d0a2,0 6px 14px -10px #7a5a22;transform-origin:0 50%;transition:transform 1.1s cubic-bezier(.3,.6,.2,1)}
+.pr-jul-door-leaf::after{content:"";position:absolute;right:8px;top:50%;width:4px;height:4px;margin-top:-2px;border-radius:50%;background:#c9a04a}
+.pr-jul-door-leaf b{font:500 24px/1 var(--serif,Georgia,serif);color:#9b3a2f;font-variant-numeric:lining-nums}
+.pr-jul-door.is-open .pr-jul-door-leaf{transform:rotateY(-58deg)}
+.pr-jul-dots{display:flex;gap:2.2px;width:150px;justify-content:space-between}
+.pr-jul-dots i{width:4px;height:4px;border-radius:50%;background:#e8dec8}
+.pr-jul-dots i.is-open{background:#c9a04a}
+.pr-jul-dots i.is-missed{background:#ece6d8}
+.pr-jul-dots i.is-today{background:#fffaf0;box-shadow:inset 0 0 0 1px #c9a04a}
+.pr-jul-dots i.is-now{transform:scale(1.45)}
+
+.pr-jul-dialog{width:500px}
+.pr-jul-medal{display:block;filter:saturate(.45) brightness(1.04);transition:filter .8s ease-out}
+.pr-jul-medal.is-earned{filter:none}
+.pr-jul-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin:0 0 4px;padding:0;list-style:none}
+.pr-jul-cell{position:relative;display:grid;align-content:center;justify-items:center;gap:2px;width:100%;aspect-ratio:1/1.08;padding:4px 3px;border:1px solid #ece3cd;border-radius:12px;background:#fdfaf2;color:#b9ad90;font:inherit;cursor:pointer;transition:border-color .2s ease-out,box-shadow .2s ease-out,background .2s ease-out}
+.pr-jul-cell b{font:500 17px/1 var(--serif,Georgia,serif);font-variant-numeric:lining-nums}
+.pr-jul-cell span{max-width:100%;font:500 10.5px/1.15 var(--serif,Georgia,serif);color:var(--pr-green);text-align:center;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pr-jul-cell.is-open{border-color:#e2cb94;background:linear-gradient(160deg,#fff8e6,#f4e3bc);color:#a8853f}
+.pr-jul-cell.is-open b{font-size:12.5px}
+.pr-jul-cell.is-today{border-color:#c9a04a;background:linear-gradient(165deg,#fffaf0,#f7ead0);color:#9b3a2f;box-shadow:0 6px 16px -12px #8a6a2a}
+.pr-jul-cell.is-missed{background:#f8f6f0;color:#cfc8b6}
+.pr-jul-cell.is-later{border-style:dashed;background:transparent;color:#cdbf9f}
+.pr-jul-cell:hover{border-color:#d4b878}
+.pr-jul-cell[aria-pressed="true"]{box-shadow:0 0 0 2px #fffef9,0 0 0 3.5px #b48d3c}
+.pr-jul-cell:focus-visible{outline:2px solid #b48d3c;outline-offset:2px}
+.pr-jul-detail{margin-top:14px;padding:14px 4px 4px;border-top:1px solid #efe6d2;min-height:96px}
+.pr-jul-when{margin:0 0 8px;font-size:12px;font-weight:600;letter-spacing:.06em;color:#a8853f}
+.pr-jul-hint{margin:0 0 12px;font-size:13.5px;line-height:1.5;color:var(--pr-muted)}
+.pr-jul-detail .pr-quest-meter{max-width:none;margin-top:4px}
+.pr-jul-detail .pr-quest-meter i{background:#c9a04a}
+.pr-jul-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.pr-jul-go{padding:8px 16px;border:0;border-radius:999px;background:var(--pr-green);color:#fffef9;font:600 13px var(--sans,inherit);cursor:pointer}
+.pr-jul-go:focus-visible,.pr-jul-play:focus-visible{outline:2px solid #b48d3c;outline-offset:2px}
+.pr-jul-word{display:flex;align-items:center;gap:14px}
+.pr-jul-word strong{display:block;font:500 23px/1.2 var(--serif,Georgia,serif);color:var(--pr-green)}
+.pr-jul-word span{font-size:14px;color:var(--pr-ink)}
+.pr-jul-play{flex:none;display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:50%;background:var(--pr-green);color:#fffef9;cursor:pointer}
+.pr-jul-play svg,.pr-jul-reveal-play svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7}
+.pr-jul-example{margin:12px 0 0;font-size:14px;line-height:1.55;color:var(--pr-ink)}
+.pr-jul-example small{display:block;font-size:12.5px;color:var(--pr-muted)}
+.pr-jul-detail.is-missed .pr-jul-word strong{color:#6f7f72}
+
+/* The door opening: a paper door with a gold frame swings inward and the day's word is behind it. */
+.pr-jul-reveal{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:24px;background:rgba(246,245,239,.78);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .5s ease-out}
+.pr-jul-reveal.is-open{opacity:1}
+.pr-jul-reveal.is-closing{opacity:0;transition-duration:.4s}
+.pr-jul-stage{display:grid;justify-items:center;gap:18px;transform:translateY(8px);transition:transform .9s cubic-bezier(.2,.7,.2,1)}
+.pr-jul-reveal.is-open .pr-jul-stage{transform:none}
+.pr-jul-reveal-kicker{margin:0;font-size:12px;font-weight:600;letter-spacing:.14em;color:#a8853f}
+.pr-jul-frame{position:relative;width:228px;height:296px;perspective:1100px}
+.pr-jul-inside{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;gap:8px;padding:20px;border:1px solid #dcc38c;border-radius:16px;background:radial-gradient(circle at 50% 42%,#fffaf0 0,#fbefd2 55%,#f1dcaa 100%);box-shadow:0 30px 60px -36px #6b4c18,inset 0 0 0 7px #fffaf0c0,inset 0 0 0 8px #e6d09d;text-align:center}
+.pr-jul-inside strong{font:500 30px/1.15 var(--serif,Georgia,serif);color:var(--green,#21483e);overflow-wrap:anywhere;opacity:0;transform:translateY(4px);transition:opacity .9s ease-out 1.15s,transform .9s ease-out 1.15s}
+.pr-jul-inside-form{font-size:13px;color:#a8853f;opacity:0;transition:opacity .8s ease-out 1.4s}
+.pr-jul-inside-gloss{font-size:16px;color:var(--ink,#2d3d36);opacity:0;transition:opacity .8s ease-out 1.5s}
+.pr-jul-reveal.is-open .pr-jul-inside>*{opacity:1;transform:none}
+.pr-jul-leaf{position:absolute;inset:0;display:grid;place-items:center;border:1px solid #cfb57c;border-radius:16px;background:linear-gradient(165deg,#fffaf0 0%,#f5e5c2 100%);box-shadow:inset 0 0 0 9px #fbf3e2,inset 0 0 0 10px #ddc48d,0 18px 40px -26px #6b4c18;transform-origin:0 50%;transition:transform 1.6s cubic-bezier(.35,.55,.2,1) .35s,opacity .5s ease-out 1.45s}
+.pr-jul-leaf b{font:500 64px/1 var(--serif,Georgia,serif);color:#9b3a2f;font-variant-numeric:lining-nums}
+.pr-jul-leaf::after{content:"";position:absolute;right:20px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#f4dc9c,#b68a36)}
+.pr-jul-leaf-wreath{position:absolute;top:34px;left:50%;width:28px;height:28px;margin-left:-14px;border-radius:50%;border:2px solid #4a7a5d;box-shadow:0 0 0 1px #fbf3e2,inset 0 0 0 1px #6e9c7c}
+.pr-jul-leaf-wreath::after{content:"";position:absolute;bottom:-4px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#b33b31}
+.pr-jul-reveal.is-open .pr-jul-leaf{transform:rotateY(-104deg);opacity:0}
+.pr-jul-reveal-actions{display:flex;gap:10px;opacity:0;transition:opacity .7s ease-out 1.9s}
+.pr-jul-reveal.is-open .pr-jul-reveal-actions{opacity:1}
+.pr-jul-reveal-play,.pr-jul-reveal-ok{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:999px;font:600 14px var(--sans,inherit);cursor:pointer}
+.pr-jul-reveal-play{border:1px solid #dcc38c;background:#fffef9;color:#8a6a2a}
+.pr-jul-reveal-ok{border:0;background:var(--green,#21483e);color:#fffef9}
+.pr-jul-reveal-play:focus-visible,.pr-jul-reveal-ok:focus-visible{outline:2px solid #b48d3c;outline-offset:2px}
+
+@media(max-width:560px){
+  .pr-jul-door{grid-row:span 2;width:44px;height:58px;margin:0 2px}
+  .pr-jul-door-leaf b{font-size:19px;margin-right:4px}
+  .pr-jul-door-leaf::after{right:5px}
+  .pr-jul-dots{flex:1;width:auto;min-width:0}
+  .pr-jul-dots i{width:3.4px;height:3.4px}
+  .pr-jul-dialog{padding:16px 14px 12px}
+  .pr-jul-grid{gap:5px}
+  .pr-jul-cell{border-radius:10px}
+  .pr-jul-cell span{display:none}
+  .pr-jul-cell.is-open b{font-size:15px}
+  .pr-jul-cell.is-open::after{content:"";position:absolute;bottom:7px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:#c9a04a}
+  .pr-jul-word strong{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){
+  .pr-jul-door-leaf,.pr-jul-medal,.pr-jul-cell,.pr-jul-reveal,.pr-jul-stage,.pr-jul-inside>*,.pr-jul-leaf,.pr-jul-reveal-actions{transition:none}
+}
+
+/* The Christmas banner on the practice home: a painted snowy village on the right, text on the calm sky at left. */
+.pr-jul-banner{position:relative;display:flex;align-items:center;min-height:176px;margin:0 0 24px;padding:24px 30px;border:1px solid #ecdcbf;border-radius:22px;
+  background:linear-gradient(90deg,#fff9ef 0%,rgba(255,249,239,.94) 28%,rgba(255,249,239,.55) 46%,rgba(255,249,239,0) 64%),url("assets/season/jul-banner.webp") 100% 46%/cover no-repeat,#f7ecdc;
+  box-shadow:0 22px 44px -32px rgba(122,78,28,.55),inset 0 0 0 1px rgba(255,255,255,.55)}
+.pr-jul-banner-text{position:relative;z-index:1;display:grid;justify-items:start;gap:4px;max-width:440px}
+.pr-jul-banner-kicker{margin:0;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#b2463a}
+.pr-jul-banner-title{margin:2px 0 0;font:500 30px/1.25 var(--serif,Georgia,serif);color:var(--pr-green,#21483e);letter-spacing:-.01em}
+.pr-jul-banner-title b{display:inline-block;margin:0 .08em;font-size:1.32em;font-weight:500;line-height:1;color:#a8322a;font-variant-numeric:lining-nums}
+.pr-jul-banner-sub{margin:4px 0 0;font-size:14px;line-height:1.55;color:#6f6a5c}
+.pr-jul-banner-link{display:inline-flex;align-items:center;gap:4px;margin-top:10px;padding:7px 12px 7px 15px;border:1px solid #e6cfa4;border-radius:999px;background:rgba(255,252,245,.85);color:#9b3a2f;font-size:13px;font-weight:600;text-decoration:none;transition:background .25s ease-out,border-color .25s ease-out}
+.pr-jul-banner-link svg{width:14px;height:14px;stroke-width:2}
+.pr-jul-banner-link:hover{background:#fff;border-color:#d8b77a}
+.pr-jul-banner-link:focus-visible{outline:2px solid #b48d3c;outline-offset:2px}
+/* The advent calendar card in December shows the same village behind its dots. */
+.pr-jul{background:linear-gradient(90deg,#fffef9 0%,rgba(255,250,240,.96) 46%,rgba(255,249,239,.62) 72%,rgba(255,249,239,.35) 100%),url("assets/season/jul-banner.webp") 100% 52%/cover no-repeat,#fbf4e4}
+@media(max-width:560px){
+  .pr-jul-banner{min-height:236px;margin-bottom:18px;padding:18px 18px 16px;border-radius:20px;align-items:stretch;
+    background:linear-gradient(180deg,#fff9ef 0%,rgba(255,249,239,.95) 36%,rgba(255,249,239,.4) 56%,rgba(255,249,239,0) 70%),url("assets/season/jul-banner.webp") 82% 100%/auto 150% no-repeat,#f3e6d2}
+  .pr-jul-banner-text{gap:2px;max-width:none;width:100%;align-content:start}
+  .pr-jul-banner-title{font-size:23px}
+  .pr-jul-banner-sub{font-size:12.5px}
+  .pr-jul-banner-link{align-self:end;margin-top:auto;background:rgba(255,252,245,.92);box-shadow:0 6px 16px -10px rgba(80,50,20,.5)}
+  .pr-jul-banner-text{grid-template-rows:auto auto auto 1fr}
+}
+@media(max-width:380px){
+  .pr-jul-banner{min-height:248px;background:linear-gradient(180deg,#fff9ef 0%,rgba(255,249,239,.95) 44%,rgba(255,249,239,.4) 62%,rgba(255,249,239,0) 74%),url("assets/season/jul-banner.webp") 82% 100%/auto 140% no-repeat,#f3e6d2}
+  .pr-jul-banner-title{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){.pr-jul-banner-link{transition:none}}

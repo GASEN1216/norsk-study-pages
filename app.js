@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261111-chase-instant';
-import {createReadingLibrary} from './reading-library.mjs?v=20261111-chase-instant';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261111-chase-instant';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261111-chase-instant';
-import * as notesModel from './notes-store.mjs?v=20261111-chase-instant';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261111-chase-instant';
+import {createDataLoader} from './loader.mjs?v=20261112-christmas';
+import {createReadingLibrary} from './reading-library.mjs?v=20261112-christmas';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261112-christmas';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261112-christmas';
+import * as notesModel from './notes-store.mjs?v=20261112-christmas';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261112-christmas';
 
-const VERSION = '20261111-chase-instant';
+const VERSION = '20261112-christmas';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -1100,7 +1100,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261111-chase-instant').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261112-christmas').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1972,6 +1972,9 @@ document.addEventListener('keydown',event => {
 function viewFromHash() {
   const [view,tab] = location.hash.slice(1).split('/');
   if (view === 'more') state.moreTab = tab && tab !== 'home' ? tab : 'home';
+  // #basics/<category id> opens that category (the Christmas banner links to #basics/jul).
+  // An unknown id falls back to the first category when the list renders.
+  if (view === 'basics' && tab) state.basicId = tab;
   return view;
 }
 window.addEventListener('hashchange',() => setView(viewFromHash(),false));
@@ -2069,10 +2072,31 @@ function isolatePage() {
   if (!window.crossOriginIsolated && !navigator.serviceWorker.controller) document.documentElement.dataset.isolate = 'next';
   navigator.serviceWorker.register('isolate-sw.js').catch(error => console.warn('页面隔离没有启用',error));
 }
+// Christmas decorations (season.mjs + season.css). The user asked on 2026-11-12 for them from that day on; they come
+// down after tjuendedagen (13 January), the day Norwegian Christmas traditionally ends. `?jul=1` / `?jul=0` force them
+// on or off for the browser session (testing).
+const SEASON = {from:'2026-11-12',to:'2027-01-13'};
+function seasonWanted() {
+  const asked = (/[?&]jul=([01])(?:&|$)/.exec(str(location.search)) || [])[1];
+  let preview = asked || null;
+  try { if (asked) sessionStorage.setItem('norsk-season-preview',asked); else preview = sessionStorage.getItem('norsk-season-preview'); } catch {}
+  if (preview) return preview === '1';
+  const day = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date());
+  return day >= SEASON.from && day <= SEASON.to;
+}
+function startSeason() {
+  if (!seasonWanted()) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `season.css?v=${VERSION}`;
+  document.head.append(link);
+  import(`./season.mjs?v=${VERSION}`).then(module => module.startSeason()).catch(error => console.warn('节日装饰未载入',error));
+}
 async function initialize() {
   isolatePage();
   await i18n.ready;
   localizeShell();
+  startSeason();
   startPresence();
   showPDFMessage('正在载入阅读目录…');
   loadAudioMetadata();

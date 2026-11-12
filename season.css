@@ -1,0 +1,65 @@
+/* Christmas decorations (season.mjs). Overlays only: nothing here changes the size or place of existing elements. */
+
+/* Bulbs under the header: a dark garland wire in scallops, glass bulbs with a soft bloom that breathes. */
+.jul-lights{position:absolute;left:0;right:0;top:calc(100% - 2px);height:34px;pointer-events:none;z-index:3;overflow:visible}
+.jul-lights svg{display:block;overflow:visible;width:100%;height:34px;stroke:none;stroke-width:0}
+.jul-wire{fill:none;stroke:#3d4b3c;stroke-width:1.1;opacity:.75}
+.jul-cap{fill:#5b604f}
+.jul-core{stroke:rgba(60,30,10,.18);stroke-width:.4}
+.jul-shine{fill:#fff;opacity:.7}
+.jul-glow{opacity:.6;animation:jul-twinkle var(--period,4s) ease-in-out var(--delay,0s) infinite}
+.jul-bulb .jul-core{animation:jul-core var(--period,4s) ease-in-out var(--delay,0s) infinite}
+.jul-bulb.is-red .jul-core{fill:#d8463a}.jul-bulb.is-red .jul-glow{fill:url(#jul-glow-red)}
+.jul-bulb.is-gold .jul-core{fill:#f2bb45}.jul-bulb.is-gold .jul-glow{fill:url(#jul-glow-gold)}
+.jul-bulb.is-white .jul-core{fill:#fff4d8}.jul-bulb.is-white .jul-glow{fill:url(#jul-glow-white)}
+.jul-bulb.is-green .jul-core{fill:#3f9563}.jul-bulb.is-green .jul-glow{fill:url(#jul-glow-green)}
+.jul-bulb.is-blue .jul-core{fill:#5f8fcf}.jul-bulb.is-blue .jul-glow{fill:url(#jul-glow-blue)}
+.jul-stop-red{stop-color:#ff6a52}.jul-stop-gold{stop-color:#ffc552}.jul-stop-white{stop-color:#ffe7b0}.jul-stop-green{stop-color:#7fe0a0}.jul-stop-blue{stop-color:#8fbcff}
+@keyframes jul-twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes jul-core{0%,100%{filter:brightness(.88) saturate(.9)}50%{filter:brightness(1.12)}}
+
+/* Baubles on thin gold threads, swaying from the header. Wide practice / 更多 pages only, plus tiny ones on phones. */
+.jul-baubles{position:absolute;inset:0;pointer-events:none;z-index:2}
+.jul-bauble{position:absolute;top:100%;display:none;width:var(--size);transform-origin:50% 0;animation:jul-sway var(--sway,6s) ease-in-out var(--delay,0s) infinite}
+.jul-bauble .jul-thread{display:block;width:1px;height:var(--len);margin:0 auto;background:linear-gradient(#b89a5c,#d8bd7f)}
+.jul-bauble svg{display:block;width:var(--size);height:calc(var(--size) * 1.15);margin-top:-1px;stroke:none;stroke-width:0;filter:drop-shadow(0 6px 8px rgba(70,40,20,.18))}
+@keyframes jul-sway{0%,100%{transform:rotate(-3.2deg)}50%{transform:rotate(3.2deg)}}
+@media(min-width:1180px){body:is([data-view=practice],[data-view=more]):not(.practice-focus) .jul-bauble:not(.is-phone){display:block}}
+@media(max-width:720px){.jul-bauble.is-phone{display:block;top:0}}
+/* The cluster in the header's gap between the brand and the nav, hung from the header's top edge. */
+@media(min-width:721px){.jul-bauble.is-gap{display:block;top:0}}
+.jul-bauble.is-gap[hidden]{display:none}
+.jul-ball-hi-red{stop-color:#f08a74}.jul-ball-mid-red{stop-color:#c0352b}.jul-ball-lo-red{stop-color:#6e1612}
+.jul-ball-hi-gold{stop-color:#fff1bf}.jul-ball-mid-gold{stop-color:#d9a640}.jul-ball-lo-gold{stop-color:#8a5d17}
+.jul-ball-hi-cream{stop-color:#ffffff}.jul-ball-mid-cream{stop-color:#efe3c8}.jul-ball-lo-cream{stop-color:#b9a27a}
+/* The phone header's top-right corner is empty; the little baubles sit there, above the nav pill. */
+@media(max-width:720px){.jul-bauble.is-phone svg{filter:drop-shadow(0 3px 4px rgba(70,40,20,.2))}}
+
+/* A velvet Santa hat tipped on the brand tile. */
+.season-jul .brand-icon{position:relative}
+.jul-hat{position:absolute;left:-10px;top:-20px;width:44px;height:33px;pointer-events:none;transform:rotate(-16deg);transform-origin:30% 90%;filter:drop-shadow(0 2px 2px rgba(60,20,10,.22))}
+.season-jul .brand-icon .jul-hat svg{width:44px;height:33px;stroke:none;stroke-width:0}
+@media(max-width:960px){.jul-hat{left:-9px;top:-17px;width:37px;height:28px}.season-jul .brand-icon .jul-hat svg{width:37px;height:28px}}
+@media(max-width:720px){.jul-hat{left:-8px;top:-15px;width:32px;height:24px}.season-jul .brand-icon .jul-hat svg{width:32px;height:24px}}
+
+/* The brand line's greeting keeps the original size and spacing, in a warm red. */
+.brand-name small.jul-greeting{color:#b2463a;letter-spacing:2.2px}
+
+/* The header's status dot becomes a small candle flame. */
+.season-jul .status-dot{background:radial-gradient(circle at 50% 62%,#fff1c4 0 28%,#efb24a 62%,#cf7c2e);box-shadow:0 0 5px 1px rgba(239,170,70,.5),0 0 12px 3px rgba(239,170,70,.18);animation:jul-candle 3.4s ease-in-out infinite}
+@keyframes jul-candle{0%,100%{box-shadow:0 0 5px 1px rgba(239,170,70,.5),0 0 12px 3px rgba(239,170,70,.18)}38%{box-shadow:0 0 4px 1px rgba(239,170,70,.42),0 0 10px 2px rgba(239,170,70,.14)}62%{box-shadow:0 0 6px 2px rgba(239,170,70,.58),0 0 14px 4px rgba(239,170,70,.22)}}
+
+/* Snow drifting over the page, under the header. */
+.jul-snow{position:fixed;inset:0;width:100%;height:100%;z-index:25;pointer-events:none}
+/* On study pages (word lists) it falls behind the cards, so it never drifts across the text being read. */
+body:is([data-view=vocabulary],[data-view=basics]) .jul-snow{z-index:-1}
+
+/* Snow resting on the practice cards and the nav pill: a soft drift with a few drips along the top edge (overlay). */
+.season-jul :is(.pr-mode-card,.pr-event,.pr-jul-banner,.mh-feature,.mh-tool)::before,.season-jul .main-nav::before{content:"";position:absolute;left:10px;right:10px;top:-10px;height:20px;pointer-events:none;z-index:2;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 26' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='.55' stop-color='%23fbfcfe'/%3E%3Cstop offset='1' stop-color='%23dfe7f0'/%3E%3C/linearGradient%3E%3ClinearGradient id='h' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.95'/%3E%3Cstop offset='1' stop-color='%23fff' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 17C2 11 8 8 15 9 20 4 29 3 36 7 43 2 55 2 62 7 70 3 80 4 86 9 93 4 104 3 112 8 119 3 131 4 138 8 146 3 158 3 165 8 172 5 182 6 187 10 194 10 199 13 200 18V20C196 20 192 21 189 21 187 24 183 25 181 21 160 21 140 22 128 21 126 25 121 26 119 21 96 21 70 22 52 21 50 24 46 25 44 21 26 21 10 21 0 20Z' fill='url%28%23s%29'/%3E%3Cpath d='M6 13C10 10 16 10 20 11 28 6 36 7 42 10 52 5 62 6 68 10 80 6 92 7 100 11 112 6 124 7 132 11 144 6 156 7 164 11 174 8 184 9 192 13' fill='none' stroke='url%28%23h%29' stroke-width='2.4' stroke-linecap='round' opacity='.9'/%3E%3C/svg%3E") center/100% 100% no-repeat;
+  filter:drop-shadow(0 2px 2px rgba(86,106,134,.28))}
+.season-jul :is(.pr-event,.pr-jul-banner,.mh-feature){position:relative}
+.season-jul .main-nav::before{left:14px;right:14px;top:-8px;height:15px}
+@media(max-width:720px){.season-jul .main-nav::before{display:none}}
+
+@media(prefers-reduced-motion:reduce){.jul-glow,.jul-bulb .jul-core,.jul-bauble,.season-jul .status-dot{animation:none}.jul-glow{opacity:.75}}

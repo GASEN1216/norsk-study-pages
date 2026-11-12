@@ -567,7 +567,7 @@
     // While a practice is under way the site's top bar steps aside (styles.css .practice-focus): the session bar's ✕ is
     // the way out, and a phone keeps the whole screen for the words. Setup, results and history show the bar again.
     document.body?.classList.toggle('practice-focus',state.screen === 'session');
-    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog><dialog class="pr-dialog pr-quests-dialog" id="pr-quests" aria-labelledby="pr-quests-title"></dialog><dialog class="pr-dialog pr-event-dialog" id="pr-event" aria-labelledby="pr-event-title"></dialog>`;
+    state.root.innerHTML = `<div class="pr-app">${editorMarkup()}<p id="pr-storage-warning" class="pr-storage-warning" role="status" ${state.storageError ? '' : 'hidden'}>${e(state.storageError)}</p>${content}</div><dialog class="pr-dialog pr-card-dialog" id="pr-card" aria-labelledby="pr-card-title"></dialog><dialog class="pr-dialog pr-confirm-dialog" id="pr-confirm" aria-labelledby="pr-confirm-title"></dialog><dialog class="pr-dialog pr-scope-dialog" id="pr-scope" aria-labelledby="pr-scope-title"></dialog><dialog class="pr-dialog pr-online-dialog" id="pr-online" aria-labelledby="pr-online-title"></dialog><dialog class="pr-dialog pr-quests-dialog" id="pr-quests" aria-labelledby="pr-quests-title"></dialog><dialog class="pr-dialog pr-event-dialog" id="pr-event" aria-labelledby="pr-event-title"></dialog><dialog class="pr-dialog pr-event-dialog pr-jul-dialog" id="pr-jul" aria-labelledby="pr-jul-title"></dialog>`;
     $('#pr-confirm').addEventListener('cancel',event => { event.preventDefault(); state.pending = null; $('#pr-confirm').close(); if (state.screen === 'session') resume(); });
     syncBackLayer();
   }
@@ -593,9 +593,10 @@
     const resumeBanner = active ? `<section class="pr-resume-banner"><span class="pr-mode-icon is-${activityOf(active)}">${icon(activityOf(active))}</span><div><strong>${tx('继续{title}',{title:e(ACTIVITIES[activityOf(active)].title)})}</strong><span>${tx('{done} / {n} 词',{done:Object.keys(active.answers || {}).length,n:active.firstKeys.length})}</span></div>${button('resume',tx('继续'),'','pr-primary')}</section>` : '';
     // The interface language switch sits quietly beside the textbook name; choosing reloads the page.
     const language = `<span class="pr-lang-dot" aria-hidden="true">·</span><button type="button" class="pr-lang-switch" data-practice-action="language" ${EN ? 'lang="zh" aria-label="Switch to Chinese">中文' : 'lang="en" aria-label="切换到英文界面">English'}</button>`;
-    shell(`<div class="pr-home">${resumeBanner}<div id="pr-event-slot">${eventMarkup()}</div><div class="pr-home-heading"><h2 class="pr-home-title">${tx('今天练什么？')}</h2><span class="pr-home-meta"><span class="pr-series-label">${e(state.seriesTitle)}</span>${language}</span></div><div class="pr-mode-grid" role="group" aria-label="${tx('练习方式')}">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
+    shell(`<div class="pr-home">${resumeBanner}<div id="pr-event-slot">${slotMarkup()}</div><div class="pr-home-heading"><h2 class="pr-home-title">${tx('今天练什么？')}</h2><span class="pr-home-meta"><span class="pr-series-label">${e(state.seriesTitle)}</span>${language}</span></div><div class="pr-mode-grid" role="group" aria-label="${tx('练习方式')}">${Object.entries(ACTIVITIES).map(([key,item]) => `<button type="button" class="pr-mode-card is-${key}" data-pr-activity="${key}" aria-haspopup="dialog" aria-controls="pr-scope"><span class="pr-mode-icon">${icon(key)}</span><span class="pr-mode-title">${item.title}</span><span class="pr-mode-description">${item.description}</span></button>`).join('')}</div><div class="pr-goals" id="pr-goals">${goalsMarkup()}</div><div class="pr-home-columns">${historyColumn()}<div class="pr-home-board" id="pr-community-slot"></div></div></div>`);
     const slot = $('#pr-community-slot');
     if (slot) state.deps.mountCommunity?.(slot);
+    // Fresh honors also bring the advent door reveal when the round just played opened today's door (updateGoals).
     loadHonors();
     // Continuing an unfinished session reads its current word, so load it already.
     if (active && active.phase !== 'review-intro') prefetchAhead(active);
@@ -697,12 +698,16 @@
     const slot = state.visible && state.screen === 'setup' ? $('#pr-goals') : null;
     if (slot) slot.innerHTML = goalsMarkup();
     const eventSlot = state.visible && state.screen === 'setup' ? $('#pr-event-slot') : null;
-    if (eventSlot) eventSlot.innerHTML = eventMarkup();
+    if (eventSlot) eventSlot.innerHTML = slotMarkup();
     if ($('#pr-event')?.open) { const event = activeEvent(); if (event) $('#pr-event').innerHTML = eventDialogMarkup(event); else $('#pr-event').close(); }
+    if ($('#pr-jul')?.open) { const calendar = activeCalendar(); if (calendar) renderJul(); else $('#pr-jul').close(); }
+    julRevealCheck();
   }
   // One-day events (双11): a quiet card above the modes on that Beijing day only; the medal itself stays in 荣誉.
   const eventEnd = event => Date.parse(`${event.day}T00:00:00+08:00`)+86400000;
   const activeEvent = () => (state.honors?.events || []).find(event => event.active && Date.now() < eventEnd(event));
+  // The event's date as the card says it: 11·11, 12·24.
+  const eventDate = event => String(event.day || '').slice(5).split('-').map(Number).join('·');
   const eventArt = (event,gold) => `assets/honors/event-${String(event.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}.webp`;
   const grouped = value => Number(value || 0).toLocaleString('en-US');
   // The medal picture; once the whole site reaches its goal it glows (styles.css .nk-radiant), the light masked by the picture.
@@ -724,7 +729,7 @@
     const boost = event.words?.boost > 1 ? event.words.boost : 0;
     const status = event.gold ? tx('金色纪念章已获得') : event.earned ? (boost ? tx('纪念章已获得 · 现在 1 词记 {n} 词，冲金色',{n:boost}) : tx('纪念章已获得 · 练满 {n} 个词升级金色',{n:grouped(event.words.target)})) : tx('今天获得 {n} XP 即得纪念章',{n:grouped(event.xp.target)});
     const count = event.gold ? tx('完成') : `${grouped(Math.min(goal.progress,goal.target))}/${grouped(goal.target)}`;
-    return `<button type="button" class="pr-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}" data-practice-action="event" aria-haspopup="dialog" aria-controls="pr-event">${eventMedal(event,'pr-event-medal','')}<span class="pr-event-text"><span class="pr-event-kicker">${tx('11·11 限定 · 仅今天')}</span><strong><span lang="nb">${e(event.theme)}</span> ${tx('纪念章')}</strong><span class="pr-event-sub">${status}</span></span><span class="pr-event-side"><b class="pr-event-count">${count}</b><span class="pr-event-meter" aria-hidden="true"><i style="width:${width}%"></i></span><span class="pr-event-site">${event.site.done ? tx('全站达成 · {n} 词',{n:grouped(event.site.progress)}) : tx('全站 {n} / {target} 词',{n:grouped(event.site.progress),target:grouped(event.site.target)})}</span></span></button>`;
+    return `<button type="button" class="pr-event${event.earned ? ' is-earned' : ''}${event.gold ? ' is-gold' : ''}" data-practice-action="event" aria-haspopup="dialog" aria-controls="pr-event">${eventMedal(event,'pr-event-medal','')}<span class="pr-event-text"><span class="pr-event-kicker">${tx('{date} 限定 · 仅今天',{date:eventDate(event)})}</span><strong><span lang="nb">${e(event.theme)}</span> ${tx('纪念章')}</strong><span class="pr-event-sub">${status}</span></span><span class="pr-event-side"><b class="pr-event-count">${count}</b><span class="pr-event-meter" aria-hidden="true"><i style="width:${width}%"></i></span><span class="pr-event-site">${event.site.done ? tx('全站达成 · {n} 词',{n:grouped(event.site.progress)}) : tx('全站 {n} / {target} 词',{n:grouped(event.site.progress),target:grouped(event.site.target)})}</span></span></button>`;
   }
   function eventDialogMarkup(event) {
     const arrow = '<svg class="pr-goal-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>';
@@ -736,7 +741,7 @@
       const body = `<span class="pr-quest-mark" aria-hidden="true"></span><span class="pr-quest-text"><strong>${title}</strong><small class="pr-event-reward">${reward}</small><span class="pr-quest-meter" aria-hidden="true"><i style="width:${width}%"></i></span></span><span class="pr-quest-side"><b class="pr-quest-count">${goal.done ? tx('完成') : `${grouped(progress)}/${grouped(target)}`}</b>${where ? `<span class="pr-quest-go">${e(where)}${arrow}</span>` : ''}</span>`;
       return `<li>${where ? `<button type="button" class="pr-quest" data-practice-action="event-go" data-pr-metric="${metric}">${body}</button>` : `<div class="pr-quest${goal.done ? ' is-done' : ''}">${body}</div>`}</li>`;
     };
-    return `<div class="pr-dialog-heading"><h2 id="pr-event-title" tabindex="-1">${tx('11·11 限定')}</h2>${iconButton('event-close','close',tx('关闭'))}</div><div class="pr-event-hero">${eventMedal(event,'pr-event-hero-medal',tx('纪念章'))}<div><p class="pr-event-kicker">${tx('仅限今天')} · ${e(eventLeft(event))}</p><h3><span lang="nb">${e(event.theme)}</span> ${tx('纪念章')}</h3><p>${e(tx(event.note))}</p></div></div><ol class="pr-quests">${row(event.xp,tx('今天获得 {n} XP',{n:grouped(event.xp.target)}),tx('得纪念章'),'xp')}${row(event.words,tx('今天练习 {n} 个词',{n:grouped(event.words.target)}),event.words.boost > 1 && !event.words.done ? `${tx('升级金色纪念章')} · ${tx('现在起练 1 个词记 {n} 个',{n:event.words.boost})}` : tx('升级金色纪念章'),'words')}${row(event.site,tx('全站一起练 {n} 个词',{n:grouped(event.site.target)}),event.site.done ? tx('{n} 人一起做到，纪念章已点亮',{n:event.site.people}) : tx('达成后，今天练过的人纪念章都会发光 · 已有 {n} 人参与',{n:event.site.people}),'')}</ol><p class="pr-quests-foot"><span>${tx('北京时间今晚 24 点结束，纪念章永久收在荣誉里')}</span><button type="button" class="pr-quests-link" data-practice-action="event-honors">${tx('荣誉与成就')}${arrow}</button></p>`;
+    return `<div class="pr-dialog-heading"><h2 id="pr-event-title" tabindex="-1">${tx('{date} 限定',{date:eventDate(event)})}</h2>${iconButton('event-close','close',tx('关闭'))}</div><div class="pr-event-hero">${eventMedal(event,'pr-event-hero-medal',tx('纪念章'))}<div><p class="pr-event-kicker">${tx('仅限今天')} · ${e(eventLeft(event))}</p><h3><span lang="nb">${e(event.theme)}</span> ${tx('纪念章')}</h3><p>${e(tx(event.note))}</p></div></div><ol class="pr-quests">${row(event.xp,tx('今天获得 {n} XP',{n:grouped(event.xp.target)}),tx('得纪念章'),'xp')}${row(event.words,tx('今天练习 {n} 个词',{n:grouped(event.words.target)}),event.words.boost > 1 && !event.words.done ? `${tx('升级金色纪念章')} · ${tx('现在起练 1 个词记 {n} 个',{n:event.words.boost})}` : tx('升级金色纪念章'),'words')}${row(event.site,tx('全站一起练 {n} 个词',{n:grouped(event.site.target)}),event.site.done ? tx('{n} 人一起做到，纪念章已点亮',{n:event.site.people}) : tx('达成后，今天练过的人纪念章都会发光 · 已有 {n} 人参与',{n:event.site.people}),'')}${julEventRow(row)}</ol><p class="pr-quests-foot"><span>${tx('北京时间今晚 24 点结束，纪念章永久收在荣誉里')}</span><button type="button" class="pr-quests-link" data-practice-action="event-honors">${tx('荣誉与成就')}${arrow}</button></p>`;
   }
   function openEvent() {
     const dialog = $('#pr-event'), event = activeEvent();
@@ -750,7 +755,148 @@
     if (!place?.activity) return;
     if (!canEdit()) { requireEditor(); return; }
     $('#pr-event')?.close();
+    $('#pr-jul')?.close();
     openActivity(place.activity);
+  }
+  // The home card slot: a one-day event wins its day; otherwise the advent calendar while it runs.
+  const slotMarkup = () => eventMarkup() || julMarkup() || julBanner();
+
+  // The Christmas banner (painted village in assets/season): from 12 November a countdown to julaften, from 1 December
+  // the advent calendar card takes the place (this banner only stands in if the calendar is missing), and after
+  // Christmas a greeting until tjuendedagen, 13 January. Dates are Beijing days, as everywhere on the site.
+  const JUL = {from:'2026-11-12',calendar:'2026-12-01',eve:'2026-12-24',newYear:'2027-01-01',to:'2027-01-13'};
+  const beijingToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai'}).format(new Date());
+  function julBanner() {
+    const today = beijingToday();
+    if (today < JUL.from || today > JUL.to) return '';
+    let kicker, title, sub;
+    if (today < JUL.eve) {
+      const days = Math.round((Date.parse(`${JUL.eve}T00:00:00+08:00`)-Date.parse(`${today}T00:00:00+08:00`))/86400000);
+      kicker = `<span lang="nb">God jul</span> · ${tx('圣诞倒数')}`;
+      title = tx('距离平安夜还有 {d} 天',{n:days,d:`<b>${days}</b>`});
+      sub = today < JUL.calendar ? tx('12 月 1 日起，每天练满 300 XP 打开一扇圣诞日历门') : tx('每天练满 300 XP，打开今天的圣诞日历门');
+    } else if (today < JUL.newYear) {
+      kicker = `<span lang="nb">God jul</span>`;
+      title = tx('圣诞快乐');
+      sub = tx('圣诞假期，也来练几个词吧');
+    } else {
+      kicker = `<span lang="nb">Godt nytt år</span>`;
+      title = tx('新年快乐');
+      sub = tx('新的一年，每天进步一点点');
+    }
+    return `<section class="pr-jul-banner" aria-label="${e(tx('圣诞'))}"><div class="pr-jul-banner-text"><p class="pr-jul-banner-kicker">${kicker}</p><h2 class="pr-jul-banner-title">${title}</h2><p class="pr-jul-banner-sub">${sub}</p><a class="pr-jul-banner-link" href="#basics/jul">${tx('学圣诞词语')}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></a></div></section>`;
+  }
+
+  // Advent calendar (圣诞倒数日历 · Julekalender): one door a Beijing day, opened by the day's XP on the server
+  // (honors.calendars). Behind each door is one word of the basics category whose `calendar` lists the 24 words.
+  const activeCalendar = () => (state.honors?.calendars || []).find(calendar => calendar.active);
+  const calendarArt = (calendar,gold) => `assets/honors/calendar-${String(calendar.id).replace(/-\d{4}$/,'')}${gold ? '-gold' : ''}.webp`;
+  // Today's door number from the calendar's first day (Beijing), 0 outside it.
+  function todayDoor(calendar) {
+    const start = Date.parse(`${calendar.start}T00:00:00+08:00`);
+    const number = Math.floor((Date.now()-start)/86400000)+1;
+    return number >= 1 && number <= calendar.doors.length ? number : 0;
+  }
+  // The word behind door n: the calendar list names words of any basics category.
+  function julWord(n) {
+    const order = state.basics.find(category => Array.isArray(category.calendar))?.calendar || [];
+    const text = order[n-1];
+    if (!text) return null;
+    for (const category of state.basics) for (const item of category.items || []) if (item?.word === text) return item;
+    return null;
+  }
+  const julLabel = item => `${item.article ? `${String(item.article).split('/')[0]} ` : ''}${item.word}`;
+  const julDay = (calendar,n) => { const date = new Date(Date.parse(`${calendar.start}T00:00:00+08:00`)+(n-1)*86400000+8*3600000); return tx('{m} 月 {d} 日',{m:date.getUTCMonth()+1,d:date.getUTCDate()}); };
+  function julDots(calendar,today) {
+    return `<span class="pr-jul-dots" aria-hidden="true">${calendar.doors.map((door,index) => `<i class="is-${door}${index+1 === today ? ' is-now' : ''}"></i>`).join('')}</span>`;
+  }
+  function julMarkup() {
+    const calendar = activeCalendar();
+    if (!calendar) return '';
+    const today = todayDoor(calendar);
+    if (!today) return '';
+    const open = calendar.doors[today-1] === 'open', item = open ? julWord(today) : null;
+    const sub = open ? (item ? `${tx('第 {n} 扇门已打开',{n:today})} · <span lang="nb">${e(item.word)}</span> ${e(L10N.gloss(item))}` : tx('第 {n} 扇门已打开',{n:today})) : tx('今天获得 {n} XP 打开第 {d} 扇门',{n:grouped(calendar.xp.target),d:today});
+    const count = open ? tx('已开 {n}/{total}',{n:calendar.opened,total:calendar.doors.length}) : `${grouped(calendar.xp.progress)}/${grouped(calendar.xp.target)} XP`;
+    const foot = calendar.gold ? tx('24 扇全开 · 金色纪念章') : calendar.earned ? tx('纪念章已获得 · 开满 {n} 扇升级金色',{n:calendar.doors.length}) : tx('开满 {n} 扇得纪念章',{n:calendar.medal});
+    return `<button type="button" class="pr-event pr-jul${open ? ' is-open' : ''}" data-practice-action="jul" aria-haspopup="dialog" aria-controls="pr-jul"><span class="pr-jul-door${open ? ' is-open' : ''}" aria-hidden="true"><span class="pr-jul-door-light"></span><span class="pr-jul-door-leaf"><b>${today}</b></span></span><span class="pr-event-text"><span class="pr-event-kicker"><span lang="nb">${e(calendar.theme)}</span> · ${e(julDay(calendar,today))}</span><strong>${tx('圣诞倒数日历')}</strong><span class="pr-event-sub">${sub}</span></span><span class="pr-event-side"><b class="pr-event-count">${count}</b>${julDots(calendar,today)}<span class="pr-event-site">${foot}</span></span></button>`;
+  }
+  // On 24 December the 平安夜 card holds the slot; its dialog carries the last door as one more row.
+  function julEventRow(row) {
+    const calendar = activeCalendar(), today = calendar ? todayDoor(calendar) : 0;
+    if (!today) return '';
+    return row(calendar.xp,tx('今天获得 {n} XP',{n:grouped(calendar.xp.target)}),tx('打开圣诞倒数日历第 {n} 扇门',{n:today}),'xp');
+  }
+  function julDetail(calendar,n) {
+    const door = calendar.doors[n-1], item = julWord(n), today = todayDoor(calendar);
+    if (door === 'later') return `<div class="pr-jul-detail is-later"><p class="pr-jul-when">${e(julDay(calendar,n))}</p><p class="pr-jul-hint">${tx('这扇门那天才能打开')}</p></div>`;
+    if (door === 'today' || (n === today && door !== 'open')) {
+      const width = Math.round(Math.min(calendar.xp.progress,calendar.xp.target)/calendar.xp.target*100);
+      return `<div class="pr-jul-detail is-today"><p class="pr-jul-when">${tx('今天 · 第 {n} 扇门',{n})}</p><p class="pr-jul-hint">${tx('今天获得 {n} XP 就能打开，门后是一个圣诞词',{n:grouped(calendar.xp.target)})}</p><span class="pr-quest-meter" aria-hidden="true"><i style="width:${width}%"></i></span><div class="pr-jul-actions"><b class="pr-quest-count">${grouped(calendar.xp.progress)}/${grouped(calendar.xp.target)} XP</b><button type="button" class="pr-jul-go" data-practice-action="event-go" data-pr-metric="xp">${tx('去练习')}</button></div></div>`;
+    }
+    if (!item) return '';
+    const example = String(item.example || ''), split = /^(.*?)（(.*)）$/.exec(example);
+    return `<div class="pr-jul-detail${door === 'missed' ? ' is-missed' : ''}"><p class="pr-jul-when">${e(julDay(calendar,n))}${door === 'missed' ? ` · ${tx('这扇门错过了，词还可以学')}` : ''}</p><div class="pr-jul-word"><button type="button" class="pr-jul-play" data-practice-action="jul-play" data-door="${n}" aria-label="${e(tx('朗读 {word}',{word:item.word}))}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m11 5-5 4H3v6h3l5 4V5Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button><div><strong lang="nb">${e(julLabel(item))}</strong><span>${e(L10N.gloss(item))}</span></div></div>${example ? `<p class="pr-jul-example"><span lang="nb">${e(split ? split[1] : example)}</span>${split && !EN ? `<small>${e(split[2])}</small>` : ''}</p>` : ''}</div>`;
+  }
+  function renderJul() {
+    const dialog = $('#pr-jul'), calendar = activeCalendar() || (state.honors?.calendars || []).at(-1);
+    if (!dialog || !calendar) return;
+    const today = todayDoor(calendar);
+    const pick = Math.min(calendar.doors.length,Math.max(1,state.julDoor || today || calendar.doors.lastIndexOf('open')+1 || 1));
+    state.julDoor = pick;
+    const medal = calendarArt(calendar,calendar.gold);
+    const cells = calendar.doors.map((door,index) => {
+      const n = index+1, item = door === 'open' ? julWord(n) : null;
+      return `<li><button type="button" class="pr-jul-cell is-${door}${n === today ? ' is-now' : ''}" data-practice-action="jul-door" data-door="${n}" aria-pressed="${n === pick}" aria-label="${e(tx('第 {n} 扇门',{n}))}${item ? ` · ${e(item.word)}` : ''}"><b>${n}</b>${item ? `<span lang="nb">${e(item.word)}</span>` : ''}</button></li>`;
+    }).join('');
+    const lead = calendar.gold ? tx('24 扇门全部打开，纪念章升级为金色。') : calendar.earned ? tx('已开 {n} 扇，纪念章已获得；开满 {total} 扇升级金色。',{n:calendar.opened,total:calendar.doors.length}) : tx('每天获得 {xp} XP 打开当天的门，门后是一个圣诞词。开满 {n} 扇得纪念章，{total} 扇全开升级金色。',{xp:grouped(calendar.xp.target),n:calendar.medal,total:calendar.doors.length});
+    dialog.innerHTML = `<div class="pr-dialog-heading"><h2 id="pr-jul-title" tabindex="-1">${tx('圣诞倒数日历')}</h2>${iconButton('jul-close','close',tx('关闭'))}</div><div class="pr-event-hero pr-jul-hero"><span class="pr-jul-medal${calendar.earned ? ' is-earned' : ''}"><img class="pr-event-hero-medal" src="${medal}" alt="${e(tx('纪念章'))}" decoding="async" draggable="false"></span><div><p class="pr-event-kicker">${tx('已开 {n}/{total}',{n:calendar.opened,total:calendar.doors.length})}</p><h3 lang="nb">${e(calendar.theme)}</h3><p>${lead}</p></div></div><ol class="pr-jul-grid">${cells}</ol>${julDetail(calendar,pick)}`;
+  }
+  function openJul() {
+    const dialog = $('#pr-jul');
+    if (!dialog || !activeCalendar()) return;
+    state.julDoor = 0;
+    renderJul();
+    if (!dialog.open) dialog.showModal?.();
+    $('#pr-jul-title')?.focus?.();
+    julSeen();
+  }
+  function playJul(n) {
+    const item = julWord(n);
+    if (!item) return;
+    stopAudio();
+    Promise.resolve().then(() => state.deps.pronounce?.(item)).catch(() => announce(tx('读音暂时无法播放')));
+  }
+  // Opening today's door: a quiet reveal the first time the learner is back on the home screen after it opened.
+  const julKey = (calendar,n) => `norsk-jul-door-${calendar.id}-${n}`;
+  function julSeen() {
+    const calendar = activeCalendar(), n = calendar ? todayDoor(calendar) : 0;
+    if (n && calendar.doors[n-1] === 'open') try { localStorage.setItem(julKey(calendar,n),'1'); } catch {}
+  }
+  function julRevealCheck() {
+    const calendar = activeCalendar(), n = calendar ? todayDoor(calendar) : 0;
+    if (!n || calendar.doors[n-1] !== 'open' || !state.visible || state.screen !== 'setup' || document.body.classList.contains('practice-focus')) return;
+    if (document.querySelector('dialog[open],.pr-jul-reveal')) return;
+    const item = julWord(n);
+    if (!item) return;
+    try { if (localStorage.getItem(julKey(calendar,n))) return; localStorage.setItem(julKey(calendar,n),'1'); } catch { return; }
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const layer = document.createElement('div');
+    layer.className = 'pr-jul-reveal';
+    layer.setAttribute('role','dialog');
+    layer.setAttribute('aria-modal','true');
+    layer.setAttribute('aria-label',tx('第 {n} 扇门已打开',{n}));
+    layer.innerHTML = `<div class="pr-jul-stage"><p class="pr-jul-reveal-kicker"><span lang="nb">${e(calendar.theme)}</span> · ${e(julDay(calendar,n))}</p><div class="pr-jul-frame"><div class="pr-jul-inside"><strong lang="nb">${e(item.word)}</strong><span class="pr-jul-inside-form" lang="nb">${e(julLabel(item))}</span><span class="pr-jul-inside-gloss">${e(L10N.gloss(item))}</span></div><div class="pr-jul-leaf"><span class="pr-jul-leaf-wreath" aria-hidden="true"></span><b>${n}</b></div></div><div class="pr-jul-reveal-actions"><button type="button" class="pr-jul-reveal-play" data-jul-reveal="play"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m11 5-5 4H3v6h3l5 4V5Zm4 3a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>${tx('听读音')}</button><button type="button" class="pr-jul-reveal-ok" data-jul-reveal="ok">${tx('收下')}</button></div></div>`;
+    const back = document.activeElement;
+    const close = () => { layer.classList.remove('is-open'); layer.classList.add('is-closing'); setTimeout(() => layer.remove(),reduce ? 0 : 420); back?.focus?.({preventScroll:true}); };
+    layer.addEventListener('click',event => {
+      const action = event.target.closest('[data-jul-reveal]')?.dataset.julReveal;
+      if (action === 'play') playJul(n);
+      else if (action === 'ok' || event.target === layer) close();
+    });
+    layer.addEventListener('keydown',event => { if (event.key === 'Escape') close(); });
+    document.body.append(layer);
+    requestAnimationFrame(() => requestAnimationFrame(() => { layer.classList.add('is-open'); layer.querySelector('.pr-jul-reveal-ok')?.focus({preventScroll:true}); }));
   }
   async function loadHonors(force=false) {
     const run = ++state.honorsRequest;
@@ -1582,7 +1728,7 @@
   function onClick(event) {
     const requested=event.target.closest('[data-practice-action]')?.dataset.practiceAction;
     if (requested === 'takeover') { acquireEditor(true); return; }
-    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','mall','series','wordbook-open','scope-tab','language','quests','quests-close','quest-go','event','event-close','event-honors'].includes(requested)) { requireEditor(); return; }
+    if (!canEdit() && (requested || event.target.closest('[data-pr-activity]')) && !['setup','history','export','history-detail','word-card','card-close','result-word','honors','duel','online','online-close','chase','kitchen','mall','series','wordbook-open','scope-tab','language','quests','quests-close','quest-go','event','event-close','event-honors','jul','jul-close','jul-door','jul-play'].includes(requested)) { requireEditor(); return; }
     if (state.initialized && state.visible && state.root?.contains(event.target)) unlockFeedbackAudio(event);
     const modeTarget = event.target.closest('[data-pr-activity]');
     if (modeTarget && state.initialized && state.root?.contains(modeTarget) && ACTIVITIES[modeTarget.dataset.prActivity]) { openActivity(modeTarget.dataset.prActivity); return; }
@@ -1606,6 +1752,10 @@
       case 'event': openEvent(); break;
       case 'event-close': $('#pr-event')?.close(); break;
       case 'event-go': goEvent(target.dataset.prMetric); break;
+      case 'jul': openJul(); break;
+      case 'jul-close': $('#pr-jul')?.close(); break;
+      case 'jul-door': state.julDoor=Number(target.dataset.door)||0; renderJul(); $(`#pr-jul [data-door="${state.julDoor}"]`)?.focus({preventScroll:true}); break;
+      case 'jul-play': playJul(Number(target.dataset.door)); break;
       case 'event-honors': $('#pr-event')?.close(); state.deps.openHonors?.(); break;
       case 'honors': $('#pr-quests')?.close(); state.deps.openHonors?.(); break;
       case 'history': navigate('history'); break;
