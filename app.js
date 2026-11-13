@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261113-jul-banner';
-import {createReadingLibrary} from './reading-library.mjs?v=20261113-jul-banner';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261113-jul-banner';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261113-jul-banner';
-import * as notesModel from './notes-store.mjs?v=20261113-jul-banner';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261113-jul-banner';
+import {createDataLoader} from './loader.mjs?v=20261113-quiz-feedback';
+import {createReadingLibrary} from './reading-library.mjs?v=20261113-quiz-feedback';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261113-quiz-feedback';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261113-quiz-feedback';
+import * as notesModel from './notes-store.mjs?v=20261113-quiz-feedback';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261113-quiz-feedback';
 
-const VERSION = '20261113-jul-banner';
+const VERSION = '20261113-quiz-feedback';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -674,12 +674,12 @@ async function prepareView(view,viewRun = state.viewRun) {
     loadFeature('celebrate').catch(error => console.warn('练习动画未载入',error));
     // 开饭啦's word list is one more public source (厨房 Kjøkken); practice starts without it if it fails to load.
     const [,,descriptor,vocabulary] = await Promise.all([loadFeature('practice'),loadData('basics'),vocabularyLibrary.descriptor(seriesId),vocabularyLibrary.allChapters(seriesId),loadData('kitchen-lexicon').catch(() => null),loadData('mall-lexicon').catch(() => null),
-      // 综合测验's 语法 questions (God i norsk); the quiz goes on with words alone if they fail to load.
-      seriesId === 'god-i-norsk' ? loadData('grammar').catch(() => null) : null]);
+      // 综合测验's 语法 and 对话 questions (God i norsk); the quiz goes on with words alone if they fail to load.
+      seriesId === 'god-i-norsk' ? loadData('grammar').catch(() => null) : null,seriesId === 'god-i-norsk' ? loadData('dialogue').catch(() => null) : null]);
     if (!current()) return;
     activateVocabulary(seriesId,descriptor,vocabulary);
     if (!state.practiceInitialized || state.practiceSeriesId !== seriesId) {
-      window.NorskPractice.init({data:{...state.data,vocabulary,kitchen:state.data['kitchen-lexicon'] || null,mall:state.data['mall-lexicon'] || null,grammar:state.data.grammar || null,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openChase,openKitchen,openMall,version:VERSION,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
+      window.NorskPractice.init({data:{...state.data,vocabulary,kitchen:state.data['kitchen-lexicon'] || null,mall:state.data['mall-lexicon'] || null,grammar:state.data.grammar || null,dialogue:state.data.dialogue || null,wordbook:wordbookVocabulary(wordbook().data)},series:descriptor,openWordbook:() => { setWordbookActive(true,false); setView('vocabulary'); },pronounce,prefetch:prefetchPronunciation,notify,escapeHTML,stopAudio:pauseOtherAudio,renderRateControl:() => wordRateControl(),mountCommunity,submitPracticeResult,seriesOptions:state.library.series,selectSeries:selectStudySeries,community:prepareCommunity,openDuel:requestDuel,openChase,openKitchen,openMall,version:VERSION,openHonors:() => { state.moreTab = 'honors'; setView('more'); },openLayer,closeLayer});
       state.practiceInitialized = true;
       state.practiceSeriesId = seriesId;
       prepareCommunity().catch(() => {});
@@ -1145,7 +1145,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261113-jul-banner').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261113-quiz-feedback').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
