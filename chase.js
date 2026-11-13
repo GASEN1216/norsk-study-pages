@@ -2351,6 +2351,9 @@
         if (!community?.request) throw new Error('no community');
         return community.request(path,options);
       }));
+      // The site's speech allowance ran out during a game (every service on the server is spent until 08:00 Beijing):
+      // say so once instead of words silently not lighting up.
+      module.whenPaused?.(() => { ui.reading = {status:'failed'}; showReadState(); notify(readState(),8000); });
       return (ui.speech = module);
     }).catch(error => { ui.speechLoad = null; throw error; });
     return ui.speechLoad;
@@ -2358,6 +2361,8 @@
   function readState() {
     const r = ui.reading || {status:'unknown'};
     if (r.status === 'unsupported') return tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。');
+    const paused = ui.speech?.pausedAt?.();
+    if (r.status === 'failed' && paused) return tx('今天全站的语音识别额度用完了，北京时间 {time} 恢复。',{time:paused});
     if (r.status === 'failed') return tx('语音识别暂时用不了，请稍后再试。');
     if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。');
     return tx('正在检查语音识别…');

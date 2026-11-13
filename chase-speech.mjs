@@ -127,14 +127,33 @@ const PAUSE_SECONDS = .35;           // a pause this long ends a stretch of spee
 const STRETCH_SECONDS = 4;           // a stretch never grows longer: someone reading on still sees words come
 const SHORTEST_SECONDS = .25;        // less voice than this is a click or a breath, not a word
 const PAD_SECONDS = .15;             // a little of the quiet before and after the voice goes along (word edges)
-const server = {request:null,status:null,ready:false};
+// resume: when the whole site's speech allowance comes back (ms), while every speech service on the server is spent
+// for the day (2026-11-13: no allowance per person any more; the site stops until 00:00 UTC = 08:00 Beijing).
+const server = {request:null,status:null,ready:false,resume:0};
+const pauseHandlers = new Set();
 
-/** The community API's request function (community.js, through chase.js, practice.js and 考试与面试). Speech is written
- *  down only when GET /ai/status says asr. */
+/** The community API's request function (community.js, through chase.js and 考试与面试). Speech is written down only
+ *  when GET /ai/status says asr. */
 export function useServer(request) {
   if (typeof request !== 'function' || request === server.request) return;
   Object.assign(server,{request,status:null,ready:false});
 }
+/** While the site's speech allowance is used up: the Beijing time it comes back ('08:00'); otherwise ''. */
+export function pausedAt() {
+  if (!server.resume || Date.now() >= server.resume) return '';
+  return new Date(server.resume+8*3600e3).toISOString().slice(11,16);
+}
+/** handler() runs when a stretch is refused because the site's allowance just ran out. Returns an unsubscribe. */
+export function whenPaused(handler) {
+  pauseHandlers.add(handler);
+  return () => pauseHandlers.delete(handler);
+}
+function pauseUntil(resume) {
+  const first = !pausedAt();
+  Object.assign(server,{resume,ready:false,status:Promise.resolve(false)});
+  if (first) for (const handler of pauseHandlers) { try { handler(); } catch {} }
+}
+const nextUtcMidnight = () => { const now = new Date(); return Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+1); };
 /** A microphone and Web Audio are all that is needed on the page. */
 export function supported() {
   return typeof navigator === 'object' && Boolean(navigator.mediaDevices?.getUserMedia) && typeof window === 'object'
@@ -144,8 +163,13 @@ export const isReady = () => server.ready;
 /** Whether speech can be written down now (asks the server once). Resolves true or false; never downloads anything. */
 export function prepare() {
   if (!server.request) return Promise.resolve(false);
+  // The day's allowance is back: ask again.
+  if (server.resume && Date.now() >= server.resume) Object.assign(server,{resume:0,status:null});
   server.status ||= Promise.resolve().then(() => server.request('/ai/status',{timeout:8000}))
-    .then(reply => (server.ready = Boolean(reply?.asr))).catch(() => { server.status = null; return false; });
+    .then(reply => {
+      server.resume = reply?.asrPaused ? Number(reply.asrResume) || nextUtcMidnight() : 0;
+      return (server.ready = Boolean(reply?.asr));
+    }).catch(() => { server.status = null; return false; });
   return server.status;
 }
 /** 16 kHz float samples → a 16-bit mono PCM WAV, base64 (what /ai/transcribe takes). */
@@ -162,14 +186,22 @@ export function wavBase64(samples) {
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
   return btoa(binary);
 }
-/** One stretch of speech written down: {text, ms}. kind: 'read' (朗读), 'word' (跟读) or 'exam' (考试与面试's own
- *  allowance); hint: words the speaker is about to say; task, before: see /ai/transcribe. Rejects when it fails. */
+/** One stretch of speech written down: {text, ms}. kind: 'read' (朗读) or 'exam' (考试与面试); hint: words the speaker
+ *  is about to say; task, before: see /ai/transcribe. Rejects when it fails (error.code 'asr_paused': the site's
+ *  allowance ran out — pausedAt() then says until when). */
 export async function transcribe(samples,{kind = 'exam',hint = [],task,before} = {}) {
   if (!server.request) throw new Error('no server');
+  if (pausedAt()) { const error = new Error('paused'); error.code = 'asr_paused'; throw error; }
   const started = performance.now();
   const words = (hint || []).map(word => String(word || '').trim()).filter(Boolean).join(' ').slice(0,200);
-  const reply = await server.request('/ai/transcribe',{method:'POST',timeout:20000,body:{audio:wavBase64(samples),kind,
-    ...(words ? {hint:words} : {}),...(task ? {task} : {}),...(before ? {before:String(before).slice(-300)} : {})}});
+  let reply;
+  try {
+    reply = await server.request('/ai/transcribe',{method:'POST',timeout:20000,body:{audio:wavBase64(samples),kind,
+      ...(words ? {hint:words} : {}),...(task ? {task} : {}),...(before ? {before:String(before).slice(-300)} : {})}});
+  } catch (error) {
+    if (error?.code === 'asr_paused') pauseUntil(nextUtcMidnight());
+    throw error;
+  }
   return {text:String(reply?.text || ''),ms:Math.round(performance.now()-started)};
 }
 
@@ -270,7 +302,7 @@ function listener(context,stream) {
     stats,
     /** Begin listening: onText(text,{ms,at,hint}) for each stretch written down (none when onText is null: then only the
      *  level is heard), onLevel(rms) for each block (about 16 a second), expect() → words the speaker is about to say.
-     *  kind: whose allowance it counts against on the server ('read' for 朗读, 'word' for 跟读). */
+     *  kind: what it is for on the server ('read' for 朗读, 'exam' for 考试与面试; 跟读's 'word' sends nothing). */
     start(textHandler,levelHandler,expect,use = 'read') { onText = textHandler; onLevel = levelHandler; expected = expect || null; kind = use; on = true; context.resume?.().catch(() => {}); },
     /** Stop hearing: a stretch under way is sent if it holds a word, then nothing more until resume(). */
     pause() { if (length) send(); on = false; },

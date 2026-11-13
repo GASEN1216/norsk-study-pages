@@ -19,18 +19,23 @@
   const ACTIVITIES = {
     cards:{title:tx('翻面词卡'),description:tx('翻面回想，不会的再来')},
     learn:{title:tx('拼写学习'),description:tx('看中文拼写，错了再练')},
-    quiz:{title:tx('综合测验'),description:tx('判断 · 选择 · 拼写')},
+    quiz:{title:tx('综合测验'),description:tx('判断 · 选择 · 拼写 · 语法')},
     match:{title:tx('配对消除'),description:tx('限时配对，错配加时')},
     listen:{title:tx('听音选义'),description:tx('听读音，选出意思')}
   };
   // Every finished activity earns leaderboard XP; self-rated cards earn participation XP only.
   const RANKED = ['cards','learn','quiz','match','listen'];
-  const QUIZ_TYPES = ['judge','choice','spell'];
+  // 语法 (2026-11-13, docs/grammar-bank-format.md): the textbook's grammar points of the chosen sections, as choice and
+  // fill-in questions between the words (data/grammar.json). The word types take turns among themselves.
+  const QUIZ_TYPES = ['judge','choice','spell','grammar'];
+  const WORD_TYPES = ['judge','choice','spell'];
   const activityOf = config => ACTIVITIES[config?.activity] ? config.activity : 'listen';
-  const defaultQuiz = () => ({types:[...QUIZ_TYPES],direction:'to-nb'});
+  const defaultQuiz = () => ({v:2,types:[...QUIZ_TYPES],direction:'to-nb'});
   function quizConfig(value={}) {
     const types = unique((Array.isArray(value?.types) ? value.types : QUIZ_TYPES).filter(type => QUIZ_TYPES.includes(type)));
-    return {types:types.length ? types : ['spell'],direction:['to-nb','to-zh','mixed'].includes(value?.direction) ? value.direction : 'to-nb'};
+    // Settings saved before 语法 existed get it once; from then on (v 2) the learner's own choice stays.
+    if (value?.v !== 2 && Array.isArray(value?.types) && !types.includes('grammar')) types.push('grammar');
+    return {v:2,types:types.length ? types : ['spell'],direction:['to-nb','to-zh','mixed'].includes(value?.direction) ? value.direction : 'to-nb'};
   }
   // Locale-aware lower-casing is slow and indexing asks for the same few thousand words again and again: remember them.
   const normalized = new Map();
@@ -136,7 +141,7 @@
     return store;
   }
   const blankStore = () => ({version:1,sets:[],recent:[],stats:{},history:[],active:null,draft:null,favorites:[],matchBest:{},keyboardMode:'screen',keyboardChoice:false,feedbackSound:true,communityPending:[],creditParts:[]});
-  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mall:[],mine:[],wordbookTitle:tx('我的词本'),indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
+  const state = {seriesId:'god-i-norsk',seriesTitle:'God i norsk',storageKey:LEGACY_STORAGE_KEY,stores:new Map(),syncs:new Map(),root:null,deps:{},sources:new Map(),chapters:[],basics:[],kitchen:[],mall:[],mine:[],grammar:new Map(),keyboardKey:null,wordbookTitle:tx('我的词本'),indexed:null,pendingWordbook:null,words:new Map(),selected:new Set(),mode:'random',activity:'cards',quiz:defaultQuiz(),scopeTab:'chapters',scopeQuery:'',keyboardPage:'letters',store:blankStore(),screen:'setup',result:null,storageError:'',initialized:false,visible:false,pending:null,playToken:0,speakTimer:null,advanceTimer:null,prepared:new Map(),prepareTimer:null,matchTimer:null,matchStartedAt:null,justMatched:[],flipAnimation:false,communitySync:null,honors:null,honorsStatus:'idle',honorsRequest:0};
   let sessionPools = new WeakMap(), checkedQuestions = new WeakSet(), inputSaveTimer = null;
   let editor = null;
   const EDITOR_REQUEST = 'norsk-practice-editor-request:';
@@ -350,9 +355,10 @@
   /* ---------- 听音选义 · 开口跟读 (practice-speak.mjs, docs/exam-interview-plan.md) ----------
      With 作答方式 开口, every listening item is said back after it sounds; the meanings open once the page heard the
      learner say something word-sized (or after 跳过跟读). No recogniser is involved (2026-11-12: it was neither exact
-     nor quick, and took many seconds to start on a phone), so nothing waits for a download. The microphone is held
-     while the word itself sounds. */
-  const say = {module:null,loading:null,listener:null,coach:null,opening:null,status:'idle',mic:'',key:null,playing:false,playTimer:null,stuckKey:null,stuckTimer:null,freeKey:null,words:new Map()};
+     nor quick, and took many seconds to start on a phone), so nothing waits for a download; since 2026-11-13 nothing
+     goes to the server's speech to text either (its daily allowance is kept for 考试与面试 and 朗读). The microphone
+     is held while the word itself sounds. */
+  const say = {module:null,loading:null,listener:null,coach:null,opening:null,status:'idle',mic:'',key:null,playing:false,playTimer:null,stuckKey:null,stuckTimer:null,freeKey:null};
   // Tests run this file without timers.
   const sayClear = id => { if (id != null && typeof clearTimeout === 'function') clearTimeout(id); };
   const speakPref = () => state.store.listenAnswer === 'speak';
@@ -380,8 +386,6 @@
     if (['ready','unsupported'].includes(say.status)) return;
     loadSay().then(module => {
       say.status = module.supported() ? 'ready' : 'unsupported';
-      // The server's speech to text checks the words said (only to praise them: 念对了); without it 跟读 works the same.
-      if (say.status === 'ready' && state.deps.community) module.useServer((path,options) => state.deps.community().then(community => community.request(path,options))).catch(() => {});
       sayUpdate(); sayListen(0);
     }).catch(() => {});
   }
@@ -398,7 +402,7 @@
       // the microphone closes again.
       if (!state.visible || state.screen !== 'session' || !speaking(currentSession())) { listener.close(); say.mic = ''; sayUpdate(); return; }
       say.mic = 'open'; say.listener = listener;
-      say.coach = say.module.createCoach(listener,{onLevel:sayLevel,onPass:sayPass,onRight:sayRight});
+      say.coach = say.module.createCoach(listener,{onLevel:sayLevel,onPass:sayPass});
       say.key = null;
       sayUpdate(); sayListen(0);
     }).catch(error => { say.opening = null; say.mic = error?.code === 'denied' ? 'denied' : 'none'; sayUpdate(); });
@@ -432,9 +436,6 @@
     if (!item) return;
     if (say.key !== key) {
       say.key = key; say.coach.expect(item.word);
-      // Which item a late 念对了 belongs to: the last few words said back.
-      say.words.set(item.word,key);
-      if (say.words.size > 6) say.words.delete(say.words.keys().next().value);
       sayClear(say.stuckTimer);
       say.stuckKey = null;
       say.stuckTimer = setTimeout(() => { if (say.key === key) { say.stuckKey = key; sayUpdate(); } },8000);
@@ -454,18 +455,6 @@
     persist(); renderSession();
     state.root?.querySelector('.pr-choice:not([disabled])')?.focus?.({preventScroll:true});
   }
-  // The server heard the word said right (a moment after the meanings opened): 念过了 becomes 念对了.
-  function sayRight(word) {
-    const session = currentSession();
-    if (!speaking(session)) return;
-    const key = say.words.get(word);
-    const entry = key && session.speak[key];
-    if (!entry || entry.right) return;
-    entry.right = true;
-    persist();
-    const row = state.root?.querySelector('#pr-say.is-passed');
-    if (row && key === sayKey(session)) row.outerHTML = sayRow(session);
-  }
   function saySkip() {
     const session = currentSession();
     if (!sayPending(session)) return;
@@ -476,7 +465,7 @@
   // that breathes with the voice.
   function sayRow(session) {
     const entry = session.speak[sayKey(session)] || {};
-    if (entry.passed) return `<div class="pr-say is-passed${entry.right ? ' is-right' : ''}" id="pr-say" role="status"><span class="pr-say-mic">${icon('check')}</span><span class="pr-say-copy"><strong>${entry.right ? tx('念对了') : tx('念过了')}</strong></span></div>`;
+    if (entry.passed) return `<div class="pr-say is-passed" id="pr-say" role="status"><span class="pr-say-mic">${icon('check')}</span><span class="pr-say-copy"><strong>${tx('念过了')}</strong></span></div>`;
     if (entry.skipped) return '';
     return `<div class="pr-say${say.listener ? '' : ' is-off'}" id="pr-say" role="status" aria-live="polite">${sayCopy(session)}</div>`;
   }
@@ -618,6 +607,7 @@
     const wordbookTitle = String(data?.wordbook?.title || '').trim();
     state.wordbookTitle = (EN && wordbookTitle === '我的词本' ? '' : wordbookTitle) || tx('我的词本');
     for (const chapter of data?.wordbook?.chapters || []) state.mine.push({...chapter,...add(`mine:${chapter.id}`,String(chapter.title || ''),chapter.words)});
+    indexGrammar(data?.grammar);
     practiceAliases=new Map();
     for (const [key,word] of state.words) for (const alias of word.practiceAliases || []) {
       const previous=normalize(alias);
@@ -626,6 +616,78 @@
     }
     for (const [alias,key] of practiceAliases) if (!key) practiceAliases.delete(alias);
   }
+
+  /* ---------- 语法 (综合测验, docs/grammar-bank-format.md) ----------
+     data/grammar.json holds the textbook's grammar points per section, each with a few original questions: `choice`
+     (the first option is right; shown shuffled) or `fill` (typed, any of `answers`). A question is an item of the
+     session's pool under the key `g:<id>`, like a word, but it never becomes a distractor, a word card, a weak word or
+     a recording: it shows its sentence with the gap, and after the answer the whole sentence and why. */
+  const GRAMMAR_PREFIX = 'g:';
+  const isGrammarKey = key => typeof key === 'string' && key.startsWith(GRAMMAR_PREFIX);
+  const GAP = '___';
+  function indexGrammar(bank) {
+    state.grammar = new Map();
+    if (!bank || bank.series !== state.seriesId) return;
+    for (const chapter of bank.chapters || []) {
+      const points = new Map((chapter.points || []).map(point => [point.id,point]));
+      for (const raw of chapter.items || []) {
+        const point = points.get(raw.point);
+        if (!point || !raw.id || !['choice','fill'].includes(raw.kind)) continue;
+        const right = raw.kind === 'choice' ? raw.options?.[0] : raw.answers?.[0];
+        if (!right) continue;
+        const text = String(raw.text || '');
+        const name = EN ? point.en || point.zh : point.zh;
+        state.grammar.set(GRAMMAR_PREFIX+raw.id,{...raw,key:GRAMMAR_PREFIX+raw.id,grammar:true,chapter:String(chapter.id),section:String(point.section || ''),pointName:name,
+          // word / meaning: what results and history show for it.
+          word:raw.ask === 'sentence' || !text.includes(GAP) ? right : text.replace(GAP,right),meaning:tx('语法 · {name}',{name})});
+      }
+    }
+  }
+  // The grammar questions of a range: those of each chosen section, all of a chosen chapter.
+  function grammarKeysFor(tokens) {
+    if (!state.grammar.size) return [];
+    const sections = new Set(), chapters = new Set();
+    for (const token of tokens) {
+      if (token.startsWith('chapter:')) chapters.add(token.slice(8));
+      else if (token.startsWith('section:')) sections.add(token.slice(8));
+    }
+    return [...state.grammar.values()].filter(item => chapters.has(item.chapter) || sections.has(item.section)).map(item => item.key);
+  }
+  const grammarOn = quiz => quizConfig(quiz).types.includes('grammar');
+  // Grammar questions go between the words, evenly; a quiz of grammar alone is just them.
+  function interleave(words,grammar) {
+    if (!grammar.length || !words.length) return [...words,...grammar];
+    const out = [];
+    let next = 0;
+    words.forEach((key,index) => {
+      out.push(key);
+      const due = Math.floor((index+1)*grammar.length/words.length);
+      while (next < due) out.push(grammar[next++]);
+    });
+    return out;
+  }
+  // What counts as the same answer: case, spaces and a final full stop do not matter; numbers may be written 17.45,
+  // 05:45 or 17:45 alike (a date 17.5 as 17.05).
+  function grammarAnswer(value,digits) {
+    const text = normalizeAnswer(value);
+    if (!digits) return text;
+    return text.replace(/\s+/g,'').replace(/[.,/]/g,':').replace(/:+$/,'').split(':').map(part => /^\d+$/.test(part) ? String(Number(part)) : part).join(':');
+  }
+  function grammarCorrect(item,value) {
+    const digits = item.ask === 'digits', answer = grammarAnswer(value,digits);
+    return !!answer && (item.answers || []).some(right => grammarAnswer(right,digits) === answer);
+  }
+  function grammarQuestion(item) {
+    return item.kind === 'choice' ? {type:'choice',grammar:true,order:shuffled(item.options.map((_,index) => index))} : {type:'spell',grammar:true};
+  }
+  const GRAMMAR_ASKS = {
+    word:[tx('选出空里的词'),tx('填出空里的词')],
+    form:[tx('选出正确的形式'),tx('写出正确的形式')],
+    sentence:[tx('哪一句是对的？'),tx('哪一句是对的？')],
+    digits:[tx('选出对应的数字'),tx('用数字写出来')],
+    say:[tx('选出挪威语的说法'),tx('用挪威语写出来')]
+  };
+  const grammarAsk = item => (GRAMMAR_ASKS[item.ask] || GRAMMAR_ASKS.word)[item.kind === 'choice' ? 0 : 1];
   // The wordbook changed (an edit, or a sync from another device): only its sources are new. Selections
   // of chapters that are gone are dropped; an open session keeps going and is checked against the new words.
   function refreshWordbook(wordbook) {
@@ -663,7 +725,11 @@
     return pool;
   }
   function sessionPool(session) {
-    if (!sessionPools.has(session)) sessionPools.set(session,session.customKeys ? customPool(session.customKeys) : poolFor(session.sources));
+    if (!sessionPools.has(session)) {
+      const pool = session.customKeys ? customPool(session.customKeys) : poolFor(session.sources);
+      for (const key of session.firstKeys || []) if (isGrammarKey(key) && state.grammar.has(key)) pool.set(key,state.grammar.get(key));
+      sessionPools.set(session,pool);
+    }
     return sessionPools.get(session);
   }
   function selectedLabel(tokens) {
@@ -1111,14 +1177,14 @@
   }
   function historyEntry(result,actions=true) {
     const activity=activityOf(result), summary=resultSummary(result);
-    return `<article class="pr-history-entry"><span class="pr-mode-icon is-${activity}">${icon(activity)}</span><button type="button" class="pr-history-main" data-practice-action="history-detail" data-pr-id="${e(result.id)}"><strong>${e(ACTIVITIES[activity].title)}</strong><span>${e(result.label)} · ${e(dateLabel(result.finishedAt))}</span></button><span class="pr-history-score">${summary.score}<small>${summary.unit}</small></span>${actions && result.answers.some(answer => answer.points < 2) ? button('history-weak',tx('练错词'),`data-pr-id="${e(result.id)}"`,'pr-small pr-quiet') : ''}</article>`;
+    return `<article class="pr-history-entry"><span class="pr-mode-icon is-${activity}">${icon(activity)}</span><button type="button" class="pr-history-main" data-practice-action="history-detail" data-pr-id="${e(result.id)}"><strong>${e(ACTIVITIES[activity].title)}</strong><span>${e(result.label)} · ${e(dateLabel(result.finishedAt))}</span></button><span class="pr-history-score">${summary.score}<small>${summary.unit}</small></span>${actions && result.answers.some(answer => answer.points < 2 && !isGrammarKey(answer.key)) ? button('history-weak',tx('练错词'),`data-pr-id="${e(result.id)}"`,'pr-small pr-quiet') : ''}</article>`;
   }
   function historyColumn() {
     const history = state.store.history;
     return `<section class="pr-home-history" aria-labelledby="pr-home-history-title"><div class="pr-column-head"><h3 id="pr-home-history-title">${tx('学习记录')}</h3>${history.length ? button('history',tx('全部 {n}',{n:history.length}),'','pr-small pr-quiet') : ''}</div>${historyStats()}${history.length ? `<div class="pr-history-list">${history.slice(0,6).map(result => historyEntry(result,false)).join('')}</div>` : `<p class="pr-column-empty">${tx('完成一组练习后，记录会出现在这里。')}</p>`}</section>`;
   }
   function scopeOptions() {
-    const quiz = state.activity === 'quiz' ? `<div class="pr-setting-block"><span class="pr-setting-label">${tx('题型')}</span><div class="pr-chip-group" role="group" aria-label="${tx('测验题型')}">${[['judge',tx('判断')],['choice',tx('选择')],['spell',tx('拼写')]].map(([value,label]) => `<label class="pr-chip"><input type="checkbox" data-pr-quiz-type="${value}" ${state.quiz.types.includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div><label class="pr-setting-block"><span class="pr-setting-label">${tx('方向')}</span><select id="pr-quiz-direction"><option value="to-nb" ${state.quiz.direction === 'to-nb' ? 'selected' : ''}>${tx('中文 → 挪威语')}</option><option value="to-zh" ${state.quiz.direction === 'to-zh' ? 'selected' : ''}>${tx('挪威语 → 中文')}</option><option value="mixed" ${state.quiz.direction === 'mixed' ? 'selected' : ''}>${tx('混合')}</option></select></label>` : '';
+    const quiz = state.activity === 'quiz' ? `<div class="pr-setting-block"><span class="pr-setting-label">${tx('题型')}</span><div class="pr-chip-group" role="group" aria-label="${tx('测验题型')}">${[['judge',tx('判断')],['choice',tx('选择')],['spell',tx('拼写')],['grammar',tx('语法')]].map(([value,label]) => `<label class="pr-chip"><input type="checkbox" data-pr-quiz-type="${value}" ${state.quiz.types.includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div><label class="pr-setting-block"><span class="pr-setting-label">${tx('方向')}</span><select id="pr-quiz-direction"><option value="to-nb" ${state.quiz.direction === 'to-nb' ? 'selected' : ''}>${tx('中文 → 挪威语')}</option><option value="to-zh" ${state.quiz.direction === 'to-zh' ? 'selected' : ''}>${tx('挪威语 → 中文')}</option><option value="mixed" ${state.quiz.direction === 'mixed' ? 'selected' : ''}>${tx('混合')}</option></select></label>` : '';
     return `<details class="pr-options"><summary>${tx('更多设置')}</summary><div class="pr-settings">${quiz}<label class="pr-setting-block"><span class="pr-setting-label">${tx('顺序')}</span><select id="pr-order"><option value="random" ${state.mode === 'random' ? 'selected' : ''}>${tx('随机')}</option><option value="weak" ${state.mode === 'weak' ? 'selected' : ''}>${tx('薄弱词优先')}</option></select></label><div class="pr-setting-block pr-setting-rate">${rateControl()}</div>${savedGroups()}</div></details>`;
   }
   function seriesChoice() {
@@ -1132,11 +1198,16 @@
     const pool = poolFor(state.selected), weak = weakKeys().length, favorites = favoriteKeys().length;
     const quick = weak || favorites ? `<div class="pr-quick-row">${weak ? button('weak',tx('薄弱词 <b>{n}</b>',{n:weak}),'','pr-chip-button') : ''}${favorites ? button('favorites',`${icon('star',true)}${tx('收藏 <b>{n}</b>',{n:favorites})}`,'','pr-chip-button') : ''}</div>` : '';
     const minimum = state.activity === 'match' ? 2 : 1;
-    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close',tx('返回练习方式'),'','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="${tx('词语来源')}">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab',tx('基础常识'),`data-pr-tab="basics" aria-label="${tx('公共基础常识')}" title="${tx('公共基础常识')}" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}${state.kitchen.length ? button('scope-tab',tx('厨房'),`data-pr-tab="kitchen" aria-label="${tx('厨房 Kjøkken：开饭啦的食物词')}" title="${tx('厨房 Kjøkken：开饭啦的食物词')}" aria-pressed="${state.scopeTab === 'kitchen'}"`,'pr-small') : ''}${state.mall.length ? button('scope-tab',tx('商场'),`data-pr-tab="mall" aria-label="${tx('商场 Varehuset：百货超市的商品词')}" title="${tx('商场 Varehuset：百货超市的商品词')}" aria-pressed="${state.scopeTab === 'mall'}"`,'pr-small') : ''}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="${tx('搜索章节或分类')}" aria-label="${tx('搜索练习范围')}" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="${tx('展开小节')}">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section>${state.kitchen.length ? `<section data-pr-scope-tab="kitchen" ${state.scopeTab === 'kitchen' ? '' : 'hidden'}><div id="pr-kitchen-sources">${state.kitchen.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}${state.mall.length ? `<section data-pr-scope-tab="mall" ${state.scopeTab === 'mall' ? '' : 'hidden'}><div id="pr-mall-sources">${state.mall.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}</div><p class="pr-source-empty" id="pr-source-empty" hidden>${tx('没有匹配的范围')}</p>${answerModeBlock()}${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? tx('已选 <b>{n}</b> 词',{n:pool.size}) : tx('还没有选择')}</span>${button('clear-selection',tx('清空'),pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start',tx('开始'),'id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
+    dialog.innerHTML = `<div class="pr-dialog-heading"><span class="pr-mode-icon is-${state.activity}">${icon(state.activity)}</span><h2 id="pr-scope-title" tabindex="-1">${ACTIVITIES[state.activity].title}</h2>${iconButton('scope-close','close',tx('返回练习方式'),'','pr-scope-close')}</div>${quick}${seriesChoice()}<div class="pr-source-tabs" role="group" aria-label="${tx('词语来源')}">${button('scope-tab',state.seriesTitle,`data-pr-tab="chapters" aria-pressed="${state.scopeTab === 'chapters'}"`,'pr-small')}${button('scope-tab',tx('基础常识'),`data-pr-tab="basics" aria-label="${tx('公共基础常识')}" title="${tx('公共基础常识')}" aria-pressed="${state.scopeTab === 'basics'}"`,'pr-small')}${button('scope-tab',e(state.wordbookTitle),`data-pr-tab="wordbook" aria-pressed="${state.scopeTab === 'wordbook'}"`,'pr-small')}${state.kitchen.length ? button('scope-tab',tx('厨房'),`data-pr-tab="kitchen" aria-label="${tx('厨房 Kjøkken：开饭啦的食物词')}" title="${tx('厨房 Kjøkken：开饭啦的食物词')}" aria-pressed="${state.scopeTab === 'kitchen'}"`,'pr-small') : ''}${state.mall.length ? button('scope-tab',tx('商场'),`data-pr-tab="mall" aria-label="${tx('商场 Varehuset：百货超市的商品词')}" title="${tx('商场 Varehuset：百货超市的商品词')}" aria-pressed="${state.scopeTab === 'mall'}"`,'pr-small') : ''}</div><input type="search" class="pr-source-search" id="pr-source-search" placeholder="${tx('搜索章节或分类')}" aria-label="${tx('搜索练习范围')}" value="${e(state.scopeQuery)}"><div class="pr-source-columns"><section data-pr-scope-tab="chapters" ${state.scopeTab === 'chapters' ? '' : 'hidden'}><div class="pr-chapter-list">${state.chapters.map(chapter => `<details class="pr-source-chapter" data-pr-chapter-search="${e((chapter.label+' '+chapter.sections.map(section => section.label).join(' ')).toLocaleLowerCase('nb'))}" ${!state.selected.has(chapter.token) && chapter.sections.some(section => state.selected.has(section.token)) ? 'open' : ''}><summary><label class="pr-chapter-select"><input type="checkbox" data-pr-chapter="${e(chapter.token)}" ${state.selected.has(chapter.token) ? 'checked' : ''}><span><b>${e(chapter.number ?? chapter.id)}</b>${e(chapter.title)}</span><small>${chapter.words.length}</small></label><span class="pr-section-toggle" title="${tx('展开小节')}">${icon('down')}</span></summary>${chapter.sections.map(section => sourceCheckbox(section,state.selected.has(chapter.token) || state.selected.has(section.token))).join('')}</details>`).join('')}</div></section><section data-pr-scope-tab="basics" ${state.scopeTab === 'basics' ? '' : 'hidden'}><div id="pr-basic-sources">${state.basics.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section><section data-pr-scope-tab="wordbook" ${state.scopeTab === 'wordbook' ? '' : 'hidden'}>${wordbookSources()}</section>${state.kitchen.length ? `<section data-pr-scope-tab="kitchen" ${state.scopeTab === 'kitchen' ? '' : 'hidden'}><div id="pr-kitchen-sources">${state.kitchen.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}${state.mall.length ? `<section data-pr-scope-tab="mall" ${state.scopeTab === 'mall' ? '' : 'hidden'}><div id="pr-mall-sources">${state.mall.map(category => sourceCheckbox(category,state.selected.has(category.token))).join('')}</div></section>` : ''}</div><p class="pr-source-empty" id="pr-source-empty" hidden>${tx('没有匹配的范围')}</p>${answerModeBlock()}${scopeOptions()}<div class="pr-scope-footer"><span id="pr-scope-count" class="pr-scope-count" aria-live="polite">${pool.size ? selectionText(pool) : tx('还没有选择')}</span>${button('clear-selection',tx('清空'),pool.size ? '' : 'hidden','pr-small pr-quiet')}${button('start',tx('开始'),'id="pr-start" '+(pool.size < minimum ? 'disabled' : ''),'pr-primary pr-start')}</div>`;
     filterScope();
     updateSelectionUI(false);
     if (!dialog.open) { dialog.showModal?.(); $('#pr-scope-title')?.focus?.(); }
     if (state.activity === 'listen' && speakPref()) prepareSay();
+  }
+  // 已选 n 词, and in 综合测验 with 语法 the grammar questions of the range.
+  function selectionText(pool) {
+    const grammar=state.activity === 'quiz' && grammarOn(state.quiz) ? grammarKeysFor([...state.selected]).length : 0;
+    return tx('已选 <b>{n}</b> 词',{n:pool.size})+(grammar ? tx(' · 语法 <b>{n}</b> 题',{n:grammar}) : '');
   }
   function loadScope(config) {
     state.selected = new Set((config.sources || []).filter(token => state.sources.has(token)));
@@ -1184,7 +1255,7 @@
     }
     const pool = poolFor(state.selected);
     const scopeCount = $('#pr-scope-count'), start = $('#pr-start'), clear = state.root.querySelector('[data-practice-action="clear-selection"]');
-    if (scopeCount) scopeCount.innerHTML = pool.size ? `${tx('已选 <b>{n}</b> 词',{n:pool.size})}${state.activity === 'match' && pool.size < 2 ? tx(' · 配对至少 2 词') : ''}` : tx('还没有选择');
+    if (scopeCount) scopeCount.innerHTML = pool.size ? `${selectionText(pool)}${state.activity === 'match' && pool.size < 2 ? tx(' · 配对至少 2 词') : ''}` : tx('还没有选择');
     if (start) start.disabled = !pool.size || (state.activity === 'match' && pool.size < 2);
     if (clear) clear.hidden = !pool.size;
     if (save) draft();
@@ -1207,8 +1278,19 @@
       const mode = config.mode || state.mode;
       const prepared = state.prepared.get(orderSignature(sources,customKeys,mode,activity));
       state.prepared.clear();
-      const firstKeys = prepared?.length === pool.size && prepared.every(key => pool.has(key)) ? prepared : selectKeys(pool,mode);
-      const session = {id:uid(),seriesId:state.seriesId,seriesTitle:state.seriesTitle,startedAt:now(),sources,label:label || selectedLabel(sources),mode,activity,quiz:quizConfig(config.quiz),firstKeys,customKeys:customKeys ? [...pool.keys()] : null,reviewKeys:[],reviewAnswers:{},details:{},reviewDetails:{},phase:'first',index:0,answers:{},paused:false,flipped:false,cardsReverse:false,inputDraft:'',...(activity === 'listen' && speakPref() ? {speak:{}} : {})};
+      let firstKeys = prepared?.length === pool.size && prepared.every(key => pool.has(key)) ? prepared : selectKeys(pool,mode);
+      const customList = customKeys ? [...pool.keys()] : null;
+      // 综合测验 with 语法: the chosen sections' grammar questions go between the words (or alone, when no word type is on).
+      if (activity === 'quiz' && !customKeys) {
+        const quiz = quizConfig(config.quiz), grammar = grammarOn(quiz) ? shuffled(grammarKeysFor(sources)) : [];
+        if (!quiz.types.some(type => WORD_TYPES.includes(type))) {
+          if (!grammar.length) { announce(tx('这个范围还没有语法题。请选课本的章节，或者再勾一种词语题型。')); return; }
+          firstKeys = [];
+        }
+        firstKeys = interleave(firstKeys,grammar);
+        for (const key of grammar) pool.set(key,state.grammar.get(key));
+      }
+      const session = {id:uid(),seriesId:state.seriesId,seriesTitle:state.seriesTitle,startedAt:now(),sources,label:label || selectedLabel(sources),mode,activity,quiz:quizConfig(config.quiz),firstKeys,customKeys:customList,reviewKeys:[],reviewAnswers:{},details:{},reviewDetails:{},phase:'first',index:0,answers:{},paused:false,flipped:false,cardsReverse:false,inputDraft:'',...(activity === 'listen' && speakPref() ? {speak:{}} : {})};
       sessionPools.set(session,pool);
       if (['learn','quiz','listen'].includes(activity)) session.questions = makeQuestions(pool,firstKeys,activity,session.quiz);
       checkedQuestions.add(session);
@@ -1238,7 +1320,7 @@
     if (!session || !state.deps.prefetch) return;
     const pool = sessionPool(session);
     const keys = activityOf(session) === 'match' ? session.match?.roundKeys || [] : (currentKeys(session) || []).slice(session.index || 0,(session.index || 0)+4);
-    state.deps.prefetch(keys.map(key => pool.get(key)).filter(Boolean));
+    state.deps.prefetch(keys.map(key => pool.get(key)).filter(item => item && !item.grammar));
   }
   // Spelling practice may read the word first; in the quiz, audio must not reveal an answer early.
   function promptAudioAllowed(session) {
@@ -1255,7 +1337,7 @@
     const detail = answered(session) && questionDetails(session)[currentKey(session)];
     const item = (detail?.matchedKey && sessionPool(session).get(detail.matchedKey)) || activeItem();
     if (!item) { announce(tx('这个词已不在当前词表中，请继续下一词。')); return; }
-    if (!promptAudioAllowed(session)) return;
+    if (item.grammar || !promptAudioAllowed(session)) return;
     stopAudio();
     const token = state.playToken;
     // 开口跟读: the microphone hears nothing while the word sounds, and starts listening once it has rung out.
@@ -1374,8 +1456,12 @@
   }
   function makeQuestions(pool,keys,activity,settings) {
     const config=quizConfig(settings), questions={};
+    // The word types take turns among the words; grammar questions are their own (and never a distractor).
+    const wordTypes=config.types.filter(type => WORD_TYPES.includes(type));
+    if (!wordTypes.length) wordTypes.push('choice');
+    let wordIndex=0;
     // Normalize each word once. Large ranges must not reparse every meaning for every question.
-    const candidates=shuffled([...pool.keys()]), metadata=new Map(), byPrompt=new Map();
+    const candidates=shuffled([...pool.keys()].filter(key => !isGrammarKey(key))), metadata=new Map(), byPrompt=new Map();
     for (const key of candidates) {
       const item=pool.get(key), parts=meaningParts(item), prompt=normalizeAnswer(item.meaning);
       metadata.set(key,{parts:new Set(parts),meaning:parts.join('|'),word:normalizeAnswer(item.word),prompt});
@@ -1398,13 +1484,14 @@
     const typeCounts={};
     const optionsFor=(key,direction,others) => shuffled([key,...others]).map(option => ({key:option,text:direction === 'to-nb' ? pool.get(option).word : pool.get(option).meaning}));
     keys.forEach((key,index) => {
+      if (isGrammarKey(key)) { if (pool.has(key)) questions[key]=grammarQuestion(pool.get(key)); return; }
       if (activity === 'listen') {
         const others=distractors(key,'to-zh',3,true);
         // Too few distinct meanings: fall back to dictation of the same word.
         questions[key]=others.length === 3 ? {type:'choice',direction:'to-zh',audio:true,options:optionsFor(key,'to-zh',others)} : {type:'spell',direction:'to-nb',audio:true,acceptableKeys:[key]};
         return;
       }
-      let type=activity === 'learn' ? 'spell' : config.types[index % config.types.length];
+      let type=activity === 'learn' ? 'spell' : wordTypes[wordIndex++ % wordTypes.length];
       // Alternate per type, so two enabled types cannot lock each type to one direction.
       const turn=typeCounts[type]=(typeCounts[type] || 0)+1;
       let direction=config.direction === 'mixed' ? (turn % 2 ? 'to-nb' : 'to-zh') : config.direction;
@@ -1457,6 +1544,7 @@
     if (!session || session.paused || !['first','review'].includes(session.phase) || answered(session) || !['learn','quiz','listen'].includes(activityOf(session))) return;
     const key=currentKey(session), item=activeItem(), question=session.questions?.[key];
     if (!item || !question) return;
+    if (question.grammar) { submitGrammar(session,item,question,value,unknown); return; }
     if (!unknown && sayLocked(session)) return;
     let correct=false, submitted=String(value ?? ''), matchedKey=key;
     const gap=question.type === 'spell' ? gapOf(session,question,item) : null;
@@ -1488,6 +1576,7 @@
   function renderQuestion(session,item) {
     const activity=activityOf(session), key=currentKey(session), question=session.questions?.[key], done=answered(session), detail=questionDetails(session)[key];
     if (!question) { shell(sessionBar(session)+`<section class="pr-exercise-card pr-center-card"><h2>${tx('这道题暂时无法显示')}</h2>${button('setup',tx('重新选择'),'','pr-primary pr-wide')}</section>`); return; }
+    if (question.grammar) { renderGrammar(session,item,question,done,detail); return; }
     const toZh=question.direction === 'to-zh', promptText=toZh ? item.word : item.meaning;
     let prompt;
     // 开口跟读: the answers wait until the word was said (or 跳过跟读).
@@ -1525,6 +1614,56 @@
     if (!done && gap) updateGap();
     if (!done && question.type === 'spell') $('#pr-answer')?.focus?.({preventScroll:true});
     if (done) state.root.querySelector('[data-practice-action="next"]')?.focus?.({preventScroll:true});
+  }
+  // A grammar question: what to do, the sentence with its gap (and the hint in brackets), then the options or a field
+  // with the screen keyboard (its digits first for numbers). Answered, the gap holds the right answer and the panel
+  // gives the whole sentence and why.
+  function renderGrammar(session,item,question,done,detail) {
+    const key=currentKey(session), right=item.kind === 'choice' ? item.options[0] : item.answers[0];
+    const [before,after]=String(item.text || '').split(GAP);
+    const tone=done ? (detail?.correct ? ' is-correct' : ' is-wrong') : '';
+    const sentence=item.ask === 'sentence' || after === undefined
+      ? (item.text ? `<p class="pr-gram-text is-context" lang="nb">${e(item.text)}</p>` : '')
+      : `<p class="pr-gram-text" lang="nb">${e(before)}<span class="pr-gram-gap${tone}"${!done && question.type === 'spell' ? ' id="pr-gram-gap" aria-hidden="true"' : ''}>${done ? e(right) : question.type === 'spell' ? e(session.inputDraft || '') : `<span class="sr-only">${tx('空')}</span>`}</span>${item.hint ? `<span class="pr-gram-hint"> (${e(item.hint)})</span>` : ''}${e(after)}</p>`;
+    const prompt=`<div class="pr-gram"><p class="pr-gram-kicker"><b>${tx('语法')}</b><span>${e(item.pointName)}</span></p><h2 class="pr-gram-ask">${e(grammarAsk(item))}</h2>${sentence}</div>`;
+    let answerUI;
+    if (question.type === 'choice') {
+      const long=item.ask === 'sentence' || question.order.some(index => String(item.options[index]).length > 14);
+      answerUI=`<div class="pr-choice-grid${long ? ' is-long' : ''}${item.ask === 'sentence' ? ' is-sentences' : ''}">${question.order.map((index,position) => {
+        const shade=done ? (index === 0 ? ' is-correct' : detail?.choice === position ? ' is-wrong' : ' is-dim') : '';
+        return `<button type="button" class="pr-choice${shade}" data-practice-action="objective" data-pr-value="${position}" lang="nb" ${done ? 'disabled' : ''}><kbd>${position+1}</kbd><span>${e(item.options[index])}</span></button>`;
+      }).join('')}</div>`;
+    } else {
+      // A number is written with the keyboard's digits: they come up first (the learner can still switch).
+      if (!done && item.ask === 'digits' && state.keyboardKey !== key) state.keyboardPage='symbols';
+      state.keyboardKey=key;
+      const mode=keyboardMode(), value=done ? (detail?.unknown ? '' : detail?.submitted || '') : session.inputDraft || '';
+      answerUI=`<form class="pr-answer-form" id="pr-answer-form"><label class="sr-only" for="pr-answer">${e(grammarAsk(item))}</label><input id="pr-answer" class="pr-answer-input${tone}" type="text" lang="nb" enterkeyhint="done" inputmode="${mode === 'system' || !touchScreen() ? 'text' : 'none'}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${item.ask === 'digits' ? tx('写数字') : tx('填在空里')}" value="${e(value)}" ${done ? 'disabled' : ''}></form>${done ? '' : `<div class="pr-keyboard-wrap"><div id="pr-keyboard">${renderKeyboard()}</div>${touchScreen() ? iconButton('keyboard-mode','keyboard',mode === 'system' ? tx('显示屏幕键盘') : tx('使用手机键盘'),`aria-pressed="${mode === 'screen'}"`,'pr-keyboard-toggle') : ''}</div>`}`;
+    }
+    const footer=done ? grammarPanel(session,item,detail) : `<div class="pr-question-footer">${button('unknown',tx('不知道'),'','pr-quiet')}${question.type === 'spell' ? `<button type="submit" form="pr-answer-form" id="pr-check-answer" class="pr-button pr-primary" ${session.inputDraft?.trim() ? '' : 'disabled'}>${tx('检查')}</button>` : ''}</div>`;
+    shell(sessionBar(session)+`<section class="pr-exercise-card pr-question-card is-grammar is-${question.type}">${prompt}${answerUI}${footer}</section>`);
+    if (!done && question.type === 'spell') $('#pr-answer')?.focus?.({preventScroll:true});
+    if (done) state.root.querySelector('[data-practice-action="next"]')?.focus?.({preventScroll:true});
+  }
+  function grammarPanel(session,item,detail) {
+    const correct=!!detail?.correct, run=correct ? consecutiveCorrect(session) : 0;
+    const title=!detail ? tx('已记录') : correct ? (run >= 3 ? tx('连对 {n} 题',{n:run}) : tx('答对了')) : detail.unknown ? tx('记一下') : tx('答错了');
+    const why=EN ? item.en || '' : item.zh || '';
+    return `<div class="pr-feedback is-grammar is-${!detail ? 'neutral' : correct ? 'correct' : 'wrong'}" role="status" aria-live="polite"><span class="pr-feedback-mark" aria-hidden="true">${icon(correct ? 'check' : 'cross')}</span><div class="pr-feedback-copy"><strong>${title}</strong><p class="pr-gram-full" lang="nb">${e(item.word)}</p>${why ? `<p class="pr-gram-why">${e(why)}</p>` : ''}</div>${button('next',tx('继续'),'','pr-primary pr-next')}</div>`;
+  }
+  function submitGrammar(session,item,question,value,unknown) {
+    let correct=false, submitted=String(value ?? ''), choice=null;
+    if (unknown) submitted='不知道';
+    else if (question.type === 'choice') {
+      const index=question.order?.[Number(value)];
+      if (index === undefined || item.options?.[index] === undefined) return;
+      choice=Number(value); correct=index === 0; submitted=item.options[index];
+    } else {
+      if (!submitted.trim()) { announce(tx('先填写答案，也可以选“不知道”。')); $('#pr-answer')?.focus?.(); return; }
+      correct=grammarCorrect(item,submitted);
+    }
+    const expected=item.kind === 'choice' ? item.options[0] : item.answers[0];
+    grade(correct ? 2 : 0,{type:question.type,grammar:true,submitted:unknown ? '不知道' : submitted,expected,correct,unknown,prompt:item.text || '',choice});
   }
   // The word as tiles: given letters as they are, blanks as slots. Answered, each blank shows the right letter, green
   // where it was typed right and red where it was not.
@@ -1679,6 +1818,7 @@
     if (has(answerMap(session),key)) return false;
     answerMap(session)[key] = points;
     if (detail) questionDetails(session)[key]=detail;
+    if (isGrammarKey(key)) return true;
     if (session.phase === 'first') {
       const stats = state.store.stats[key] || {seen:0,points:0,lastPoints:0,streak:0,reviews:0};
       stats.seen += 1; stats.points += points; stats.lastPoints = points; stats.lastAt = now(); stats.streak = points === 2 ? stats.streak+1 : 0;
@@ -1703,8 +1843,8 @@
       const run=consecutiveCorrect(session);
       showFeedback(detail.correct ? (run === 3 || (run >= 5 && run%5 === 0) ? 'streak' : 'correct') : 'wrong');
       // Every answer, right or wrong, is followed by the correct Norwegian pronunciation.
-      const pool=sessionPool(session);
-      speak((detail.matchedKey && pool.get(detail.matchedKey)) || pool.get(key),chimeDelay());
+      const pool=sessionPool(session), said=(detail.matchedKey && pool.get(detail.matchedKey)) || pool.get(key);
+      if (!said?.grammar) speak(said,chimeDelay());
     }
   }
   // Self-rated cards move straight on; the next Norwegian face is read aloud.
@@ -1739,7 +1879,7 @@
     state.advanceTimer=null;
     const pool = sessionPool(session);
     const result = {id:session.id,seriesId:session.seriesId || state.seriesId,seriesTitle:session.seriesTitle || state.seriesTitle,startedAt:session.startedAt,finishedAt:now(),label:session.label,sources:session.sources,customKeys:session.customKeys,mode:session.mode,activity:activityOf(session),quiz:session.quiz,total:session.firstKeys.length,reviewed:Object.keys(session.reviewAnswers).length,answers:session.firstKeys.map(key => ({key,word:pool.get(key)?.word || key,meaning:pool.get(key)?.meaning || '',points:session.answers[key] ?? 0,...(session.details?.[key] ? {detail:session.details[key]} : {})}))};
-    if (speaking(session)) result.speak={passed:session.firstKeys.filter(key => session.speak[`first:${key}`]?.passed).length,right:session.firstKeys.filter(key => session.speak[`first:${key}`]?.right).length,total:session.firstKeys.length};
+    if (speaking(session)) result.speak={passed:session.firstKeys.filter(key => session.speak[`first:${key}`]?.passed).length,total:session.firstKeys.length};
     closeSayMic();
     let beatRecord=false;
     if (result.activity === 'match') {
@@ -2032,6 +2172,7 @@
       if (!QUIZ_TYPES.includes(type)) return;
       if (!input.checked && types.length === 1 && types.includes(type)) { input.checked=true; announce(tx('至少保留一种题型。')); return; }
       state.quiz.types=input.checked ? unique([...types,type]) : types.filter(item => item !== type); draft();
+      updateSelectionUI(false);
     } else if (input.id === 'pr-quiz-direction') { state.quiz=quizConfig({...state.quiz,direction:input.value}); draft(); }
   }
   function onInput(event) {
@@ -2076,6 +2217,9 @@
     const cloze=input?.classList?.contains('pr-gap-input');
     if (cloze) updateGap();
     if (check) check.disabled=cloze ? gapInput(input.value).length < input.maxLength : !input?.value.trim();
+    // A grammar fill-in: what is typed shows in the sentence's gap as well.
+    const gap=$('#pr-gram-gap');
+    if (gap) gap.textContent=input?.value || '';
   }
   function insertLetter(letter) {
     const session=currentSession(), input=$('#pr-answer');
@@ -2149,7 +2293,10 @@
     const activity=activityOf(session);
     if (!['learn','quiz','listen'].includes(activity)) return;
     session.questions ||= {};
-    const broken=session.firstKeys.filter(key => { const question=session.questions[key]; return !question || (question.options && question.options.some(option => !pool.has(option.key))) || (question.proposedKey && !pool.has(question.proposedKey)); });
+    // A grammar question whose item changed (another number of options, or a choice became a fill-in) is drawn again.
+    const grammarBroken=(key,question) => isGrammarKey(key) && (!question.grammar || (pool.get(key)?.kind === 'choice') !== Array.isArray(question.order)
+      || (Array.isArray(question.order) && question.order.length !== pool.get(key)?.options?.length));
+    const broken=session.firstKeys.filter(key => { const question=session.questions[key]; return !question || grammarBroken(key,question) || (question.options && question.options.some(option => !pool.has(option.key))) || (question.proposedKey && !pool.has(question.proposedKey)); });
     if (broken.length) {
       const generated=makeQuestions(pool,session.firstKeys,activity,session.quiz);
       for (const key of broken) session.questions[key]=generated[key];

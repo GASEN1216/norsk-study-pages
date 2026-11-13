@@ -12,15 +12,16 @@ const loaded = import(`./chase-speech.mjs${suffix}`).then(module => (speech = mo
 export const load = () => loaded;
 /** A microphone and Web Audio are all that is needed on the page. */
 export const supported = () => Boolean(speech?.supported());
-/** Whether the community API writes speech down (GET /ai/status → asr). Asked once per request function. */
-const serverStatus = new WeakMap();
+/** Whether the community API writes speech down (GET /ai/status → asr; chase-speech.mjs asks once, and again after
+ *  the site's allowance comes back). */
 export function serverASR(request) {
   if (typeof request !== 'function') return Promise.resolve(false);
-  if (!serverStatus.has(request)) {
-    serverStatus.set(request,loaded.then(module => { module.useServer(request); return module.prepare(); }).catch(() => { serverStatus.delete(request); return false; }));
-  }
-  return serverStatus.get(request);
+  return loaded.then(module => { module.useServer(request); return module.prepare(); }).catch(() => false);
 }
+/** While the whole site's speech allowance is used up: the Beijing time it comes back ('08:00'); otherwise ''. */
+export const pausedAt = () => speech?.pausedAt?.() || '';
+/** What to tell the learner when speech cannot be written down now (the site's allowance, or `fallback`). */
+export const unavailableNote = fallback => pausedAt() ? `今天全站的语音识别额度用完了，北京时间 ${pausedAt()} 恢复。` : fallback;
 /** transcribe(samples, before) for record(): one stretch to the server. task() → the id of the task being answered
  *  (the server builds Whisper's prompt from it), before = the answer's words so far. */
 export function serverTranscriber(request,task) {

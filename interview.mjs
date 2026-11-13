@@ -309,7 +309,7 @@ export function createInterview(deps = {}) {
       await dictation.load();
       if (!dictation.supported()) { fail('这个浏览器用不了开口回答，可以换新版 Chrome、Edge 或 Safari。'); return; }
       // The server writes speech down (dictation.mjs); without it there is nothing to grade.
-      if (!(await dictation.serverASR(deps.request))) { fail('开口回答暂时用不了（语音识别没有开启），请稍后再试。'); return; }
+      if (!(await dictation.serverASR(deps.request))) { fail(dictation.unavailableNote('开口回答暂时用不了（语音识别没有开启），请稍后再试。')); return; }
       if (!recorder) {
         const opened = await dictation.record({
           onText:text => { if (answer.status === 'recording') answer.text = text; },
@@ -345,7 +345,7 @@ export function createInterview(deps = {}) {
     const {text,failed} = await recorder.stop();
     if (run !== answerRun) return;
     if (!text.trim()) {
-      const error = failed ? '语音识别暂时没有回应，请稍后再试。' : '没有听到你的回答。靠近麦克风，再试一次。';
+      const error = failed ? dictation.unavailableNote('语音识别暂时没有回应，请稍后再试。') : '没有听到你的回答。靠近麦克风，再试一次。';
       answer = {status:'error',error}; updateAnswer(); return;
     }
     answer = {status:'grading',text,question:id};

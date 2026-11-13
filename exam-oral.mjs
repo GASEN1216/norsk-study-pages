@@ -221,7 +221,7 @@ export function createOral(ctx) {
   const clockText = seconds => `${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
   function stateText() {
     return recogniser === 'server' ? '准备好了，可以开始。' : recogniser === 'unsupported' ? '这个浏览器用不了录音，请换新版 Chrome、Edge 或 Safari。'
-      : recogniser === 'unavailable' ? '语音识别暂时没有开启，口语考试先做不了。请稍后再试。' : '马上就好…';
+      : recogniser === 'unavailable' ? (dictation?.unavailableNote?.('语音识别暂时没有开启，口语考试先做不了。请稍后再试。') || '语音识别暂时没有开启，口语考试先做不了。请稍后再试。') : '马上就好…';
   }
   function prepareMarkup() {
     const label = opening ? '正在打开麦克风…' : recogniser === 'unavailable' ? '再试一次' : '打开麦克风，开始考试';

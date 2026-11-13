@@ -679,11 +679,27 @@ html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
 .pr-say-open svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .pr-say.is-passed .pr-say-mic{background:var(--pr-soft);color:var(--pr-muted)}
 .pr-say.is-passed strong{font-weight:500;color:var(--pr-muted)}
-.pr-say.is-right .pr-say-mic{background:var(--pr-right-bg);color:var(--pr-right)}
-.pr-say.is-right strong{font-weight:600;color:var(--pr-right)}
 .pr-say.is-passed{animation:pr-say-in .3s ease-out}
 @keyframes pr-say-in{from{opacity:0;transform:translateY(3px)}}
 .pr-choice-grid .pr-choice{transition:opacity .25s ease,filter .25s ease}
 .pr-choice-grid.is-locked .pr-choice{opacity:.55;filter:saturate(.3)}
 @media(max-width:560px){.pr-say{margin-top:10px}}
 @media(prefers-reduced-motion:reduce){.pr-say-meter{transition:none}.pr-say.is-passed{animation:none}}
+/* 综合测验 · 语法 (2026-11-13): a small gold tag with the grammar point, what to do, and the sentence with its gap. */
+.pr-gram{margin:24px 8px 26px;text-align:center}
+.pr-gram .pr-gram-kicker{display:inline-flex;align-items:center;gap:8px;margin:0 0 12px;padding:3px 12px 3px 4px;border-radius:999px;background:var(--pr-amber-bg);color:#8a6219;font-size:13px;line-height:1.5}
+.pr-gram .pr-gram-kicker b{padding:1px 9px;border-radius:999px;background:#b8862e;color:#fff;font-size:12px;font-weight:600;letter-spacing:.06em}
+.pr-gram .pr-gram-ask{margin:0 0 14px;font-size:15.5px;font-weight:500;line-height:1.5;color:var(--pr-muted)}
+.pr-gram .pr-gram-text{margin:0;font:500 28px/1.65 var(--serif,Georgia,serif);color:var(--pr-ink);overflow-wrap:anywhere}
+.pr-gram .pr-gram-text.is-context{font-size:21px;color:#4c5d54}
+.pr-gram-gap{display:inline-block;min-width:3.4em;margin:0 .16em;padding:0 .28em;border-bottom:2px dashed #c9a75a;line-height:1.3;color:var(--pr-green);transition:background .2s ease,border-color .2s ease}
+.pr-gram-gap.is-correct,.pr-gram-gap.is-wrong{min-width:0;border-bottom:2px solid var(--pr-right);border-radius:6px 6px 0 0;background:var(--pr-right-bg);color:#1d643e}
+.pr-gram-hint{font:400 .66em/1 var(--sans,"Segoe UI",sans-serif);color:var(--pr-muted);white-space:nowrap}
+.pr-choice-grid.is-sentences .pr-choice{justify-content:flex-start;padding-left:48px;text-align:left;font-family:var(--serif,Georgia,serif)}
+.pr-feedback.is-grammar{align-items:flex-start}
+.pr-feedback.is-grammar .pr-feedback-mark{margin-top:2px}
+.pr-feedback-copy>p.pr-gram-full{display:block;margin-top:2px;font:600 18px/1.45 var(--serif,Georgia,serif);color:var(--pr-ink);overflow-wrap:anywhere}
+.pr-feedback-copy>p.pr-gram-why{display:block;margin-top:4px;font-size:14.5px;line-height:1.55;color:#4c5d54}
+.pr-feedback.is-grammar .pr-next{align-self:center}
+@media(hover:none){.pr-choice-grid.is-sentences .pr-choice{padding-left:18px}}
+@media(max-width:640px){.pr-gram{margin:18px 2px 20px}.pr-gram .pr-gram-text{font-size:23px}.pr-gram .pr-gram-text.is-context{font-size:18px}.pr-feedback-copy>p.pr-gram-full{font-size:17px}}
