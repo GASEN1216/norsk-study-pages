@@ -99,7 +99,7 @@
 /* ---------- Dialogs ---------- */
 .nt-shade{position:fixed;inset:0;z-index:110;background:#2f30262e;backdrop-filter:blur(2px);opacity:0;transition:opacity .22s ease-out}
 .nt-shade.is-open{opacity:1}
-.nt-dialog{position:fixed;left:50%;top:50%;z-index:111;width:min(540px,calc(100% - 32px));max-height:calc(100dvh - 48px);display:flex;flex-direction:column;border-radius:20px;background:var(--nt-cream);border:1px solid var(--nt-line);box-shadow:0 30px 80px #2c261630,0 2px 8px #2c261614;opacity:0;transform:translate(-50%,calc(-50% + 8px));transition:opacity .24s ease-out,transform .24s ease-out;color:var(--nt-ink)}
+.nt-dialog{position:fixed;left:50%;top:50%;z-index:111;width:min(540px,calc(100% - 32px));max-height:calc(100dvh - 48px);display:flex;flex-direction:column;border-radius:18px;background:var(--nt-cream);border:1px solid var(--nt-line);box-shadow:0 30px 80px #2c261630,0 2px 8px #2c261614;opacity:0;transform:translate(-50%,calc(-50% + 8px));transition:opacity .24s ease-out,transform .24s ease-out;color:var(--nt-ink)}
 .nt-dialog.is-open{opacity:1;transform:translate(-50%,-50%)}
 .nt-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .nt-composer-card,.nt-confirm-card{padding:20px 22px 18px;display:flex;flex-direction:column;gap:14px;overflow:auto}
@@ -132,7 +132,7 @@
 .nt-comments li{padding:10px 0;border-top:1px solid #f0e9d8}.nt-comments li p{margin:0;font-size:13.5px;line-height:1.7;color:#3f4f42;overflow-wrap:anywhere}
 .nt-comment-head{display:flex;align-items:baseline;gap:8px;margin-bottom:2px!important}.nt-comment-head strong{font-size:12.5px;color:#5c6b52}.nt-comment-head span{font-size:11px;color:var(--nt-muted)}.nt-comment-head .nt-text-button{margin-left:auto;font-size:11px}
 .nt-comment-form{display:flex;align-items:flex-end;gap:8px;padding:12px 16px 16px;border-top:1px solid #efe7d4}
-.nt-comment-form textarea{flex:1;min-height:38px;max-height:120px;padding:8px 14px;border-radius:19px;border:1px solid #e6dcc6;background:#fffefb;font:13.5px/1.6 var(--sans);color:var(--nt-ink);resize:none;outline:none}
+.nt-comment-form textarea{flex:1;min-height:38px;max-height:120px;padding:8px 14px;border-radius:18px;border:1px solid #e6dcc6;background:#fffefb;font:13.5px/1.6 var(--sans);color:var(--nt-ink);resize:none;outline:none}
 .nt-comment-form textarea:focus{border-color:var(--nt-gold-soft)}
 
 /* ---------- Drawer ---------- */
@@ -179,7 +179,7 @@
 .nt-overview{max-width:1080px;margin:0 auto;color:var(--nt-ink)}
 .nt-overview-head{margin:0 0 20px}.nt-overview-head h2{font:500 32px/1.25 var(--serif);color:var(--green);margin:6px 0 8px;letter-spacing:-.4px}.nt-overview-head>p:last-child{margin:0;font-size:13px;line-height:1.7;color:#6f7660}
 .nt-segment{display:inline-flex;padding:4px;border-radius:12px;background:#f3efe2;border:1px solid #ebe3cf;margin-bottom:16px}
-.nt-segment button{padding:8px 20px;border-radius:9px;font-size:13.5px;color:#7d7e68;transition:background .18s,color .18s,box-shadow .18s}
+.nt-segment button{padding:8px 20px;border-radius:10px;font-size:13.5px;color:#7d7e68;transition:background .18s,color .18s,box-shadow .18s}
 .nt-segment button[aria-selected="true"]{background:#fffdf7;color:var(--nt-ink);font-weight:600;box-shadow:0 1px 4px #3a2f1a17}
 .nt-filters{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;margin-bottom:16px}
 .nt-chips{display:flex;flex-wrap:wrap;gap:6px}

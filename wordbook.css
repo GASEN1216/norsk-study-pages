@@ -28,7 +28,7 @@ body.wordbook-mode #vocabulary-view>.word-total,body.wordbook-mode #vocabulary-v
 .wb-count strong{font:600 17px var(--sans);color:var(--green);margin:0 2px}
 .wb-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
 .wb-menu-wrap{position:relative}
-.wb-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:25;min-width:210px;max-width:calc(100vw - 32px);padding:6px;background:var(--white);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px #23402b1f}
+.wb-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:25;min-width:210px;max-width:calc(100vw - 32px);padding:6px;background:var(--white);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-float)}
 .wb-menu[hidden]{display:none}
 .wb-menu-label{margin:0;padding:8px 12px 4px;font-size:11px;letter-spacing:.6px;color:#8a967e}
 .wb-menu-label:not(:first-child){margin-top:4px;border-top:1px solid var(--line);padding-top:10px}
@@ -48,7 +48,7 @@ body.wordbook-mode #vocabulary-view>.word-total,body.wordbook-mode #vocabulary-v
 .wb-audio-note.is-loading{color:#5f7454}
 @media(prefers-reduced-motion:no-preference){.wb-audio-note.is-loading{animation:wb-breathe 1.6s ease-in-out infinite}}
 @keyframes wb-breathe{50%{opacity:.45}}
-.wb-warning{margin:10px 0 0;padding:7px 11px;border-radius:9px;background:#f8efdc;color:#7f5512;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.wb-warning{margin:10px 0 0;padding:7px 11px;border-radius:10px;background:#f8efdc;color:#7f5512;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
 .wb-source{margin:6px 0 0;font-size:12px;color:#8a967e}
 .wb-note{margin:0;font-size:14px;line-height:1.65;color:#5f7051;overflow-wrap:anywhere}
 .wb-row .sentence{overflow-wrap:anywhere}
@@ -74,12 +74,12 @@ body.wordbook-mode #vocabulary-view>.word-total,body.wordbook-mode #vocabulary-v
 .wb-toc{display:flex;flex-direction:column}
 .wb-toc-title{flex:1;min-width:0;overflow-wrap:anywhere}
 .wb-toc-item .category-count{margin-left:auto}
-.wb-toc-add{display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;padding:11px 12px;border:1px dashed #d4ddc9;border-radius:9px;background:none;color:var(--green);font:500 13.5px var(--sans);text-align:left}
+.wb-toc-add{display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;padding:11px 12px;border:1px dashed #d4ddc9;border-radius:10px;background:none;color:var(--green);font:500 13.5px var(--sans);text-align:left}
 .wb-toc-add:hover{background:#f0f4ea;border-style:solid}
 .wb-toc-add svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 
 /* Dialog: a centred card, a bottom sheet on phones */
-.wb-dialog{width:min(560px,calc(100vw - 32px));max-width:none;max-height:min(860px,calc(100dvh - 48px - var(--wb-keyboard,0px)));padding:0;border:1px solid #dae2d7;border-radius:22px;background:var(--white);color:var(--ink);font:15px/1.6 var(--sans);box-shadow:0 24px 90px #1a342f33;overflow:hidden}
+.wb-dialog{width:min(560px,calc(100vw - 32px));max-width:none;max-height:min(860px,calc(100dvh - 48px - var(--wb-keyboard,0px)));padding:0;border:1px solid #dae2d7;border-radius:22px;background:var(--white);color:var(--ink);font:15px/1.6 var(--sans);box-shadow:var(--shadow-modal);overflow:hidden}
 .wb-dialog.is-wide{width:min(660px,calc(100vw - 32px))}
 .wb-dialog[open]{display:flex;flex-direction:column}
 .wb-dialog::backdrop{background:#19342b59;backdrop-filter:blur(4px)}

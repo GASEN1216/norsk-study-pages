@@ -1276,7 +1276,7 @@
     const daily = ui.daily;
     const dailyCard = `<section class="kc-daily"><div class="kc-daily-head"><div class="kc-daily-text"><span class="kc-kicker">Dagens meny</span><p class="kc-daily-title">${tx('今日菜单')}</p></div>
           ${daily ? `<button type="button" class="kc-link" data-kc="daily-open">${tx('今日榜')}${icon('next')}</button>` : `<span class="kc-hint">${tx('载入中…')}</span>`}</div>
-        <p class="kc-hint">${daily ? `${e(daily.day)} · ` : ''}${tx('全服同一桌菜，北京时间 0 点换；不用解锁。')}</p>
+        <p class="kc-hint">${tx('全服同一桌菜 · 每天 0 点换')}</p>
         ${daily ? `<button type="button" class="kc-daily-dishes" data-kc="daily-open" aria-label="${tx('打开今日菜单')}">${daily.scene.dishes.slice(0,6).map(dish => pic(dish.word,'is-round')).join('')}</button>` : ''}</section>`;
     // Playing together and the reference pages sit right under the menus, not after sixteen scenes.
     const actions = `<div class="kc-actions">${ui.joining ? `<form class="kc-join" novalidate><label for="kc-join-code">${tx('房间号')}</label><input id="kc-join-code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${tx('4 位数字')}" value="${e(ui.joinCode)}">
@@ -1307,11 +1307,18 @@
     const level = (id,index) => {
       const open = count < 0 || tierOpen(count,id), passed = count > index;
       const target = scene && scene.id !== 'daily' ? targetFor(scene,ui.prefs.minutes,id) : 0;
-      const state = count < 0 ? '' : passed ? `<em class="kc-level-state is-passed">${icon('check')}${tx('已过')}</em>` : open ? '' : `<em class="kc-level-state is-locked">${icon('lock')}${tx('拿到 {stars} 后开放',{stars:'★'.repeat(index)})}</em>`;
-      return `<button type="button" class="kc-option kc-level${passed ? ' is-passed' : ''}${open ? '' : ' is-locked'}" role="radio" aria-checked="${current === id}" data-kc="set" data-key="tier" data-value="${id}"${open ? '' : ' aria-disabled="true"'}>
-        <span class="kc-level-head"><i class="kc-level-stars" aria-hidden="true">${'★'.repeat(index+1)}</i><span>${count < 0 || L10N.english ? tierName(id) : tx('{tier}关',{tier:tierName(id)})}</span></span><small>${TIER_HINTS[id]}${target ? `${L10N.english ? '<br>' : ' · '}${tx('目标 {n}',{n:target})}` : ''}</small>${state}</button>`;
+      // Each tile shows only its name and a small mark (passed / locked); the chosen level's way of play and target
+      // read on one line under the three, and the full text stays in each tile's label.
+      const name = count < 0 || L10N.english ? tierName(id) : tx('{tier}关',{tier:tierName(id)});
+      const detail = `${TIER_HINTS[id]}${target ? ` · ${tx('目标 {n}',{n:target})}` : ''}`;
+      const status = count < 0 ? '' : passed ? tx('已过') : open ? '' : tx('拿到 {stars} 后开放',{stars:'★'.repeat(index)});
+      const mark = count < 0 ? '' : passed ? `<em class="kc-level-state is-passed" aria-hidden="true">${icon('check')}</em>` : open ? '' : `<em class="kc-level-state is-locked" aria-hidden="true">${icon('lock')}</em>`;
+      return `<button type="button" class="kc-option kc-level${passed ? ' is-passed' : ''}${open ? '' : ' is-locked'}" role="radio" aria-checked="${current === id}" data-kc="set" data-key="tier" data-value="${id}" aria-label="${e([name,detail,status].filter(Boolean).join(' · '))}"${open ? '' : ' aria-disabled="true"'}>
+        <span class="kc-level-head"><i class="kc-level-stars" aria-hidden="true">${'★'.repeat(index+1)}</i><span>${name}</span>${mark}</span></button>`;
     };
-    return `<div class="kc-field kc-levels-field"><span class="kc-field-label">${count < 0 ? tx('难度') : tx('三关')}</span><div class="kc-options kc-levels" role="radiogroup" aria-label="${tx('难度')}">${TIER_IDS.map(level).join('')}</div></div>`;
+    const chosen = TIER_IDS.indexOf(current), chosenTarget = scene && scene.id !== 'daily' ? targetFor(scene,ui.prefs.minutes,current) : 0;
+    const note = `${TIER_HINTS[current] || ''}${chosenTarget ? ` · ${tx('目标 {n}',{n:chosenTarget})}` : ''}`;
+    return `<div class="kc-field kc-levels-field"><span class="kc-field-label">${count < 0 ? tx('难度') : tx('三关')}</span><div class="kc-options kc-levels" role="radiogroup" aria-label="${tx('难度')}">${TIER_IDS.map(level).join('')}</div><p class="kc-level-note" aria-hidden="true">${chosen >= 0 ? note : ''}</p></div>`;
   }
   function minutesField() {
     return `<div class="kc-field"><span class="kc-field-label">${tx('时长')}</span><div class="kc-options is-compact" role="radiogroup" aria-label="${tx('时长')}">${MINUTES.map(value => option('minutes',String(value),tx('{n} 分钟',{n:value}),String(ui.prefs.minutes))).join('')}</div></div>`;
@@ -1324,8 +1331,7 @@
     return `${topBar(e(sceneZh(scene)))}
       <section class="kc-scene-hero${hasBanner(scene) ? ' has-banner' : ''}">${banner(scene)}<span class="kc-kicker">${tx('第 {n} 个场景',{n:index+1})}</span><p class="kc-scene-title" lang="nb">${e(scene.no)}</p>
         ${starRow(count,'is-large')}<p class="kc-scene-note">${e(sceneNote(scene))}</p>
-        <dl class="kc-facts"><div><dt>${tx('熟练的词')}</dt><dd>${known} / ${scene.words.length}</dd></div><div><dt>${tx('最高')}</dt><dd>${saved?.best ? tx('{n} 分',{n:saved.best}) : '—'}</dd></div></dl>
-        <p class="kc-hint">${tx('每过一关得一颗星，星不会掉；拿到 ★★ 开下一个场景')}</p></section>
+        <dl class="kc-facts"><div><dt>${tx('熟练的词')}</dt><dd>${known} / ${scene.words.length}</dd></div><div><dt>${tx('最高')}</dt><dd>${saved?.best ? tx('{n} 分',{n:saved.best}) : '—'}</dd></div></dl></section>
       <section class="kc-panel kc-choices">${tierField(scene)}${minutesField()}</section>
       <section class="kc-panel"><div class="kc-section-head"><h3>${tx('这一关的词')}</h3><span class="kc-hint">${tx('点一下听读音')}</span></div><ul class="kc-chips">${scene.words.map(wordChip).join('')}</ul></section>
       ${situationsPanel(scene)}

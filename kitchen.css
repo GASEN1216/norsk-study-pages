@@ -84,12 +84,13 @@ body.kc-open{overflow:hidden}
 /* The three levels of a scene (or the daily menu's three difficulties): stars, what each shows, its target, passed or locked */
 .kc-levels-field{grid-template-columns:minmax(0,1fr);gap:6px}
 .kc-levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
-.kc-option.kc-level{gap:2px;min-height:62px;padding:8px 4px}
-.kc-level-head{display:flex;align-items:baseline;justify-content:center;gap:4px}
+.kc-option.kc-level{gap:2px;min-height:48px;padding:8px 4px}
+.kc-level-head{display:flex;align-items:center;justify-content:center;gap:4px}
 .kc-level-stars{font-style:normal;font-size:11px;letter-spacing:-.5px;color:#c9a24a}
-.kc-option.kc-level small{white-space:normal;text-wrap:balance}
-.kc-level-state{display:inline-flex;align-items:center;gap:2px;margin-top:1px;font-size:10.5px;font-style:normal;line-height:1.2;color:var(--kc-muted)}
-.kc-level-state .kc-icon{width:11px;height:11px}
+.kc-level-state{display:inline-flex;align-items:center;font-style:normal;line-height:1;color:var(--kc-muted)}
+.kc-level-state .kc-icon{width:12px;height:12px}
+/* The chosen level's way of play and target, one quiet line under the three tiles. */
+.kc-level-note{min-height:1.5em;margin:2px 0 0;font-size:12.5px;line-height:1.5;color:var(--kc-muted);text-align:center}
 .kc-level-state.is-passed{color:#4f7d4a}
 .kc-option.kc-level.is-locked{opacity:.6}
 .kc-option.kc-level.is-locked .kc-level-stars{color:#cdbf9f}

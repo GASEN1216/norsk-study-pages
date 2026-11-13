@@ -75,24 +75,19 @@
   });
 
   /* ---------- The shelf ---------- */
-  function weekMarkup() {
-    const week = state.honors?.week, c = week?.challenge;
-    if (!c) return '';
-    const value = c.done ? 100 : pct(c.progress,c.target);
-    return `<button type="button" class="mh-week${c.done ? ' is-done' : ''}" data-more="tab" data-tab="honors">
-      ${img(weekArt(week.n),'','mh-week-art')}
-      <span class="mh-week-body"><small>本周挑战 · 第 ${e(week.n)} 周</small><strong><span lang="nb">${e(c.theme || '')}</span> ${e(c.themeZh || '')}</strong><span class="mh-week-progress"><span class="mh-week-bar" aria-hidden="true"><i style="width:${value}%"></i></span><b>${c.done ? '完成' : `${number(Math.min(c.progress,c.target))}/${number(c.target)}`}</b></span></span>
-      <svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-    </button>`;
+  // The weekly challenge lives on the practice home; here the 荣誉 card just carries this week's count.
+  function honorsMeta() {
+    const c = state.honors?.week?.challenge;
+    if (!c) return TOOLS.honors.meta;
+    return c.done ? '本周完成' : `本周 ${number(Math.min(c.progress,c.target))}/${number(c.target)}`;
   }
   function updateWeek() {
-    const slot = state.root && $('#mh-hub-week',state.root);
-    if (slot) slot.innerHTML = weekMarkup();
+    const slot = state.root && $('#mh-honors-meta',state.root);
+    if (slot) slot.textContent = honorsMeta();
   }
   function hubMarkup() {
-    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker">MER · 更多</p><h2 tabindex="-1">学习工具</h2><p class="mh-hub-note">动词本、考试与面试、随身听、读书笔记和这一季的荣誉，都在这里。</p></header>
-      ${featureMarkup()}<div class="mh-tools">${Object.entries(TOOLS).filter(([,tool]) => !tool.feature && !tool.hidden).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta">${tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div>
-      <div id="mh-hub-week">${weekMarkup()}</div></div>`;
+    return `<div class="mh-app"><header class="mh-hub"><p class="mh-kicker" lang="nb">MER</p><h2 tabindex="-1">学习工具</h2></header>
+      ${featureMarkup()}<div class="mh-tools">${Object.entries(TOOLS).filter(([,tool]) => !tool.feature && !tool.hidden).map(([key,tool]) => `<button type="button" class="mh-tool is-${key}" data-more="tab" data-tab="${key}"><span class="mh-tool-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${tool.icon}</svg></span><span class="mh-tool-text"><strong>${tool.title}</strong><span>${tool.note}</span></span><span class="mh-tool-meta"${key === 'honors' ? ' id="mh-honors-meta"' : ''}>${key === 'honors' ? honorsMeta() : tool.meta}</span><svg class="mh-tool-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>`).join('')}</div></div>`;
   }
   // The verb book is a daily habit, so it sits above the shelf with today's numbers instead of in it.
   function featureMarkup() {

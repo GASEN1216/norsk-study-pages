@@ -10,11 +10,11 @@
 .vb-quiet svg{width:15px;height:15px}
 
 /* hero */
-.vb-hero{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:36px;align-items:stretch;padding:30px 32px;border:1px solid #e4e1d1;border-radius:20px;background:radial-gradient(120% 140% at 0% 0%,#fbf6e8 0%,#fffef9 48%,#f8f8f1 100%);box-shadow:0 10px 36px #2a47390d}
+.vb-hero{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:36px;align-items:stretch;padding:30px 32px;border:1px solid #e4e1d1;border-radius:18px;background:radial-gradient(120% 140% at 0% 0%,#fbf6e8 0%,#fffef9 48%,#f8f8f1 100%);box-shadow:0 10px 36px #2a47390d}
 .vb-hero h2{font:400 32px/1.15 var(--serif);color:var(--vb-green);margin:0 0 10px;outline:none}
 .vb-hero-note{max-width:520px;margin:0 0 22px;font-size:13.5px;line-height:1.75;color:#657858}
 .vb-meter{display:flex;height:6px;max-width:460px;border-radius:6px;background:#ebeee3;overflow:hidden}
-.vb-meter i{display:block;height:100%;transition:width .8s cubic-bezier(.2,.7,.2,1)}
+.vb-meter i{display:block;height:100%;transition:width .8s var(--ease)}
 .vb-meter .is-mastered{background:var(--vb-right)}
 .vb-meter .is-familiar{background:#c9a04a}
 .vb-meter .is-learning{background:#e8d6a6}
@@ -124,8 +124,8 @@
 .vb-session{max-width:720px;margin:0 auto}
 .vb-session-bar{display:flex;align-items:center;gap:14px;margin:0 0 18px}
 .vb-session-bar .mh-back svg{width:16px;height:16px}
-.vb-progress{flex:1;height:5px;border-radius:5px;background:#e9ece2;overflow:hidden}
-.vb-progress i{display:block;height:100%;background:#c9a04a;border-radius:5px;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.vb-progress{flex:1;height:5px;border-radius:6px;background:#e9ece2;overflow:hidden}
+.vb-progress i{display:block;height:100%;background:#c9a04a;border-radius:6px;transition:width .45s var(--ease)}
 .vb-progress-count{font:400 13px/1 var(--serif);color:#7d8a72;white-space:nowrap}
 .vb-icon-toggle{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;border:1px solid #e2e6d9;color:#a3aa9b;transition:color .2s,border-color .2s}
 .vb-icon-toggle.is-on{color:var(--vb-green);border-color:#c9d3bf}

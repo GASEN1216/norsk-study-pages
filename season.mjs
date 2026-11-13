@@ -148,13 +148,13 @@ export function startSeason() {
       const piece = document.createElement('canvas');
       piece.width = piece.height = size;
       const c = piece.getContext('2d');
-      c.shadowColor = 'rgba(74,96,128,.5)';
+      c.shadowColor = 'rgba(112,98,80,.32)';
       c.shadowBlur = Math.max(2.5,r * 1.5);
       c.shadowOffsetY = r * .25;
       const gradient = c.createRadialGradient(size / 2 - r * .3,size / 2 - r * .3,0,size / 2,size / 2,r);
       gradient.addColorStop(0,'rgba(255,255,255,1)');
       gradient.addColorStop(.6,'rgba(248,251,255,.97)');
-      gradient.addColorStop(1,'rgba(214,225,238,.9)');
+      gradient.addColorStop(1,'rgba(230,226,218,.9)');
       c.fillStyle = gradient;
       c.beginPath(); c.arc(size / 2,size / 2,r,0,Math.PI * 2); c.fill();
       sprites.set(key,piece);
@@ -172,7 +172,7 @@ export function startSeason() {
       ratio = Math.min(2,window.devicePixelRatio || 1);
       width = innerWidth; height = innerHeight;
       canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
-      const want = Math.max(26,Math.min(70,Math.round(width * height / 17000)));
+      const want = Math.max(14,Math.min(36,Math.round(width * height / 30000)));
       while (flakes.length < want) flakes.push(flake(true));
       flakes.length = want;
     };

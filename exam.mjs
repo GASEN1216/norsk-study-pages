@@ -218,7 +218,7 @@ export function createExam(deps = {}) {
   function partStatus(key) {
     if (store.active[key]) return `<span class="ex-part-status is-active">继续 · ${e(progressText(key))}</span>`;
     const last = lastOf(key);
-    if (!last) return '<span class="ex-part-status">还没考过</span>';
+    if (!last) return '';
     if (last.status === 'pending') return '<span class="ex-part-status is-active">等待评分</span>';
     return `<span class="ex-part-status">上次 ${levelChip(last.level,' is-small')} <small>${e(dateText(last.finishedAt))}</small></span>`;
   }
@@ -233,7 +233,7 @@ export function createExam(deps = {}) {
   function hubMarkup() {
     return `<div class="mh-tool-bar"><button type="button" class="mh-back" data-more="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>更多</span></button></div>
       <section class="ex-app ex-hub" aria-labelledby="ex-title">
-        <header class="ex-head"><p class="ex-kicker">PRØVE · 考试与面试</p><h2 id="ex-title" tabindex="-1">考试与面试</h2><p>照 Norskprøven A1–A2 的考法分项自测，也能练 A-team 面试；开口回答由 AI 点评。</p></header>
+        <header class="ex-head"><p class="ex-kicker" lang="nb">PRØVE</p><h2 id="ex-title" tabindex="-1">考试与面试</h2><p>照 Norskprøven A1–A2 的考法分项自测，也能练 A-team 面试；开口回答由 AI 点评。</p></header>
         <section class="ex-block" aria-labelledby="ex-test-title">
           <div class="ex-block-head"><h3 id="ex-test-title">Norskprøven A1–A2 自测</h3><span>四项分开考，各给一个估计等级</span></div>
           <div class="ex-parts">${Object.entries(PARTS).map(([key,part]) => `<button type="button" class="ex-part is-${key}" data-exam="part" data-part="${key}"><span class="ex-part-icon">${icon(key)}</span><span class="ex-part-text"><strong>${part.title} <em lang="nb">${part.nb}</em></strong><span>${part.meta}</span>${partStatus(key)}</span>${icon('arrow')}</button>`).join('')}</div>

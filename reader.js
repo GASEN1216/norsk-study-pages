@@ -1057,7 +1057,7 @@
     const open = $('.rd-adder-detail',page)?.open;
     const hasItems = state.playlist.items.some(id => sectionMeta(id));
     rebuild(page,() => {
-      page.innerHTML = `<section class="rd-page-list"><header class="rd-page-head"><div><p class="rd-kicker">SPILLELISTE · 随身听</p><h2>播放列表</h2><p class="rd-meta">把课文原录音排成一张清单，按顺序在后台播放；锁屏或切到别的应用也能继续听，遇到不会的词再回到课文里点。</p></div>${hasItems ? `<button type="button" class="rd-button is-primary" data-rd="list-start">${icon('play')}<span>${state.deps.audio.paused ? '开始播放' : '从头播放'}</span></button>` : ''}</header>${modeBar()}${playlistRows(false)}${adderMarkup()}</section>`;
+      page.innerHTML = `<section class="rd-page-list"><header class="rd-page-head"><div><p class="rd-kicker" lang="nb">SPILLELISTE</p><h2>播放列表</h2><p class="rd-meta">把课文原录音排成一张清单，按顺序在后台播放；锁屏或切到别的应用也能继续听，遇到不会的词再回到课文里点。</p></div>${hasItems ? `<button type="button" class="rd-button is-primary" data-rd="list-start">${icon('play')}<span>${state.deps.audio.paused ? '开始播放' : '从头播放'}</span></button>` : ''}</header>${modeBar()}${playlistRows(false)}${adderMarkup()}</section>`;
       if (open) $('.rd-adder-detail',page).open = true;
     },() => $('.rd-adder-chips button',page));
   }

@@ -340,7 +340,7 @@ export function createVerbs(deps = {}) {
       ? `<p class="vb-today-plan">${today.due ? `<span><b>${today.due}</b> 个复习</span>` : ''}${today.fresh ? `<span><b>${today.fresh}</b> 个新动词</span>` : ''}</p>`
       : '<p class="vb-today-plan is-done">今天的都练完了</p>';
     const button = today.due || today.fresh ? `<button type="button" class="vb-primary" data-verbs="start" data-group="all">${started ? '开始今天的练习' : '从第一个动词开始'}</button>` : `<button type="button" class="vb-secondary" data-verbs="start" data-group="all" data-extra="1">再学 ${state.store.settings.daily || 5} 个新动词</button>`;
-    return `<header class="vb-hero"><div class="vb-hero-text"><p class="mh-kicker">VERB · 动词本</p><h2 tabindex="-1">动词本</h2>
+    return `<header class="vb-hero"><div class="vb-hero-text"><p class="mh-kicker" lang="nb">VERB</p><h2 tabindex="-1">动词本</h2>
       <p class="vb-hero-note">课本 15 章和课件里的 ${all} 个动词，每个都按课件的样子列出四种形态。每天复习到期的，再学几个新的。</p>
       <div class="vb-meter" role="img" aria-label="已掌握 ${total.mastered}，熟悉 ${total.familiar}，学习中 ${total.learning}，未开始 ${total.new}"><i class="is-mastered" style="width:${share('mastered')}"></i><i class="is-familiar" style="width:${share('familiar')}"></i><i class="is-learning" style="width:${share('learning')}"></i></div>
       <p class="vb-meter-legend"><span class="is-mastered">已掌握 ${total.mastered}</span><span class="is-familiar">熟悉 ${total.familiar}</span><span class="is-learning">学习中 ${total.learning}</span><span>未开始 ${total.new}</span></p></div>

@@ -1104,7 +1104,7 @@ function renderOverview(slot) {
   ui.overview = ui.overview || {tab:'mine',book:'',kind:'',query:'',square:{sort:'new',kind:'',book:'',items:[],page:0,more:false,status:'idle'}};
   ui.overview.slot = slot;
   slot.innerHTML = `<div class="nt-overview">
-    <header class="nt-overview-head"><p class="nt-kicker">NOTATER · 笔记</p><h2 tabindex="-1">读书笔记</h2><p>你在原页上的手写、听读里的划线和想法，以及大家公开分享的笔记。</p></header>
+    <header class="nt-overview-head"><p class="nt-kicker" lang="nb">NOTATER</p><h2 tabindex="-1">读书笔记</h2><p>你在原页上的手写、听读里的划线和想法，以及大家公开分享的笔记。</p></header>
     <div class="nt-segment" role="tablist">${[['mine','我的笔记'],['square','笔记广场']].map(([tab,label]) => `<button type="button" role="tab" data-nt="overview-tab" data-tab="${tab}" aria-selected="${ui.overview.tab === tab}">${label}</button>`).join('')}</div>
     <div class="nt-overview-body"></div></div>`;
   renderOverviewBody();

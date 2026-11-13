@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261113-mic';
-import {createReadingLibrary} from './reading-library.mjs?v=20261113-mic';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261113-mic';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261113-mic';
-import * as notesModel from './notes-store.mjs?v=20261113-mic';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261113-mic';
+import {createDataLoader} from './loader.mjs?v=20261113-declutter';
+import {createReadingLibrary} from './reading-library.mjs?v=20261113-declutter';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261113-declutter';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261113-declutter';
+import * as notesModel from './notes-store.mjs?v=20261113-declutter';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261113-declutter';
 
-const VERSION = '20261113-mic';
+const VERSION = '20261113-declutter';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -337,6 +337,24 @@ function toggleSettings(open = $('#settings-menu').hidden) {
   if (open && !wasOpen) ($('#settings-menu [aria-pressed="true"]') || $('#settings-menu button'))?.focus({preventScroll:true});
   else if (!open && hadFocus) $('#settings-button').focus({preventScroll:true});
 }
+// Phones keep the reading toolbar to one row: zoom, full screen, download and 双页对照 sit behind a 「⋯」 card
+// (on wider screens .reader-more is display:contents, so nothing changes there).
+function toggleReaderMore(open = !$('#reader-more').classList.contains('is-open')) {
+  const menu = $('#reader-more'), button = $('#reader-more-button');
+  if (typeof menu?.classList?.contains !== 'function' || !button) return;
+  const wasOpen = menu.classList.contains('is-open'), hadFocus = !!document.activeElement?.closest?.('#reader-more');
+  menu.classList.toggle('is-open',open);
+  button.setAttribute('aria-expanded',str(open));
+  if (!open && wasOpen && hadFocus) button.focus({preventScroll:true});
+}
+// A reader tool's name lives in its title, its aria-label and (in the phone card) its visible label.
+function setToolLabel(node,text) {
+  if (!node) return;
+  node.title = text;
+  node.setAttribute('aria-label',text);
+  const label = node.querySelector?.('.reader-more-label');
+  if (label) label.textContent = text;
+}
 const activeSearch = () => state.view === 'basics' ? $('#basics-search') : $('#vocab-search');
 function toggleSearch(open = !$('#heading-search').classList.contains('open')) {
   const input = activeSearch();
@@ -350,6 +368,28 @@ function toggleSearch(open = !$('#heading-search').classList.contains('open')) {
 }
 function renderRateOptions() {
   $('#rate-options').innerHTML = wordRates.map(rate => `<button type="button" data-action="word-rate" data-rate="${rate}" aria-pressed="${rate === state.wordRate}">${rate}×</button>`).join('');
+}
+// Word list density: phones open on compact rows (word, IPA, sound, meaning; tap for the rest), wider screens on full
+// cards. A choice made in the settings menu is kept for this device.
+function vocabDensity() {
+  if (state.vocabDensity) return state.vocabDensity;
+  return window.matchMedia?.('(max-width: 720px)')?.matches ? 'compact' : 'full';
+}
+function syncDensityButtons() {
+  const density = vocabDensity();
+  $$('[data-action="vocab-density"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.density === density)));
+}
+function setVocabDensity(density) {
+  if (!['compact','full'].includes(density)) return;
+  state.vocabDensity = density;
+  syncDensityButtons();
+  try { localStorage.setItem('norsk-vocab-density-v1',density); } catch {}
+  renderVocabulary();
+}
+// A compact row opens in place to show the English, grammar, example and its page links.
+function toggleVocabRow(row,open = !row.classList.contains('is-open')) {
+  row.classList.toggle('is-open',open);
+  row.querySelector('.word-expand')?.setAttribute('aria-expanded',str(open));
 }
 function setVocabSort(order) {
   if (!['easy','hard','alpha'].includes(order)) return;
@@ -466,8 +506,7 @@ function showDeckDownload(deck) {
   if (!deck) return;
   link.href = safeURL(deck.file);
   link.download = `${deck.title}.pptx`;
-  link.title = '下载原 PPT';
-  link.setAttribute('aria-label','下载原 PPT');
+  setToolLabel(link,'下载原 PPT');
 }
 function applyReadMode() {
   const text = readingTextMode(), slides = readingSlidesMode();
@@ -681,6 +720,8 @@ try {
   if (wordRates.includes(savedRate)) state.wordRate = savedRate;
   const savedSort = localStorage.getItem('norsk-vocab-sort-v1');
   if (['easy','hard','alpha'].includes(savedSort)) state.vocabSort = savedSort;
+  const savedDensity = localStorage.getItem('norsk-vocab-density-v1');
+  if (['compact','full'].includes(savedDensity)) state.vocabDensity = savedDensity;
   const savedReadMode = localStorage.getItem('norsk-read-mode-v1');
   if (['text','ppt'].includes(savedReadMode)) state.readMode = savedReadMode;
   const savedLessonRate = localStorage.getItem('norsk-lesson-rate-v1');
@@ -688,6 +729,7 @@ try {
 } catch {}
 renderRateOptions();
 $$('[data-action="vocab-sort"]').forEach(button => button.setAttribute('aria-pressed',str(button.dataset.sort === (state.vocabSort || 'easy'))));
+syncDensityButtons();
 const labels = {reading:['LES & LYTT · 阅读与听力','阅读','让文字与声音相遇'],vocabulary:['ORDLISTE · 教材章末词表','单词表','在熟悉的句子里，认识新的词语'],basics:['DET GRUNNLEGGENDE · 日常积累','基础常识','循序渐进，从容易的开始'],practice:['ØV LITT HVER DAG · 每日练习','练习','一段专注的练习时间']};
 labels.compare = ['LES SIDE OM SIDE · 双页对照','双页对照','选择书籍，各自翻阅'];
 labels.more = ['MER · 学习工具','更多','A-team 面试、荣誉与播放列表'];
@@ -942,6 +984,7 @@ async function setView(view, updateHash = true) {
   $('#content-eyebrow').textContent = tx(labels[view][0]);
   $('#heading-note').textContent = tx(labels[view][2]);
   toggleSettings(false);
+  toggleReaderMore(false);
   toggleSeriesMenu(false);
   $('#heading-search').classList.toggle('open',!!activeSearch().value);
   $('#search-button').setAttribute('aria-expanded',str(!!activeSearch().value));
@@ -1102,7 +1145,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261113-mic').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261113-declutter').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1139,8 +1182,7 @@ async function renderPDF() {
   $('#pdf-download').hidden = false;
   $('#pdf-download').href = download?.href || safeURL(part.file);
   $('#pdf-download').download = download?.name || '';
-  $('#pdf-download').title = '下载整本 PDF';
-  $('#pdf-download').setAttribute('aria-label','下载整本 PDF');
+  setToolLabel($('#pdf-download'),'下载整本 PDF');
   showPDFMessage('正在载入这一页…');
   try {
     const pdf = await getPDF(part.file);
@@ -1338,7 +1380,12 @@ async function renderVocabulary() {
   $('#content-title').textContent = selection.title || '单词表';
   $('#word-count').textContent = state.words.length;
   const difficultyLabels = ['','入门','基础','常用','进阶','拓展'];
-  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span>${wordIPA(word)}<button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span></div>${wordMeaning(word)}<div class="word-details">${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref"><span>${escapeHTML(word.sectionTitle || selection.title || '')}</span>${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
+  // Compact rows unless a search is running: a hit can sit in the example, so search results show in full.
+  const compact = vocabDensity() === 'compact' && !query;
+  $('#vocab-rows').classList?.toggle('is-compact',compact);
+  // The section name under an example is only worth a line when it differs from the list's own title.
+  const sectionNote = word => { const name = str(word.sectionTitle).trim(); return name && name !== str(selection.title).trim() ? `<span>${escapeHTML(name)}</span>` : ''; };
+  $('#vocab-rows').innerHTML = state.words.length ? state.words.map((word,index) => `<article class="vocab-row"><div class="word-cell"><div class="word-topline"><span class="word-spelling" lang="nb">${escapeHTML(word.word)}</span>${wordIPA(word)}<button class="word-pronounce" data-action="pronounce" data-kind="vocabulary" data-index="${index}" aria-label="播放 ${escapeHTML(word.word)} 的读音">${icon('volume')}</button><span class="difficulty">${difficultyLabels[Number(word.difficulty)] || '常用'}</span>${compact ? `<button type="button" class="word-expand" data-action="vocab-expand" aria-expanded="false" aria-label="展开 ${escapeHTML(word.word)} 的例句与用法">${icon('chevron')}</button>` : ''}</div>${wordMeaning(word)}<div class="word-details">${wordGrammar(word)}</div></div><div class="sentence-cell"><p class="sentence" lang="nb">${vocabularyExample(word)}</p><div class="sentence-ref">${sectionNote(word)}${word.page ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.page)}" title="前往教材对应页">${word.sentenceSource === 'ordliste' ? '词表' : '课文'} PDF 第 ${Number(word.page)} 页 ↗</button>` : ''}${word.sourcePage ? `<button data-action="sentence-page" data-book="${escapeHTML(vocabularyBook())}" data-page="${Number(word.sourcePage)}" title="查看教材原页">原词表 ↗</button>` : ''}</div></div></article>`).join('') : empty(query ? '没有找到这个词语' : '本小节暂无词条',query ? '试试其他单词或中文释义。' : '可在目录中选择其他小节或整章词汇。');
   prefetchListWords($('#vocab-rows'));
 }
 function renderBasics() {
@@ -1831,6 +1878,12 @@ document.addEventListener('change',event => {
 document.addEventListener('click',event => {
   if (!event.target.closest('.series-picker')) toggleSeriesMenu(false);
   if (!event.target.closest('.settings-wrap')) toggleSettings(false);
+  // The phone tools card closes on a tap outside it, and after a one-shot tool (full screen, download, 双页对照);
+  // zoom − / + leave it open so the page can be stepped a few times.
+  if (!event.target.closest('#reader-more-button') && (!event.target.closest('#reader-more') || event.target.closest('#reader-fullscreen,#pdf-download,#open-compare'))) toggleReaderMore(false);
+  // A tap anywhere on a compact word row (not on its sound or page buttons) opens or closes it.
+  const compactRow = event.target.closest('#vocab-rows.is-compact .vocab-row');
+  if (compactRow && !event.target.closest('button,a,select,input,mark') && !String(window.getSelection?.() || '')) { toggleVocabRow(compactRow); return; }
   const view = event.target.closest('.nav-button[data-view]');
   if (view) { setView(view.dataset.view); return; }
   if (event.target.closest('#sidebar [data-practice-action]')) { closeSidebar(); return; }
@@ -1858,8 +1911,11 @@ document.addEventListener('click',event => {
     case 'choose-series': toggleSeriesMenu(false); closeSidebar(); selectStudySeries(id); break;
     case 'toggle-search': toggleSearch(); break;
     case 'toggle-settings': toggleSettings(); break;
+    case 'toggle-reader-more': toggleReaderMore(); break;
     case 'word-rate': setWordRate(action.dataset.rate); break;
     case 'vocab-sort': setVocabSort(action.dataset.sort); break;
+    case 'vocab-density': setVocabDensity(action.dataset.density); break;
+    case 'vocab-expand': { const row = action.closest('.vocab-row'); if (row) toggleVocabRow(row); break; }
     case 'entry-audio': {
       const selectedBook = book || 'textbook';
       if (state.book !== selectedBook || state.readingId !== id) selectEntry(id,selectedBook);
@@ -1905,8 +1961,7 @@ $('#reader-fullscreen').addEventListener('click',async () => {
 });
 document.addEventListener('fullscreenchange',() => {
   const expanded = Boolean(document.fullscreenElement);
-  $('#reader-fullscreen').setAttribute('aria-label',expanded ? '退出全屏' : '全屏阅读');
-  $('#reader-fullscreen').title = expanded ? '退出全屏' : '全屏阅读';
+  setToolLabel($('#reader-fullscreen'),expanded ? '退出全屏' : '全屏阅读');
   if (state.view === 'reading') renderPDF();
 });
 let searchTimer;
@@ -1955,6 +2010,7 @@ pronunciationAudio.addEventListener('error',() => notify('这条读音暂时无�
 document.addEventListener('keydown',event => {
   if (event.key === 'Escape') {
     toggleSettings(false);
+    toggleReaderMore(false);
     toggleSeriesMenu(false);
     if (event.target.closest?.('#heading-search')) toggleSearch(false);
   }

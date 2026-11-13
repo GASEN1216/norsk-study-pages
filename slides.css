@@ -31,7 +31,8 @@
 .sl-progress>span{display:block;height:100%;background:#c9ab6b;transform-origin:left;transform:scaleX(0);transition:transform .3s ease-out}
 .sl-jump label{white-space:nowrap}
 /* PPT mode keeps only the mode switch, full screen and the download of the original deck. */
-body.read-ppt #reading-view .reader-tools>:not(.read-mode):not(#reader-fullscreen):not(#pdf-download){display:none}
+body.read-ppt #reading-view .reader-tools>:not(.read-mode):not(.reader-more):not(.reader-more-button){display:none}
+body.read-ppt #reading-view .reader-more>:not(#reader-fullscreen):not(#pdf-download){display:none}
 body.read-ppt #reading-view .reader-tip{display:none}
 @media(max-width:720px){
  .sl-decks{padding:8px 8px 0;gap:2px}
