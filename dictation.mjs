@@ -20,6 +20,8 @@ export function serverASR(request) {
 }
 /** While the whole site's speech allowance is used up: the Beijing time it comes back ('08:00'); otherwise ''. */
 export const pausedAt = () => speech?.pausedAt?.() || '';
+/** What to tell the learner when the microphone did not open (record() rejected): chase-speech.mjs micMessage. */
+export const micMessage = (error,again) => speech?.micMessage?.(error,again) || '麦克风暂时打不开，请再试一次。';
 /** What to tell the learner when speech cannot be written down now (the site's allowance, or `fallback`). */
 export const unavailableNote = fallback => pausedAt() ? `今天全站的语音识别额度用完了，北京时间 ${pausedAt()} 恢复。` : fallback;
 /** transcribe(samples, before) for record(): one stretch to the server. task() → the id of the task being answered
@@ -128,18 +130,19 @@ export const countWords = text => String(text || '').split(/\s+/).filter(word =>
 
 /** Ask for the microphone inside the learner's tap and start writing down what is said.
  *  onText(fullText) as pieces come in; onLevel(rms); onPause(seconds of silence after speech).
- *  Resolves to {stop(): Promise<{text, metrics}>, close(), hold(), release()}. Rejects with code 'denied'|'none'. */
+ *  Resolves to {stop(): Promise<{text, metrics}>, close(), hold(), release()}. Rejects with code
+ *  'denied'|'busy'|'none'|'unsupported' (micMessage says what to do). */
 // transcribe(samples, before) writes each stretch down (serverTranscriber). A stretch that fails is lost (the answer
 // goes on); stop() says so when nothing at all was written down.
 export async function record({onText,onLevel,onPause,transcribe} = {}) {
   const server = typeof transcribe === 'function';
   let serverFailed = false;
   const module = speech || await loaded;
-  const {context,stream} = await module.openInput();
+  const {context,stream,source:input} = await module.openInput();
   const rate = context.sampleRate;
   let source, processor, mute;
   try {
-    source = context.createMediaStreamSource(stream);
+    source = input || context.createMediaStreamSource(stream);
     processor = context.createScriptProcessor(rate <= 24000 ? 1024 : 2048,1,1); mute = context.createGain();
     mute.gain.value = 0;
     source.connect(processor); processor.connect(mute); mute.connect(context.destination);
@@ -166,12 +169,7 @@ export async function record({onText,onLevel,onPause,transcribe} = {}) {
   let count = 0;
   const fresh = () => createSegmenter({onSegment:samples => write(samples,count++,generation),onPause,options:{...SEGMENT,longest:RECORD_LONGEST}});
   let segmenter = fresh();
-  const resample = block => {
-    if (rate === RATE) return new Float32Array(block);
-    const out = new Float32Array(Math.floor(block.length*RATE/rate)), step = rate/RATE;
-    for (let i = 0; i < out.length; i++) { const x = i*step, j = Math.floor(x), f = x-j; out[i] = block[j]*(1-f)+(block[j+1] ?? block[j])*f; }
-    return out;
-  };
+  const resample = block => module.to16k(block,rate);
   processor.onaudioprocess = event => {
     if (held || closed) return;
     const block = resample(event.inputBuffer.getChannelData(0));

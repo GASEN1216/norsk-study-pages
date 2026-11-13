@@ -2034,7 +2034,7 @@
           if (!current()) return;
           ui.game = null;
           show('setup');
-          notify(error?.code === 'denied' ? tx('没有允许使用麦克风。请在浏览器设置里允许这个网站使用麦克风，再开始。') : tx('没有找到麦克风，请检查后再开始。'),6000);
+          notify(micProblem(error),9000);
           return;
         }
         if (!current()) { mic.close(); return; }
@@ -2477,7 +2477,7 @@
       ask.catch(() => {});
       if (!await prepareSpeech()) { notify(readState(),6000); return; }
       try { ui.roomMic = await ask; }
-      catch (error) { notify(error?.code === 'denied' ? tx('没有允许使用麦克风，不能准备。请在浏览器设置里允许这个网站使用麦克风。') : tx('没有找到麦克风，不能准备。'),6000); return; }
+      catch (error) { notify(micProblem(error,true),9000); return; }
       await roomAction('ready',{ready:true});
     } catch { notify(readState(),6000); }
     finally { ui.readying = false; }
@@ -2498,8 +2498,21 @@
       const chip = $('#pc-mic');
       if (chip) { delete chip.dataset.pc; chip.setAttribute('role','status'); chip.removeAttribute('tabindex'); chip.classList.remove('is-ask'); }
     } catch (error) {
-      notify(error?.code === 'denied' ? tx('没有允许使用麦克风。请在浏览器设置里允许这个网站使用麦克风，再开始。') : tx('没有找到麦克风，请检查后再开始。'),6000);
+      notify(micProblem(error),9000);
     }
+  }
+  // The microphone did not open (chase-speech.mjs openInput: error.code, and the browser's own name for it in
+  // error.reason, shown small so a screenshot says what happened). ready: the 准备 tap of a reading room.
+  function micProblem(error,ready = false) {
+    const code = error?.code;
+    const text = code === 'denied' ? (ready ? tx('没有允许使用麦克风，不能准备。请允许这个网站使用麦克风；没有弹出询问时，到手机「设置」里允许这个浏览器使用麦克风。')
+        : tx('没有允许使用麦克风。请允许这个网站使用麦克风；没有弹出询问时，到手机「设置」里允许这个浏览器使用麦克风，再开始。'))
+      : code === 'busy' ? tx('麦克风打不开：可能正在通话、录音或发语音消息，或者手机没有允许这个浏览器使用麦克风。请先关掉这些，到手机「设置」里打开这个浏览器的麦克风权限，再试一次。')
+      : code === 'unsupported' ? tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。')
+      : code === 'none' ? (ready ? tx('没有找到麦克风，不能准备。') : tx('没有找到麦克风，请检查后再开始。'))
+      : tx('麦克风暂时打不开，请再试一次。');
+    const hint = code !== 'unsupported' && ui.speech?.inAppBrowser?.() ? tx('在微信等应用里打不开时，请点右上角「…」选「在浏览器打开」。') : '';
+    return `${text}${hint ? ` ${hint}` : ''}${error?.reason ? ` (${error.reason})` : ''}`;
   }
   // A tap on a word of the line: its reading plays, for a reader who is not sure how the word is said. The microphone
   // would hear the reading as if I had said it, so listening holds until the reading has ended (and a moment more, for

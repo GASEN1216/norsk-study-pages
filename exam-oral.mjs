@@ -63,7 +63,7 @@ export function createOral(ctx) {
       beginTask();
     } catch (error) {
       opening = false;
-      view.error = error?.code === 'denied' ? '麦克风没有打开。请在浏览器设置里允许使用麦克风，再点一次。' : error?.code === 'none' ? '没有找到麦克风。' : '麦克风暂时打不开，请再试一次。';
+      view.error = (dictation || await loaded.catch(() => null))?.micMessage(error) || '麦克风暂时打不开，请再点一次。';
       draw();
     }
   }

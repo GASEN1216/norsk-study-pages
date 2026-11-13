@@ -392,7 +392,7 @@
   // Inside a tap (iOS opens audio only there): with the module loaded the request starts synchronously.
   function openSayMic() {
     if (say.listener || say.opening) return;
-    if (!say.module) { loadSay().then(openSayMic).catch(() => { say.mic = 'none'; sayUpdate(); }); return; }
+    if (!say.module) { loadSay().then(openSayMic).catch(() => { say.mic = 'none'; say.micReason = ''; sayUpdate(); }); return; }
     if (!say.module.supported()) { say.status = 'unsupported'; sayUpdate(); return; }
     say.status = 'ready';
     say.mic = 'opening';
@@ -405,7 +405,13 @@
       say.coach = say.module.createCoach(listener,{onLevel:sayLevel,onPass:sayPass});
       say.key = null;
       sayUpdate(); sayListen(0);
-    }).catch(error => { say.opening = null; say.mic = error?.code === 'denied' ? 'denied' : 'none'; sayUpdate(); });
+    }).catch(error => {
+      say.opening = null;
+      say.mic = ['denied','busy'].includes(error?.code) ? error.code : 'none';
+      // The browser's own name for the refusal (NotReadableError …), shown small: a screenshot then says what happened.
+      say.micReason = error?.reason || '';
+      sayUpdate();
+    });
   }
   function closeSayMic() {
     sayClear(say.stuckTimer); sayClear(say.playTimer);
@@ -472,8 +478,10 @@
   function sayCopy(session) {
     const line = (title,small = '',action = '',extra = '') => `<span class="pr-say-mic${extra}">${icon('mic')}<span class="pr-say-meter" id="pr-say-meter"></span></span><span class="pr-say-copy"><strong>${title}</strong>${small ? `<small>${small}</small>` : ''}</span>${action}`;
     if (say.status === 'unsupported') return line(tx('这个浏览器用不了开口跟读'),tx('可以换新版 Chrome、Edge 或 Safari'),'',' is-quiet');
-    if (say.mic === 'denied') return line(tx('麦克风没有打开'),tx('在浏览器设置里允许使用麦克风后再试'),button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
-    if (say.mic === 'none') return line(tx('没有找到麦克风'),'',button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    const why = text => `${text}${say.micReason ? ` (${say.micReason})` : ''}`;
+    if (say.mic === 'denied') return line(tx('麦克风没有打开'),why(tx('在浏览器和手机设置里允许使用麦克风后再试')),button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    if (say.mic === 'busy') return line(tx('麦克风打不开'),why(tx('先结束通话或录音，并在手机设置里允许浏览器使用麦克风')),button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    if (say.mic === 'none') return line(tx('没有找到麦克风'),say.micReason ? `(${say.micReason})` : '',button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
     if (say.mic === 'opening') return line(tx('正在打开麦克风…'),'','',' is-quiet');
     if (!say.listener) return button('say-mic',`${icon('mic')}<span>${tx('开口跟读')}</span>`,'','pr-say-open');
     if (say.playing) return line(tx('先听读音'),'','',' is-quiet');

@@ -21,7 +21,8 @@ const DONE_MS = 450;        // …and then this much quiet: the word is over
 const FORGET_MS = 1500;     // a blip too short to be a word is forgotten after this much quiet
 
 /** Ask for the microphone. Call it inside the learner's tap (iOS starts audio only there): when the module is loaded
- *  already the request starts synchronously. Rejects with an Error whose code is 'denied' or 'none'. */
+ *  already the request starts synchronously. Rejects with an Error whose code is 'denied', 'busy', 'none' or 'unsupported'
+ *  (chase-speech.mjs openInput; error.reason is the browser's own name for it). */
 export function openMic() {
   return speech ? speech.openMic() : loaded.then(module => module.openMic());
 }

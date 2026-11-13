@@ -333,7 +333,7 @@ export function createInterview(deps = {}) {
         if (seconds >= 120) finishAnswer();
       },250);
     } catch (error) {
-      fail(error?.code === 'denied' ? '麦克风没有打开。请在浏览器设置里允许使用麦克风后再试。' : error?.code === 'none' ? '没有找到麦克风。' : '暂时无法开口回答，请再试一次。');
+      fail(error?.code && dictation?.micMessage ? dictation.micMessage(error,'再试一次') : '暂时无法开口回答，请再试一次。');
     }
   }
   async function finishAnswer() {

@@ -208,37 +208,115 @@ export async function transcribe(samples,{kind = 'exam',hint = [],task,before} =
 /* ---------- The microphone ---------- */
 
 /** Ask for the microphone (call inside the player's tap: iOS starts audio only there). Resolves to a listener, or
- *  rejects with an Error whose `code` is 'denied' or 'none'. The listener hears nothing until start(). */
+ *  rejects with an Error whose `code` is 'denied', 'busy', 'none' or 'unsupported' (see openInput). The listener
+ *  hears nothing until start(). */
 export async function openMic() {
-  const {context,stream} = await openInput();
-  return listener(context,stream);
+  const {context,stream,source} = await openInput();
+  return listener(context,stream,source);
 }
-/** The microphone as an audio context (16 kHz where the browser allows) and its stream, for other listeners
- *  (dictation.mjs). Same rules as openMic: call it inside a tap; rejects with code 'denied' or 'none'. */
-export async function openInput() {
+
+// Apple's WebKit (Safari, and every browser on an iPhone or iPad — Chrome there too) gets an audio context at the
+// device's own rate: a 16 kHz one there can keep the microphone from starting, or hand over too few samples a second.
+// The blocks are brought to 16 kHz here instead (to16k).
+const appleWebKit = () => typeof navigator === 'object' && /^Apple/.test(navigator.vendor || '');
+function newContext(ownRate = appleWebKit()) {
   const Context = window.AudioContext || window.webkitAudioContext;
-  let context;
-  try { context = new Context({sampleRate:16000}); } catch { context = new Context(); }
+  if (!ownRate) { try { return new Context({sampleRate:RATE}); } catch {} }
+  return new Context();
+}
+const closeContext = context => Promise.resolve().then(() => context?.close?.()).catch(() => {});
+const PERMISSION = new Set(['NotAllowedError','PermissionDeniedError','SecurityError']);
+const MISSING = new Set(['NotFoundError','DevicesNotFoundError','OverconstrainedError']);
+// The browser's refusal as an Error with `code`: 'denied' (the site or the browser app may not use the microphone),
+// 'none' (no microphone), 'unsupported' (no microphone in this browser at all) or 'busy' (it would not start: another
+// app holds it — a call, a voice message — or the phone keeps it from the browser). `reason` is the browser's own name
+// for it (NotReadableError …), shown small after the message so a screenshot says what happened.
+function micFailure(error) {
+  const reason = String(error?.name || 'Error'), failure = new Error(String(error?.message || error || reason));
+  failure.reason = reason;
+  failure.code = PERMISSION.has(reason) ? 'denied' : MISSING.has(reason) ? 'none'
+    : !navigator.mediaDevices?.getUserMedia ? 'unsupported' : 'busy';
+  return failure;
+}
+const VOICE_SETTINGS = {echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1};
+
+/** The microphone as an audio context (16 kHz where the browser allows, else the device's own rate), its stream and the
+ *  stream's source node, for other listeners (dictation.mjs). Same rules as openMic: call it inside a tap.
+ *  A phone that will not open the microphone the first way (a context already open, or the voice settings) is asked
+ *  once more for the plain microphone with nothing else open; a refusal by the learner is never asked again. */
+export async function openInput() {
+  if (!navigator.mediaDevices?.getUserMedia) throw micFailure({name:'NotSupportedError',message:'no mediaDevices'});
+  // Made inside the tap: iOS lets a context start only there (or while the microphone is open).
+  let context = newContext();
   context.resume?.().catch(() => {});
   let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}}); }
+  try { stream = await navigator.mediaDevices.getUserMedia({audio:VOICE_SETTINGS}); }
   catch (error) {
-    context.close?.().catch(() => {});
-    const failure = new Error(String(error?.message || error));
-    failure.code = error?.name === 'NotAllowedError' || error?.name === 'SecurityError' ? 'denied' : 'none';
-    throw failure;
+    await closeContext(context);
+    if (PERMISSION.has(error?.name)) throw micFailure(error);
+    try { stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+    catch (again) { throw micFailure(again); }
+    context = newContext(true);
   }
-  return {context,stream};
+  if (context.state !== 'running') context.resume?.().catch(() => {});
+  // A browser that cannot hear the microphone through a 16 kHz context (Firefox) gets one at its own rate.
+  let source;
+  try { source = context.createMediaStreamSource(stream); }
+  catch {
+    await closeContext(context);
+    context = newContext(true);
+    context.resume?.().catch(() => {});
+    try { source = context.createMediaStreamSource(stream); }
+    catch (error) {
+      stream.getTracks().forEach(track => track.stop());
+      await closeContext(context);
+      throw Object.assign(micFailure(error),{code:'busy'});
+    }
+  }
+  return {context,stream,source};
+}
+
+/** One block of samples at `rate` → 16 kHz. Going down, each new sample is the mean of the samples it stands for (a
+ *  little low-pass, so the hiss above 8 kHz does not fold back over the voice); going up (8 kHz headsets), a line. */
+export function to16k(block,rate) {
+  if (rate === RATE) return new Float32Array(block);
+  const step = rate/RATE, out = new Float32Array(Math.floor(block.length/step));
+  if (step < 1) {
+    for (let i = 0; i < out.length; i++) { const x = i*step, j = Math.floor(x), f = x-j; out[i] = block[j]*(1-f)+(block[j+1] ?? block[j])*f; }
+    return out;
+  }
+  for (let i = 0; i < out.length; i++) {
+    const from = Math.floor(i*step), to = Math.max(from+1,Math.min(block.length,Math.floor((i+1)*step)));
+    let sum = 0;
+    for (let j = from; j < to; j++) sum += block[j];
+    out[i] = sum/(to-from);
+  }
+  return out;
+}
+
+// Messenger apps' own browsers (WeChat, QQ, DingTalk, Weibo, Feishu, Douyin): the microphone often opens only in the
+// phone's real browser.
+export const inAppBrowser = () => typeof navigator === 'object' && /MicroMessenger|QQ\/|DingTalk|Weibo|Lark|Feishu|aweme|Bytedance/i.test(navigator.userAgent || '');
+/** What to tell the learner when the microphone did not open (考试与面试, in Chinese; chase.js and practice.js say it
+ *  through tx()). `again`: how the sentence ends ('再点一次'). */
+export function micMessage(error,again = '再点一次') {
+  const code = error?.code, hint = inAppBrowser() && code !== 'unsupported' ? '在微信等应用里打不开时，请点右上角「…」选「在浏览器打开」。' : '';
+  const text = code === 'denied' ? `麦克风没有打开。请允许这个网站使用麦克风；如果没有弹出询问，请到手机「设置」里允许这个浏览器使用麦克风，${again}。`
+    : code === 'busy' ? `麦克风打不开：可能正在通话、录音或发语音消息，或者手机没有允许这个浏览器使用麦克风。请先关掉这些，到手机「设置」里打开这个浏览器的麦克风权限，${again}。`
+    : code === 'none' ? `没有找到麦克风。请检查麦克风或耳机，${again}。`
+    : code === 'unsupported' ? '这个浏览器用不了麦克风，请换新版 Chrome、Edge 或 Safari 打开。'
+    : `麦克风暂时打不开，请${again}。`;
+  return `${text}${hint}${error?.reason ? `（${error.reason}）` : ''}`;
 }
 
 // The speech of a listener, cut at pauses. Each stretch goes to the server as soon as it ends (they travel side by
 // side: a round trip takes a second or more), and their transcripts are reported in the order they were said. What
 // was heard before hold() or cut() is never reported.
-function listener(context,stream) {
+function listener(context,stream,input) {
   const rate = context.sampleRate;
   let source, processor, mute;
   try {
-    source = context.createMediaStreamSource(stream);
+    source = input || context.createMediaStreamSource(stream);
     // Blocks of about 64 ms at 16 kHz: the level answers the voice at once.
     processor = context.createScriptProcessor(rate <= 24000 ? 1024 : 2048,1,1); mute = context.createGain();
     mute.gain.value = 0;
@@ -251,12 +329,7 @@ function listener(context,stream) {
   let on = false, closed = false, held = false, onText = null, onLevel = null, expected = null, kind = 'read', gen = 0;
   let parts = [], length = 0, voiced = 0, quiet = 0, lead = [], total = 0, queue = Promise.resolve();
   const stats = {passes:0,ms:0,slowest:0,failed:0};
-  const resample = block => {
-    if (rate === RATE) return new Float32Array(block);
-    const out = new Float32Array(Math.floor(block.length*RATE/rate)), step = rate/RATE;
-    for (let i = 0; i < out.length; i++) { const x = i*step, j = Math.floor(x), f = x-j; out[i] = block[j]*(1-f)+(block[j+1] ?? block[j])*f; }
-    return out;
-  };
+  const resample = block => to16k(block,rate);
   const drop = () => { parts = []; length = 0; voiced = 0; quiet = 0; lead = []; };
   function send() {
     const samples = new Float32Array(length);
