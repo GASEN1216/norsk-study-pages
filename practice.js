@@ -1036,7 +1036,8 @@
       title = tx('新年快乐');
       sub = tx('新的一年，每天进步一点点');
     }
-    return `<section class="pr-jul-banner" aria-label="${e(tx('圣诞'))}"><div class="pr-jul-banner-text"><p class="pr-jul-banner-kicker">${kicker}</p><h2 class="pr-jul-banner-title">${title}</h2><p class="pr-jul-banner-sub">${sub}</p><a class="pr-jul-banner-link" href="#basics/jul">${tx('学圣诞词语')}<svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></a></div></section>`;
+    // No button on the picture: the whole banner is the way to the Christmas words (named for screen readers only).
+    return `<a class="pr-jul-banner" href="#basics/jul"><div class="pr-jul-banner-text"><p class="pr-jul-banner-kicker">${kicker}</p><h2 class="pr-jul-banner-title">${title}</h2><p class="pr-jul-banner-sub">${sub}</p><span class="sr-only">${tx('学圣诞词语')}</span></div></a>`;
   }
 
   // Advent calendar (圣诞倒数日历 · Julekalender): one door a Beijing day, opened by the day's XP on the server

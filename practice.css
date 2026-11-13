@@ -650,19 +650,19 @@ html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
 .pr-jul-banner{position:relative;display:flex;align-items:center;min-height:176px;margin:0 0 24px;padding:24px 30px;border:1px solid #ecdcbf;border-radius:22px;
   background:linear-gradient(90deg,#fff9ef 0%,rgba(255,249,239,.94) 28%,rgba(255,249,239,.55) 46%,rgba(255,249,239,0) 64%),url("assets/season/jul-banner.webp") 100% 46%/cover no-repeat,#f7ecdc;
   box-shadow:0 22px 44px -32px rgba(122,78,28,.55),inset 0 0 0 1px rgba(255,255,255,.55)}
+a.pr-jul-banner{color:inherit;text-decoration:none;transition:border-color .25s ease-out,box-shadow .25s ease-out}
+@media(hover:hover){a.pr-jul-banner:hover{border-color:#e2c98f;box-shadow:0 24px 46px -30px rgba(122,78,28,.62),inset 0 0 0 1px rgba(255,255,255,.6)}}
+a.pr-jul-banner:focus-visible{outline:2px solid #b48d3c;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){a.pr-jul-banner{transition:none}}
 .pr-jul-banner-text{position:relative;z-index:1;display:grid;justify-items:start;gap:4px;max-width:440px}
 .pr-jul-banner-kicker{margin:0;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#b2463a}
 .pr-jul-banner-title{margin:2px 0 0;font:500 30px/1.25 var(--serif,Georgia,serif);color:var(--pr-green,#21483e);letter-spacing:-.01em}
 .pr-jul-banner-title b{display:inline-block;margin:0 .08em;font-size:1.32em;font-weight:500;line-height:1;color:#a8322a;font-variant-numeric:lining-nums}
 .pr-jul-banner-sub{margin:4px 0 0;font-size:14px;line-height:1.55;color:#6f6a5c}
-.pr-jul-banner-link{display:inline-flex;align-items:center;gap:4px;margin-top:10px;padding:7px 12px 7px 15px;border:1px solid #e6cfa4;border-radius:999px;background:rgba(255,252,245,.85);color:#9b3a2f;font-size:13px;font-weight:600;text-decoration:none;transition:background .25s ease-out,border-color .25s ease-out}
-.pr-jul-banner-link svg{width:14px;height:14px;stroke-width:2}
-.pr-jul-banner-link:hover{background:#fff;border-color:#d8b77a}
-.pr-jul-banner-link:focus-visible{outline:2px solid #b48d3c;outline-offset:2px}
 /* The advent calendar card in December shows the same village behind its dots. */
 .pr-jul{background:linear-gradient(90deg,#fffef9 0%,rgba(255,250,240,.96) 46%,rgba(255,249,239,.62) 72%,rgba(255,249,239,.35) 100%),url("assets/season/jul-banner.webp") 100% 52%/cover no-repeat,#fbf4e4}
 /* Phones: a slim strip, so the practice modes stay on the first screen. Text on the calm cream at left, the village
-   fading in on the right, the word link as a small pill resting on the picture. */
+   fading in on the right; the whole strip opens the Christmas words. */
 @media(max-width:560px){
   .pr-jul-banner{min-height:0;margin-bottom:16px;padding:13px 16px 14px;border-radius:18px;
     background:linear-gradient(90deg,#fff9ef 0%,rgba(255,249,239,.97) 50%,rgba(255,249,239,.6) 66%,rgba(255,249,239,0) 84%),url("assets/season/jul-banner.webp") 70% 58%/auto 190% no-repeat,#f3e6d2;
@@ -672,15 +672,11 @@ html[lang="en"] .pr-source-tabs .pr-button{padding-inline:8px;line-height:1.25}
   .pr-jul-banner-title{margin-top:1px;font-size:19px;line-height:1.3;white-space:nowrap}
   .pr-jul-banner-title b{font-size:1.25em}
   .pr-jul-banner-sub{max-width:60%;margin-top:3px;font-size:12px;line-height:1.5}
-  .pr-jul-banner-link{position:absolute;right:12px;top:11px;margin:0;padding:4px 9px 4px 12px;font-size:12px;background:rgba(255,252,245,.94);box-shadow:0 6px 14px -10px rgba(80,50,20,.55)}
-  .pr-jul-banner-link svg{width:12px;height:12px}
 }
 @media(max-width:360px){
   .pr-jul-banner-title{font-size:17px}
   .pr-jul-banner-sub{max-width:56%;font-size:11.5px}
-  .pr-jul-banner-link{top:auto;bottom:11px;padding:4px 8px 4px 10px;font-size:11.5px}
 }
-@media(prefers-reduced-motion:reduce){.pr-jul-banner-link{transition:none}}
 
 /* 听音选义 · 开口跟读: the 作答方式 switch in the range dialog and the 跟读 line under the speaker */
 .pr-answer-mode{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 12px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--pr-line)}
