@@ -727,7 +727,8 @@ button.ai-card:hover{border-color:#acbd97;box-shadow:0 6px 22px #2c4b2b0d}
 .ai-answer-verdict.is-yes svg{background:#e1efe5;color:#1f6043}.ai-answer-verdict.is-no svg{background:#f6e7dc;color:var(--ai-warm)}
 .ai-answer-comment{margin:0;font-size:14.5px;line-height:1.8;color:#4c5d51}
 .ai-answer-better{margin:0;padding:12px 16px;border-left:3px solid #d9b46a;border-radius:4px 14px 14px 4px;background:#fbf4e3}
-.ai-answer-better figcaption{margin:0 0 4px;font-size:12px;letter-spacing:.04em;color:#a07a2c}
+.ai-answer-better figcaption{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 4px;font-size:12px;letter-spacing:.04em;color:#a07a2c}
+.ai-answer-better figcaption span{font-size:11.5px;letter-spacing:0;color:#bba980}
 .ai-answer-better p{margin:0;font:16.5px/1.7 var(--serif)!important;color:#2f3f36!important}
 .ai-answer-more{padding-top:10px;border-top:1px solid #efe8d8}
 .ai-answer-more summary{width:max-content;max-width:100%;font-size:13px;color:#8d8a78;cursor:pointer;list-style-position:inside}
@@ -767,7 +768,7 @@ button.ai-card.is-follow:hover{border-color:#dcc796}
 .ai-prep{border:0;padding:0;background:transparent;width:640px;max-width:calc(100vw - 32px);max-height:90dvh;overflow:hidden;color:var(--ink)}
 .ai-prep::backdrop{background:#19342b59;backdrop-filter:blur(4px)}
 /* One height for all four tabs, so switching never makes the sheet jump. */
-.ai-prep-card{box-sizing:border-box;display:flex;flex-direction:column;height:min(660px,90dvh);background:#fffef9;border:1px solid #e6e3d3;border-radius:22px;box-shadow:var(--shadow-modal);overflow:hidden}
+.ai-prep-card{position:relative;box-sizing:border-box;display:flex;flex-direction:column;height:min(660px,90dvh);background:#fffef9;border:1px solid #e6e3d3;border-radius:22px;box-shadow:var(--shadow-modal);overflow:hidden}
 .ai-prep-head{display:flex;align-items:flex-start;gap:12px;padding:20px 22px 12px}
 .ai-prep-title{flex:1;min-width:0}
 .ai-prep-title h2{margin:0;font:500 21px/1.4 var(--serif);color:var(--green);letter-spacing:-.2px;overflow-wrap:anywhere}
@@ -790,16 +791,16 @@ button.ai-card.is-follow:hover{border-color:#dcc796}
 .ai-prep-note{margin:18px 0 0;padding:11px 15px;border-left:3px solid #d9b46a;border-radius:4px 14px 14px 4px;background:#fbf4e3}
 .ai-prep-note strong{display:block;margin:0 0 2px;font-size:12px;font-weight:600;letter-spacing:.04em;color:#a07a2c}
 .ai-prep-note p{margin:0;font-size:13.5px;line-height:1.75;color:#4f5446}
-.ai-prep-also{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-.ai-prep-also li{font:italic 16px/1.6 var(--serif);color:#506a43}
-.ai-prep-words{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 18px;margin:0}
-.ai-prep-words>div{padding:7px 0;border-bottom:1px solid #efece0;min-width:0}
-.ai-prep-words dt{font:500 16px/1.4 var(--serif);color:#2f4a3a;overflow-wrap:anywhere}
-.ai-prep-words dd{margin:1px 0 0;font-size:12.5px;line-height:1.5;color:#7d8a72}
+.ai-prep-also{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.ai-prep-also .ai-say-copy>[lang]{font:italic 16px/1.6 var(--serif);color:#506a43}
+.ai-prep-words{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px;margin:0;padding:0}
+.ai-prep-words>li{border-bottom:1px solid #efece0;min-width:0}
+.ai-prep-words .ai-say-copy>[lang]{font:500 16px/1.4 var(--serif);color:#2f4a3a;overflow-wrap:anywhere}
+.ai-prep-words .ai-say-copy>small{font-size:12.5px;line-height:1.5;color:#7d8a72}
 .ai-prep-frames{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.ai-prep-frames li{display:grid;gap:1px;padding:9px 13px;border-radius:12px;background:#f7f6ee}
-.ai-prep-frames span[lang]{font:500 16.5px/1.6 var(--serif);color:#2f4a3a;overflow-wrap:anywhere}
-.ai-prep-frames small{font-size:12.5px;line-height:1.5;color:#7d8a72}
+.ai-prep-frames .ai-say-row{width:100%;margin:0;padding:9px 13px;border-radius:12px;background:#f7f6ee}
+.ai-prep-frames .ai-say-copy>[lang]{font:500 16.5px/1.6 var(--serif);color:#2f4a3a;overflow-wrap:anywhere}
+.ai-prep-frames .ai-say-copy>small{font-size:12.5px;line-height:1.5;color:#7d8a72}
 .ai-blank{display:inline-block;width:2.3em;height:1em;margin:0 .15em;border-bottom:1.5px solid #c9a75e;vertical-align:-.12em}
 .ai-prep-sample-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 6px}
 .ai-prep-sample-head h3{margin:0}
@@ -813,25 +814,49 @@ button.ai-card.is-follow:hover{border-color:#dcc796}
 .ai-prep-zh:hover{background:#eaf0df}
 .ai-prep-play{display:inline-grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;border:1px solid #e3e6d6;background:#fbfbf4;color:#5e7650;transition:background .18s,border-color .18s,color .18s}
 .ai-prep-play svg{width:17px;height:17px}
-.ai-prep-play:hover{background:#eef3e5;border-color:#c9d6b8}
+.ai-prep-play:hover,.ai-prep-line:hover .ai-prep-play{background:#eef3e5;border-color:#c9d6b8}
 .ai-prep-play.has-label{display:inline-flex;gap:6px;width:auto;padding:0 14px 0 11px;font-size:13px}
-.ai-prep-play.is-playing{background:var(--green);border-color:var(--green);color:#fffdf5}
+.ai-prep-play.is-playing,.ai-prep-line.is-playing .ai-prep-play{background:var(--green);border-color:var(--green);color:#fffdf5}
 .ai-prep-lead{margin:16px 0 4px;font-size:13px;line-height:1.7;color:#7d8a72}
 .ai-prep-follow{list-style:none;margin:0;padding:0;display:grid}
 .ai-prep-follow>li{padding:13px 0;border-bottom:1px solid #efece0}
 .ai-prep-follow>li:last-child{border-bottom:0}
 .ai-prep-follow>li.is-current{margin:4px -12px;padding:13px 12px;border:0;border-radius:14px;background:#fdf8ec}
-.ai-prep-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.ai-prep-line p{margin:0;font:500 16.5px/1.55 var(--serif);color:#2f4a3a;overflow-wrap:anywhere}
+.ai-prep-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;padding:0}
+.ai-prep-line-text{flex:1;min-width:0;font:500 16.5px/1.55 var(--serif);color:#2f4a3a;overflow-wrap:anywhere}
 .ai-prep-follow small{display:block;margin-top:2px;font-size:12.5px;line-height:1.5;color:#7d8a72}
 .ai-prep-ref{margin-top:9px}
 .ai-prep-ref summary{width:max-content;font-size:12.5px;color:#a07a2c;cursor:pointer;list-style-position:inside}
 .ai-prep-ref summary:hover{color:#7a5a24}
 .ai-prep-ref[open] summary{margin:0 0 7px}
 .ai-prep-ref .ai-prep-line{padding:9px 6px 0 13px;border-left:2px solid #ead9b2}
-.ai-prep-ref .ai-prep-line p{font-weight:400;font-size:15.5px;color:#3a4b40}
+.ai-prep-ref .ai-prep-line-text{font-weight:400;font-size:15.5px;color:#3a4b40}
 .ai-prep-ref>small{padding-left:15px}
 .ai-prep-go{margin:16px 0 0;width:100%;justify-content:center}
+/* 点读: a tapped Norwegian line reads itself. The one that sounds is lit in soft sage, the colour of the sheet's play
+   buttons (gold stays the mark of what to swap), its speaker breathing; a line still being fetched breathes faster. */
+.ai-say{text-align:left;transition:background-color .2s var(--ease)}
+.ai-say:focus-visible{outline:2px solid #9fb386;outline-offset:2px}
+.ai-say-row{display:flex;align-items:center;gap:10px;width:calc(100% + 12px);margin:0 -6px;padding:7px 6px;border-radius:10px}
+.ai-say-copy{flex:1;min-width:0;display:grid;gap:1px}
+.ai-say>svg,.ai-say-end>svg{width:16px;height:16px;color:#d4c299;transition:color .2s var(--ease)}
+.ai-say-title{padding:0 2px;margin:0 -2px;border-radius:8px;font:inherit;letter-spacing:inherit}
+.ai-say-end{white-space:nowrap}
+.ai-say-end>svg{width:17px;height:17px;margin-left:7px;vertical-align:-2px}
+.ai-say-text{cursor:pointer;padding:1px 2px;margin:0 -2px;border-radius:5px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.ai-say-text:focus-visible{outline-offset:1px}
+@media(hover:hover){.ai-say-row:hover,.ai-say-title:hover,.ai-say-text:hover{background:#faf5e8}.ai-prep-frames .ai-say-row:hover{background:#f5f0e2}.ai-say:hover>svg,.ai-say-title:hover .ai-say-end>svg{color:#b08a3e}}
+.ai-say-row:active,.ai-say-text:active{background:#f8f0dc}
+.ai-say.is-playing,.ai-prep-frames .ai-say-row.is-playing{background:#eef3e5}
+.ai-say-text.is-playing{box-shadow:inset 0 -2px #b3c59f}
+.ai-say-text.is-loading{animation:ai-say-wait .6s ease-in-out infinite alternate}
+.ai-prep-line.is-playing{background:none}
+.ai-say.is-playing>svg,.ai-say-title.is-playing .ai-say-end>svg{color:#5e7650;animation:ai-say-breathe 1s ease-in-out infinite alternate}
+.ai-say.is-loading>svg,.ai-say-title.is-loading .ai-say-end>svg{animation-duration:.45s}
+@keyframes ai-say-breathe{from{opacity:.4}to{opacity:1}}
+@keyframes ai-say-wait{from{background-color:#f6f8f1}to{background-color:#eef3e5}}
+.ai-say-toast{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2;width:max-content;max-width:calc(100% - 40px);margin:0;padding:10px 18px;border-radius:8px;background:#284b3ff5;color:#fbfff1;font-size:12px;line-height:1.6;box-shadow:0 5px 25px #264a3920;opacity:0;transform:translate(-50%,6px);pointer-events:none;transition:opacity .25s var(--ease),transform .25s var(--ease)}
+.ai-say-toast.is-shown{opacity:1;transform:translate(-50%,0)}
 @media(max-width:640px){
   .ai-prep{width:100vw;max-width:100vw;max-height:92dvh;margin:auto 0 0}
   .ai-prep-card{height:min(720px,88dvh);border-radius:22px 22px 0 0;border-bottom:0}
@@ -839,7 +864,7 @@ button.ai-card.is-follow:hover{border-color:#dcc796}
   .ai-prep-title h2{font-size:19px}
   .ai-prep-tabs{margin:0 16px}
   .ai-prep-body{padding:2px 16px calc(20px + env(safe-area-inset-bottom))}
-  .ai-prep-words{gap:1px 14px}
+  .ai-prep-words{gap:0 14px}
   .ai-prep-sample-no{font-size:16.5px}
 }
 @media(max-width:400px){
@@ -847,7 +872,7 @@ button.ai-card.is-follow:hover{border-color:#dcc796}
   .ai-prep-open{padding:6px 12px 6px 10px;font-size:12.5px}
 }
 @media(max-width:350px){.ai-prep-open span{display:none}.ai-prep-open{width:38px;padding:0;justify-content:center}}
-@media(prefers-reduced-motion:reduce){.ai-chain-step,.ai-prep-tab,.ai-prep-play,.ai-answer-follow,.ai-bank{transition:none}}
+@media(prefers-reduced-motion:reduce){.ai-chain-step,.ai-prep-tab,.ai-prep-play,.ai-answer-follow,.ai-bank,.ai-say,.ai-say>svg,.ai-say-end>svg,.ai-say-toast{transition:none}.ai-say.is-playing>svg,.ai-say-title.is-playing .ai-say-end>svg,.ai-say-text.is-loading{animation:none}}
 .ex-last{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 18px;font-size:13.5px;color:#5f6d5a}
 .ex-last>span{display:inline-flex;align-items:center;gap:6px}
 .ex-last.is-pending{color:#87601b}
