@@ -16,7 +16,7 @@
   const CEREMONY_KEY = 'norsk-community-ceremony-v1';
   const WEEK = /^\d{4}-\d{2}-\d{2}$/;
   // 考试与面试's test parts and interview answers earn XP like practice; an exam result carries its estimated level.
-  const ACTIVITIES = ['learn','quiz','match','cards','listen','exam-listen','exam-read','exam-write','exam-speak','interview'];
+  const ACTIVITIES = ['learn','quiz','match','cards','listen','exam-listen','exam-read','exam-write','exam-speak','interview','exam-paper'];
   const EXAM_LEVELS = ['under-A1','A1','A2'];
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const CONTROL = /[\p{Cc}\p{Cf}\p{Cs}]/u;

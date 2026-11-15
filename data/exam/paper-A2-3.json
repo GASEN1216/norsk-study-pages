@@ -1,0 +1,689 @@
+{
+  "id": "A2-3",
+  "level": "A2",
+  "set": 3,
+  "chapters": "7–11",
+  "title": "God i Norsk – A2 | Prøveeksamen",
+  "intro": {
+    "nb": "Velg riktig svar. Skriv svarene tydelig. Hver del har poeng som angitt.",
+    "zh": "选出正确答案，把答案写清楚。每部分的分数已经标出。"
+  },
+  "sections": [
+    {
+      "id": "A2-3-1",
+      "kind": "pick",
+      "title": {
+        "nb": "Preposisjoner",
+        "zh": "介词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Velg: foran / på / over / ved siden av / i / mellom. Hvert uttrykk brukes én gang.",
+        "zh": "选出介词，每个只用一次。"
+      },
+      "bank": [
+        "foran",
+        "på",
+        "over",
+        "ved siden av",
+        "i",
+        "mellom"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-3-1-1",
+          "text": "Bilen står ___ garasjen.",
+          "note": "(inside)",
+          "answer": "i",
+          "tr": "车停在车库里。",
+          "why": "在……里面用 i。"
+        },
+        {
+          "id": "A2-3-1-2",
+          "text": "Mobilen ligger ___ bordet.",
+          "note": "(on)",
+          "answer": "på",
+          "tr": "手机放在桌子上。",
+          "why": "放在表面上用 på：på bordet。"
+        },
+        {
+          "id": "A2-3-1-3",
+          "text": "Flyet flyr ___ byen.",
+          "note": "(over)",
+          "answer": "over",
+          "tr": "飞机从城市上空飞过。",
+          "why": "在……上方、从上面过去用 over。"
+        },
+        {
+          "id": "A2-3-1-4",
+          "text": "Taxien står ___ hotellet.",
+          "note": "(in front of)",
+          "answer": "foran",
+          "tr": "出租车停在酒店门前。",
+          "why": "在……前面用 foran。"
+        },
+        {
+          "id": "A2-3-1-5",
+          "text": "Postkassa står ___ gjerdet.",
+          "note": "(next to)",
+          "answer": "ved siden av",
+          "tr": "信箱立在栅栏旁边。",
+          "why": "在……旁边用 ved siden av。"
+        },
+        {
+          "id": "A2-3-1-6",
+          "text": "Stua ligger ___ kjøkkenet og soverommet.",
+          "note": "(between)",
+          "answer": "mellom",
+          "tr": "客厅在厨房和卧室中间。",
+          "why": "在两样东西中间用 mellom。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-2",
+      "kind": "pick",
+      "title": {
+        "nb": "Ordforråd og motsatte ord",
+        "zh": "词汇 · 反义词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Skriv motsatt ord: gammel / trist / pen / slutte / gråte / der.",
+        "zh": "写出意思相反的词。"
+      },
+      "bank": [
+        "gammel",
+        "trist",
+        "pen",
+        "slutte",
+        "gråte",
+        "der"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-3-2-1",
+          "text": "ung – ___",
+          "answer": "gammel",
+          "tr": "年轻 – 老",
+          "why": "ung（年轻）和 gammel（老）意思相反。"
+        },
+        {
+          "id": "A2-3-2-2",
+          "text": "glad – ___",
+          "answer": "trist",
+          "tr": "高兴 – 难过",
+          "why": "glad（高兴）和 trist（难过）意思相反。"
+        },
+        {
+          "id": "A2-3-2-3",
+          "text": "stygg – ___",
+          "answer": "pen",
+          "tr": "难看 – 好看",
+          "why": "stygg（难看）和 pen（好看、漂亮）意思相反。"
+        },
+        {
+          "id": "A2-3-2-4",
+          "text": "begynne – ___",
+          "answer": "slutte",
+          "tr": "开始 – 结束",
+          "why": "begynne（开始）和 slutte（结束、停止）意思相反。"
+        },
+        {
+          "id": "A2-3-2-5",
+          "text": "le – ___",
+          "answer": "gråte",
+          "tr": "笑 – 哭",
+          "why": "le（笑）和 gråte（哭）意思相反。"
+        },
+        {
+          "id": "A2-3-2-6",
+          "text": "her – ___",
+          "answer": "der",
+          "tr": "这里 – 那里",
+          "why": "her（这里）和 der（那里）意思相反。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-3",
+      "kind": "fill",
+      "title": {
+        "nb": "Presens perfektum",
+        "zh": "现在完成时"
+      },
+      "points": 16,
+      "task": {
+        "nb": "Sett inn har + riktig perfektum partisipp.",
+        "zh": "填入 har + 过去分词。"
+      },
+      "items": [
+        {
+          "id": "A2-3-3-1",
+          "text": "Hun ___ (male) stua.",
+          "answers": [
+            "har malt"
+          ],
+          "tr": "她把客厅刷了漆。",
+          "why": "male → har malt（常见规律：-e 前一个辅音，加 -t，有例外）。"
+        },
+        {
+          "id": "A2-3-3-2",
+          "text": "Vi ___ (leie) en hytte på fjellet.",
+          "answers": [
+            "har leid"
+          ],
+          "tr": "我们在山上租了一座小木屋。",
+          "why": "leie → har leid（常见规律：-e 前是 ei，加 -d，有例外）。"
+        },
+        {
+          "id": "A2-3-3-3",
+          "text": "Jeg ___ (glemme) billetten hjemme.",
+          "answers": [
+            "har glemt"
+          ],
+          "tr": "我把票忘在家里了。",
+          "why": "glemme → har glemt。"
+        },
+        {
+          "id": "A2-3-3-4",
+          "text": "De ___ (selge) den gamle bilen.",
+          "answers": [
+            "har solgt"
+          ],
+          "tr": "他们把那辆旧车卖了。",
+          "why": "selge 不规则：har solgt。"
+        },
+        {
+          "id": "A2-3-3-5",
+          "text": "Han ___ (bli) lærer.",
+          "answers": [
+            "har blitt"
+          ],
+          "tr": "他当上老师了。",
+          "why": "bli 不规则：har blitt。本题要求用 har（别的句子里也常说 er blitt）。"
+        },
+        {
+          "id": "A2-3-3-6",
+          "text": "Du ___ (vaske) alle klærne.",
+          "answers": [
+            "har vasket",
+            "har vaska"
+          ],
+          "tr": "你把所有衣服都洗了。",
+          "why": "vaske → har vasket（常见规律：-e 前两个辅音，加 -et，有例外）。"
+        },
+        {
+          "id": "A2-3-3-7",
+          "text": "Jeg ___ (drikke) tre kopper kaffe i dag.",
+          "answers": [
+            "har drukket"
+          ],
+          "tr": "我今天已经喝了三杯咖啡。",
+          "why": "drikke 不规则：har drukket。"
+        },
+        {
+          "id": "A2-3-3-8",
+          "text": "Gjestene ___ (dra) hjem.",
+          "answers": [
+            "har dratt"
+          ],
+          "tr": "客人们已经回家了。",
+          "why": "dra 不规则：har dratt。本题要求用 har（别的句子里也可以说 er dratt）。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-4",
+      "kind": "pick",
+      "title": {
+        "nb": "Eiendomsord",
+        "zh": "物主代词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Velg riktig alternativ.",
+        "zh": "选出正确的一项。"
+      },
+      "items": [
+        {
+          "id": "A2-3-4-1",
+          "text": "Jeg har en ny jobb. Jobben ___ er spennende.",
+          "options": [
+            "min",
+            "mitt",
+            "mine"
+          ],
+          "answer": "min",
+          "tr": "我有一份新工作。我的工作很有意思。",
+          "why": "en jobb 是阳性单数，用 min。"
+        },
+        {
+          "id": "A2-3-4-2",
+          "text": "Dere har et fint kjøkken. Kjøkkenet ___ er stort.",
+          "options": [
+            "ditt",
+            "dine",
+            "deres"
+          ],
+          "answer": "deres",
+          "tr": "你们有一个很漂亮的厨房。你们的厨房很大。",
+          "why": "主人是 dere（你们），「你们的」是 deres，不随名词变。"
+        },
+        {
+          "id": "A2-3-4-3",
+          "text": "Vi har mange planter. Plantene ___ står i stua.",
+          "options": [
+            "vår",
+            "vårt",
+            "våre"
+          ],
+          "answer": "våre",
+          "tr": "我们有很多植物。我们的植物放在客厅里。",
+          "why": "plantene 是复数，用 våre。"
+        },
+        {
+          "id": "A2-3-4-4",
+          "text": "Nora har ei datter. Dattera ___ går i barnehagen.",
+          "options": [
+            "hennes",
+            "sin",
+            "sitt"
+          ],
+          "answer": "hennes",
+          "tr": "诺拉有一个女儿。她的女儿上幼儿园。",
+          "why": "这句的主语是 dattera，主人 Nora 不是主语，所以用 hennes，不用 sin。"
+        },
+        {
+          "id": "A2-3-4-5",
+          "text": "Ahmed vasker bilen ___.",
+          "note": "[Ahmeds egen bil]",
+          "options": [
+            "sin",
+            "sitt",
+            "sine"
+          ],
+          "answer": "sin",
+          "tr": "艾哈迈德在洗他（自己）的车。",
+          "why": "主人 Ahmed 就是主语，用 sin 这一组；bil 是单数、不是中性，所以是 sin。"
+        },
+        {
+          "id": "A2-3-4-6",
+          "text": "Olav er på jobb. Kona ___ henter barna i dag.",
+          "options": [
+            "hans",
+            "sin",
+            "hennes"
+          ],
+          "answer": "hans",
+          "tr": "奥拉夫在上班。今天他的妻子去接孩子。",
+          "why": "主人是 Olav（男的），用 hans；这句的主语是 kona，不是 Olav，所以不能用 sin。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-5",
+      "kind": "fill",
+      "title": {
+        "nb": "Verb i fortid",
+        "zh": "动词过去时"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Skriv verbet i preteritum.",
+        "zh": "写出动词的过去时。"
+      },
+      "items": [
+        {
+          "id": "A2-3-5-1",
+          "text": "Han ___ (bære) alle eskene opp trappa.",
+          "answers": [
+            "bar"
+          ],
+          "tr": "他把所有箱子都搬上了楼。",
+          "why": "bære 不规则，过去时是 bar。"
+        },
+        {
+          "id": "A2-3-5-2",
+          "text": "Jeg ___ (vite) ikke at du var syk.",
+          "answers": [
+            "visste"
+          ],
+          "tr": "我不知道你病了。",
+          "why": "vite 不规则，过去时是 visste。"
+        },
+        {
+          "id": "A2-3-5-3",
+          "text": "Bruden ___ (gråte) i kirken.",
+          "answers": [
+            "gråt"
+          ],
+          "tr": "新娘在教堂里哭了。",
+          "why": "gråte 不规则，过去时是 gråt。"
+        },
+        {
+          "id": "A2-3-5-4",
+          "text": "Hun ___ (prøve) tre kjoler i butikken.",
+          "answers": [
+            "prøvde"
+          ],
+          "tr": "她在店里试了三条连衣裙。",
+          "why": "prøve 的 -e 前是 v，过去时加 -de：prøvde。"
+        },
+        {
+          "id": "A2-3-5-5",
+          "text": "Hva ___ (skje) i går?",
+          "answers": [
+            "skjedde"
+          ],
+          "tr": "昨天发生了什么？",
+          "why": "skje 是短动词，过去时加 -dde：skjedde。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-6",
+      "kind": "pick",
+      "title": {
+        "nb": "Butikker",
+        "zh": "商店"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Velg den butikken som passer best. Hvert ord brukes én gang.",
+        "zh": "选择最合适的商店，每个词只用一次。"
+      },
+      "bank": [
+        "matbutikk",
+        "klesbutikk",
+        "bokhandel",
+        "skobutikk",
+        "apotek"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-3-6-1",
+          "text": "Et par sko: ___",
+          "answer": "skobutikk",
+          "tr": "一双鞋",
+          "why": "鞋在 skobutikk（鞋店）买。"
+        },
+        {
+          "id": "A2-3-6-2",
+          "text": "En norsk ordbok: ___",
+          "answer": "bokhandel",
+          "tr": "一本挪威语词典",
+          "why": "词典在 bokhandel（书店）买。"
+        },
+        {
+          "id": "A2-3-6-3",
+          "text": "Brød og melk: ___",
+          "answer": "matbutikk",
+          "tr": "面包和牛奶",
+          "why": "食物在 matbutikk（食品店）买。"
+        },
+        {
+          "id": "A2-3-6-4",
+          "text": "En genser: ___",
+          "answer": "klesbutikk",
+          "tr": "一件毛衣",
+          "why": "衣服在 klesbutikk（服装店）买。"
+        },
+        {
+          "id": "A2-3-6-5",
+          "text": "Medisin: ___",
+          "answer": "apotek",
+          "tr": "药",
+          "why": "药在 apotek（药店）买。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-7",
+      "kind": "open",
+      "title": {
+        "nb": "Leseforståelse",
+        "zh": "阅读理解"
+      },
+      "points": 15,
+      "task": {
+        "nb": "Les teksten og svar på spørsmålene.",
+        "zh": "读短文，回答问题。"
+      },
+      "text": {
+        "nb": "Ingeborg fylte 60 år sist lørdag. Hun feiret dagen med familien og vennene sine på en gård utenfor Hamar. Sønnen hennes holdt en morsom tale, og alle lo. Til middag spiste de laks, og til dessert var det bløtkake. Av barna sine fikk Ingeborg en reise til Roma.",
+        "zh": "英格堡上个星期六满 60 岁。她和家人、朋友在哈马尔郊外的一个农场庆祝了这一天。她儿子致辞，讲得很有意思，大家都笑了。晚饭他们吃了三文鱼，甜点是奶油蛋糕。孩子们送了英格堡一趟罗马之旅。"
+      },
+      "items": [
+        {
+          "id": "A2-3-7-1",
+          "question": "Hvor gammel ble Ingeborg sist lørdag?",
+          "model": "Hun ble 60 år.",
+          "keys": [
+            [
+              "60",
+              "=seksti"
+            ]
+          ],
+          "tr": "英格堡上个星期六满几岁？"
+        },
+        {
+          "id": "A2-3-7-2",
+          "question": "Hvor feiret hun dagen?",
+          "model": "På en gård utenfor Hamar.",
+          "keys": [
+            [
+              "gård",
+              "gard",
+              "hamar"
+            ]
+          ],
+          "tr": "她在哪里庆祝的？"
+        },
+        {
+          "id": "A2-3-7-3",
+          "question": "Hvem holdt tale?",
+          "model": "Sønnen hennes.",
+          "keys": [
+            [
+              "sønn",
+              "sonn"
+            ]
+          ],
+          "tr": "谁致辞了？"
+        },
+        {
+          "id": "A2-3-7-4",
+          "question": "Hva spiste de til dessert?",
+          "model": "Bløtkake.",
+          "keys": [
+            [
+              "bløt",
+              "blot",
+              "kake"
+            ]
+          ],
+          "tr": "他们甜点吃了什么？"
+        },
+        {
+          "id": "A2-3-7-5",
+          "question": "Hva fikk hun av barna sine?",
+          "model": "En reise til Roma.",
+          "keys": [
+            [
+              "reise",
+              "tur",
+              "roma"
+            ]
+          ],
+          "tr": "孩子们送了她什么？"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-8",
+      "kind": "listen",
+      "title": {
+        "nb": "Lytteforståelse",
+        "zh": "听力理解"
+      },
+      "points": 13,
+      "task": {
+        "nb": "Du kan høre dialogen to ganger. Velg a eller b.",
+        "zh": "录音最多能放两遍。选 a 或 b。"
+      },
+      "listen": {
+        "script": [
+          {
+            "voice": "m1",
+            "who": "Kwame",
+            "nb": "Unnskyld, kan du hjelpe meg? Hvordan kommer jeg til jernbanestasjonen?"
+          },
+          {
+            "voice": "f1",
+            "who": "Siri",
+            "nb": "Du kan ta bussen, men det er ikke langt å gå. Gå rett fram, og ta til venstre ved kirken."
+          },
+          {
+            "voice": "m1",
+            "who": "Kwame",
+            "nb": "Hvor lang tid tar det å gå dit?"
+          },
+          {
+            "voice": "f1",
+            "who": "Siri",
+            "nb": "Cirka femten minutter."
+          },
+          {
+            "voice": "m1",
+            "who": "Kwame",
+            "nb": "Fint! Toget mitt går klokka kvart over tre, så jeg har god tid. Da går jeg."
+          },
+          {
+            "voice": "f1",
+            "who": "Siri",
+            "nb": "God tur!"
+          }
+        ],
+        "zh": "夸梅：不好意思，能帮我一下吗？去火车站怎么走？\n西丽：你可以坐公交车，不过走过去也不远。一直往前走，到教堂那儿往左拐。\n夸梅：走过去要多长时间？\n西丽：大概十五分钟。\n夸梅：好！我的火车三点一刻开，时间很充裕。那我走过去。\n西丽：一路顺风！"
+      },
+      "items": [
+        {
+          "id": "A2-3-8-1",
+          "question": "Hvor skal Kwame?",
+          "options": [
+            "Til busstasjonen",
+            "Til jernbanestasjonen"
+          ],
+          "answer": 1,
+          "points": 2,
+          "tr": "夸梅要去哪里？",
+          "why": "Hvordan kommer jeg til jernbanestasjonen?：他要去火车站。"
+        },
+        {
+          "id": "A2-3-8-2",
+          "question": "Hvor skal han ta til venstre?",
+          "options": [
+            "Ved kirken",
+            "Ved banken"
+          ],
+          "answer": 0,
+          "points": 2,
+          "tr": "他要在哪里往左拐？",
+          "why": "Ta til venstre ved kirken：到教堂那儿左拐。"
+        },
+        {
+          "id": "A2-3-8-3",
+          "question": "Hvor lang tid tar det å gå?",
+          "options": [
+            "50 minutter",
+            "15 minutter"
+          ],
+          "answer": 1,
+          "points": 3,
+          "tr": "走过去要多长时间？",
+          "why": "Cirka femten minutter：十五分钟（femti 才是五十）。"
+        },
+        {
+          "id": "A2-3-8-4",
+          "question": "Når går toget?",
+          "options": [
+            "15.15",
+            "15.45"
+          ],
+          "answer": 0,
+          "points": 3,
+          "tr": "火车几点开？",
+          "why": "kvart over tre 是三点过一刻，下午就是 15.15。"
+        },
+        {
+          "id": "A2-3-8-5",
+          "question": "Hvordan kommer Kwame seg til stasjonen?",
+          "options": [
+            "Han tar bussen",
+            "Han går"
+          ],
+          "answer": 1,
+          "points": 3,
+          "tr": "夸梅怎么去车站？",
+          "why": "Da går jeg：他决定走过去。"
+        }
+      ]
+    },
+    {
+      "id": "A2-3-9",
+      "kind": "write",
+      "bonus": true,
+      "title": {
+        "nb": "Tilleggspoeng – kapittel 11",
+        "zh": "附加分 · 第 11 章"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Svar med hele setninger.",
+        "zh": "用完整的句子回答。"
+      },
+      "items": [
+        {
+          "id": "A2-3-9-1",
+          "prompt": {
+            "nb": "Skriv tre setninger om noe som er typisk norsk. Sammenlign med landet ditt. Bruk minst én komparativ med enn (for eksempel kaldere enn, oftere enn).",
+            "zh": "写三句话，讲一样典型的挪威东西或习惯，和你的国家比一比。至少用一个带 enn 的比较级（比如 kaldere enn、oftere enn）。"
+          },
+          "points": 4,
+          "sentences": 3,
+          "rubric": "3 poeng for tre forståelige og relevante setninger, og 1 poeng for minst én riktig komparativ med enn.",
+          "model": "Det er typisk norsk å ha med matpakke på jobben. I Kina spiser folk oftere varm mat til lunsj enn i Norge. Vinteren i Norge er også mye kaldere og mørkere enn vinteren i Shanghai.",
+          "modelZh": "在挪威，上班自己带饭盒很典型。在中国，人们午饭吃热饭比挪威人多。挪威的冬天也比上海的冬天冷得多、黑得多。"
+        },
+        {
+          "id": "A2-3-9-2",
+          "prompt": {
+            "nb": "Skriv tre setninger om hva du vil gjøre på en hyttetur.",
+            "zh": "写三句话，讲你去小木屋度假时想做什么。"
+          },
+          "points": 3,
+          "sentences": 3,
+          "rubric": "3 poeng for tre relevante setninger.",
+          "model": "Jeg vil gå på fottur i fjellet. Om kvelden vil jeg grille pølser og sitte ute. Jeg vil også prøve å fiske i innsjøen.",
+          "modelZh": "我想去山里徒步。晚上我想烤香肠，坐在外面。我还想试试在湖里钓鱼。"
+        },
+        {
+          "id": "A2-3-9-3",
+          "prompt": {
+            "nb": "Forklar med egne ord hva «å pante» betyr.",
+            "zh": "用自己的话解释 «å pante» 是什么意思。"
+          },
+          "points": 3,
+          "sentences": 1,
+          "rubric": "3 poeng for en forståelig forklaring av at man leverer tomme flasker og bokser og får penger tilbake.",
+          "model": "Å pante betyr at du leverer tomme flasker og bokser i butikken og får litt penger tilbake.",
+          "modelZh": "pante 就是把喝完的空瓶子、空罐子拿到商店退掉，拿回一点押金。"
+        }
+      ]
+    }
+  ]
+}

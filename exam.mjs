@@ -13,6 +13,7 @@
 
 const suffix = typeof import.meta === 'object' && import.meta.url ? new URL(import.meta.url).search : '';
 export const STORE = 'norsk-exam-v1';
+export const PAPER_STORE = 'norsk-exam-paper-v1';
 export const PARTS = {
   listening:{title:'听力',nb:'Lytting',meta:'约 40 分钟 · 30 题',files:'listening',activity:'exam-listen'},
   reading:{title:'阅读',nb:'Lesing',meta:'75 分钟 · 30 题',files:'reading',activity:'exam-read'},
@@ -128,8 +129,10 @@ export function createExam(deps = {}) {
   const nl = text => e(text).replace(/\n/g,'<br>');
   let root = null, screen = 'hub', partKey = null, store = read(), banks = {}, loading = {}, art = new Map();
   let audio = null, audioRun = 0, tick = null, answerTimer = null, flow = {phase:'idle',left:0}, oral = null, intro = {set:null};
-  const ui = {zh:false,confirm:null,grading:false,error:''};
+  const ui = {zh:false,confirm:null,grading:false,error:'',official:null};
   let starting = false;
+  // 课本模拟考 (exam-paper.mjs), loaded the first time a paper is opened.
+  let paper = null, paperLoading = null;
   // Records being graded now (by id): a second tap waits for the same answer instead of asking the AI again.
   const grading = new Set();
   // Silencing the site's other sounds calls back into this module's stopAudio (app.js pauseOtherAudio → 更多):
@@ -194,7 +197,9 @@ export function createExam(deps = {}) {
     speaking:'<rect x="9" y="3" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/>',
     interview:'<path d="M20 11a8 8 0 0 1-8 8H5l-4 3 1-7a8 8 0 1 1 18-4Z"/><path d="M6 10h9M6 14h6"/>',
     arrow:'<path d="m9 5 7 7-7 7"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',sound:'<path d="m11 5-6 5H2v6h3l6 5V5Zm5 4a6 6 0 0 1 0 10"/>',
-    check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',cross:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
+    check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',cross:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    paper:'<path d="M6 2.8h8.5L19 7.3v13.9H6z"/><path d="M14.5 2.8v4.5H19M9 11.5h7M9 15h7M9 18.5h4.5"/>',back:'<path d="m15 5-7 7 7 7"/>',
+    play:'<path d="M8 5.5v13l10.5-6.5z"/>',stop:'<rect x="7" y="7" width="10" height="10" rx="1.5"/>',down:'<path d="m6 9 6 6 6-6"/>'
   };
   const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[name] || ''}</svg>`;
   const levelChip = (level,extra = '') => `<span class="ex-level is-${e(level)}${extra}">${e(LEVEL_TEXT[level] || level)}</span>`;
@@ -204,6 +209,7 @@ export function createExam(deps = {}) {
     if (!root) return;
     document.body?.classList.toggle('practice-focus',screen === 'session' || screen === 'grading');
     if (screen === 'oral') { oral?.render(); return; }
+    if (screen === 'paper') { paper?.render(); return; }
     root.innerHTML = screen === 'hub' ? hubMarkup() : screen === 'intro' ? introMarkup() : screen === 'session' ? sessionMarkup()
       : screen === 'grading' ? gradingMarkup() : screen === 'result' ? resultMarkup() : hubMarkup();
     afterRender();
@@ -230,18 +236,37 @@ export function createExam(deps = {}) {
     const done = Object.keys(run.answers || {}).length;
     return `已答 ${done} 题`;
   }
+  // 课本模拟考 (exam-paper.mjs) keeps its own store; the home page only reads it.
+  function paperStore() {
+    try { const value = JSON.parse(localStorage.getItem(PAPER_STORE) || 'null'); if (value?.version === 1) return value; } catch {}
+    return {version:1,active:{},history:[],sets:{}};
+  }
+  function paperStatus(level,saved) {
+    const run = saved.active?.[level];
+    if (run) return `<span class="ex-part-status is-active">继续 · 第 ${run.set} 套 · 第 ${(run.section || 0)+1} 部分</span>`;
+    const last = (saved.history || []).filter(record => record.level === level).sort((a,b) => String(b.finishedAt).localeCompare(String(a.finishedAt)))[0];
+    if (!last) return '';
+    return `<span class="ex-part-status">上次 <b class="ex-part-score">${e(String(Math.round((last.score?.total || 0)*10)/10))} 分</b>${last.status === 'pending' ? ' · 有题待评' : ''} <small>${e(dateText(last.finishedAt))}</small></span>`;
+  }
+  const PAPER_CARDS = {A1:{note:'课本第 1–6 章',meta:'10 个部分 · 100 分'},A2:{note:'课本第 7–11 章',meta:'9 个部分 · 100 分'}};
   function hubMarkup() {
+    const saved = paperStore(), officialOpen = ui.official ?? Object.keys(store.active).length > 0;
     return `<div class="mh-tool-bar"><button type="button" class="mh-back" data-more="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>更多</span></button></div>
       <section class="ex-app ex-hub" aria-labelledby="ex-title">
-        <header class="ex-head"><p class="ex-kicker" lang="nb">PRØVE</p><h2 id="ex-title" tabindex="-1">考试与面试</h2><p>照 Norskprøven A1–A2 的考法分项自测，也能练 A-team 面试；开口回答由 AI 点评。</p></header>
-        <section class="ex-block" aria-labelledby="ex-test-title">
-          <div class="ex-block-head"><h3 id="ex-test-title">Norskprøven A1–A2 自测</h3><span>四项分开考，各给一个估计等级</span></div>
-          <div class="ex-parts">${Object.entries(PARTS).map(([key,part]) => `<button type="button" class="ex-part is-${key}" data-exam="part" data-part="${key}"><span class="ex-part-icon">${icon(key)}</span><span class="ex-part-text"><strong>${part.title} <em lang="nb">${part.nb}</em></strong><span>${part.meta}</span>${partStatus(key)}</span>${icon('arrow')}</button>`).join('')}</div>
-          <p class="ex-fineprint">估计等级只供参考，不是官方成绩。写作和口语由 AI 按官方评分标准评分；口语只看说出的内容，发音不评。</p>
+        <header class="ex-head"><p class="ex-kicker" lang="nb">PRØVE</p><h2 id="ex-title" tabindex="-1">考试与面试</h2><p>照课程考试的卷面做模拟考，挪威语题干、分部分计分；也能练 A-team 面试。</p></header>
+        <section class="ex-block" aria-labelledby="ex-paper-title">
+          <div class="ex-block-head"><h3 id="ex-paper-title">模拟考试</h3><span lang="nb">God i Norsk · Prøveeksamen</span></div>
+          <div class="ex-parts">${Object.entries(PAPER_CARDS).map(([level,card]) => `<button type="button" class="ex-part is-paper" data-exam="paper" data-level="${level}"><span class="ex-part-icon is-level" aria-hidden="true">${level}</span><span class="ex-part-text"><strong>${level} 模拟考试</strong><span>${card.note} · ${card.meta}</span>${paperStatus(level,saved)}</span>${icon('arrow')}</button>`).join('')}</div>
+          <p class="ex-fineprint">每级三套，第 2 套是老师给的模拟卷。选择、填空和连线马上判分；写作和阅读问答由 AI 看意思、按卷面的评分说明给分。</p>
         </section>
         <section class="ex-block" aria-labelledby="ex-interview-title">
           <div class="ex-block-head"><h3 id="ex-interview-title">A-team 面试</h3><span>15 个常见问题</span></div>
           <button type="button" class="ex-interview" data-exam="interview"><span class="ex-part-icon">${icon('interview')}</span><span class="ex-part-text"><strong>面试练习</strong><span>双语翻卡、只看挪语，或听题后开口回答，AI 点评</span></span>${icon('arrow')}</button>
+        </section>
+        <section class="ex-block ex-official${officialOpen ? ' is-open' : ''}" aria-labelledby="ex-test-title">
+          <button type="button" class="ex-official-toggle" data-exam="official" aria-expanded="${officialOpen}" aria-controls="ex-official-body"><span class="ex-official-text"><strong id="ex-test-title">Norskprøven A1–A2 自测</strong><span>官方考法：听力、阅读、写作、口语分开考</span></span>${icon('down')}</button>
+          ${officialOpen ? `<div id="ex-official-body"><div class="ex-parts">${Object.entries(PARTS).map(([key,part]) => `<button type="button" class="ex-part is-${key}" data-exam="part" data-part="${key}"><span class="ex-part-icon">${icon(key)}</span><span class="ex-part-text"><strong>${part.title} <em lang="nb">${part.nb}</em></strong><span>${part.meta}</span>${partStatus(key)}</span>${icon('arrow')}</button>`).join('')}</div>
+          <p class="ex-fineprint">估计等级只供参考，不是官方成绩。写作和口语由 AI 按官方评分标准评分；口语只看说出的内容，发音不评。</p></div>` : ''}
         </section>
       </section>`;
   }
@@ -646,6 +671,24 @@ export function createExam(deps = {}) {
     return items.length ? `<div class="ex-ai">${items.map(([id,text]) => `<article class="ex-ai-task"><header><b>${e(id)}</b></header><p lang="nb">${nl(text)}</p></article>`).join('')}</div>` : '';
   }
 
+  /* ----- 课本模拟考 ----- */
+  function loadPaperModule() {
+    paperLoading ||= import(`./exam-paper.mjs${suffix}`).then(module => {
+      paper ||= module.createPaper({get root() { return root; },deps,icon,escape:e,quietOthers,
+        exit:() => { paper?.detach(); screen = 'hub'; if (root) render('#ex-title'); }});
+      return paper;
+    }).catch(error => { paperLoading = null; throw error; });
+    return paperLoading;
+  }
+  async function openPaper(level) {
+    stopSound(); stopClock();
+    ui.error = '';
+    try { await loadPaperModule(); } catch { ui.error = ''; return; }
+    if (!root || screen !== 'hub') return;
+    screen = 'paper';
+    paper.open(level);
+  }
+
   /* ----- events ----- */
   async function openPart(key) {
     stopSound(); stopClock();
@@ -712,6 +755,8 @@ export function createExam(deps = {}) {
     const action = target.dataset.exam, run = active();
     if (action === 'part') { openPart(target.dataset.part); return; }
     if (action === 'interview') { deps.openInterview?.(); return; }
+    if (action === 'paper') { openPaper(target.dataset.level); return; }
+    if (action === 'official') { ui.official = !(ui.official ?? Object.keys(store.active).length > 0); render(); root.querySelector('[data-exam="official"]')?.focus?.({preventScroll:true}); return; }
     if (action === 'hub') { stopSound(); stopClock(); screen = 'hub'; ui.error = ''; render('#ex-title'); return; }
     if (action === 'set') { intro.set = Number(target.dataset.set); render(); return; }
     if (action === 'soundcheck') { stopSound(); const run2 = ++audioRun; playOnce(audioURL('sound-check'),run2); return; }
@@ -796,6 +841,7 @@ export function createExam(deps = {}) {
     if (index >= 0 && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) root.querySelector(`[data-exam="answer"][data-value="${index}"]`)?.click();
   }
   function visibility() {
+    if (screen === 'paper') { if (document.hidden) paper?.hidden(); return; }
     if (screen !== 'session' && screen !== 'oral') return;
     if (document.hidden) { stopSound(); stopClock(); oral?.pause?.(); save(); }
     else if (screen === 'session') { startClock(); if (partKey === 'listening') playCurrent(); }
@@ -810,17 +856,18 @@ export function createExam(deps = {}) {
       store = read();
       // Back on the page: a test under way waits behind its intro (继续), with its clock stopped.
       if (screen === 'session' || screen === 'oral' || screen === 'grading') screen = partKey ? 'intro' : 'hub';
+      if (screen === 'paper') { if (paper) { paper.attach(); paper.render('#xp-intro-title'); return; } screen = 'hub'; }
       render(screen === 'hub' ? '#ex-title' : '');
     },
     unmount() {
-      stopSound(); stopClock(); oral?.close(); oral = null;
+      stopSound(); stopClock(); oral?.close(); oral = null; paper?.detach();
       document.body?.classList.remove('practice-focus');
       if (!root) return;
       root.removeEventListener('click',onClick); root.removeEventListener('input',onInput); root.removeEventListener('keydown',onKey);
       document.removeEventListener('visibilitychange',visibility);
       root = null;
     },
-    stopAudio() { if (silencing) return; stopSound(); oral?.stopAudio?.(); },
+    stopAudio() { if (silencing) return; stopSound(); oral?.stopAudio?.(); paper?.stopAudio(); },
     // The interview's picker closes back onto this page.
     focusInterview() { root?.querySelector('[data-exam="interview"]')?.focus?.({preventScroll:true}); }
   };

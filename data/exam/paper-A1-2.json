@@ -1,0 +1,651 @@
+{
+  "id": "A1-2",
+  "level": "A1",
+  "set": 2,
+  "chapters": "1–6",
+  "title": "God i Norsk – A1 | Prøveeksamen",
+  "intro": {
+    "nb": "Velg riktig svar. Skriv svarene tydelig. Hver del har poeng som angitt.",
+    "zh": "选出正确答案，把答案写清楚。每部分的分数已经标出。"
+  },
+  "source": "God_i_Norsk_A1_模拟考试_第二套.pdf",
+  "sections": [
+    {
+      "id": "A1-2-1",
+      "kind": "pick",
+      "title": {
+        "nb": "Å bli kjent og spørreord",
+        "zh": "认识新朋友 · 疑问词"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Velg riktig ord: Hva / Hvor / Hvem / Når / Hvorfor.",
+        "zh": "选出正确的疑问词：什么 / 哪里 / 谁 / 什么时候 / 为什么。"
+      },
+      "bank": [
+        "Hva",
+        "Hvor",
+        "Hvem",
+        "Når",
+        "Hvorfor"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A1-2-1-1",
+          "text": "___ heter du?",
+          "answer": "Hva",
+          "tr": "你叫什么名字？",
+          "why": "问名字说 Hva heter du?（你叫什么？）"
+        },
+        {
+          "id": "A1-2-1-2",
+          "text": "___ bor familien din?",
+          "answer": "Hvor",
+          "tr": "你的家人住在哪里？",
+          "why": "问地方用 hvor（哪里）。"
+        },
+        {
+          "id": "A1-2-1-3",
+          "text": "___ kommer på besøk i morgen?",
+          "answer": "Hvem",
+          "tr": "明天谁来做客？",
+          "why": "问人用 hvem（谁）。"
+        },
+        {
+          "id": "A1-2-1-4",
+          "text": "___ starter møtet?",
+          "answer": "Når",
+          "tr": "会议什么时候开始？",
+          "why": "问时间用 når（什么时候）。"
+        },
+        {
+          "id": "A1-2-1-5",
+          "text": "___ lærer du norsk?",
+          "note": "(Fordi jeg vil snakke med venner.)",
+          "answer": "Hvorfor",
+          "tr": "你为什么学挪威语？（因为我想和朋友说话。）",
+          "why": "回答用 fordi（因为），所以问句用 hvorfor（为什么）。"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-2",
+      "kind": "ab",
+      "title": {
+        "nb": "Riktig setning",
+        "zh": "哪句是对的"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Velg a eller b.",
+        "zh": "选 a 或 b。"
+      },
+      "items": [
+        {
+          "id": "A1-2-2-1",
+          "options": [
+            "Jeg er 25 år.",
+            "Jeg har 25 år."
+          ],
+          "answer": 0,
+          "tr": "我 25 岁。",
+          "why": "挪威语说年龄用 er：Jeg er 25 år，不用 har。"
+        },
+        {
+          "id": "A1-2-2-2",
+          "options": [
+            "Hvor jobber hun?",
+            "Hvor hun jobber?"
+          ],
+          "answer": 0,
+          "tr": "她在哪里工作？",
+          "why": "疑问词后面紧跟动词：Hvor jobber hun?"
+        },
+        {
+          "id": "A1-2-2-3",
+          "options": [
+            "I dag vi leser norsk.",
+            "I dag leser vi norsk."
+          ],
+          "answer": 1,
+          "tr": "今天我们读挪威语。",
+          "why": "句首是 i dag 时，动词仍在第二位，主语放到动词后面。"
+        },
+        {
+          "id": "A1-2-2-4",
+          "options": [
+            "Han liker å gå tur.",
+            "Han liker går tur."
+          ],
+          "answer": 0,
+          "tr": "他喜欢散步。",
+          "why": "liker 后面接 å + 动词原形。"
+        },
+        {
+          "id": "A1-2-2-5",
+          "options": [
+            "De bor i en leilighet.",
+            "De bor på en leilighet."
+          ],
+          "answer": 0,
+          "tr": "他们住在一套公寓里。",
+          "why": "住在公寓、房子里用 i：bor i en leilighet。"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-3",
+      "kind": "fill",
+      "title": {
+        "nb": "Presens",
+        "zh": "现在时"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Skriv riktig verbform.",
+        "zh": "写出动词的正确形式。"
+      },
+      "items": [
+        {
+          "id": "A1-2-3-1",
+          "text": "Vi ___ (snakke) norsk i pausen.",
+          "answers": [
+            "snakker"
+          ],
+          "tr": "我们课间说挪威语。",
+          "why": "现在时在原形后加 -r：snakke → snakker。"
+        },
+        {
+          "id": "A1-2-3-2",
+          "text": "Hun ___ (drikke) kaffe.",
+          "answers": [
+            "drikker"
+          ],
+          "tr": "她喝咖啡。",
+          "why": "drikke → drikker，所有人称都一样。"
+        },
+        {
+          "id": "A1-2-3-3",
+          "text": "Jeg ___ (ha) to søsken.",
+          "answers": [
+            "har"
+          ],
+          "tr": "我有两个兄弟姐妹。",
+          "why": "ha 的现在时是 har。"
+        },
+        {
+          "id": "A1-2-3-4",
+          "text": "Barna ___ (leke) ute.",
+          "answers": [
+            "leker"
+          ],
+          "tr": "孩子们在外面玩。",
+          "why": "leke → leker。"
+        },
+        {
+          "id": "A1-2-3-5",
+          "text": "Du ___ (være) hyggelig.",
+          "answers": [
+            "er"
+          ],
+          "tr": "你人很好。",
+          "why": "være 不规则，现在时是 er。"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-4",
+      "kind": "fill",
+      "title": {
+        "nb": "Klokka og årstall",
+        "zh": "钟点和年份"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Skriv med tall.",
+        "zh": "用数字写出来。"
+      },
+      "items": [
+        {
+          "id": "A1-2-4-1",
+          "text": "Kvart på seks: ___",
+          "answers": [
+            "17.45",
+            "5.45",
+            "05.45"
+          ],
+          "tr": "六点差一刻",
+          "why": "kvart på seks = 离六点还差一刻钟，就是 5:45（下午写 17.45）。"
+        },
+        {
+          "id": "A1-2-4-2",
+          "text": "Fem over halv tre: ___",
+          "answers": [
+            "14.35",
+            "2.35",
+            "02.35"
+          ],
+          "tr": "两点半过五分",
+          "why": "halv tre 是 2:30（「三点的一半」），再过五分钟是 2:35（下午写 14.35）。"
+        },
+        {
+          "id": "A1-2-4-3",
+          "text": "Ti over åtte: ___",
+          "answers": [
+            "08.10",
+            "8.10",
+            "20.10"
+          ],
+          "tr": "八点过十分",
+          "why": "ti over åtte = 八点过十分，8:10。"
+        },
+        {
+          "id": "A1-2-4-4",
+          "text": "Nitten åttini: ___",
+          "answers": [
+            "1989"
+          ],
+          "tr": "一九八九年",
+          "why": "年份两位两位地读：nitten（19）+ åttini（89）= 1989。"
+        },
+        {
+          "id": "A1-2-4-5",
+          "text": "Totusen og atten: ___",
+          "answers": [
+            "2018"
+          ],
+          "tr": "二〇一八年",
+          "why": "2000 年以后的年份常读成 totusen og …：totusen og atten = 2018。"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-5",
+      "kind": "pick",
+      "title": {
+        "nb": "Pronomen",
+        "zh": "代词"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Sett inn: hun / de / vi / meg / deg / seg / oss (noen ord brukes ikke).",
+        "zh": "填入代词（有几个词用不上）。"
+      },
+      "bank": [
+        "hun",
+        "de",
+        "vi",
+        "meg",
+        "deg",
+        "seg",
+        "oss"
+      ],
+      "items": [
+        {
+          "id": "A1-2-5-1",
+          "text": "Kari er hjemme. ___ lager mat.",
+          "answer": "hun",
+          "tr": "卡丽在家。她在做饭。",
+          "why": "Kari 是女性，作主语用 hun（她）。"
+        },
+        {
+          "id": "A1-2-5-2",
+          "text": "Ola og Per er venner. ___ spiller sammen.",
+          "answer": "de",
+          "tr": "奥拉和佩尔是朋友。他们一起玩。",
+          "why": "两个人作主语用 de（他们）。"
+        },
+        {
+          "id": "A1-2-5-3",
+          "text": "Jeg og broren min går på kurs. ___ lærer norsk.",
+          "answer": "vi",
+          "tr": "我和我哥哥在上课。我们学挪威语。",
+          "why": "「我和……」一起作主语用 vi（我们）。"
+        },
+        {
+          "id": "A1-2-5-4",
+          "text": "Jeg gleder ___ til ferien.",
+          "answer": "meg",
+          "tr": "我盼着放假。",
+          "why": "glede seg（盼望）带反身代词，主语是 jeg 就用 meg。"
+        },
+        {
+          "id": "A1-2-5-5",
+          "text": "Han vasker ___ før middag.",
+          "answer": "seg",
+          "tr": "他晚饭前洗一洗。",
+          "why": "主语是 han，反身代词用 seg。",
+          "note": "(Han vasker sin egen kropp.)"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-6",
+      "kind": "fill",
+      "title": {
+        "nb": "Preteritum",
+        "zh": "过去时"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Sett verbet i fortid.",
+        "zh": "把动词变成过去时。"
+      },
+      "items": [
+        {
+          "id": "A1-2-6-1",
+          "text": "I går ___ jeg (kjøpe) brød.",
+          "answers": [
+            "kjøpte"
+          ],
+          "tr": "昨天我买了面包。",
+          "why": "kjøpe 的过去时加 -te：kjøpte。"
+        },
+        {
+          "id": "A1-2-6-2",
+          "text": "Vi ___ (se) en film.",
+          "answers": [
+            "så"
+          ],
+          "tr": "我们看了一部电影。",
+          "why": "se 不规则，过去时是 så。"
+        },
+        {
+          "id": "A1-2-6-3",
+          "text": "Hun ___ (komme) sent hjem.",
+          "answers": [
+            "kom"
+          ],
+          "tr": "她很晚才回家。",
+          "why": "komme 不规则，过去时是 kom。"
+        },
+        {
+          "id": "A1-2-6-4",
+          "text": "De ___ (jobbe) på lørdag.",
+          "answers": [
+            "jobbet",
+            "jobba"
+          ],
+          "tr": "他们星期六上了班。",
+          "why": "jobbe 的过去时加 -et：jobbet。"
+        },
+        {
+          "id": "A1-2-6-5",
+          "text": "Jeg ___ (drikke) te i går kveld.",
+          "answers": [
+            "drakk"
+          ],
+          "tr": "我昨天晚上喝了茶。",
+          "why": "drikke 不规则，过去时是 drakk。"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-7",
+      "kind": "match",
+      "title": {
+        "nb": "Ordforråd",
+        "zh": "词汇"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Koble ordene til forklaringene A–E.",
+        "zh": "把单词和 A–E 的解释连起来。"
+      },
+      "bank": [
+        {
+          "key": "A",
+          "nb": "en person som hjelper syke",
+          "zh": "帮助病人的人"
+        },
+        {
+          "key": "B",
+          "nb": "et sted hvor man kjøper mat",
+          "zh": "买食物的地方"
+        },
+        {
+          "key": "C",
+          "nb": "dagen etter fredag",
+          "zh": "星期五后面的那一天"
+        },
+        {
+          "key": "D",
+          "nb": "en person i familien",
+          "zh": "家里的一个人"
+        },
+        {
+          "key": "E",
+          "nb": "noe man leser",
+          "zh": "人们读的东西"
+        }
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A1-2-7-1",
+          "text": "lørdag",
+          "answer": "C",
+          "tr": "星期六",
+          "why": "lørdag（星期六）是星期五后面的那一天。"
+        },
+        {
+          "id": "A1-2-7-2",
+          "text": "bok",
+          "answer": "E",
+          "tr": "书",
+          "why": "bok（书）是人们读的东西。"
+        },
+        {
+          "id": "A1-2-7-3",
+          "text": "lege",
+          "answer": "A",
+          "tr": "医生",
+          "why": "lege（医生）帮助病人。"
+        },
+        {
+          "id": "A1-2-7-4",
+          "text": "søster",
+          "answer": "D",
+          "tr": "姐妹",
+          "why": "søster（姐姐、妹妹）是家里的人。"
+        },
+        {
+          "id": "A1-2-7-5",
+          "text": "matbutikk",
+          "answer": "B",
+          "tr": "食品店",
+          "why": "matbutikk（食品店）是买食物的地方。"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-8",
+      "kind": "open",
+      "title": {
+        "nb": "Leseforståelse",
+        "zh": "阅读理解"
+      },
+      "points": 15,
+      "task": {
+        "nb": "Les teksten og svar på spørsmålene.",
+        "zh": "读短文，回答问题。"
+      },
+      "text": {
+        "nb": "Maria er 19 år og kommer fra Spania. Nå bor hun i Kristiansand med en venninne. Hun studerer norsk på mandager og onsdager. Om ettermiddagen jobber hun i en matbutikk. I helga liker hun å sykle og lage mat.",
+        "zh": "玛丽亚 19 岁，来自西班牙。她现在和一个女性朋友住在克里斯蒂安桑。她每周一和周三学挪威语。下午她在一家食品店上班。周末她喜欢骑自行车和做饭。"
+      },
+      "items": [
+        {
+          "id": "A1-2-8-1",
+          "question": "Hvor kommer Maria fra?",
+          "model": "Hun kommer fra Spania.",
+          "keys": [
+            [
+              "spania"
+            ]
+          ],
+          "tr": "玛丽亚从哪里来？"
+        },
+        {
+          "id": "A1-2-8-2",
+          "question": "Hvor bor hun nå?",
+          "model": "Hun bor i Kristiansand.",
+          "keys": [
+            [
+              "kristiansand"
+            ]
+          ],
+          "tr": "她现在住在哪里？"
+        },
+        {
+          "id": "A1-2-8-3",
+          "question": "Hvem bor hun sammen med?",
+          "model": "Hun bor sammen med en venninne.",
+          "keys": [
+            [
+              "venninne",
+              "venn"
+            ]
+          ],
+          "tr": "她和谁住在一起？"
+        },
+        {
+          "id": "A1-2-8-4",
+          "question": "Hvilke dager studerer hun norsk?",
+          "model": "På mandager og onsdager.",
+          "keys": [
+            [
+              "mandag"
+            ],
+            [
+              "onsdag"
+            ]
+          ],
+          "tr": "她哪几天学挪威语？"
+        },
+        {
+          "id": "A1-2-8-5",
+          "question": "Hva liker hun å gjøre i helga?",
+          "model": "Hun liker å sykle og lage mat.",
+          "keys": [
+            [
+              "sykl",
+              "sykkel"
+            ],
+            [
+              "mat"
+            ]
+          ],
+          "tr": "她周末喜欢做什么？"
+        }
+      ]
+    },
+    {
+      "id": "A1-2-9",
+      "kind": "listen",
+      "title": {
+        "nb": "Lytteforståelse",
+        "zh": "听力理解"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Du kan høre teksten to ganger. Velg a eller b.",
+        "zh": "录音最多能放两遍。选 a 或 b。"
+      },
+      "listen": {
+        "script": [
+          {
+            "voice": "m1",
+            "nb": "Henrik bor i Bergen. Han står opp halv sju hver morgen. Han spiser yoghurt til frokost. Han sykler til skolen. Om kvelden leser han ofte en bok."
+          }
+        ],
+        "zh": "亨里克住在卑尔根。他每天早上六点半起床。他早饭吃酸奶。他骑自行车去上学。晚上他常常看书。"
+      },
+      "items": [
+        {
+          "id": "A1-2-9-1",
+          "question": "Hvor bor Henrik?",
+          "options": [
+            "Bergen",
+            "Oslo"
+          ],
+          "answer": 0,
+          "tr": "亨里克住在哪里？",
+          "why": "Henrik bor i Bergen."
+        },
+        {
+          "id": "A1-2-9-2",
+          "question": "Når står han opp?",
+          "options": [
+            "06.30",
+            "07.30"
+          ],
+          "answer": 0,
+          "tr": "他几点起床？",
+          "why": "halv sju 是 6:30（「七点的一半」）。"
+        },
+        {
+          "id": "A1-2-9-3",
+          "question": "Hva spiser han til frokost?",
+          "options": [
+            "Brød",
+            "Yoghurt"
+          ],
+          "answer": 1,
+          "tr": "他早饭吃什么？",
+          "why": "Han spiser yoghurt til frokost."
+        },
+        {
+          "id": "A1-2-9-4",
+          "question": "Hvordan kommer han til skolen?",
+          "options": [
+            "Med sykkel",
+            "Med buss"
+          ],
+          "answer": 0,
+          "tr": "他怎么去学校？",
+          "why": "Han sykler til skolen：他骑车去。"
+        },
+        {
+          "id": "A1-2-9-5",
+          "question": "Hva gjør han om kvelden?",
+          "options": [
+            "Leser en bok",
+            "Spiller fotball"
+          ],
+          "answer": 0,
+          "tr": "他晚上做什么？",
+          "why": "Om kvelden leser han ofte en bok."
+        }
+      ]
+    },
+    {
+      "id": "A1-2-10",
+      "kind": "write",
+      "title": {
+        "nb": "Skriveoppgave",
+        "zh": "写作"
+      },
+      "points": 5,
+      "task": {
+        "nb": "Skriv på norsk.",
+        "zh": "用挪威语写。"
+      },
+      "items": [
+        {
+          "id": "A1-2-10-1",
+          "prompt": {
+            "nb": "Skriv minst fem setninger om en vanlig dag. Fortell når du står opp, hva du gjør, og hva du liker.",
+            "zh": "写至少五句话，讲你平常的一天：几点起床、做些什么、喜欢什么。"
+          },
+          "points": 5,
+          "sentences": 5,
+          "rubric": "Gi 1 poeng per forståelig og relevant setning, opptil 5 poeng.",
+          "model": "Jeg står opp klokka sju. Først spiser jeg frokost og drikker kaffe. Så tar jeg bussen til jobben. Jeg jobber fra ni til fire. Om kvelden lager jeg middag. Jeg liker å lese og gå tur.",
+          "modelZh": "我七点起床。我先吃早饭、喝咖啡。然后坐公交车去上班。我从九点工作到四点。晚上我做晚饭。我喜欢看书和散步。"
+        }
+      ]
+    }
+  ]
+}

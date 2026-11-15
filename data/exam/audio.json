@@ -1,5 +1,56 @@
 {
  "files": {
+  "A1-1-9": {
+   "kind": "synthetic",
+   "sha256": "a743e855100b4c28050e4fa0e5e991674520d2fc1f32c0bb8e607bdc8381878b",
+   "seconds": 17.44,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "A1-2-9": {
+   "kind": "synthetic",
+   "sha256": "69f3e054cb76067d5b18b675a0cdcbd949c8a4fb7ed5fa648053a72fcf322dfc",
+   "seconds": 14.11,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "A1-3-9": {
+   "kind": "synthetic",
+   "sha256": "26cecea3b7b0baac67e3c3e15ce28c0114bdb2a1f50ea34f89d1f29a70491fe2",
+   "seconds": 18.24,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "A2-1-8": {
+   "kind": "synthetic",
+   "sha256": "552d33e101be8d283815f1cc0c0f9087fa9d0c211940410f57f55ecfa52b13f1",
+   "seconds": 34.82,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "A2-2-8": {
+   "kind": "synthetic",
+   "sha256": "1b1537c1cfecf76865d441bff32e83a614e5faabd76537fea5e4454f0f35fa22",
+   "seconds": 21.66,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "A2-3-8": {
+   "kind": "synthetic",
+   "sha256": "942c3d82df061740d496cf0a0b73d1b867b313264a5f200a9016d246ded2e985",
+   "seconds": 24.46,
+   "voices": [
+    "nb-NO-FinnNeural",
+    "nb-NO-PernilleNeural"
+   ]
+  },
   "L1-01": {
    "kind": "synthetic",
    "sha256": "4f924a146357493132fb59ec06411b85df81d63ec59eb72161042338029e9dbf",

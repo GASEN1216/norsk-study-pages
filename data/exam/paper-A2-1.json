@@ -1,0 +1,695 @@
+{
+  "id": "A2-1",
+  "level": "A2",
+  "set": 1,
+  "chapters": "7–11",
+  "title": "God i Norsk – A2 | Prøveeksamen",
+  "intro": {
+    "nb": "Velg riktig svar. Skriv svarene tydelig. Hver del har poeng som angitt.",
+    "zh": "选出正确答案，把答案写清楚。每部分的分数已经标出。"
+  },
+  "sections": [
+    {
+      "id": "A2-1-1",
+      "kind": "pick",
+      "title": {
+        "nb": "Preposisjoner",
+        "zh": "介词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Velg: over / under / ved siden av / mellom / bak / i. Hvert uttrykk brukes én gang.",
+        "zh": "选出介词，每个只用一次。"
+      },
+      "bank": [
+        "over",
+        "under",
+        "ved siden av",
+        "mellom",
+        "bak",
+        "i"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-1-1-1",
+          "text": "Skoene står ___ senga.",
+          "note": "(under)",
+          "answer": "under",
+          "tr": "鞋放在床底下。",
+          "why": "在……下面用 under。"
+        },
+        {
+          "id": "A2-1-1-2",
+          "text": "Lampa henger ___ bordet.",
+          "note": "(above)",
+          "answer": "over",
+          "tr": "灯挂在桌子上方。",
+          "why": "在……上方、不碰到用 over；放在表面上才用 på。"
+        },
+        {
+          "id": "A2-1-1-3",
+          "text": "Sykkelen står ___ butikken.",
+          "note": "(behind)",
+          "answer": "bak",
+          "tr": "自行车停在商店后面。",
+          "why": "在……后面用 bak。"
+        },
+        {
+          "id": "A2-1-1-4",
+          "text": "Melka står ___ kjøleskapet.",
+          "note": "(inside)",
+          "answer": "i",
+          "tr": "牛奶放在冰箱里。",
+          "why": "在……里面用 i：i kjøleskapet。"
+        },
+        {
+          "id": "A2-1-1-5",
+          "text": "Kafeen ligger ___ biblioteket.",
+          "note": "(next to)",
+          "answer": "ved siden av",
+          "tr": "咖啡馆在图书馆旁边。",
+          "why": "在……旁边用 ved siden av。"
+        },
+        {
+          "id": "A2-1-1-6",
+          "text": "Jeg sitter ___ Hilde og Rashid.",
+          "note": "(between)",
+          "answer": "mellom",
+          "tr": "我坐在希尔德和拉希德中间。",
+          "why": "在两个人或两样东西中间用 mellom。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-2",
+      "kind": "pick",
+      "title": {
+        "nb": "Ordforråd og motsatte ord",
+        "zh": "词汇 · 反义词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Skriv motsatt ord: selge / kort / glemme / lys / tom / ned.",
+        "zh": "写出意思相反的词。"
+      },
+      "bank": [
+        "selge",
+        "kort",
+        "glemme",
+        "lys",
+        "tom",
+        "ned"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-1-2-1",
+          "text": "kjøpe – ___",
+          "answer": "selge",
+          "tr": "买 – 卖",
+          "why": "kjøpe（买）和 selge（卖）意思相反。"
+        },
+        {
+          "id": "A2-1-2-2",
+          "text": "lang – ___",
+          "answer": "kort",
+          "tr": "长 – 短",
+          "why": "lang（长）和 kort（短）意思相反。"
+        },
+        {
+          "id": "A2-1-2-3",
+          "text": "huske – ___",
+          "answer": "glemme",
+          "tr": "记得 – 忘记",
+          "why": "huske（记得）和 glemme（忘记）意思相反。"
+        },
+        {
+          "id": "A2-1-2-4",
+          "text": "mørk – ___",
+          "answer": "lys",
+          "tr": "暗 – 亮",
+          "why": "mørk（暗）和 lys（亮、明亮）意思相反，比如 en lys / mørk stue。"
+        },
+        {
+          "id": "A2-1-2-5",
+          "text": "full – ___",
+          "answer": "tom",
+          "tr": "满 – 空",
+          "why": "full（满）和 tom（空）意思相反。"
+        },
+        {
+          "id": "A2-1-2-6",
+          "text": "opp – ___",
+          "answer": "ned",
+          "tr": "往上 – 往下",
+          "why": "opp（往上）和 ned（往下）意思相反。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-3",
+      "kind": "fill",
+      "title": {
+        "nb": "Presens perfektum",
+        "zh": "现在完成时"
+      },
+      "points": 16,
+      "task": {
+        "nb": "Sett inn har + riktig perfektum partisipp.",
+        "zh": "填入 har + 过去分词。"
+      },
+      "items": [
+        {
+          "id": "A2-1-3-1",
+          "text": "Vi ___ (kjøpe) en ny sofa.",
+          "answers": [
+            "har kjøpt"
+          ],
+          "tr": "我们买了一张新沙发。",
+          "why": "kjøpe → har kjøpt（常见规律：-e 前一个辅音，加 -t，有例外）。"
+        },
+        {
+          "id": "A2-1-3-2",
+          "text": "Hun ___ (skrive) en lang e-post.",
+          "answers": [
+            "har skrevet"
+          ],
+          "tr": "她写了一封很长的邮件。",
+          "why": "skrive 不规则：har skrevet。"
+        },
+        {
+          "id": "A2-1-3-3",
+          "text": "Jeg ___ (være) i Bergen tre ganger.",
+          "answers": [
+            "har vært"
+          ],
+          "tr": "我去过卑尔根三次。",
+          "why": "være 不规则：har vært。"
+        },
+        {
+          "id": "A2-1-3-4",
+          "text": "De ___ (flytte) til Stavanger.",
+          "answers": [
+            "har flyttet",
+            "har flytta"
+          ],
+          "tr": "他们搬到斯塔万格了。",
+          "why": "flytte → har flyttet。本题要求用 har。"
+        },
+        {
+          "id": "A2-1-3-5",
+          "text": "Du ___ (gjøre) leksene dine.",
+          "answers": [
+            "har gjort"
+          ],
+          "tr": "你把作业做完了。",
+          "why": "gjøre 不规则：har gjort。"
+        },
+        {
+          "id": "A2-1-3-6",
+          "text": "Han ___ (prøve) fårikål for første gang.",
+          "answers": [
+            "har prøvd"
+          ],
+          "tr": "他第一次尝了羊肉炖卷心菜。",
+          "why": "prøve → har prøvd（常见规律：-e 前是 v，加 -d，有例外）。"
+        },
+        {
+          "id": "A2-1-3-7",
+          "text": "Barna ___ (spise) middag.",
+          "answers": [
+            "har spist"
+          ],
+          "tr": "孩子们已经吃过晚饭了。",
+          "why": "spise → har spist。"
+        },
+        {
+          "id": "A2-1-3-8",
+          "text": "Jeg ___ (få) en gave av naboen.",
+          "answers": [
+            "har fått"
+          ],
+          "tr": "邻居送了我一份礼物。",
+          "why": "få 不规则：har fått。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-4",
+      "kind": "pick",
+      "title": {
+        "nb": "Eiendomsord",
+        "zh": "物主代词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Velg riktig alternativ.",
+        "zh": "选出正确的一项。"
+      },
+      "items": [
+        {
+          "id": "A2-1-4-1",
+          "text": "Vi har et hus. Huset ___ er gammelt.",
+          "options": [
+            "vår",
+            "vårt",
+            "våre"
+          ],
+          "answer": "vårt",
+          "tr": "我们有一栋房子。我们的房子很旧。",
+          "why": "et hus 是中性名词，用 vårt。"
+        },
+        {
+          "id": "A2-1-4-2",
+          "text": "Jeg har to brødre. Brødrene ___ bor i Oslo.",
+          "options": [
+            "min",
+            "mitt",
+            "mine"
+          ],
+          "answer": "mine",
+          "tr": "我有两个兄弟。我的兄弟住在奥斯陆。",
+          "why": "brødrene 是复数，用 mine。"
+        },
+        {
+          "id": "A2-1-4-3",
+          "text": "Du har mange bøker. Bøkene ___ ligger på bordet.",
+          "options": [
+            "din",
+            "ditt",
+            "dine"
+          ],
+          "answer": "dine",
+          "tr": "你有很多书。你的书在桌子上。",
+          "why": "bøkene 是复数，用 dine。"
+        },
+        {
+          "id": "A2-1-4-4",
+          "text": "Jonas har en hund. Hunden ___ heter Bamse.",
+          "options": [
+            "hans",
+            "sin",
+            "sitt"
+          ],
+          "answer": "hans",
+          "tr": "约纳斯有一条狗。他的狗叫巴姆塞。",
+          "why": "这句的主语是 hunden，主人 Jonas 不是主语，所以用 hans，不用 sin。"
+        },
+        {
+          "id": "A2-1-4-5",
+          "text": "Leah selger huset ___.",
+          "note": "[Leahs eget hus]",
+          "options": [
+            "sin",
+            "sitt",
+            "sine"
+          ],
+          "answer": "sitt",
+          "tr": "莉娅要卖掉她（自己）的房子。",
+          "why": "主人 Leah 就是主语，用 sin 这一组；hus 是中性名词，所以是 sitt。"
+        },
+        {
+          "id": "A2-1-4-6",
+          "text": "Thomas og Lise inviterer vennene ___ på middag.",
+          "note": "[deres egne venner]",
+          "options": [
+            "deres",
+            "sin",
+            "sine"
+          ],
+          "answer": "sine",
+          "tr": "托马斯和莉瑟请他们（自己）的朋友来吃晚饭。",
+          "why": "主人 Thomas og Lise 就是主语，用 sin 这一组；vennene 是复数，所以是 sine。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-5",
+      "kind": "fill",
+      "title": {
+        "nb": "Verb i fortid",
+        "zh": "动词过去时"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Skriv verbet i preteritum.",
+        "zh": "写出动词的过去时。"
+      },
+      "items": [
+        {
+          "id": "A2-1-5-1",
+          "text": "I fjor ___ vi (fly) til Tromsø.",
+          "answers": [
+            "fløy"
+          ],
+          "tr": "去年我们坐飞机去了特罗姆瑟。",
+          "why": "fly 不规则，过去时是 fløy。"
+        },
+        {
+          "id": "A2-1-5-2",
+          "text": "Jeg ___ (treffe) en gammel venn på toget.",
+          "answers": [
+            "traff"
+          ],
+          "tr": "我在火车上碰到了一个老朋友。",
+          "why": "treffe 不规则，过去时是 traff。"
+        },
+        {
+          "id": "A2-1-5-3",
+          "text": "Vi ___ (feire) bursdagen til Maja på lørdag.",
+          "answers": [
+            "feiret",
+            "feira"
+          ],
+          "tr": "我们星期六给玛雅过了生日。",
+          "why": "feire 的过去时是 feiret（也写 feira）。"
+        },
+        {
+          "id": "A2-1-5-4",
+          "text": "De ___ (leie) en bil i ferien.",
+          "answers": [
+            "leide"
+          ],
+          "tr": "他们假期租了一辆车。",
+          "why": "leie 的 -e 前是 ei，过去时加 -de：leide。"
+        },
+        {
+          "id": "A2-1-5-5",
+          "text": "Mamma ___ (bli) glad for blomstene.",
+          "answers": [
+            "ble",
+            "blei"
+          ],
+          "tr": "妈妈收到花很高兴。",
+          "why": "bli 不规则，过去时是 ble（也写 blei）。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-6",
+      "kind": "pick",
+      "title": {
+        "nb": "Butikker",
+        "zh": "商店"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Velg: matbutikk / blomsterbutikk / sportsbutikk / bokhandel / møbelbutikk.",
+        "zh": "这些东西去哪种商店买？"
+      },
+      "bank": [
+        "matbutikk",
+        "blomsterbutikk",
+        "sportsbutikk",
+        "bokhandel",
+        "møbelbutikk"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-1-6-1",
+          "text": "En ny sofa: ___",
+          "answer": "møbelbutikk",
+          "tr": "一张新沙发",
+          "why": "沙发是家具，在 møbelbutikk（家具店）买。"
+        },
+        {
+          "id": "A2-1-6-2",
+          "text": "Brød og melk: ___",
+          "answer": "matbutikk",
+          "tr": "面包和牛奶",
+          "why": "食物在 matbutikk（食品店）买。"
+        },
+        {
+          "id": "A2-1-6-3",
+          "text": "En fotball og en treningsbukse: ___",
+          "answer": "sportsbutikk",
+          "tr": "一个足球和一条运动裤",
+          "why": "运动用品在 sportsbutikk（体育用品店）买。"
+        },
+        {
+          "id": "A2-1-6-4",
+          "text": "En ordbok: ___",
+          "answer": "bokhandel",
+          "tr": "一本词典",
+          "why": "词典在 bokhandel（书店）买。"
+        },
+        {
+          "id": "A2-1-6-5",
+          "text": "En plante til stua: ___",
+          "answer": "blomsterbutikk",
+          "tr": "一盆放在客厅里的植物",
+          "why": "花和植物在 blomsterbutikk（花店）买。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-7",
+      "kind": "open",
+      "title": {
+        "nb": "Leseforståelse",
+        "zh": "阅读理解"
+      },
+      "points": 15,
+      "task": {
+        "nb": "Les teksten og svar på spørsmålene.",
+        "zh": "读短文，回答问题。"
+      },
+      "text": {
+        "nb": "Tariq og kona hans, Lina, har nettopp kjøpt en leilighet i Trondheim. Før bodde de i en liten kjellerleilighet i sentrum. Den nye leiligheten ligger i fjerde etasje og har tre soverom og en stor balkong. I forrige uke malte de stua og monterte en ny lampe på kjøkkenet. Neste lørdag skal de ha innflyttingsfest for familien og vennene sine.",
+        "zh": "塔里克和他妻子莉娜刚在特隆赫姆买了一套公寓。他们以前住在市中心一套很小的地下室公寓里。新公寓在四楼，有三间卧室和一个大阳台。上个星期他们把客厅刷了漆，还在厨房装了一盏新灯。下个星期六他们要请家人和朋友来办乔迁派对。"
+      },
+      "items": [
+        {
+          "id": "A2-1-7-1",
+          "question": "Hva har Tariq og Lina kjøpt?",
+          "model": "En leilighet i Trondheim.",
+          "keys": [
+            [
+              "leilighet"
+            ]
+          ],
+          "tr": "塔里克和莉娜买了什么？"
+        },
+        {
+          "id": "A2-1-7-2",
+          "question": "Hvor bodde de før?",
+          "model": "I en liten kjellerleilighet i sentrum.",
+          "keys": [
+            [
+              "kjeller",
+              "sentrum"
+            ]
+          ],
+          "tr": "他们以前住在哪里？"
+        },
+        {
+          "id": "A2-1-7-3",
+          "question": "Hvor mange soverom har den nye leiligheten?",
+          "model": "Den har tre soverom.",
+          "keys": [
+            [
+              "=tre",
+              "3"
+            ]
+          ],
+          "tr": "新公寓有几间卧室？"
+        },
+        {
+          "id": "A2-1-7-4",
+          "question": "Nevn én ting de gjorde i forrige uke.",
+          "model": "De malte stua og monterte en ny lampe.",
+          "keys": [
+            [
+              "malt",
+              "male",
+              "monter"
+            ]
+          ],
+          "tr": "说出他们上周做的一件事。",
+          "enough": "one"
+        },
+        {
+          "id": "A2-1-7-5",
+          "question": "Hva skal de gjøre neste lørdag?",
+          "model": "De skal ha innflyttingsfest.",
+          "keys": [
+            [
+              "fest",
+              "innflytting"
+            ]
+          ],
+          "tr": "他们下个星期六要做什么？"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-8",
+      "kind": "listen",
+      "title": {
+        "nb": "Lytteforståelse",
+        "zh": "听力理解"
+      },
+      "points": 13,
+      "task": {
+        "nb": "Du kan høre dialogen to ganger. Velg a eller b.",
+        "zh": "录音最多能放两遍。选 a 或 b。"
+      },
+      "listen": {
+        "script": [
+          {
+            "voice": "f1",
+            "who": "Hanne",
+            "nb": "Hei! Kan jeg hjelpe deg med noe?"
+          },
+          {
+            "voice": "m1",
+            "who": "Mateo",
+            "nb": "Ja, takk. Jeg leter etter en genser til broren min. Han har bursdag på fredag."
+          },
+          {
+            "voice": "f1",
+            "who": "Hanne",
+            "nb": "Hvilken størrelse bruker han?"
+          },
+          {
+            "voice": "m1",
+            "who": "Mateo",
+            "nb": "Medium, tror jeg. Har dere denne blå genseren i medium?"
+          },
+          {
+            "voice": "f1",
+            "who": "Hanne",
+            "nb": "Dessverre, den blå er utsolgt i medium. Men vi har den i grønn, og i dag er den på salg. Den koster bare tre hundre og nittini kroner."
+          },
+          {
+            "voice": "m1",
+            "who": "Mateo",
+            "nb": "Så bra! Da tar jeg den grønne. Kan du pakke den inn?"
+          },
+          {
+            "voice": "f1",
+            "who": "Hanne",
+            "nb": "Selvfølgelig!"
+          }
+        ],
+        "zh": "汉娜：你好！有什么可以帮你的吗？\n马特奥：好的，谢谢。我想给我哥哥找一件毛衣。他星期五过生日。\n汉娜：他穿多大码？\n马特奥：我想是中号。这件蓝色的毛衣有中号吗？\n汉娜：不好意思，蓝色的中号卖完了。不过我们有绿色的，今天还在打折，只要三百九十九克朗。\n马特奥：太好了！那我就要绿色的。你能帮我包起来吗？\n汉娜：当然可以！"
+      },
+      "items": [
+        {
+          "id": "A2-1-8-1",
+          "question": "Hvem skal få genseren?",
+          "options": [
+            "Broren til Mateo",
+            "Faren til Mateo"
+          ],
+          "answer": 0,
+          "points": 2,
+          "tr": "这件毛衣是给谁的？",
+          "why": "Jeg leter etter en genser til broren min：给他哥哥（或弟弟）买。"
+        },
+        {
+          "id": "A2-1-8-2",
+          "question": "Når har broren bursdag?",
+          "options": [
+            "På lørdag",
+            "På fredag"
+          ],
+          "answer": 1,
+          "points": 2,
+          "tr": "他哥哥哪天过生日？",
+          "why": "Han har bursdag på fredag：星期五。"
+        },
+        {
+          "id": "A2-1-8-3",
+          "question": "Hvilken størrelse kjøper Mateo?",
+          "options": [
+            "Medium",
+            "Large"
+          ],
+          "answer": 0,
+          "points": 3,
+          "tr": "马特奥买多大码？",
+          "why": "Medium, tror jeg：中号。"
+        },
+        {
+          "id": "A2-1-8-4",
+          "question": "Hvilken farge har genseren han kjøper?",
+          "options": [
+            "Blå",
+            "Grønn"
+          ],
+          "answer": 1,
+          "points": 3,
+          "tr": "他买的毛衣是什么颜色？",
+          "why": "蓝色的中号卖完了，他说 Da tar jeg den grønne：买绿色的。"
+        },
+        {
+          "id": "A2-1-8-5",
+          "question": "Hva koster genseren?",
+          "options": [
+            "399 kroner",
+            "499 kroner"
+          ],
+          "answer": 0,
+          "points": 3,
+          "tr": "这件毛衣多少钱？",
+          "why": "tre hundre og nittini kroner = 399 克朗。"
+        }
+      ]
+    },
+    {
+      "id": "A2-1-9",
+      "kind": "write",
+      "bonus": true,
+      "title": {
+        "nb": "Tilleggspoeng – kapittel 11",
+        "zh": "附加分 · 第 11 章"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Svar med hele setninger.",
+        "zh": "用完整的句子回答。"
+      },
+      "items": [
+        {
+          "id": "A2-1-9-1",
+          "prompt": {
+            "nb": "Skriv tre setninger om et sted i Norge som du liker. Bruk minst én som-setning.",
+            "zh": "写三句话，介绍一个你喜欢的挪威的地方。至少用一个 som 从句。"
+          },
+          "points": 4,
+          "sentences": 3,
+          "rubric": "3 poeng for tre forståelige og relevante setninger, og 1 poeng for minst én riktig som-setning.",
+          "model": "Jeg liker Lofoten, som ligger i Nord-Norge. Der er det høye fjell og fine strender. Jeg har en venn som bor der, og jeg vil besøke ham i sommer.",
+          "modelZh": "我喜欢罗弗敦群岛，它在挪威北部。那里有高高的山和漂亮的海滩。我有一个朋友住在那里，今年夏天我想去看他。"
+        },
+        {
+          "id": "A2-1-9-2",
+          "prompt": {
+            "nb": "Skriv tre setninger der du sammenligner sommeren og vinteren i Norge.",
+            "zh": "写三句话，比较挪威的夏天和冬天。"
+          },
+          "points": 3,
+          "sentences": 3,
+          "rubric": "3 poeng for tre relevante setninger som sammenligner de to årstidene.",
+          "model": "Sommeren er varmere og lysere enn vinteren. Om vinteren er dagene kortere, og det er mye snø. Jeg liker sommeren bedre, for da kan jeg bade og gå på fjelltur.",
+          "modelZh": "夏天比冬天暖和、亮堂。冬天白天比较短，雪也很多。我更喜欢夏天，因为那时候可以游泳、爬山。"
+        },
+        {
+          "id": "A2-1-9-3",
+          "prompt": {
+            "nb": "Forklar med egne ord hva «allemannsretten» betyr.",
+            "zh": "用自己的话解释 «allemannsretten» 是什么意思。"
+          },
+          "points": 3,
+          "sentences": 1,
+          "rubric": "3 poeng for en forståelig forklaring: alle kan gå tur i naturen (utmark), også når andre eier området, men vi må ta hensyn til naturen og andre mennesker.",
+          "model": "Allemannsretten betyr at vi kan gå tur i skogen og på fjellet, også når andre eier området. Vi må ta hensyn til naturen og andre mennesker.",
+          "modelZh": "公众通行权是指我们可以在森林和山里散步，即使土地属于别人。我们必须爱护自然，也要顾及别人。"
+        }
+      ]
+    }
+  ]
+}

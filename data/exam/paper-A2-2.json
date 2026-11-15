@@ -1,0 +1,691 @@
+{
+  "id": "A2-2",
+  "level": "A2",
+  "set": 2,
+  "chapters": "7–11",
+  "title": "God i Norsk – A2 | Prøveeksamen",
+  "intro": {
+    "nb": "Velg riktig svar. Skriv svarene tydelig. Hver del har poeng som angitt.",
+    "zh": "选出正确答案，把答案写清楚。每部分的分数已经标出。"
+  },
+  "source": "God_i_Norsk_A2_模拟考试_第二套.pdf",
+  "sections": [
+    {
+      "id": "A2-2-1",
+      "kind": "pick",
+      "title": {
+        "nb": "Preposisjoner",
+        "zh": "介词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Velg: foran / bak / mellom / på / under / i. Hvert uttrykk brukes én gang.",
+        "zh": "选出介词，每个只用一次。"
+      },
+      "bank": [
+        "foran",
+        "bak",
+        "mellom",
+        "på",
+        "under",
+        "i"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-2-1-1",
+          "text": "Nøklene ligger ___ lomma.",
+          "note": "(inside)",
+          "answer": "i",
+          "tr": "钥匙在口袋里。",
+          "why": "在……里面用 i。"
+        },
+        {
+          "id": "A2-2-1-2",
+          "text": "Bildet henger ___ veggen.",
+          "note": "(on)",
+          "answer": "på",
+          "tr": "画挂在墙上。",
+          "why": "在表面上用 på：på veggen。"
+        },
+        {
+          "id": "A2-2-1-3",
+          "text": "Hunden ligger ___ bordet.",
+          "note": "(under)",
+          "answer": "under",
+          "tr": "狗趴在桌子下面。",
+          "why": "在……下面用 under。"
+        },
+        {
+          "id": "A2-2-1-4",
+          "text": "Bussen står ___ huset.",
+          "note": "(in front of)",
+          "answer": "foran",
+          "tr": "公交车停在房子前面。",
+          "why": "在……前面用 foran。"
+        },
+        {
+          "id": "A2-2-1-5",
+          "text": "Hagen ligger ___ huset.",
+          "note": "(behind)",
+          "answer": "bak",
+          "tr": "花园在房子后面。",
+          "why": "在……后面用 bak。"
+        },
+        {
+          "id": "A2-2-1-6",
+          "text": "Apoteket ligger ___ banken og butikken.",
+          "note": "(between)",
+          "answer": "mellom",
+          "tr": "药店在银行和商店中间。",
+          "why": "在两样东西中间用 mellom。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-2",
+      "kind": "pick",
+      "title": {
+        "nb": "Ordforråd og motsatte ord",
+        "zh": "词汇 · 反义词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Skriv motsatt ord: billig / aldri / rolig / hente / sent / komme.",
+        "zh": "写出意思相反的词。"
+      },
+      "bank": [
+        "billig",
+        "aldri",
+        "rolig",
+        "hente",
+        "sent",
+        "komme"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-2-2-1",
+          "text": "dyrt – ___",
+          "answer": "billig",
+          "tr": "贵 – 便宜",
+          "why": "dyr（贵）和 billig（便宜）意思相反。"
+        },
+        {
+          "id": "A2-2-2-2",
+          "text": "alltid – ___",
+          "answer": "aldri",
+          "tr": "总是 – 从不",
+          "why": "alltid（总是）和 aldri（从不）意思相反。"
+        },
+        {
+          "id": "A2-2-2-3",
+          "text": "travelt – ___",
+          "answer": "rolig",
+          "tr": "忙乱 – 安静",
+          "why": "travel（忙）和 rolig（安静、不慌不忙）意思相反。"
+        },
+        {
+          "id": "A2-2-2-4",
+          "text": "levere – ___",
+          "answer": "hente",
+          "tr": "送去 – 接回",
+          "why": "levere（送去、交出去）和 hente（取回、接回）意思相反，比如 levere / hente barna i barnehagen。"
+        },
+        {
+          "id": "A2-2-2-5",
+          "text": "tidlig – ___",
+          "answer": "sent",
+          "tr": "早 – 晚",
+          "why": "tidlig（早）和 sent（晚）意思相反。"
+        },
+        {
+          "id": "A2-2-2-6",
+          "text": "forlate – ___",
+          "answer": "komme",
+          "tr": "离开 – 来",
+          "why": "forlate（离开）和 komme（来到）方向相反。注意：「来到奥斯陆」要说 komme til Oslo，而 forlate Oslo 不加 til。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-3",
+      "kind": "fill",
+      "title": {
+        "nb": "Presens perfektum",
+        "zh": "现在完成时"
+      },
+      "points": 16,
+      "task": {
+        "nb": "Sett inn har + riktig perfektum partisipp.",
+        "zh": "填入 har + 过去分词。"
+      },
+      "items": [
+        {
+          "id": "A2-2-3-1",
+          "text": "Hun ___ (lese) boka.",
+          "answers": [
+            "har lest"
+          ],
+          "tr": "她读完了这本书。",
+          "why": "lese → har lest。"
+        },
+        {
+          "id": "A2-2-3-2",
+          "text": "Jeg ___ (finne) nøklene.",
+          "answers": [
+            "har funnet"
+          ],
+          "tr": "我找到了钥匙。",
+          "why": "finne 不规则：har funnet。"
+        },
+        {
+          "id": "A2-2-3-3",
+          "text": "Vi ___ (bo) her lenge.",
+          "answers": [
+            "har bodd"
+          ],
+          "tr": "我们在这儿住了很久。",
+          "why": "bo → har bodd（短动词加 -dd）。"
+        },
+        {
+          "id": "A2-2-3-4",
+          "text": "De ___ (reise) til Oslo.",
+          "answers": [
+            "har reist"
+          ],
+          "tr": "他们去了奥斯陆。",
+          "why": "reise → har reist（加 -t）。"
+        },
+        {
+          "id": "A2-2-3-5",
+          "text": "Du ___ (ta) bussen.",
+          "answers": [
+            "har tatt"
+          ],
+          "tr": "你坐了公交车。",
+          "why": "ta 不规则：har tatt。"
+        },
+        {
+          "id": "A2-2-3-6",
+          "text": "Han ___ (snakke) med læreren.",
+          "answers": [
+            "har snakket",
+            "har snakka"
+          ],
+          "tr": "他和老师谈过了。",
+          "why": "snakke → har snakket（加 -et）。"
+        },
+        {
+          "id": "A2-2-3-7",
+          "text": "Jeg ___ (se) denne filmen.",
+          "answers": [
+            "har sett"
+          ],
+          "tr": "我看过这部电影。",
+          "why": "se 不规则：har sett。"
+        },
+        {
+          "id": "A2-2-3-8",
+          "text": "Barna ___ (komme) hjem.",
+          "answers": [
+            "har kommet"
+          ],
+          "tr": "孩子们回家了。",
+          "why": "komme 不规则：har kommet。本题要求用 har（别的句子里也常说 er kommet）。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-4",
+      "kind": "pick",
+      "title": {
+        "nb": "Eiendomsord",
+        "zh": "物主代词"
+      },
+      "points": 12,
+      "task": {
+        "nb": "Velg riktig alternativ.",
+        "zh": "选出正确的一项。"
+      },
+      "items": [
+        {
+          "id": "A2-2-4-1",
+          "text": "Jeg har et rom. Rommet ___ er lite.",
+          "options": [
+            "min",
+            "mitt",
+            "mine"
+          ],
+          "answer": "mitt",
+          "tr": "我有一个房间。我的房间很小。",
+          "why": "et rom 是中性名词，用 mitt。"
+        },
+        {
+          "id": "A2-2-4-2",
+          "text": "Du har en jakke. Jakken ___ er grønn.",
+          "options": [
+            "din",
+            "ditt",
+            "dine"
+          ],
+          "answer": "din",
+          "tr": "你有一件外套。你的外套是绿色的。",
+          "why": "jakken 是 -en 结尾的定指形式，后面用 din；如果写 jakka，就要用 di。"
+        },
+        {
+          "id": "A2-2-4-3",
+          "text": "Vi har en bil. Bilen ___ er gammel.",
+          "options": [
+            "vår",
+            "vårt",
+            "våre"
+          ],
+          "answer": "vår",
+          "tr": "我们有一辆车。我们的车很旧。",
+          "why": "en bil 是阳性单数，用 vår。"
+        },
+        {
+          "id": "A2-2-4-4",
+          "text": "De har tre barn. Barna ___ går på skolen.",
+          "options": [
+            "deres",
+            "sin",
+            "sitt"
+          ],
+          "answer": "deres",
+          "tr": "他们有三个孩子。他们的孩子在上学。",
+          "why": "这句的主语是 barna，主人 de 不是主语，所以用 deres，不用 sin。"
+        },
+        {
+          "id": "A2-2-4-5",
+          "text": "Erik besøker moren ___.",
+          "note": "[Eriks egen mor]",
+          "options": [
+            "sin",
+            "sitt",
+            "sine"
+          ],
+          "answer": "sin",
+          "tr": "埃里克去看望他（自己）的妈妈。",
+          "why": "主人 Erik 就是主语，用 sin；mor 是单数、不是中性，所以是 sin。"
+        },
+        {
+          "id": "A2-2-4-6",
+          "text": "Sara har mange venner. Vennene ___ bor i Bergen.",
+          "options": [
+            "hennes",
+            "sin",
+            "sitt"
+          ],
+          "answer": "hennes",
+          "tr": "萨拉有很多朋友。她的朋友住在卑尔根。",
+          "why": "这句的主语是 vennene，不是 Sara，所以用 hennes。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-5",
+      "kind": "fill",
+      "title": {
+        "nb": "Verb i fortid",
+        "zh": "动词过去时"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Skriv verbet i preteritum.",
+        "zh": "写出动词的过去时。"
+      },
+      "items": [
+        {
+          "id": "A2-2-5-1",
+          "text": "Jeg ___ (få) besøk i går.",
+          "answers": [
+            "fikk"
+          ],
+          "tr": "昨天有人来看我。",
+          "why": "få 不规则，过去时是 fikk。"
+        },
+        {
+          "id": "A2-2-5-2",
+          "text": "Hun ___ (gjøre) leksene.",
+          "answers": [
+            "gjorde"
+          ],
+          "tr": "她做了作业。",
+          "why": "gjøre 不规则，过去时是 gjorde。"
+        },
+        {
+          "id": "A2-2-5-3",
+          "text": "Vi ___ (gå) til biblioteket.",
+          "answers": [
+            "gikk"
+          ],
+          "tr": "我们走去了图书馆。",
+          "why": "gå 不规则，过去时是 gikk。"
+        },
+        {
+          "id": "A2-2-5-4",
+          "text": "Han ___ (være) syk.",
+          "answers": [
+            "var"
+          ],
+          "tr": "他病了。",
+          "why": "være 不规则，过去时是 var。"
+        },
+        {
+          "id": "A2-2-5-5",
+          "text": "De ___ (kjøpe) nye sko.",
+          "answers": [
+            "kjøpte"
+          ],
+          "tr": "他们买了新鞋。",
+          "why": "kjøpe 的过去时加 -te：kjøpte。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-6",
+      "kind": "pick",
+      "title": {
+        "nb": "Butikker",
+        "zh": "商店"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Velg: skobutikk / apotek / bokhandel / klesbutikk / matbutikk.",
+        "zh": "这些东西去哪种商店买？"
+      },
+      "bank": [
+        "skobutikk",
+        "apotek",
+        "bokhandel",
+        "klesbutikk",
+        "matbutikk"
+      ],
+      "once": true,
+      "items": [
+        {
+          "id": "A2-2-6-1",
+          "text": "En ordbok: ___",
+          "answer": "bokhandel",
+          "tr": "一本词典",
+          "why": "词典在 bokhandel（书店）买。"
+        },
+        {
+          "id": "A2-2-6-2",
+          "text": "En vinterjakke: ___",
+          "answer": "klesbutikk",
+          "tr": "一件冬天的外套",
+          "why": "衣服在 klesbutikk（服装店）买。"
+        },
+        {
+          "id": "A2-2-6-3",
+          "text": "Smertestillende medisin: ___",
+          "answer": "apotek",
+          "tr": "止痛药",
+          "why": "药在 apotek（药店）买。"
+        },
+        {
+          "id": "A2-2-6-4",
+          "text": "Epler og melk: ___",
+          "answer": "matbutikk",
+          "tr": "苹果和牛奶",
+          "why": "食物在 matbutikk（食品店）买。"
+        },
+        {
+          "id": "A2-2-6-5",
+          "text": "Joggesko: ___",
+          "answer": "skobutikk",
+          "tr": "跑鞋",
+          "why": "鞋在 skobutikk（鞋店）买。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-7",
+      "kind": "open",
+      "title": {
+        "nb": "Leseforståelse",
+        "zh": "阅读理解"
+      },
+      "points": 15,
+      "task": {
+        "nb": "Les teksten og svar på spørsmålene.",
+        "zh": "读短文，回答问题。"
+      },
+      "text": {
+        "nb": "Nadia flyttet til Tromsø for åtte måneder siden. Hun har fått jobb på et sykehjem. I begynnelsen kjente hun ingen, men nå har hun blitt kjent med flere naboer. Sist søndag hjalp hun en nabo med å rydde hagen. Neste uke skal de møtes på kafé.",
+        "zh": "娜迪娅八个月前搬到了特罗姆瑟。她在一家养老院找到了工作。刚开始她谁也不认识，但现在她已经认识了好几个邻居。上个星期天，她帮一个邻居收拾花园。下个星期她们要在咖啡馆见面。"
+      },
+      "items": [
+        {
+          "id": "A2-2-7-1",
+          "question": "Når flyttet Nadia til Tromsø?",
+          "model": "For åtte måneder siden.",
+          "keys": [
+            [
+              "=åtte",
+              "8"
+            ],
+            [
+              "måned"
+            ]
+          ],
+          "tr": "娜迪娅什么时候搬到特罗姆瑟的？"
+        },
+        {
+          "id": "A2-2-7-2",
+          "question": "Hvor jobber hun?",
+          "model": "På et sykehjem.",
+          "keys": [
+            [
+              "sykehjem"
+            ]
+          ],
+          "tr": "她在哪里工作？"
+        },
+        {
+          "id": "A2-2-7-3",
+          "question": "Kjente hun mange i begynnelsen?",
+          "model": "Nei, hun kjente ingen.",
+          "keys": [
+            [
+              "nei",
+              "ingen",
+              "ikke"
+            ]
+          ],
+          "tr": "她刚开始认识很多人吗？"
+        },
+        {
+          "id": "A2-2-7-4",
+          "question": "Hva gjorde hun sist søndag?",
+          "model": "Hun hjalp en nabo med å rydde hagen.",
+          "keys": [
+            [
+              "hjalp",
+              "hjelp"
+            ],
+            [
+              "nabo",
+              "hage",
+              "rydd"
+            ]
+          ],
+          "tr": "她上个星期天做了什么？"
+        },
+        {
+          "id": "A2-2-7-5",
+          "question": "Hva skal de gjøre neste uke?",
+          "model": "De skal møtes på kafé.",
+          "keys": [
+            [
+              "kafe",
+              "cafe",
+              "kaffe"
+            ]
+          ],
+          "tr": "她们下个星期要做什么？"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-8",
+      "kind": "listen",
+      "title": {
+        "nb": "Lytteforståelse",
+        "zh": "听力理解"
+      },
+      "points": 13,
+      "task": {
+        "nb": "Du kan høre dialogen to ganger. Velg a eller b.",
+        "zh": "录音最多能放两遍。选 a 或 b。"
+      },
+      "listen": {
+        "script": [
+          {
+            "voice": "m1",
+            "who": "Amir",
+            "nb": "Hei, jeg er Amir. Jeg har bodd her i tre måneder."
+          },
+          {
+            "voice": "f1",
+            "who": "Liv",
+            "nb": "Hyggelig! Jeg heter Liv og bor ved siden av deg. På lørdag skal vi rydde fellesrommet. Vi møtes klokka elleve."
+          },
+          {
+            "voice": "m1",
+            "who": "Amir",
+            "nb": "Det passer fint. Skal jeg ta med noe?"
+          },
+          {
+            "voice": "f1",
+            "who": "Liv",
+            "nb": "Ta gjerne med en kost."
+          },
+          {
+            "voice": "m1",
+            "who": "Amir",
+            "nb": "Det gjør jeg!"
+          }
+        ],
+        "zh": "阿米尔：嗨，我是阿米尔。我在这儿住了三个月了。\n莉芙：很高兴认识你！我叫莉芙，就住在你隔壁。星期六我们要打扫公共活动室，十一点见。\n阿米尔：好的，没问题。我要带点什么吗？\n莉芙：带一把扫帚吧。\n阿米尔：好，我带！"
+      },
+      "items": [
+        {
+          "id": "A2-2-8-1",
+          "question": "Hvor lenge har Amir bodd her?",
+          "options": [
+            "Tre måneder",
+            "Tre år"
+          ],
+          "answer": 0,
+          "points": 2,
+          "tr": "阿米尔在这儿住了多久？",
+          "why": "Jeg har bodd her i tre måneder."
+        },
+        {
+          "id": "A2-2-8-2",
+          "question": "Hvor bor naboen?",
+          "options": [
+            "Over Amir",
+            "Ved siden av Amir"
+          ],
+          "answer": 1,
+          "points": 2,
+          "tr": "邻居住在哪里？",
+          "why": "Liv bor ved siden av deg：住在隔壁。"
+        },
+        {
+          "id": "A2-2-8-3",
+          "question": "Hva skal de gjøre på lørdag?",
+          "options": [
+            "Rydde fellesrommet",
+            "Male huset"
+          ],
+          "answer": 0,
+          "points": 3,
+          "tr": "他们星期六要做什么？",
+          "why": "På lørdag skal vi rydde fellesrommet."
+        },
+        {
+          "id": "A2-2-8-4",
+          "question": "Når møtes de?",
+          "options": [
+            "09.00",
+            "11.00"
+          ],
+          "answer": 1,
+          "points": 3,
+          "tr": "他们几点见面？",
+          "why": "Vi møtes klokka elleve：十一点。"
+        },
+        {
+          "id": "A2-2-8-5",
+          "question": "Hva skal Amir ta med?",
+          "options": [
+            "En kost",
+            "Kaffe"
+          ],
+          "answer": 0,
+          "points": 3,
+          "tr": "阿米尔要带什么？",
+          "why": "Ta gjerne med en kost：带一把扫帚。"
+        }
+      ]
+    },
+    {
+      "id": "A2-2-9",
+      "kind": "write",
+      "bonus": true,
+      "title": {
+        "nb": "Tilleggspoeng – kapittel 11",
+        "zh": "附加分 · 第 11 章"
+      },
+      "points": 10,
+      "task": {
+        "nb": "Svar med hele setninger.",
+        "zh": "用完整的句子回答。"
+      },
+      "items": [
+        {
+          "id": "A2-2-9-1",
+          "prompt": {
+            "nb": "Skriv tre setninger om en ny opplevelse. Bruk minst ett verb i presens perfektum.",
+            "zh": "写三句话，讲一次新的经历。至少用一个现在完成时的动词。"
+          },
+          "points": 4,
+          "sentences": 3,
+          "rubric": "3 poeng for tre forståelige og relevante setninger, og 1 poeng for minst ett riktig verb i presens perfektum.",
+          "model": "Jeg har prøvd å gå på ski for første gang. Det var vanskelig, men veldig morsomt. Nå har jeg lyst til å prøve igjen.",
+          "modelZh": "我第一次试了滑雪。很难，但非常好玩。现在我想再试一次。"
+        },
+        {
+          "id": "A2-2-9-2",
+          "prompt": {
+            "nb": "Skriv tre setninger om hvordan du kan hjelpe en ny nabo.",
+            "zh": "写三句话，讲你可以怎样帮助一位新邻居。"
+          },
+          "points": 3,
+          "sentences": 3,
+          "rubric": "3 poeng for tre relevante setninger.",
+          "model": "Jeg kan vise naboen hvor butikken ligger. Jeg kan hjelpe med å bære esker. Jeg kan invitere naboen på kaffe.",
+          "modelZh": "我可以告诉邻居商店在哪里。我可以帮忙搬箱子。我可以请邻居来喝咖啡。"
+        },
+        {
+          "id": "A2-2-9-3",
+          "prompt": {
+            "nb": "Forklar med egne ord hva «dugnad» betyr.",
+            "zh": "用自己的话解释 «dugnad» 是什么意思。"
+          },
+          "points": 3,
+          "sentences": 1,
+          "rubric": "3 poeng for en forståelig forklaring av frivillig arbeid som man gjør sammen.",
+          "model": "Dugnad er når naboer eller andre jobber sammen uten lønn, for eksempel for å rydde eller male.",
+          "modelZh": "dugnad 就是邻居或其他人一起义务干活，不拿工钱，比如一起打扫或刷油漆。"
+        }
+      ]
+    }
+  ]
+}
