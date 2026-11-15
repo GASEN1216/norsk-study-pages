@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261113-quiz-feedback';
-import {createReadingLibrary} from './reading-library.mjs?v=20261113-quiz-feedback';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261113-quiz-feedback';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261113-quiz-feedback';
-import * as notesModel from './notes-store.mjs?v=20261113-quiz-feedback';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261113-quiz-feedback';
+import {createDataLoader} from './loader.mjs?v=20261115-mic';
+import {createReadingLibrary} from './reading-library.mjs?v=20261115-mic';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261115-mic';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261115-mic';
+import * as notesModel from './notes-store.mjs?v=20261115-mic';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261115-mic';
 
-const VERSION = '20261113-quiz-feedback';
+const VERSION = '20261115-mic';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -1145,7 +1145,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261113-quiz-feedback').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261115-mic').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1417,15 +1417,24 @@ const WORD_BYTES_LIMIT = 400, WORD_BUFFER_LIMIT = 60;
 let wordWebAudio;
 function wordWebAudioAllowed() {
   if (wordWebAudio !== undefined) return wordWebAudio;
-  if (navigator.audioSession) { try { navigator.audioSession.type = 'playback'; } catch {} return wordWebAudio = true; }
+  if (navigator.audioSession) return wordWebAudio = true;
   return wordWebAudio = !(/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+}
+// A page asking for playback audio is refused the microphone (WebKit), so while one is open (chase-speech.mjs switches
+// the session to play-and-record and says so in NorskMicrophone) it is left alone; the next tap after the microphone
+// has closed asks for playback again.
+function playbackAudioSession() {
+  const session = navigator.audioSession;
+  if (!session || session.type === 'playback') return;
+  try { if (window.NorskMicrophone?.live?.()) return; } catch {}
+  try { session.type = 'playback'; } catch {}
 }
 function wordAudioContext() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext || !wordWebAudioAllowed()) return null;
+  playbackAudioSession();
   if (wordClips.context?.state === 'interrupted') releaseWordAudio();
   if (!wordClips.context || wordClips.context.state === 'closed') {
-    if (navigator.audioSession) { try { navigator.audioSession.type = 'playback'; } catch {} }
     try { wordClips.context = new AudioContext(); } catch { wordClips.context = null; }
   }
   return wordClips.context;

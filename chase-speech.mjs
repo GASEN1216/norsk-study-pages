@@ -240,12 +240,34 @@ function micFailure(error) {
 }
 const VOICE_SETTINGS = {echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1};
 
+// iOS 17+: app.js sets the page's audio session to 'playback' on the first tap, so word readings sound with the silent
+// switch on — and WebKit refuses the microphone to a page whose session says 'playback', before any question
+// (InvalidStateError "AudioSession category is not compatible with audio capture"): every iPhone browser said 没有找到麦克风
+// or 麦克风打不开 with the permission on (2026-11-15). So the session is switched to play-and-record (sound still plays,
+// through the speaker, silent switch or not) before the microphone is asked for. window.NorskMicrophone.live() tells
+// app.js a microphone is still open, so it does not ask for 'playback' again until all are closed.
+const openStreams = new Set();
+function microphoneLive() {
+  for (const stream of openStreams) {
+    if (stream.getTracks().some(track => track.readyState === 'live')) return true;
+    openStreams.delete(stream);
+  }
+  return false;
+}
+function recordingSession() {
+  if (typeof window === 'object' && !window.NorskMicrophone) window.NorskMicrophone = {live:microphoneLive};
+  const session = typeof navigator === 'object' ? navigator.audioSession : null;
+  if (!session || session.type === 'auto' || session.type === 'play-and-record') return;
+  try { session.type = 'play-and-record'; } catch {}
+}
+
 /** The microphone as an audio context (16 kHz where the browser allows, else the device's own rate), its stream and the
  *  stream's source node, for other listeners (dictation.mjs). Same rules as openMic: call it inside a tap.
  *  A phone that will not open the microphone the first way (a context already open, or the voice settings) is asked
  *  once more for the plain microphone with nothing else open; a refusal by the learner is never asked again. */
 export async function openInput() {
   if (!navigator.mediaDevices?.getUserMedia) throw micFailure({name:'NotSupportedError',message:'no mediaDevices'});
+  recordingSession();
   // Made inside the tap: iOS lets a context start only there (or while the microphone is open).
   let context = newContext();
   context.resume?.().catch(() => {});
@@ -258,6 +280,7 @@ export async function openInput() {
     catch (again) { throw micFailure(again); }
     context = newContext(true);
   }
+  openStreams.add(stream);
   if (context.state !== 'running') context.resume?.().catch(() => {});
   // A browser that cannot hear the microphone through a 16 kHz context (Firefox) gets one at its own rate.
   let source;
