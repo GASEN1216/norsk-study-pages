@@ -1,35 +1,530 @@
 {
-  "note": "A-team 面试的 15 题（与 dist/interview.mjs 的 QUESTIONS 同 id、同问句）和好回答通常包含的要点。要点给 AI 点评作参考，也在页面上作为提示。",
+  "note": "A-team 面试题库 1 的 15 题（与 dist/interview.mjs 的 QUESTIONS 同 id、同问句）。points = 三步答（页面「怎么答 · 思路」显示，也给 AI 点评作参考）；more = 还可以说；note = 注意；also = 老师也可能这样问；words = 词汇；frames = 句型（___ 是空）；sample = 示例回答（[[ ]] 里是换成自己情况的部分）；followUps = 老师追问和简短参考回答（id 也是录音文件名和 AI 点评的题号）。录音见 dist/data/exam/audio.json（scripts/generate_exam_audio.py）。",
   "questions": [
     {"id": "ateam-01", "no": "Hvordan er været i dag?", "zh": "今天天气如何？",
-     "points": ["说出今天的天气：晴、下雨、下雪、刮风、多云", "冷还是热，大约几度", "可以加一句自己喜欢不喜欢这种天气，或今天打算做什么"]},
+     "also": ["Hvordan er været hos dere i dag?"],
+     "points": ["先说今天的天气：晴天、阴天、下雨还是下雪", "再说大约几度，最近天气怎么样", "加一句感受：喜不喜欢这种天气，或今天打算做什么"],
+     "more": ["你们那里四季区别明显吗？", "夏天有多热，冬天有多冷，会下雪吗？", "哪个季节雨比较多？", "你最喜欢哪个季节，为什么？", "天气怎样影响生活：穿衣、开空调、出门？"],
+     "note": "老师说 hos dere，问的是“你们那边”的天气。可以用 Her i …（我们……这里）开头。",
+     "words": [
+       {"no": "sol", "zh": "太阳；阳光"},
+       {"no": "overskyet", "zh": "阴天；多云"},
+       {"no": "det regner", "zh": "下雨"},
+       {"no": "det snør", "zh": "下雪"},
+       {"no": "det blåser", "zh": "刮风"},
+       {"no": "varmt / kaldt", "zh": "热 / 冷"},
+       {"no": "grader", "zh": "度"},
+       {"no": "fuktig", "zh": "潮湿"},
+       {"no": "årstid", "zh": "季节"},
+       {"no": "vår, sommer, høst, vinter", "zh": "春天、夏天、秋天、冬天"}
+     ],
+     "frames": [
+       {"no": "Her i ___ er det ___ i dag.", "zh": "今天我们 ___ 这里 ___。"},
+       {"no": "Det er cirka ___ grader.", "zh": "大约 ___ 度。"},
+       {"no": "Om sommeren er det ___, og om vinteren er det ___.", "zh": "夏天 ___，冬天 ___。"},
+       {"no": "Jeg liker ___ best, fordi ___.", "zh": "我最喜欢 ___，因为 ___。"}
+     ],
+     "sample": {
+       "no": "Her i [[Shanghai]] er det [[overskyet]] i dag, og det er cirka [[ti]] grader. Det har regnet mye denne uka. Om sommeren er det veldig varmt og fuktig her, men om vinteren er det ganske kaldt. Det snør nesten aldri. Jeg liker høsten best, fordi det ikke er så varmt da.",
+       "zh": "今天我们[[上海]]这里[[阴天]]，大约[[十]]度。这个星期下了很多雨。这里夏天很热、很潮湿，冬天比较冷，几乎不下雪。我最喜欢秋天，因为那时候没那么热。"
+     },
+     "followUps": [
+       {"id": "ateam-01-f1", "no": "Hvor mange grader er det hos dere nå?", "zh": "你们那边现在多少度？",
+        "answer": {"no": "Nå er det cirka ti grader. Det er litt kaldere enn i går.", "zh": "现在大约十度，比昨天冷一点。"}},
+       {"id": "ateam-01-f2", "no": "Er det stor forskjell på årstidene hos dere?", "zh": "你们那边四季的区别大吗？",
+        "answer": {"no": "Ja, ganske stor. Om sommeren er det over tretti grader, og om vinteren er det bare noen få grader.", "zh": "挺大的。夏天三十多度，冬天只有几度。"}}
+     ]},
+
     {"id": "ateam-02", "no": "Når pleier dere å ha ungdomsmøter?", "zh": "你们通常什么时候有年轻人聚会？",
-     "points": ["星期几、几点", "多久一次（每周、每月）", "可以加一句聚会上做什么"]},
+     "points": ["先说星期几、几点开始，大约几点结束", "再说聚会上做什么：唱诗、分享、祷告", "加一句：聚会后做什么，或你最喜欢哪一部分"],
+     "more": ["为什么安排在这个时间？", "大家是从家里、学校还是下班后过来？", "聚会后会不会一起吃东西、聊天或做活动？", "你在聚会上通常负责什么？"],
+     "words": [
+       {"no": "ungdomsmøte", "zh": "青年聚会"},
+       {"no": "hver lørdag", "zh": "每个星期六"},
+       {"no": "klokka sju", "zh": "七点"},
+       {"no": "begynne / slutte", "zh": "开始 / 结束"},
+       {"no": "vare", "zh": "持续（多长时间）"},
+       {"no": "synge", "zh": "唱歌；唱诗"},
+       {"no": "dele", "zh": "分享"},
+       {"no": "be", "zh": "祷告"},
+       {"no": "prate", "zh": "聊天"},
+       {"no": "etterpå", "zh": "之后；然后"}
+     ],
+     "frames": [
+       {"no": "Vi har ungdomsmøte hver ___ klokka ___.", "zh": "我们每个 ___ 的 ___ 点有青年聚会。"},
+       {"no": "Møtet varer i cirka ___ timer.", "zh": "聚会大约 ___ 个小时。"},
+       {"no": "På møtet synger vi, og ___.", "zh": "聚会上我们唱诗，还会 ___。"},
+       {"no": "Etter møtet pleier vi å ___.", "zh": "聚会后我们通常 ___。"}
+     ],
+     "sample": {
+       "no": "Vi har ungdomsmøte hver [[lørdag]] klokka [[sju]] om kvelden. Møtet varer i cirka [[to]] timer. Vi synger sammen, og noen deler noe fra Bibelen. Etter møtet pleier vi å spise litt og prate. Det liker jeg godt, fordi jeg blir bedre kjent med de andre.",
+       "zh": "我们每个[[星期六]]晚上[[七]]点有青年聚会，大约[[两]]个小时。我们一起唱诗，也有人分享圣经里的话。聚会后我们通常吃点东西、聊聊天。我很喜欢这样，因为能和大家更熟。"
+     },
+     "followUps": [
+       {"id": "ateam-02-f1", "no": "Hvorfor har dere ungdomsmøtene akkurat den dagen?", "zh": "你们为什么把青年聚会安排在那一天？",
+        "answer": {"no": "Fordi de fleste har fri da. På hverdagene har mange skole eller jobb.", "zh": "因为那天大多数人休息。平时很多人要上学或上班。"}},
+       {"id": "ateam-02-f2", "no": "Hva pleier dere å gjøre etter møtet?", "zh": "聚会结束后，你们通常做什么？",
+        "answer": {"no": "Vi pleier å spise litt og prate sammen. Noen ganger spiller vi spill.", "zh": "我们通常吃点东西、一起聊天，有时候也玩游戏。"}}
+     ]},
+
     {"id": "ateam-03", "no": "Hvor mange personer er det i menigheten din?", "zh": "你们教会有多少人？",
-     "points": ["说出大约的人数", "可以说年轻人有多少、在哪个城市"]},
+     "also": ["Hvor mange er dere i menigheten?"],
+     "points": ["先说大约多少人（不知道准确数字就说 cirka）", "再说有多少年轻人、孩子和大人", "加一句教会的特点：大家很熟、常常互相帮助"],
+     "more": ["大家住得近吗，有人要从远处过来吗？", "你从小就在这个教会，还是后来才来的？", "除了青年聚会，还有哪些聚会或活动？", "你和教会的朋友平时一起做什么？"],
+     "note": "不知道准确人数，说大约（cirka）就好，不用为了回答把各年龄段的人数凑出来。",
+     "words": [
+       {"no": "menighet", "zh": "教会"},
+       {"no": "cirka / omtrent", "zh": "大约"},
+       {"no": "ungdommer", "zh": "年轻人"},
+       {"no": "barn", "zh": "孩子"},
+       {"no": "voksne", "zh": "大人；成年人"},
+       {"no": "bo i nærheten", "zh": "住在附近"},
+       {"no": "langt unna", "zh": "很远"},
+       {"no": "kjenne hverandre", "zh": "互相认识"},
+       {"no": "hjelpe hverandre", "zh": "互相帮助"},
+       {"no": "siden jeg var liten", "zh": "从小"}
+     ],
+     "frames": [
+       {"no": "Vi er cirka ___ personer i menigheten.", "zh": "我们教会大约有 ___ 人。"},
+       {"no": "Cirka ___ av dem er ungdommer.", "zh": "其中大约 ___ 个是年轻人。"},
+       {"no": "De fleste bor ___.", "zh": "大多数人住在 ___。"},
+       {"no": "Jeg har vært med i menigheten siden ___.", "zh": "我从 ___ 就在这个教会。"}
+     ],
+     "sample": {
+       "no": "Vi er cirka [[åtti]] personer i menigheten. Cirka [[tjue]] av dem er ungdommer, og resten er barn og voksne. De fleste bor i [[samme by]], men noen bor ganske langt unna. Vi kjenner hverandre godt og hjelper hverandre mye. Jeg har vært med i menigheten siden jeg var [[liten]].",
+       "zh": "我们教会大约有[[八十]]人，其中大约[[二十]]个是年轻人，其余是孩子和大人。大多数人住在[[同一个城市]]，也有人住得比较远。我们彼此很熟，也常常互相帮助。我从[[小]]就在这个教会。"
+     },
+     "followUps": [
+       {"id": "ateam-03-f1", "no": "Hvor mange ungdommer er det i menigheten?", "zh": "教会里有多少年轻人？",
+        "answer": {"no": "Det er cirka tjue ungdommer. Vi møtes hver uke.", "zh": "大约二十个年轻人，我们每周都见面。"}},
+       {"id": "ateam-03-f2", "no": "Har du vært i denne menigheten siden du var liten?", "zh": "你从小就在这个教会吗？",
+        "answer": {"no": "Ja, jeg har vært med siden jeg var liten, fordi foreldrene mine også er med.", "zh": "是的，我从小就在，因为我父母也在这个教会。"}}
+     ]},
+
     {"id": "ateam-04", "no": "Hva gjør du vanligvis på fritiden din?", "zh": "你在空闲时间一般会做什么？",
-     "points": ["说出一两个爱好或活动", "多久做一次、和谁一起", "为什么喜欢"]},
+     "also": ["Hva pleier du å gjøre på fritiden?"],
+     "points": ["先说一两个爱好", "再举具体例子：喜欢哪一类、多久一次、和谁一起", "加一句为什么喜欢，或最近做过什么"],
+     "more": ["你是什么时候开始喜欢的？", "最近有没有做过一个作品、读过一本书或试过新食谱？", "累的时候喜欢怎样放松？", "有没有想学的新爱好？"],
+     "note": "说具体：不只说“喜欢拍照”，可以说给猫、朋友或风景拍照；不只说“喜欢烘焙”，可以说最近在学做哪种蛋糕。",
+     "words": [
+       {"no": "fritid", "zh": "空闲时间"},
+       {"no": "hobby", "zh": "爱好"},
+       {"no": "ta bilder", "zh": "拍照"},
+       {"no": "bake", "zh": "烤（面包、蛋糕）；烘焙"},
+       {"no": "lese bøker", "zh": "看书"},
+       {"no": "høre på musikk", "zh": "听音乐"},
+       {"no": "gå tur", "zh": "散步"},
+       {"no": "trene", "zh": "锻炼"},
+       {"no": "slappe av", "zh": "放松"},
+       {"no": "oppskrift", "zh": "食谱"},
+       {"no": "ofte / noen ganger", "zh": "常常 / 有时候"}
+     ],
+     "frames": [
+       {"no": "På fritiden liker jeg å ___.", "zh": "空闲时我喜欢 ___。"},
+       {"no": "Jeg gjør det cirka ___ ganger i uka.", "zh": "我每周大约做 ___ 次。"},
+       {"no": "Jeg begynte med det for ___ år siden.", "zh": "我 ___ 年前开始的。"},
+       {"no": "Nylig har jeg ___.", "zh": "最近我 ___。"},
+       {"no": "Når jeg er sliten, liker jeg å ___.", "zh": "累的时候，我喜欢 ___。"}
+     ],
+     "sample": {
+       "no": "På fritiden liker jeg å [[bake]] og [[ta bilder]]. Jeg baker cirka [[en gang i uka]], ofte sammen med [[søsteren min]]. Nylig har jeg lært å lage [[en sjokoladekake]]. Jeg liker også å ta bilder av [[katten min]] og av naturen. Når jeg er sliten, liker jeg å høre på musikk.",
+       "zh": "空闲时我喜欢[[烘焙]]和[[拍照]]。我大约[[每周烤一次]]，常常和[[我妹妹]]一起。最近我学会了做[[巧克力蛋糕]]。我也喜欢给[[我的猫]]和大自然拍照。累的时候，我喜欢听音乐。"
+     },
+     "followUps": [
+       {"id": "ateam-04-f1", "no": "Hvordan begynte du med denne hobbyen?", "zh": "你是怎么开始这个爱好的？",
+        "answer": {"no": "Jeg begynte for to år siden. En venn lærte meg å bake, og jeg syntes det var gøy.", "zh": "我两年前开始的。一个朋友教我烘焙，我觉得很好玩。"}},
+       {"id": "ateam-04-f2", "no": "Hva liker du best med denne hobbyen?", "zh": "你最喜欢这个爱好的什么地方？",
+        "answer": {"no": "Jeg liker å lage noe med hendene. Og det er hyggelig å gi kaker til andre.", "zh": "我喜欢自己动手做出东西，把蛋糕送给别人也很开心。"}},
+       {"id": "ateam-04-f3", "no": "Hva slags bøker liker du å lese?", "zh": "你喜欢读什么类型的书？",
+        "answer": {"no": "Jeg liker best bøker om historie, og noen ganger leser jeg romaner.", "zh": "我最喜欢历史方面的书，有时候也看小说。"}}
+     ]},
+
     {"id": "ateam-05", "no": "Hva jobber foreldrene dine med?", "zh": "你的爸爸妈妈是做什么工作的？",
-     "points": ["爸爸的工作", "妈妈的工作", "可以说在哪里工作，或已经退休"]},
+     "points": ["先分别说爸爸、妈妈做什么工作", "再说具体做什么、在哪里、做了多久", "加一句他们的爱好，或你从他们那里学到了什么"],
+     "more": ["他们平时忙不忙？", "现在没有工作的话，可以说以前做什么、现在平时做什么", "他们空闲时喜欢做什么？", "你从他们那里学到了什么本领？"],
+     "note": "因为身体原因没有上班，不等于退休（pensjonert）。可以照实说：Mamma jobber ikke nå.（妈妈现在没有工作。）要不要解释原因，由你自己决定。",
+     "words": [
+       {"no": "foreldre", "zh": "父母"},
+       {"no": "pappa / mamma", "zh": "爸爸 / 妈妈"},
+       {"no": "jobbe som", "zh": "当……；做……工作"},
+       {"no": "fabrikk", "zh": "工厂"},
+       {"no": "kontor", "zh": "办公室"},
+       {"no": "butikk", "zh": "商店"},
+       {"no": "ha ansvar for", "zh": "负责"},
+       {"no": "travel", "zh": "忙"},
+       {"no": "pensjonert", "zh": "退休了"},
+       {"no": "jobber ikke nå", "zh": "现在没有工作"},
+       {"no": "lære av", "zh": "跟……学"}
+     ],
+     "frames": [
+       {"no": "Pappa jobber som ___.", "zh": "爸爸是 ___（做什么的）。"},
+       {"no": "Mamma jobber på ___.", "zh": "妈妈在 ___ 工作。"},
+       {"no": "Han har ansvar for ___.", "zh": "他负责 ___。"},
+       {"no": "Hun har jobbet der i ___ år.", "zh": "她在那里做了 ___ 年。"},
+       {"no": "Jeg har lært å ___ av henne.", "zh": "我跟她学会了 ___。"}
+     ],
+     "sample": {
+       "no": "Pappa jobber på [[en fabrikk]] som lager [[møbler]]. Han har ansvar for [[maskinene]], og han har jobbet der i [[femten]] år. Mamma jobber ikke nå, men før jobbet hun i [[en butikk]]. Nå liker hun å lage mat og gå tur. Jeg har lært å lage mat av henne.",
+       "zh": "爸爸在一家做[[家具]]的[[工厂]]上班，他负责[[机器]]，在那里做了[[十五]]年。妈妈现在没有工作，以前在[[商店]]上班。现在她喜欢做饭、散步。我跟她学会了做饭。"
+     },
+     "followUps": [
+       {"id": "ateam-05-f1", "no": "Hva slags oppgaver har de på jobben?", "zh": "他们在工作中具体负责什么？",
+        "answer": {"no": "Pappa passer på maskinene. Hvis noe går i stykker, fikser han det.", "zh": "爸爸看管机器。哪里坏了，他就修。"}},
+       {"id": "ateam-05-f2", "no": "Hva liker foreldrene dine å gjøre på fritiden?", "zh": "你父母空闲的时候喜欢做什么？",
+        "answer": {"no": "Pappa liker å fiske, og mamma liker å lage mat og gå tur.", "zh": "爸爸喜欢钓鱼，妈妈喜欢做饭和散步。"}}
+     ]},
+
     {"id": "ateam-06", "no": "Hvor mange personer er det i familien din?", "zh": "你们家有多少人？",
-     "points": ["说出人数", "都有谁：父母、兄弟姐妹", "可以加一句他们住在哪里或做什么"]},
+     "also": ["Hvor mange er dere i familien?"],
+     "points": ["先说家里几口人，都有谁", "再说兄弟姐妹多大、在上学还是工作，你是老几", "加一句一家人常一起做什么"],
+     "more": ["你们现在住在一起吗？", "家里有宠物吗，谁照顾？", "兄弟姐妹比你大或小几岁？", "你和兄弟姐妹有共同的爱好吗？"],
+     "words": [
+       {"no": "familie", "zh": "家；家庭"},
+       {"no": "søsken", "zh": "兄弟姐妹"},
+       {"no": "bror", "zh": "哥哥；弟弟"},
+       {"no": "søster", "zh": "姐姐；妹妹"},
+       {"no": "eldst / yngst", "zh": "最大 / 最小"},
+       {"no": "eldre / yngre enn", "zh": "比……大 / 比……小"},
+       {"no": "bo sammen", "zh": "住在一起"},
+       {"no": "leilighet", "zh": "（一套）房子；公寓"},
+       {"no": "kjæledyr", "zh": "宠物"},
+       {"no": "passe på", "zh": "照顾；看着"},
+       {"no": "gå på skolen", "zh": "上学"}
+     ],
+     "frames": [
+       {"no": "Vi er ___ i familien: ___.", "zh": "我们家有 ___ 口人：___。"},
+       {"no": "Jeg er den eldste / yngste.", "zh": "我是老大 / 最小的。"},
+       {"no": "Søsteren min er ___ år yngre enn meg.", "zh": "我妹妹比我小 ___ 岁。"},
+       {"no": "Sammen liker vi å ___.", "zh": "我们一起的时候喜欢 ___。"}
+     ],
+     "sample": {
+       "no": "Vi er [[fem]] i familien: pappa, mamma, [[to lillesøstre]] og meg. Jeg er den eldste. Søstrene mine er [[seksten og tolv]] år, og begge går på skolen. Vi bor sammen i [[en leilighet]], og vi har også [[en katt]]. I helgene liker vi å lage mat sammen eller gå tur.",
+       "zh": "我们家有[[五]]口人：爸爸、妈妈、[[两个妹妹]]和我。我是老大。我的妹妹们[[十六岁和十二岁]]，都在上学。我们一起住在[[一套公寓]]里，还养了[[一只猫]]。周末我们喜欢一起做饭或者散步。"
+     },
+     "followUps": [
+       {"id": "ateam-06-f1", "no": "Hvor gamle er søsknene dine?", "zh": "你的兄弟姐妹多大了？",
+        "answer": {"no": "Søstrene mine er seksten og tolv år. Den yngste er åtte år yngre enn meg.", "zh": "我妹妹们十六岁和十二岁，最小的比我小八岁。"}},
+       {"id": "ateam-06-f2", "no": "Hva liker dere å gjøre sammen som familie?", "zh": "你们一家人喜欢一起做什么？",
+        "answer": {"no": "Vi liker å spise middag sammen og prate. Noen ganger drar vi på tur i helgene.", "zh": "我们喜欢一起吃晚饭、聊天，有时候周末一起出去玩。"}}
+     ]},
+
     {"id": "ateam-07", "no": "Hva slags frivillig arbeid (dugnad) gjør du vanligvis?", "zh": "你通常会做什么义工？",
-     "points": ["说出做过的义工：打扫、做饭、帮孩子、布置场地等", "在哪里、多久一次", "可以说喜欢它的原因"]},
+     "also": ["Hva slags dugnadsarbeid pleier du å være med på?"],
+     "points": ["先说你做过什么：打扫、厨房、布置、搬东西等", "再说多久一次、在哪里、和谁一起", "加一句最近一次做了什么，或学到了什么"],
+     "more": ["教会有没有组织大家一起义务干活或筹款？", "你通常负责什么：打扫、厨房、采购、布置还是搬东西？", "哪类工作你比较熟悉或喜欢？", "做这些事时，你学到了什么？"],
+     "note": "没有固定的义工也可以照实说，再讲你在教会活动里怎样帮忙：活动前怎样准备、自己负责哪些采购或布置。不要只停在“我们没有”。",
+     "words": [
+       {"no": "dugnad", "zh": "大家一起义务干活"},
+       {"no": "frivillig arbeid", "zh": "义工；志愿工作"},
+       {"no": "hjelpe til med", "zh": "帮忙（做）"},
+       {"no": "rydde", "zh": "收拾；整理"},
+       {"no": "vaske", "zh": "洗；打扫"},
+       {"no": "kjøkken", "zh": "厨房"},
+       {"no": "handle", "zh": "买东西"},
+       {"no": "pynte", "zh": "布置；装饰"},
+       {"no": "bære", "zh": "搬；拿"},
+       {"no": "arrangement", "zh": "活动"},
+       {"no": "samarbeide", "zh": "合作"},
+       {"no": "forberede", "zh": "准备"}
+     ],
+     "frames": [
+       {"no": "Jeg pleier å hjelpe til med ___.", "zh": "我通常帮忙 ___。"},
+       {"no": "Før et arrangement pleier jeg å ___.", "zh": "活动前我通常 ___。"},
+       {"no": "Sist gang ___ jeg ___.", "zh": "上一次我 ___。"},
+       {"no": "Jeg har lært å ___.", "zh": "我学会了 ___。"}
+     ],
+     "sample": {
+       "no": "Når menigheten har et arrangement, pleier jeg å hjelpe til på [[kjøkkenet]]. Før arrangementet [[handler jeg mat]], og etterpå [[vasker og rydder]] jeg sammen med de andre. Sist gang [[pyntet vi salen]] til [[julefesten]]. Det var mye arbeid, men det var gøy. Jeg har lært å samarbeide og å planlegge godt.",
+       "zh": "教会有活动时，我通常在[[厨房]]帮忙。活动前我[[去买菜]]，结束后和大家一起[[洗碗收拾]]。上一次我们为[[圣诞聚会]][[布置了大厅]]。活儿很多，但很开心。我学会了和人合作，也学会了好好安排。"
+     },
+     "followUps": [
+       {"id": "ateam-07-f1", "no": "Hva pleier du å hjelpe til med når menigheten har aktiviteter?", "zh": "教会有活动时，你通常帮忙做什么？",
+        "answer": {"no": "Jeg pleier å hjelpe til på kjøkkenet og med å rydde etterpå.", "zh": "我通常在厨房帮忙，结束后帮忙收拾。"}},
+       {"id": "ateam-07-f2", "no": "Kan du fortelle om sist du var med og hjalp til?", "zh": "你可以讲讲最近一次帮忙的经历吗？",
+        "answer": {"no": "Sist gang pyntet vi salen til julefesten. Jeg bar bord og stoler og hengte opp lys.", "zh": "上次我们为圣诞聚会布置大厅。我搬桌椅，还挂了灯。"}}
+     ]},
+
     {"id": "ateam-08", "no": "Hva er jobben din?", "zh": "你的工作是什么？",
-     "points": ["说出工作或身份（学生也可以）", "在哪里工作或上学", "可以说每天做什么"]},
+     "points": ["先说你做什么工作、在哪里（学生就说在哪里上学、学什么）", "再说具体负责哪些事、做了多久", "加一句最喜欢工作的哪一部分，或哪里比较难"],
+     "more": ["当初为什么开始做这份工作？", "你通常一个人做，还是和同事合作？", "有两份工作的话，怎样安排时间，两份有什么不同？", "你具体负责哪一步？"],
+     "note": "说具体的事，不只说“在公司上班”：拍的是产品还是人像？工厂生产什么？进出口工作里你负责哪一步？",
+     "words": [
+       {"no": "jobbe som", "zh": "当……；做……工作"},
+       {"no": "firma", "zh": "公司"},
+       {"no": "oppgave", "zh": "任务；要做的事"},
+       {"no": "ha ansvar for", "zh": "负责"},
+       {"no": "kollega", "zh": "同事"},
+       {"no": "kunde", "zh": "客户；顾客"},
+       {"no": "produkt", "zh": "产品"},
+       {"no": "fotograf", "zh": "摄影师"},
+       {"no": "redigere", "zh": "修改；修（图）"},
+       {"no": "deltid / heltid", "zh": "兼职 / 全职"},
+       {"no": "studere", "zh": "上大学；学习"}
+     ],
+     "frames": [
+       {"no": "Jeg jobber som ___ i ___.", "zh": "我在 ___ 当 ___。"},
+       {"no": "Jeg har ansvar for ___.", "zh": "我负责 ___。"},
+       {"no": "Jeg har jobbet der i ___ år.", "zh": "我在那里做了 ___ 年。"},
+       {"no": "Det jeg liker best, er ___.", "zh": "我最喜欢的是 ___。"},
+       {"no": "Det vanskeligste er ___.", "zh": "最难的是 ___。"}
+     ],
+     "sample": {
+       "no": "Jeg jobber som [[fotograf]] i [[et lite firma]]. Jeg tar bilder av [[produkter]] til [[nettbutikker]], og etterpå redigerer jeg bildene på PC-en. Jeg har jobbet der i [[to]] år. Ofte samarbeider jeg med kollegaene mine. Det jeg liker best, er at jeg kan være kreativ.",
+       "zh": "我在[[一家小公司]]当[[摄影师]]。我给[[网店]]拍[[产品]]照片，拍完在电脑上修图。我在那里做了[[两]]年。我常常和同事一起合作。我最喜欢的是可以发挥创意。"
+     },
+     "followUps": [
+       {"id": "ateam-08-f1", "no": "Hva slags oppgaver har du på jobben?", "zh": "你在工作中具体负责什么？",
+        "answer": {"no": "Jeg tar bilder av produkter og redigerer dem. Noen ganger snakker jeg også med kundene.", "zh": "我拍产品照片、修图，有时候也和客户沟通。"}},
+       {"id": "ateam-08-f2", "no": "Hva liker du best med jobben din?", "zh": "你最喜欢这份工作的哪一部分？",
+        "answer": {"no": "Jeg liker best at jeg kan være kreativ. Det er gøy når kunden blir fornøyd.", "zh": "我最喜欢可以发挥创意。客户满意的时候我很开心。"}}
+     ]},
+
     {"id": "ateam-09", "no": "Hvordan ser en typisk dag ut for deg?", "zh": "你的一天通常是怎么样的？",
-     "points": ["早上几点起床、做什么", "白天上班或上学", "晚上做什么、几点睡觉", "用 først, så, etterpå 这类词串起来"]},
+     "also": ["Hvordan ser en vanlig dag ut for deg?"],
+     "points": ["先说早上：几点起床，怎么去上班或上学", "再挑白天和晚上的两三件事", "加一句周末有什么不同，或什么时候最放松"],
+     "more": ["路上要多久？", "午休时吃饭、休息还是学习？", "晚饭通常怎么解决？", "一天里什么时候最忙，什么时候最放松？"],
+     "note": "不用一小时一小时地报流水账，挑两三件最能代表你生活的事，比如午休上挪威语课、晚上做饭、周末开烘焙工作室。用 først, så, etterpå 串起来。",
+     "words": [
+       {"no": "stå opp", "zh": "起床"},
+       {"no": "frokost", "zh": "早饭"},
+       {"no": "lunsj", "zh": "午饭"},
+       {"no": "middag", "zh": "晚饭"},
+       {"no": "ta bussen", "zh": "坐公交车"},
+       {"no": "det tar ___ minutter", "zh": "要 ___ 分钟"},
+       {"no": "lunsjpause", "zh": "午休"},
+       {"no": "komme hjem", "zh": "回家"},
+       {"no": "legge seg", "zh": "上床睡觉"},
+       {"no": "hverdag / helg", "zh": "平时 / 周末"},
+       {"no": "først, så, etterpå", "zh": "先、然后、之后"}
+     ],
+     "frames": [
+       {"no": "Jeg står opp klokka ___.", "zh": "我 ___ 点起床。"},
+       {"no": "Først ___, så ___.", "zh": "先 ___，然后 ___。"},
+       {"no": "Det tar cirka ___ minutter.", "zh": "大约要 ___ 分钟。"},
+       {"no": "I lunsjpausen ___.", "zh": "午休时 ___。"},
+       {"no": "Jeg legger meg cirka klokka ___.", "zh": "我大约 ___ 点睡觉。"},
+       {"no": "I helgene er det annerledes: ___.", "zh": "周末不一样：___。"}
+     ],
+     "sample": {
+       "no": "Jeg står opp klokka [[sju]]. Først spiser jeg frokost, så tar jeg [[bussen]] til jobben. Det tar cirka [[tretti]] minutter. I lunsjpausen har jeg [[norskkurs på nettet]]. Etter jobb lager jeg middag og ser litt på [[norske videoer]]. Jeg legger meg cirka klokka [[elleve]].",
+       "zh": "我[[七]]点起床。先吃早饭，然后坐[[公交车]]去上班，大约要[[三十]]分钟。午休时我上[[挪威语网课]]。下班后我做晚饭，再看一会儿[[挪威语视频]]。我大约[[十一]]点睡觉。"
+     },
+     "followUps": [
+       {"id": "ateam-09-f1", "no": "Hva pleier du å gjøre etter jobb eller skole?", "zh": "下班或放学后，你通常做什么？",
+        "answer": {"no": "Jeg lager middag, og etterpå øver jeg litt på norsk.", "zh": "我做晚饭，之后练一会儿挪威语。"}},
+       {"id": "ateam-09-f2", "no": "Er helgene dine annerledes enn hverdagene?", "zh": "你的周末和平时不一样吗？",
+        "answer": {"no": "Ja, i helgene sover jeg lenger, og på lørdag går jeg på ungdomsmøte.", "zh": "是的，周末我睡得久一点，星期六还去青年聚会。"}}
+     ]},
+
     {"id": "ateam-10", "no": "Hvorfor vil du komme til A-laget?", "zh": "你为什么想要来 A-team？",
-     "points": ["说出一两个原因：学挪威语、认识朋友、成长、服务", "用 fordi 说明原因", "可以说对 A-team 的期待"]},
+     "also": ["Hvorfor har du lyst til å bli med på A-laget?"],
+     "points": ["先说一两个原因，用 fordi", "再往下说一步：为什么这对你重要，希望它怎样影响你的生活", "加一句你能帮别人什么，或你已经做了哪些准备"],
+     "more": ["你最初是怎样知道 A-laget 的？", "有没有朋友或家人参加过，他们讲的什么让你感兴趣？", "为什么是现在想参加？", "除了得到帮助，你想怎样帮助别人？"],
+     "note": "不要停在“我想学习神的话语”“我想认识朋友”，再往下说一步：为什么这对你很重要？你希望它怎样改变你的生活？",
+     "words": [
+       {"no": "ha lyst til å", "zh": "想（做）"},
+       {"no": "bli med på", "zh": "参加；加入"},
+       {"no": "vokse i troen", "zh": "在信仰上成长"},
+       {"no": "Guds ord", "zh": "神的话语"},
+       {"no": "leve etter", "zh": "照着……生活"},
+       {"no": "i hverdagen", "zh": "在日常生活里"},
+       {"no": "bety mye for meg", "zh": "对我很重要"},
+       {"no": "bli kjent med", "zh": "认识；和……熟起来"},
+       {"no": "erfaring", "zh": "经验；经历"},
+       {"no": "hjelpe andre", "zh": "帮助别人"},
+       {"no": "forberede meg", "zh": "（我）做准备"}
+     ],
+     "frames": [
+       {"no": "Jeg har lyst til å bli med fordi ___.", "zh": "我想参加，因为 ___。"},
+       {"no": "Det betyr mye for meg, fordi ___.", "zh": "这对我很重要，因为 ___。"},
+       {"no": "Jeg håper at jeg kan ___.", "zh": "我希望我能 ___。"},
+       {"no": "Jeg hørte om A-laget fra ___.", "zh": "我是听 ___ 说起 A-laget 的。"},
+       {"no": "For å forberede meg har jeg ___.", "zh": "为了做准备，我已经 ___。"}
+     ],
+     "sample": {
+       "no": "Jeg har lyst til å bli med på A-laget fordi jeg vil vokse i troen. [[En venn]] var med for [[to]] år siden. Hun lærte mye om å leve etter Guds ord i hverdagen. Det betyr mye for meg, fordi jeg vil bli en bedre person. Jeg håper også å bli kjent med ungdommer fra andre land. For å forberede meg lærer jeg norsk hver dag.",
+       "zh": "我想参加 A-laget，因为我想在信仰上成长。[[我的一个朋友]][[两]]年前参加过。她学到了很多怎样在日常生活里照着神的话语生活。这对我很重要，因为我想成为更好的人。我也希望认识其他国家的年轻人。为了做准备，我每天都在学挪威语。"
+     },
+     "followUps": [
+       {"id": "ateam-10-f1", "no": "Hvordan fikk du høre om A-laget?", "zh": "你是怎样知道 A-laget 的？",
+        "answer": {"no": "En venn i menigheten fortalte meg om det. Hun var med for to år siden.", "zh": "教会里的一个朋友告诉我的，她两年前参加过。"}},
+       {"id": "ateam-10-f2", "no": "Hvorfor er det viktig for deg å bli med?", "zh": "为什么参加 A-laget 对你来说很重要？",
+        "answer": {"no": "Fordi jeg vil vokse i troen. På A-laget kan jeg lære det i praksis, sammen med andre ungdommer.", "zh": "因为我想在信仰上成长。在 A-laget，我可以和其他年轻人一起，在实际生活里学。"}}
+     ]},
+
     {"id": "ateam-11", "no": "Hvordan lærer du norsk?", "zh": "你是如何学习挪威语的？",
-     "points": ["学的方法：上课、课本、App、听录音、和人说话", "多久学一次", "可以说什么难、什么容易"]},
+     "points": ["先说谁在教你、有没有固定的课", "再说除了上课还用什么方法，每周学几次", "加一句哪种方法最有用，或什么最难"],
+     "more": ["每次学多久？", "你怎样练习口语？", "遇到听不懂或不会说的时候，你怎么办？"],
+     "note": "帮你的如果是教会里会挪威语的朋友，不一定是挪威人，可以说：Venner i menigheten som kan norsk, hjelper meg.（教会里会挪威语的朋友帮助我。）",
+     "words": [
+       {"no": "lærer", "zh": "老师"},
+       {"no": "kurs", "zh": "课程；（学习）班"},
+       {"no": "på nettet", "zh": "在网上"},
+       {"no": "lærebok", "zh": "课本"},
+       {"no": "øve på", "zh": "练习"},
+       {"no": "uttale", "zh": "发音"},
+       {"no": "ord", "zh": "词；单词"},
+       {"no": "grammatikk", "zh": "语法"},
+       {"no": "forstå", "zh": "懂；听懂"},
+       {"no": "vanskelig / lett", "zh": "难 / 容易"},
+       {"no": "snakke fort", "zh": "说得快"}
+     ],
+     "frames": [
+       {"no": "Jeg har norskkurs ___ ganger i uka.", "zh": "我每周上 ___ 次挪威语课。"},
+       {"no": "I tillegg ___ jeg ___.", "zh": "另外，我还 ___。"},
+       {"no": "Det som hjelper meg mest, er ___.", "zh": "对我最有帮助的是 ___。"},
+       {"no": "Det vanskeligste for meg er ___.", "zh": "对我来说最难的是 ___。"},
+       {"no": "Når jeg ikke forstår, ___.", "zh": "听不懂的时候，我 ___。"}
+     ],
+     "sample": {
+       "no": "Jeg har norskkurs på nettet [[to]] ganger i uka med [[en lærer fra menigheten]]. I tillegg bruker jeg [[Duolingo]] og hører på norsk hver dag. For å øve på å snakke prater jeg med [[venner i menigheten som kan norsk]]. Det som hjelper meg mest, er å lytte mye. Det vanskeligste for meg er å forstå når folk snakker fort.",
+       "zh": "我每周上[[两]]次挪威语网课，老师是[[教会里的一位老师]]。另外，我还用 [[Duolingo]]，每天都听挪威语。为了练口语，我和[[教会里会挪威语的朋友]]聊天。对我最有帮助的是多听。对我来说最难的是别人说得快的时候听懂。"
+     },
+     "followUps": [
+       {"id": "ateam-11-f1", "no": "Hvordan øver du på å snakke norsk?", "zh": "你怎样练习说挪威语？",
+        "answer": {"no": "Jeg prater med venner som kan norsk, og jeg leser høyt hjemme.", "zh": "我和会挪威语的朋友聊天，在家也大声朗读。"}},
+       {"id": "ateam-11-f2", "no": "Hva synes du er vanskeligst med norsk?", "zh": "你觉得挪威语最难的是什么？",
+        "answer": {"no": "Jeg synes det er vanskeligst å forstå når folk snakker fort. Da ber jeg dem si det en gang til.", "zh": "我觉得最难的是别人说得快时听懂。那时我会请他们再说一遍。"}}
+     ]},
+
     {"id": "ateam-12", "no": "Når startet du å lære norsk?", "zh": "你什么时候开始学习挪威语的？",
-     "points": ["什么时候开始：哪一年、多久以前", "用过去时（startet, begynte）", "可以说为什么开始学"]},
+     "also": ["Når begynte du å lære norsk?"],
+     "points": ["先说什么时候开始：哪一年、多久以前（用过去时 begynte / startet）", "再说当时为什么开始、怎么学的", "加一句现在有什么进步，或下一个小目标"],
+     "more": ["一开始是自学还是有人教？", "有没有停过一段时间，什么时候开始认真学？", "有没有第一次用挪威语和人说通的经历？"],
+     "note": "和第 11 题分开说：第 11 题讲现在怎样学，这题讲从什么时候开始、一路有什么进步。",
+     "words": [
+       {"no": "begynte / startet", "zh": "开始了"},
+       {"no": "for ___ siden", "zh": "___ 以前"},
+       {"no": "i fjor", "zh": "去年"},
+       {"no": "da", "zh": "那时候"},
+       {"no": "på egen hånd", "zh": "自己（学）"},
+       {"no": "slutte en stund", "zh": "停了一段时间"},
+       {"no": "kunne", "zh": "会；能（过去时也是 kunne）"},
+       {"no": "klare å", "zh": "能做到"},
+       {"no": "framgang", "zh": "进步"},
+       {"no": "mål", "zh": "目标"}
+     ],
+     "frames": [
+       {"no": "Jeg begynte å lære norsk for ___ siden.", "zh": "我 ___ 以前开始学挪威语。"},
+       {"no": "Da kunne jeg bare ___.", "zh": "那时候我只会 ___。"},
+       {"no": "Nå klarer jeg å ___.", "zh": "现在我能 ___。"},
+       {"no": "Målet mitt er å ___.", "zh": "我的目标是 ___。"}
+     ],
+     "sample": {
+       "no": "Jeg begynte å lære norsk i [[2024]]. Først lærte jeg litt på egen hånd, men etter et halvt år begynte jeg på et kurs. Da kunne jeg bare si noen få ord. Nå klarer jeg å snakke om meg selv og familien min. Målet mitt er å forstå møtene på norsk.",
+       "zh": "我是[[2024]]年开始学挪威语的。一开始我自己学一点，半年后开始上课。那时候我只会说几个词。现在我能讲讲自己和家人。我的目标是听懂挪威语的聚会。"
+     },
+     "followUps": [
+       {"id": "ateam-12-f1", "no": "Hvorfor begynte du å lære norsk?", "zh": "你为什么开始学习挪威语？",
+        "answer": {"no": "Fordi jeg ville bli med på A-laget og forstå sangene og møtene på norsk.", "zh": "因为我想参加 A-laget，也想听懂挪威语的诗歌和聚会。"}},
+       {"id": "ateam-12-f2", "no": "Hva klarer du å si på norsk nå som du ikke kunne før?", "zh": "现在有哪些话是你以前不会、现在已经能用挪威语说的？",
+        "answer": {"no": "Nå kan jeg fortelle om dagen min og familien min. Før kunne jeg bare hilse.", "zh": "现在我能讲我的一天和我的家人，以前只会打招呼。"}}
+     ]},
+
     {"id": "ateam-13", "no": "Hva vil du jobbe med?", "zh": "你想做什么类型的工作？",
-     "points": ["想做的工作", "为什么想做", "可以说需要学什么"]},
+     "also": ["Hva har du lyst til å jobbe med?"],
+     "points": ["先说想做什么工作，或喜欢什么样的任务", "再说为什么：有经验、喜欢动手、喜欢创作或和人合作", "加一句你能做好什么，或有什么具体限制"],
+     "more": ["你更习惯一个人做还是和大家一起做？", "你想用上哪些已经会的本领？", "有没有想试、但还没经验的工作？", "哪些条件对你重要：任务清楚、能适当休息、不用搬重物或久站？"],
+     "note": "不要只说“轻松一点”或“不用想太多”。说清楚什么样的任务适合你、你能做好什么、有什么具体限制。",
+     "words": [
+       {"no": "jobbe med hendene", "zh": "动手做事"},
+       {"no": "kreativ", "zh": "有创意"},
+       {"no": "jobbe i team", "zh": "和大家一起做；团队合作"},
+       {"no": "jobbe selvstendig", "zh": "独立工作"},
+       {"no": "erfaring med", "zh": "有……的经验"},
+       {"no": "flink til å", "zh": "擅长"},
+       {"no": "prøve noe nytt", "zh": "试试新东西"},
+       {"no": "tydelig", "zh": "清楚"},
+       {"no": "tunge ting", "zh": "重的东西"},
+       {"no": "stå lenge", "zh": "站很久"},
+       {"no": "pause", "zh": "休息"}
+     ],
+     "frames": [
+       {"no": "Jeg har lyst til å jobbe med ___.", "zh": "我想做 ___ 方面的工作。"},
+       {"no": "Jeg har erfaring med ___.", "zh": "我有 ___ 的经验。"},
+       {"no": "Jeg er flink til å ___.", "zh": "我擅长 ___。"},
+       {"no": "Jeg vil gjerne prøve ___.", "zh": "我很想试试 ___。"},
+       {"no": "Det er viktig for meg at ___.", "zh": "对我来说，___ 很重要。"}
+     ],
+     "sample": {
+       "no": "Jeg har lyst til å jobbe med [[mat]], for eksempel på [[kjøkkenet]]. Jeg har erfaring med [[baking]], og jeg liker å jobbe med hendene. Jeg kan jobbe selvstendig, men jeg liker også å jobbe i team. Jeg vil gjerne prøve [[å pynte til fester]] også. Det er viktig for meg at oppgavene er tydelige, og [[jeg kan ikke bære tunge ting]].",
+       "zh": "我想做和[[食物]]有关的工作，比如在[[厨房]]。我有[[烘焙]]的经验，也喜欢动手。我能独立工作，也喜欢和大家一起做。我也很想试试[[为聚会做布置]]。对我来说，任务清楚很重要；另外，[[我不能搬重的东西]]。"
+     },
+     "followUps": [
+       {"id": "ateam-13-f1", "no": "Hva slags oppgaver liker du best å jobbe med?", "zh": "你最喜欢做哪类工作任务？",
+        "answer": {"no": "Jeg liker best oppgaver der jeg kan lage noe, for eksempel mat eller pynt.", "zh": "我最喜欢能做出东西的任务，比如做饭或做装饰。"}},
+       {"id": "ateam-13-f2", "no": "Er det noe nytt du har lyst til å prøve?", "zh": "有没有什么新工作是你想尝试的？",
+        "answer": {"no": "Ja, jeg har lyst til å prøve å jobbe med barn. Det har jeg ikke gjort før.", "zh": "有，我想试试和孩子们一起工作，我以前没做过。"}}
+     ]},
+
     {"id": "ateam-14", "no": "Hva er dine styrker og svakheter?", "zh": "你的长处和短处是什么？",
-     "points": ["一两个长处，最好带一个小例子", "一个短处", "可以说怎样改进这个短处"]},
+     "also": ["Hva vil du si er dine sterke og svake sider?"],
+     "points": ["先说一两个长处，最好带一个小例子", "再说一个想改进的地方", "加一句你正在怎样改进"],
+     "more": ["别人常在哪些事情上请你帮忙？", "能举一个例子吗：做成过一个作品、布置好一次活动、和别人一起完成一件事？", "做事和与人相处上，你有什么优点？", "这个缺点通常在什么时候出现？"],
+     "note": "身体限制可以照实说，但它不算性格上的“缺点”。可以把“想改进的习惯”和“工作安排上要考虑的身体情况”分开说，也不用讲你不想说的健康细节。",
+     "words": [
+       {"no": "styrke / svakhet", "zh": "长处 / 短处"},
+       {"no": "sterk side / svak side", "zh": "优点 / 缺点"},
+       {"no": "nøyaktig", "zh": "仔细；准确"},
+       {"no": "tålmodig", "zh": "有耐心"},
+       {"no": "hjelpsom", "zh": "乐于帮忙"},
+       {"no": "pålitelig", "zh": "靠得住"},
+       {"no": "sjenert", "zh": "害羞；怕生"},
+       {"no": "bli bedre på", "zh": "在……上进步"},
+       {"no": "jobbe med det", "zh": "（在）努力改"},
+       {"no": "for eksempel", "zh": "比如"},
+       {"no": "i tide", "zh": "按时"}
+     ],
+     "frames": [
+       {"no": "En av mine sterke sider er at jeg er ___.", "zh": "我的一个优点是我很 ___。"},
+       {"no": "For eksempel ___.", "zh": "比如 ___。"},
+       {"no": "Noe jeg vil bli bedre på, er ___.", "zh": "我想改进的是 ___。"},
+       {"no": "Jeg jobber med det ved å ___.", "zh": "我正在通过 ___ 来改。"}
+     ],
+     "sample": {
+       "no": "En av mine sterke sider er at jeg er [[nøyaktig og tålmodig]]. For eksempel [[pyntet jeg salen til julefesten]], og alt ble ferdig i tide. Venner spør meg ofte om hjelp med [[bilder]]. En svak side er at jeg er [[litt sjenert]] når jeg møter nye mennesker. Jeg jobber med det ved å [[snakke mer med nye folk i menigheten]].",
+       "zh": "我的一个优点是[[仔细、有耐心]]。比如[[我布置了圣诞聚会的大厅]]，所有东西都按时做完了。朋友们常常请我帮忙[[拍照]]。一个缺点是见到新的人时我[[有点害羞]]。我正在改：[[在教会里多和新来的人说话]]。"
+     },
+     "followUps": [
+       {"id": "ateam-14-f1", "no": "Kan du gi et eksempel på noe du er flink til?", "zh": "你能举一个自己比较擅长的事情的例子吗？",
+        "answer": {"no": "Jeg er flink til å bake. Til bursdagen til en venn lagde jeg en stor kake.", "zh": "我擅长烘焙。朋友过生日时，我做了一个大蛋糕。"}},
+       {"id": "ateam-14-f2", "no": "Hva har du lyst til å bli bedre på?", "zh": "你希望在哪些方面有所进步？",
+        "answer": {"no": "Jeg vil bli bedre på å snakke foran mange mennesker. Og så vil jeg bli bedre i norsk, selvfølgelig.", "zh": "我想更会在很多人面前说话。当然，还想把挪威语学得更好。"}}
+     ]},
+
     {"id": "ateam-15", "no": "Hva vil du lære på A-laget?\nHva ønsker du å gjøre på A-laget?", "zh": "你想在 A-team 学到什么东西？\n你希望在 A-team 做什么？",
-     "points": ["想学到的东西：语言、技能、信仰、合作", "想在 A-team 做的事", "可以说为什么"]}
+     "also": ["Hva har du lyst til å lære på A-laget? Og hva kunne du tenke deg å gjøre der?"],
+     "points": ["先说想学什么：圣经和信仰、挪威语、合作、承担责任", "再说想做什么，给一两个具体方向（不只说“什么都可以”）", "加一句你会的本领能怎样帮到别人，或有什么要提前说明的限制"],
+     "more": ["在圣经和信仰上，你具体想多了解什么？", "除了知道圣经故事，你想怎样把神的话语用在日常生活里？", "你想从带领的弟兄或身边的人身上学到什么？", "生活上想学什么本领：挪威语、合作、安排时间、承担责任？"],
+     "note": "分两部分答：“我想学到什么”和“我愿意做什么”。不要只讲想得到什么，也不要只说“什么都可以做”，给一两个真实、具体的方向。",
+     "words": [
+       {"no": "Bibelen", "zh": "圣经"},
+       {"no": "ta ansvar", "zh": "承担责任"},
+       {"no": "samarbeide", "zh": "合作"},
+       {"no": "planlegge tiden", "zh": "安排时间"},
+       {"no": "selvstendig", "zh": "独立"},
+       {"no": "kunne tenke seg å", "zh": "想；愿意（做）"},
+       {"no": "bidra med", "zh": "出力；贡献"},
+       {"no": "være til hjelp", "zh": "帮上忙"},
+       {"no": "lederne", "zh": "带领的人"},
+       {"no": "forbilde", "zh": "榜样"}
+     ],
+     "frames": [
+       {"no": "Jeg vil lære mer om ___.", "zh": "我想多了解 ___。"},
+       {"no": "Jeg vil også lære å ___.", "zh": "我也想学会 ___。"},
+       {"no": "Jeg kunne tenke meg å ___.", "zh": "我很想 ___。"},
+       {"no": "Jeg kan bidra med ___.", "zh": "我可以出力的是 ___。"},
+       {"no": "Én ting jeg vil nevne, er at ___.", "zh": "有一点我想说明：___。"}
+     ],
+     "sample": {
+       "no": "På A-laget vil jeg lære mer om Bibelen og om hvordan jeg kan leve etter Guds ord i hverdagen. Jeg vil også lære å ta ansvar og samarbeide med andre. Jeg kunne tenke meg å hjelpe til på [[kjøkkenet]] eller med [[å pynte til arrangementer]]. Jeg kan bidra med [[det jeg kan om baking og foto]]. Jeg vil gjerne lære av lederne og være til hjelp for andre.",
+       "zh": "在 A-laget，我想多学圣经，也想学怎样在日常生活里照着神的话语生活。我也想学会承担责任、和别人合作。我很想在[[厨房]]帮忙，或者帮忙[[布置活动]]。我可以用上[[我会的烘焙和摄影]]。我希望向带领的人学习，也能帮上别人的忙。"
+     },
+     "followUps": [
+       {"id": "ateam-15-f1", "no": "Hvordan håper du å utvikle deg på A-laget?", "zh": "你希望在 A-laget 期间在哪些方面成长？",
+        "answer": {"no": "Jeg håper at jeg blir mer selvstendig og tør å snakke mer med andre.", "zh": "我希望自己更独立，也更敢和别人说话。"}},
+       {"id": "ateam-15-f2", "no": "Hva kunne du tenke deg å hjelpe til med?", "zh": "你想参与哪些帮忙的工作？",
+        "answer": {"no": "Jeg kunne tenke meg å hjelpe til på kjøkkenet eller med å pynte til fester.", "zh": "我愿意在厨房帮忙，或者帮忙布置聚会。"}}
+     ]}
   ]
 }

@@ -1324,6 +1324,622 @@
     "nb-NO-FinnNeural"
    ]
   },
+  "ateam-01-f1": {
+   "kind": "synthetic",
+   "sha256": "d09d83a1b4810edc9f75c54bc17e111910a80bdca8ac166800fc13ace1ca2695",
+   "seconds": 1.95,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-01-f1-a": {
+   "kind": "synthetic",
+   "sha256": "b88a2fb40b24296b07452937b0997fae3f071d00b77d6e660d2a455917724fc5",
+   "seconds": 4.15,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-01-f2": {
+   "kind": "synthetic",
+   "sha256": "5d16f2cad4b8fc9b7cef15add22ecc3da1c26f2b2360a24668a9081fb337356a",
+   "seconds": 2.38,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-01-f2-a": {
+   "kind": "synthetic",
+   "sha256": "2cd3832cd7b785cd4fca291779ad11ca15c7f02d7b3c798803e920616bcd0a36",
+   "seconds": 6.5,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-01-sample": {
+   "kind": "synthetic",
+   "sha256": "9c7992a45d9d7730782104dbafbba8ac4196bf946fcdde31574cfd4d7600df51",
+   "seconds": 17.25,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-02-f1": {
+   "kind": "synthetic",
+   "sha256": "1d06de305326b6e8feae0c206d1093f196bdd9652974acece146bf94eb275e18",
+   "seconds": 2.65,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-02-f1-a": {
+   "kind": "synthetic",
+   "sha256": "82b1825d498c290479182d75bcecf2a5cbc1197cf84554a0f3ad209144b91a5f",
+   "seconds": 4.62,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-02-f2": {
+   "kind": "synthetic",
+   "sha256": "7e071ba5ac755ededaf0f4ffbe2736d102ff654b0d3a2b3e24277d9c9d425fcd",
+   "seconds": 1.8,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-02-f2-a": {
+   "kind": "synthetic",
+   "sha256": "d6374ee2af951c93bf6939c8d5bea80f23a9fc9a59ec679a7e21405a12f3d52b",
+   "seconds": 4.64,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-02-sample": {
+   "kind": "synthetic",
+   "sha256": "d7656c49f10136c33b9063f9d9d1475b0a5bb8eedda4cd1ec6cc143fc7527910",
+   "seconds": 16.72,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-03-f1": {
+   "kind": "synthetic",
+   "sha256": "9bb12ee8dc0260cacc0de1047c19e8c6d74e168452251e0c8f9c68300c9be319",
+   "seconds": 2.26,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-03-f1-a": {
+   "kind": "synthetic",
+   "sha256": "6f45dcc81c611fae12e92b64b318f77e6076877c9d0756589138c185d0621706",
+   "seconds": 4.08,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-03-f2": {
+   "kind": "synthetic",
+   "sha256": "ac5c67a1d2ea0c1349a104d79d242c440f9cd082a73e692fc9f06fccf438cc4e",
+   "seconds": 2.41,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-03-f2-a": {
+   "kind": "synthetic",
+   "sha256": "41a5d93db2c95d1e2e965ea489355a841ac4383654403bae59a27e84bce5b054",
+   "seconds": 3.69,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-03-sample": {
+   "kind": "synthetic",
+   "sha256": "2afdfe4a767402b80843b489eee5fa4c0bac517e0e78d06b8410cebb17d29d58",
+   "seconds": 17.79,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-04-f1": {
+   "kind": "synthetic",
+   "sha256": "19225f2073dd0652918c31f2a6c642f1102bb03b3c1812a35e2061d38790945c",
+   "seconds": 1.89,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-04-f1-a": {
+   "kind": "synthetic",
+   "sha256": "133ed799ca474f44bbb1670e33a6d83935558c8bd1367ff112814eb641a12ea5",
+   "seconds": 5.38,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-04-f2": {
+   "kind": "synthetic",
+   "sha256": "10a4b117281a95b95532d4f0b6cd89711bf46ab413f7861d2f95152157d8be77",
+   "seconds": 1.78,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-04-f2-a": {
+   "kind": "synthetic",
+   "sha256": "1bcf611b5df97b992decebe5eb3069243fdf061a04dd8d32b4e3daba1ef284c9",
+   "seconds": 4.77,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-04-f3": {
+   "kind": "synthetic",
+   "sha256": "e9deb68e9ee607778cefa893f15e4470bfc91ef418bfbe33fc2893067b35cd12",
+   "seconds": 1.98,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-04-f3-a": {
+   "kind": "synthetic",
+   "sha256": "9fd41ae43c70103230d8aa7a62bfc9a5f43ebd4b64703f1604290759546fb677",
+   "seconds": 3.67,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-04-sample": {
+   "kind": "synthetic",
+   "sha256": "666e736bff185991cbb524d5d6f8d1b2360d923838f683b64c3ddc0cbf9a9a25",
+   "seconds": 17.1,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-05-f1": {
+   "kind": "synthetic",
+   "sha256": "787f5c7c67eb2eeaf24c7d4080d3f252156504d45dc4d2f44c7a9e79b512e532",
+   "seconds": 1.98,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-05-f1-a": {
+   "kind": "synthetic",
+   "sha256": "6a251460e1c90f5908f1664dda586c025cb21d372666163195049520409a4742",
+   "seconds": 4.95,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-05-f2": {
+   "kind": "synthetic",
+   "sha256": "14e4f6dad6d1675e1a9ad6cb46424ed6d81330e3ca036e0a51e850c72e8891d8",
+   "seconds": 2.76,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-05-f2-a": {
+   "kind": "synthetic",
+   "sha256": "eeb58629b3dbc89011d17e3d2901d70d2807d3399ea3050331d5c7d8cf02103d",
+   "seconds": 3.7,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-05-sample": {
+   "kind": "synthetic",
+   "sha256": "887a05379e898e7decdd4e9901d5d2a20b72239f590414cc76538cf25db1683d",
+   "seconds": 16.1,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-06-f1": {
+   "kind": "synthetic",
+   "sha256": "8b60cbcf947068f5c20f566f6774300350ad4414cab51d1d04e7ae056f923dc9",
+   "seconds": 1.87,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-06-f1-a": {
+   "kind": "synthetic",
+   "sha256": "6d5339b2ea18c900e224d6f13039ff945ab82087aa5c92eb26d653ee06e239d0",
+   "seconds": 5.27,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-06-f2": {
+   "kind": "synthetic",
+   "sha256": "e8000ed7414cbaa5a851537eb646e362b2adbab123b950861aa20b57c7dc9c74",
+   "seconds": 2.17,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-06-f2-a": {
+   "kind": "synthetic",
+   "sha256": "bbae3746905f346c5a78d3e40200d73dbbabe269c769900a934bcd56498cae01",
+   "seconds": 5.36,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-06-sample": {
+   "kind": "synthetic",
+   "sha256": "5fc9ae1b0b0a9ef4a3ee45ebe8d3428a63e21b3db44583c282a107a1d3b0e4d8",
+   "seconds": 18.56,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-07-f1": {
+   "kind": "synthetic",
+   "sha256": "1606d71cb29aa2db90c7a7bd9dd592772cdc7ac72384209299333e108b260cb6",
+   "seconds": 3.23,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-07-f1-a": {
+   "kind": "synthetic",
+   "sha256": "bf2d23c5e06f295ebf533a94ec43f4f54a181fb51071372b29364cb09ec4cb3c",
+   "seconds": 2.72,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-07-f2": {
+   "kind": "synthetic",
+   "sha256": "401ac9202594e8bb643d8386d200d87f81369f371beb4a19ec33b1efd7f9cedb",
+   "seconds": 2.15,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-07-f2-a": {
+   "kind": "synthetic",
+   "sha256": "a7e35837f7c84b96376509ee9b6d0d15afb78bca6b99c76d0394100842f29363",
+   "seconds": 5.7,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-07-sample": {
+   "kind": "synthetic",
+   "sha256": "7309bdaed82baf32339a137401e3e02a8a9c3c9cdbccc8766f08db0b358ea67a",
+   "seconds": 18.93,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-08-f1": {
+   "kind": "synthetic",
+   "sha256": "6ebc0df9e4fd2b136b8bd121e6d499d8400edc0a2f4b05cf621ca9f38f0a3944",
+   "seconds": 1.92,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-08-f1-a": {
+   "kind": "synthetic",
+   "sha256": "ebbf10d81204e49a5f5f8435b78bba4802f990508c3c4bc50fbfe2f1ea5284fa",
+   "seconds": 5.31,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-08-f2": {
+   "kind": "synthetic",
+   "sha256": "149ec841e1c8140a4c5435a34c5a00695a9693dd644a16ac7aa88a721726b504",
+   "seconds": 1.63,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-08-f2-a": {
+   "kind": "synthetic",
+   "sha256": "cc675bb448b1e7507d1dd161dc9d31aae793664f581f2488766a12d19d729b19",
+   "seconds": 4.81,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-08-sample": {
+   "kind": "synthetic",
+   "sha256": "1975c4da498cba07b6f2c1de965ee94c019686984b79e81012108340c4f947da",
+   "seconds": 17.37,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-09-f1": {
+   "kind": "synthetic",
+   "sha256": "1b9fa585f17b0e6c01aed1bbd317cc6da8609e1495dce5a9bd6de5a4b7fdac54",
+   "seconds": 2.43,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-09-f1-a": {
+   "kind": "synthetic",
+   "sha256": "c4e4b730adca5aad0510fee7ef3b547c0c12fe2bbc3c97f00fdc4396f8511176",
+   "seconds": 2.85,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-09-f2": {
+   "kind": "synthetic",
+   "sha256": "3fda3231f366998d3ad55e7b802ff5e20d75a3c937ccfe9780c1301cf7e6fa49",
+   "seconds": 2.58,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-09-f2-a": {
+   "kind": "synthetic",
+   "sha256": "f0eec31274991e8f1b57b0b71e63d1e33cf0a2cef01611e889e935b32614ad46",
+   "seconds": 4.0,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-09-sample": {
+   "kind": "synthetic",
+   "sha256": "c2fc6cdd712b1bc0c5c3a391f9376eb40696248ea594b8a03a095034b9ab9138",
+   "seconds": 18.05,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-10-f1": {
+   "kind": "synthetic",
+   "sha256": "82eb0b35573fe16d77270718a9569b8ce346f85c5088a9d59895dd6dcacc2a88",
+   "seconds": 1.88,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-10-f1-a": {
+   "kind": "synthetic",
+   "sha256": "37a85c983dd88586c269bfab04f6b347b46ec46101920ad0d3bb33f55f11f3a9",
+   "seconds": 4.9,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-10-f2": {
+   "kind": "synthetic",
+   "sha256": "8b4cbd0ec6a9a2629b6d3e2b33e9b3340f3ddb246a43f3a29b3bb2c08587b219",
+   "seconds": 1.89,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-10-f2-a": {
+   "kind": "synthetic",
+   "sha256": "afbfdb0e825f0ce3cd68e3ed3d4bf7addb2681a138e5a5718e70407d29738a87",
+   "seconds": 6.05,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-10-sample": {
+   "kind": "synthetic",
+   "sha256": "32047f2bd9d650d61f983dd6077d5ecc85344ea130cd097f4ce92b10e2092be3",
+   "seconds": 20.42,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-11-f1": {
+   "kind": "synthetic",
+   "sha256": "44c3374a00f9045fed0d50b1b93eb719f1a87655d3d7b47ed138072c282608ca",
+   "seconds": 1.79,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-11-f1-a": {
+   "kind": "synthetic",
+   "sha256": "aeeb6b189f6098f9ced1f1d00b983e7c3a5f1c954d3d992f0d3bba95ce9763cb",
+   "seconds": 3.18,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-11-f2": {
+   "kind": "synthetic",
+   "sha256": "1c1daddd3984189954985d1f585af42d1834c91170289651030cd76a6d0d4848",
+   "seconds": 2.03,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-11-f2-a": {
+   "kind": "synthetic",
+   "sha256": "687e5a966f9810f8fe9d0368150bdba0375ac9bbe7398a6f4d815e07bc06e026",
+   "seconds": 5.41,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-11-sample": {
+   "kind": "synthetic",
+   "sha256": "4af9a6a52d13e1e674bfda46417dc197366a332c4cdcfd9e5975d458beaffb5e",
+   "seconds": 18.8,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-12-f1": {
+   "kind": "synthetic",
+   "sha256": "38c6ab6b597415a0c376a1283ee84cc63579c691f6c933a03e0ed5555b400f99",
+   "seconds": 1.83,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-12-f1-a": {
+   "kind": "synthetic",
+   "sha256": "49a3723380431eb8055daf98ee377c31f847d5ad7840e824df8751d435e59326",
+   "seconds": 3.57,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-12-f2": {
+   "kind": "synthetic",
+   "sha256": "7ad71d46e7a88a438b1917aedcf0c748a0a2e0660fc77bff51c02ade0cb8c103",
+   "seconds": 2.56,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-12-f2-a": {
+   "kind": "synthetic",
+   "sha256": "c2b286372babeedef4311cf6d3969eb51b45733be2f0c52bd62a2027f8cfcf22",
+   "seconds": 3.44,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-12-sample": {
+   "kind": "synthetic",
+   "sha256": "3c5b15625c2426faba92cba6fbe1aea4911df2827d8aab468ca3f8fe73a0c97d",
+   "seconds": 13.03,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-13-f1": {
+   "kind": "synthetic",
+   "sha256": "68cef4f345db7f0febc4097e2e94a327856623daffea8b9c20605e762002d115",
+   "seconds": 2.3,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-13-f1-a": {
+   "kind": "synthetic",
+   "sha256": "b27a01520e8b389566d9070488f1f60c2bfad4adc57420b7f84f254d8d035cc9",
+   "seconds": 3.98,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-13-f2": {
+   "kind": "synthetic",
+   "sha256": "b7dc43b7cc618d04979294d5a3feb4f946dc61872122d38dcc5bf73f6dd55fc3",
+   "seconds": 1.9,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-13-f2-a": {
+   "kind": "synthetic",
+   "sha256": "7af7da839064fc9040519721928cbd1803ab027c52f3f83523c334e454801b13",
+   "seconds": 4.52,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-13-sample": {
+   "kind": "synthetic",
+   "sha256": "94c889ca96be2050a13a6b69c94a47b47dadd188e8d42d4f58e5c5b37aaa2c39",
+   "seconds": 19.21,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-14-f1": {
+   "kind": "synthetic",
+   "sha256": "276ae04e68218c6f5fe8aff762065be8e145bb21184bcdfbd60b186ee9d5bdfd",
+   "seconds": 2.32,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-14-f1-a": {
+   "kind": "synthetic",
+   "sha256": "a94e8b89c64d5f6c32095977f297aaf0d3502e56245aa64875b90b6c6e629900",
+   "seconds": 4.89,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-14-f2": {
+   "kind": "synthetic",
+   "sha256": "a9e6d2e1fce1674bcc1531a718636f8b9c2a225d8f507a0985b65aed370d2d2c",
+   "seconds": 1.8,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-14-f2-a": {
+   "kind": "synthetic",
+   "sha256": "0d66dfe0841802896586a32428b30ff4e672df54bb384f8f85c3c6ce26cc1092",
+   "seconds": 6.05,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-14-sample": {
+   "kind": "synthetic",
+   "sha256": "c91bcffc0ebbd51b3a01f0cc92157b85e93ee85d32c0dfe34fd49cbd025f228c",
+   "seconds": 19.07,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-15-f1": {
+   "kind": "synthetic",
+   "sha256": "a06c40c5ac61f40a5c79a11cc974d728da39f50bc3d82214d006bb5a19bd6373",
+   "seconds": 2.6,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-15-f1-a": {
+   "kind": "synthetic",
+   "sha256": "d66b07f79054af06d7a359d185ed6e95a21440095c8bd3543edf6198a3006d49",
+   "seconds": 3.06,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-15-f2": {
+   "kind": "synthetic",
+   "sha256": "bdd119ac1b630651c6426ea5a5d7499a988a374db314448bca8241cbf82a8e19",
+   "seconds": 1.83,
+   "voices": [
+    "nb-NO-FinnNeural"
+   ]
+  },
+  "ateam-15-f2-a": {
+   "kind": "synthetic",
+   "sha256": "fcc30c3ff1f45b41bc7dce3fd5133c2e742cd2d033fcfd20e4eda44fbe26789f",
+   "seconds": 3.34,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
+  "ateam-15-sample": {
+   "kind": "synthetic",
+   "sha256": "f0f603939a5eba7f80a577af09c4ea6115b66563253b4455c43e9a8f47bc5f00",
+   "seconds": 20.04,
+   "voices": [
+    "nb-NO-PernilleNeural"
+   ]
+  },
   "sound-check": {
    "kind": "synthetic",
    "sha256": "ed33141a4f173fdcdcd131b02b58dc630881e7a5d0a8ce72f98f65d8701c4fe0",
