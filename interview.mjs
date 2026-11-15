@@ -517,23 +517,29 @@ export function createInterview(deps = {}) {
     if (focus) root.querySelector(focus)?.focus?.({preventScroll:true});
     if (answer.status === 'done') prepareSay(root.querySelector('.ai-answer'));
   }
+  let answerRequest = null;
   function resetAnswer() {
+    answerRequest?.abort(); answerRequest = null;
     answerRun += 1;
     clearInterval(answerTimer); answerTimer = null;
-    recorder?.hold();
+    recorder?.close(); recorder = null;
     answer = {status:'idle'};
   }
-  function closeRecorder() { resetAnswer(); recorder?.close(); recorder = null; }
+  function closeRecorder() { resetAnswer(); }
   // The recogniser takes several seconds to start each time the page opens: once it is downloaded, it starts in the
   // background as soon as a practice begins, so 开口回答 rarely waits for it.
   // The speech module and the server's answer to /ai/status come in while the first question is read.
   function warmRecogniser() {
     import(versioned('./dictation.mjs')).then(module => { dictation ||= module; return module.load().then(() => module.serverASR(deps.request)); }).catch(() => {});
   }
-  // Inside the tap: the microphone opens first (iOS opens audio only there), then the recogniser loads.
+  // A tap starts one cancellable recording attempt; delayed setup must still belong to this answer.
   async function startAnswer() {
+    if (answer.status === 'loading' || answer.status === 'recording') return;
     stopAudio();
+    recorder?.close(); recorder = null; answerRequest?.abort();
     const run = ++answerRun, question = asked();
+    const request = answerRequest = new AbortController();
+    const current = () => run === answerRun && root && !request.signal.aborted && !document.hidden;
     if (!question) return;
     answer = {status:'loading',progress:null};
     updateAnswer();
@@ -541,11 +547,21 @@ export function createInterview(deps = {}) {
     try {
       dictation ||= await import(versioned('./dictation.mjs'));
       await dictation.load();
+      if (!current()) return;
       if (!dictation.supported()) { fail('这个浏览器用不了开口回答，可以换新版 Chrome、Edge 或 Safari。'); return; }
       // The server writes speech down (dictation.mjs); without it there is nothing to grade.
       if (!(await dictation.serverASR(deps.request))) { fail(dictation.unavailableNote('开口回答暂时用不了（语音识别没有开启），请稍后再试。')); return; }
+      if (!current()) return;
+      if (recorder?.closed) recorder = null;
       if (!recorder) {
         const opened = await dictation.record({
+          signal:request.signal,
+          onError:error => {
+            recorder = null; clearInterval(answerTimer); answerTimer = null;
+            if (root && ['loading','recording'].includes(answer.status)) {
+              answerRun++; answer = {status:'error',error:dictation.micMessage(error)}; updateAnswer();
+            }
+          },
           onText:text => { if (answer.status === 'recording') answer.text = text; },
           onLevel:level => { root?.querySelector('.ai-answer-mic')?.style.setProperty('--level',Math.min(1,level*14).toFixed(2)); },
           onPause:seconds => { if (answer.status === 'recording' && seconds >= 3.2 && recorder?.stats.speech > .6) finishAnswer(); },
@@ -576,7 +592,9 @@ export function createInterview(deps = {}) {
     clearInterval(answerTimer); answerTimer = null;
     answer = {status:'writing',text:answer.text};
     updateAnswer();
-    const {text,failed} = await recorder.stop();
+    const finishing = recorder.stop();
+    recorder.close(); recorder = null; answerRequest = null;
+    const {text,failed} = await finishing;
     if (run !== answerRun) return;
     if (!text.trim()) {
       const error = failed ? dictation.unavailableNote('语音识别暂时没有回应，请稍后再试。') : '没有听到你的回答。靠近麦克风，再试一次。';

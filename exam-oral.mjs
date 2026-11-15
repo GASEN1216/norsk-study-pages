@@ -2,8 +2,8 @@
    exam.mjs. Four tasks as in the real test: tell about yourself, describe a picture (with the examiner's follow-up
    questions), exchange information with a partner (played by the site's AI, scripts/exam_ai.py), talk about a
    familiar topic. The examiner's lines are recordings (audio/exam/<task>-e<n>.mp3, -f<n> follow-ups, -o the
-   partner's opening line); the learner's answers are written down on the device (dictation.mjs) and only the text
-   and its timing go to the AI. A task left halfway starts again from its beginning. */
+   partner's opening line); dictation.mjs sends speech segments to the server for transcription; the text and its
+   timing then go to the feedback service. A task left halfway starts again from its beginning. */
 
 const suffix = new URL(import.meta.url).search;
 const KIND = {presentasjon:'介绍自己',bilde:'描述图片',samtale:'交换信息',tema:'熟悉话题'};
@@ -17,10 +17,10 @@ export function createOral(ctx) {
   const run = () => store.active.speaking;
   const list = () => tasks.get(run().set) || [];
   const task = () => list()[run().task];
-  let dictation = null, recorder = null, closed = false, audio = null, audioRun = 0, timer = null, flowId = 0, opening = false, between = null;
+  let dictation = null, recorder = null, closed = false, audio = null, audioDone = null, audioRun = 0, timer = null, flowId = 0, opening = false, between = null;
   let view = {phase:'prepare',lines:0,speaking:null,text:'',level:0,error:'',partnerBusy:false,followup:-1,zh:false};
   // recogniser: 'loading' (asking the server), 'server' (it writes speech down), 'unavailable', 'unsupported'.
-  let recogniser = 'loading';
+  let recogniser = 'loading', micRequest = null;
   // A step that waited (a recording, the transcript, the partner, a pause) goes on only in the flow that started it:
   // leaving the test, or the page going to the background, starts a new flow.
   const live = id => !closed && id === flowId;
@@ -37,41 +37,51 @@ export function createOral(ctx) {
       });
     }).catch(() => { recogniser = 'unavailable'; draw(); });
   }
+  function cancelMic() {
+    const request = micRequest; micRequest = null; opening = false;
+    request?.abort(); recorder?.close(); recorder = null;
+  }
+  function interrupted(error) {
+    if (closed) return;
+    flowId++; clearTimeout(between); between = null;
+    stopAudio(); clearInterval(timer); cancelMic();
+    view.phase = 'prepare'; view.speaking = null;
+    view.error = dictation?.micMessage(error) || '录音已中断，请再点一次录音。'; draw();
+  }
   async function openMic() {
-    if (opening || recorder || closed) return;
-    // Not available a moment ago (no network): this tap asks again.
-    if (recogniser !== 'server') {
-      const module = dictation || await loaded.catch(() => null);
-      recogniser = module?.supported() ? (await module.serverASR(deps.request) ? 'server' : 'unavailable') : 'unsupported';
-      if (recogniser !== 'server') { draw(); return; }
-    }
-    view.error = ''; opening = true; draw();
+    if (opening || (recorder && !recorder.closed) || closed) return;
+    const request = micRequest = new AbortController();
+    const current = () => !closed && micRequest === request && !request.signal.aborted && !document.hidden;
+    opening = true; view.error = ''; draw();
     try {
       const module = dictation || await loaded;
+      if (!current()) return;
+      if (recogniser !== 'server') {
+        recogniser = module.supported() ? (await module.serverASR(deps.request) ? 'server' : 'unavailable') : 'unsupported';
+        if (!current() || recogniser !== 'server') return;
+      }
       const opened = await module.record({
-        // The server writes each stretch down as it comes; the task helps it spell what is said.
+        signal:request.signal,onError:interrupted,
         transcribe:module.serverTranscriber(deps.request,() => task()?.id),
         onText:text => { view.text = text; const box = root.querySelector('[data-oral-text]'); if (box) box.textContent = text || '…'; },
         onLevel:level => { view.level = level; const ring = root.querySelector('.ex-oral-mic'); if (ring) ring.style.setProperty('--level',Math.min(1,level*14).toFixed(2)); },
         onPause:seconds => { if (view.speaking?.endOnPause && seconds >= view.speaking.endOnPause && view.speaking.heard !== false) finishSpeaking(); }
       });
-      opening = false;
-      // Left the test, or the page went to the background, while the browser asked for the microphone.
-      if (closed || document.hidden) { opened.close(); draw(); return; }
-      recorder = opened;
-      recorder.hold();
-      beginTask();
+      if (!current()) { opened.close(); return; }
+      recorder = opened; recorder.hold(); beginTask();
     } catch (error) {
-      opening = false;
-      view.error = (dictation || await loaded.catch(() => null))?.micMessage(error) || '麦克风暂时打不开，请再点一次。';
-      draw();
+      if (current() && error?.code !== 'cancelled') view.error = dictation?.micMessage(error) || '录音功能未能载入，请检查网络后重试。';
+    } finally {
+      if (micRequest === request) { opening = false; draw(); }
     }
   }
 
   /* ----- sound ----- */
   function stopAudio() {
     audioRun += 1;
+    const done = audioDone; audioDone = null;
     if (audio) { audio.onended = audio.onerror = null; audio.pause(); audio.removeAttribute('src'); audio.load?.(); audio = null; }
+    done?.('stopped');
   }
   // The page speaks (examiner, partner): the microphone hears nothing meanwhile.
   function play(url) {
@@ -82,7 +92,15 @@ export function createOral(ctx) {
       ctx.quietOthers?.();
       const clip = new Audio(url);
       audio = clip;
-      const end = outcome => { if (token === audioRun) { audio = null; done(outcome); } else done('stopped'); };
+      let settled = false;
+      const end = outcome => {
+        if (settled) return; settled = true;
+        clip.onended = clip.onerror = null;
+        if (audioDone === end) audioDone = null;
+        if (audio === clip) audio = null;
+        done(token === audioRun ? outcome : 'stopped');
+      };
+      audioDone = end;
       clip.onended = () => end('ended');
       clip.onerror = () => end('missing');
       clip.play().catch(() => end('blocked'));
@@ -213,7 +231,7 @@ export function createOral(ctx) {
   }
   function finish() {
     stopAudio(); clearInterval(timer);
-    recorder?.close(); recorder = null;
+    cancelMic();
     ctx.finished(run());
   }
 
@@ -291,7 +309,7 @@ export function createOral(ctx) {
   function leave() {
     flowId += 1; clearTimeout(between); between = null;
     stopAudio(); clearInterval(timer);
-    recorder?.close(); recorder = null;
+    cancelMic();
     save();
     ctx.exit();
   }
@@ -301,12 +319,12 @@ export function createOral(ctx) {
     render: draw,
     // The page went to the background: the task in progress starts again when the learner comes back.
     pause() {
-      if (view.phase === 'prepare') return;
+      if (view.phase === 'prepare') { cancelMic(); draw(); return; }
       flowId += 1; clearTimeout(between); between = null;
-      stopAudio(); clearInterval(timer); recorder?.close(); recorder = null;
+      stopAudio(); clearInterval(timer); cancelMic();
       view = {...view,phase:'prepare',speaking:null,partnerBusy:false}; draw();
     },
     stopAudio,
-    close() { closed = true; flowId += 1; clearTimeout(between); between = null; stopAudio(); clearInterval(timer); recorder?.close(); recorder = null; root.removeEventListener('click',onClick); }
+    close() { closed = true; flowId += 1; clearTimeout(between); between = null; stopAudio(); clearInterval(timer); cancelMic(); root.removeEventListener('click',onClick); }
   };
 }

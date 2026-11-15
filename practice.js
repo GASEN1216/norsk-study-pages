@@ -364,7 +364,7 @@
      nor quick, and took many seconds to start on a phone), so nothing waits for a download; since 2026-11-13 nothing
      goes to the server's speech to text either (its daily allowance is kept for 考试与面试 and 朗读). The microphone
      is held while the word itself sounds. */
-  const say = {module:null,loading:null,listener:null,coach:null,opening:null,status:'idle',mic:'',key:null,playing:false,playTimer:null,stuckKey:null,stuckTimer:null,freeKey:null};
+  const say = {request:null,error:null,loadAttempt:0,module:null,loading:null,listener:null,coach:null,opening:null,status:'idle',mic:'',key:null,playing:false,playTimer:null,stuckKey:null,stuckTimer:null,freeKey:null};
   // Tests run this file without timers.
   const sayClear = id => { if (id != null && typeof clearTimeout === 'function') clearTimeout(id); };
   const speakPref = () => state.store.listenAnswer === 'speak';
@@ -384,8 +384,8 @@
   // The module is small and needs no download: load it with the page, so the microphone request starts inside the tap.
   function warmSay() { if (speakPref()) prepareSay(); }
   function loadSay() {
-    say.loading ||= import(`./practice-speak.mjs${state.deps.version ? `?v=${encodeURIComponent(state.deps.version)}` : ''}`)
-      .then(module => module.load().then(() => (say.module = module))).catch(error => { say.loading = null; throw error; });
+    say.loading ||= import(`./practice-speak.mjs?v=${encodeURIComponent(state.deps.version || '')}${say.loadAttempt ? `&retry=${say.loadAttempt}` : ''}`)
+      .then(module => module.load().then(() => (say.module = module))).catch(error => { say.loading = null; say.loadAttempt++; throw error; });
     return say.loading;
   }
   function prepareSay() {
@@ -397,32 +397,34 @@
   }
   // Inside a tap (iOS opens audio only there): with the module loaded the request starts synchronously.
   function openSayMic() {
-    if (say.listener || say.opening) return;
-    if (!say.module) { loadSay().then(openSayMic).catch(() => { say.mic = 'none'; say.micReason = ''; sayUpdate(); }); return; }
-    if (!say.module.supported()) { say.status = 'unsupported'; sayUpdate(); return; }
-    say.status = 'ready';
-    say.mic = 'opening';
-    say.opening = say.module.openMic().then(listener => {
+    if ((say.listener && !say.listener.closed) || say.opening) return;
+    const request = {controller:new AbortController()};
+    say.request = request; say.error = null; say.mic = 'opening'; say.status = 'ready';
+    const failed = error => {
+      if (say.request !== request) return;
+      closeSayMic();
+      if (error?.code === 'cancelled') { say.mic = ''; sayUpdate(); return; }
+      say.error = error?.code ? error : {code:'load'}; say.mic = say.error.code; sayUpdate();
+    };
+    const begin = module => module.openMic({signal:request.controller.signal,onError:failed});
+    say.opening = (say.module ? begin(say.module) : loadSay().then(begin)).then(listener => {
+      if (say.request !== request || !state.visible || state.screen !== 'session' || !speaking(currentSession())) {
+        listener.close(); if (say.request === request) closeSayMic(); return;
+      }
       say.opening = null;
-      // Left the practice, or no 开口 practice started (e.g. 继续上次 was chosen instead), while the browser asked:
-      // the microphone closes again.
-      if (!state.visible || state.screen !== 'session' || !speaking(currentSession())) { listener.close(); say.mic = ''; sayUpdate(); return; }
       say.mic = 'open'; say.listener = listener;
       say.coach = say.module.createCoach(listener,{onLevel:sayLevel,onPass:sayPass});
       say.key = null;
       sayUpdate(); sayListen(0);
-    }).catch(error => {
-      say.opening = null;
-      say.mic = ['denied','busy'].includes(error?.code) ? error.code : 'none';
-      // The browser's own name for the refusal (NotReadableError …), shown small: a screenshot then says what happened.
-      say.micReason = error?.reason || '';
-      sayUpdate();
-    });
+    }).catch(failed);
   }
   function closeSayMic() {
+    const request = say.request; say.request = null; say.opening = null;
+    request?.controller.abort();
     sayClear(say.stuckTimer); sayClear(say.playTimer);
-    say.coach?.close(); say.coach = null; say.listener = null; say.key = null; say.playing = false;
-    if (say.mic === 'open') say.mic = '';
+    say.coach?.close(); say.listener?.close();
+    say.coach = null; say.listener = null; say.key = null; say.playing = false;
+    if (['open','opening'].includes(say.mic)) say.mic = '';
   }
   // Every stop of the page's audio also stops hearing; the next reading of the word starts it again.
   function sayHalt() {
@@ -484,10 +486,10 @@
   function sayCopy(session) {
     const line = (title,small = '',action = '',extra = '') => `<span class="pr-say-mic${extra}">${icon('mic')}<span class="pr-say-meter" id="pr-say-meter"></span></span><span class="pr-say-copy"><strong>${title}</strong>${small ? `<small>${small}</small>` : ''}</span>${action}`;
     if (say.status === 'unsupported') return line(tx('这个浏览器用不了开口跟读'),tx('可以换新版 Chrome、Edge 或 Safari'),'',' is-quiet');
-    const why = text => `${text}${say.micReason ? ` (${say.micReason})` : ''}`;
-    if (say.mic === 'denied') return line(tx('麦克风没有打开'),why(tx('在浏览器和手机设置里允许使用麦克风后再试')),button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
-    if (say.mic === 'busy') return line(tx('麦克风打不开'),why(tx('先结束通话或录音，并在手机设置里允许浏览器使用麦克风')),button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
-    if (say.mic === 'none') return line(tx('没有找到麦克风'),say.micReason ? `(${say.micReason})` : '',button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    if (say.error) {
+      const info = say.module?.micHelp(say.error) || {title:'录音功能未能载入',hint:'请检查网络连接，再试一次。'};
+      return line(tx(info.title),`${tx(info.hint)}${info.app ? ` ${tx(info.app)}` : ''}`,button('say-mic',tx('再试一次'),'','pr-say-link'),' is-quiet');
+    }
     if (say.mic === 'opening') return line(tx('正在打开麦克风…'),'','',' is-quiet');
     if (!say.listener) return button('say-mic',`${icon('mic')}<span>${tx('开口跟读')}</span>`,'','pr-say-open');
     if (say.playing) return line(tx('先听读音'),'','',' is-quiet');
@@ -2670,8 +2672,9 @@
       window.addEventListener('pagehide',releaseEditor);
       window.addEventListener('pageshow',() => { if (editor?.status === 'readonly') acquireEditor(); });
       document.addEventListener('visibilitychange',() => {
-        // Back on the page, 开口跟读 listens again (the word is not read again on its own).
+        // Returning only updates an existing listener; a closed capture waits for another learner tap.
         if (!document.hidden) { if (state.visible && state.screen === 'session') sayListen(0); return; }
+        closeSayMic(); sayUpdate();
         stopFeedback(); releaseFeedbackAudio();
         const session=currentSession();
         if (!session || !state.visible) return;

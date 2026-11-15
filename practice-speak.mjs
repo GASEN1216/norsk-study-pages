@@ -23,8 +23,9 @@ const FORGET_MS = 1500;     // a blip too short to be a word is forgotten after 
 /** Ask for the microphone. Call it inside the learner's tap (iOS starts audio only there): when the module is loaded
  *  already the request starts synchronously. Rejects with an Error whose code is 'denied', 'busy', 'none' or 'unsupported'
  *  (chase-speech.mjs openInput; error.reason is the browser's own name for it). */
-export function openMic() {
-  return speech ? speech.openMic() : loaded.then(module => module.openMic());
+export const micHelp = error => speech?.micHelp(error);
+export function openMic(options) {
+  return speech ? speech.openMic(options) : loaded.then(module => module.openMic(options));
 }
 
 /** One word at a time on an open microphone. onLevel(rms) for the meter; onPass(word) once the learner said something

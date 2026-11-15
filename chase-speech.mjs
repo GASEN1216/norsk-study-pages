@@ -1,11 +1,8 @@
-/* Speech for the whole site: 警察抓小偷's 朗读 (chase.js), 听音选义's 跟读 (practice-speak.mjs) and 考试与面试's dictation
-   (dictation.mjs) all hear the learner through this module.
-   Since 2026-11-12 the words are written down by the community API (POST /ai/transcribe → Cloudflare's Whisper
-   large-v3 turbo), not by a model on the phone: that one (nb-whisper-base, 118 MB) took many seconds to start on every
-   page load and was not exact. The microphone's audio is cut at the speaker's pauses into short stretches (16 kHz),
-   each goes to the server as a WAV, and its transcript is matched against the words expected (matchWords). A word
-   lights up a second or two after the pause that ends it; the underline answers the voice at once (chase.js).
-   Nothing here touches the page at load; the pure matcher is exercised by scripts/check_chase_speech.mjs. */
+/* Shared PCM helpers, legacy transcript matching, and server speech transcription for dictation/interviews.
+   Capture ownership lives in microphone.mjs. The chase game now uses reading-local.mjs for approximate local
+   acoustic comparison; importing a PCM helper from this module never sends audio or starts a recognizer.
+   Server callers explicitly configure the community API and send 16 kHz WAV segments to /ai/transcribe.
+   Nothing here touches the page at load; scripts/check_chase_speech.mjs exercises the pure matcher and service. */
 
 const VOICE_RMS = .02;               // a block louder than this is someone speaking
 
@@ -71,8 +68,9 @@ const nameLike = (heard,want) => heard[0] === want[0] || distance(heard,want) <=
  *  before: the last few words already read. The recogniser hears the last second or so again, so its text often
  *  starts with them; where the text goes on with the same words (Jeg heter … Jeg heter …), words heard that could be
  *  those old ones prove nothing, and nothing is passed on their account.
+ *  strict: every passed word needs a matching token; names and missed words are never inferred from later words.
  *  Returns {count, skipped}: count words from the front are read (skipped of them passed without being heard). */
-export function matchWords(want,heardText,before = []) {
+export function matchWords(want,heardText,before = [],{strict = false} = {}) {
   const words = want.map(item => spokenTokens(item.text).join('')), name = want.map(item => Boolean(item.soft));
   const soft = want.map((item,i) => name[i] || LIGHT.has(words[i]) || !/[a-z]/.test(words[i]));
   const heard = spokenTokens(heardText), old = before.map(item => spokenTokens(item.text ?? item).join('')).filter(Boolean);
@@ -98,6 +96,7 @@ export function matchWords(want,heardText,before = []) {
     if (!words[k]) { k++; continue; }
     const step = at(i,k);
     if (step) { k++; i += step; continue; }
+    if (strict) { i++; continue; }
     if (glued(i,k)) { k += 2; i++; continue; }
     // Up to two soft words in a row pass once the word after them is heard, and the one after that too unless the
     // list ends there (the list is never the end of the text: more words follow, so the last soft word waits).
@@ -165,12 +164,18 @@ export function prepare() {
   if (!server.request) return Promise.resolve(false);
   // The day's allowance is back: ask again.
   if (server.resume && Date.now() >= server.resume) Object.assign(server,{resume:0,status:null});
-  server.status ||= Promise.resolve().then(() => server.request('/ai/status',{timeout:8000}))
+  if (server.status) return server.status;
+  const request = server.request;
+  const status = server.status = Promise.resolve().then(() => request('/ai/status',{timeout:8000}))
     .then(reply => {
+      if (server.request !== request || server.status !== status) return false;
       server.resume = reply?.asrPaused ? Number(reply.asrResume) || nextUtcMidnight() : 0;
-      return (server.ready = Boolean(reply?.asr));
-    }).catch(() => { server.status = null; return false; });
-  return server.status;
+      server.ready = Boolean(reply?.asr);
+      // A temporarily unavailable service is retryable. Only an explicit daily pause is retained until reset.
+      if (!server.ready && !server.resume) server.status = null;
+      return server.ready;
+    }).catch(() => { if (server.status === status) server.status = null; return false; });
+  return status;
 }
 /** 16 kHz float samples → a 16-bit mono PCM WAV, base64 (what /ai/transcribe takes). */
 export function wavBase64(samples) {
@@ -207,96 +212,14 @@ export async function transcribe(samples,{kind = 'exam',hint = [],task,before} =
 
 /* ---------- The microphone ---------- */
 
-/** Ask for the microphone (call inside the player's tap: iOS starts audio only there). Resolves to a listener, or
- *  rejects with an Error whose `code` is 'denied', 'busy', 'none' or 'unsupported' (see openInput). The listener
- *  hears nothing until start(). */
-export async function openMic() {
-  const {context,stream,source} = await openInput();
-  return listener(context,stream,source);
-}
+// Capture ownership, audio-session policy, cancellation and recovery are shared with every speaking feature.
+export {openInput,micFailure,micHelp,micMessage} from './microphone.mjs?v=20261115-local-reading';
+import {openInput,micFailure} from './microphone.mjs?v=20261115-local-reading';
 
-// Apple's WebKit (Safari, and every browser on an iPhone or iPad — Chrome there too) gets an audio context at the
-// device's own rate: a 16 kHz one there can keep the microphone from starting, or hand over too few samples a second.
-// The blocks are brought to 16 kHz here instead (to16k).
-const appleWebKit = () => typeof navigator === 'object' && /^Apple/.test(navigator.vendor || '');
-function newContext(ownRate = appleWebKit()) {
-  const Context = window.AudioContext || window.webkitAudioContext;
-  if (!ownRate) { try { return new Context({sampleRate:RATE}); } catch {} }
-  return new Context();
-}
-const closeContext = context => Promise.resolve().then(() => context?.close?.()).catch(() => {});
-const PERMISSION = new Set(['NotAllowedError','PermissionDeniedError','SecurityError']);
-const MISSING = new Set(['NotFoundError','DevicesNotFoundError','OverconstrainedError']);
-// The browser's refusal as an Error with `code`: 'denied' (the site or the browser app may not use the microphone),
-// 'none' (no microphone), 'unsupported' (no microphone in this browser at all) or 'busy' (it would not start: another
-// app holds it — a call, a voice message — or the phone keeps it from the browser). `reason` is the browser's own name
-// for it (NotReadableError …), shown small after the message so a screenshot says what happened.
-function micFailure(error) {
-  const reason = String(error?.name || 'Error'), failure = new Error(String(error?.message || error || reason));
-  failure.reason = reason;
-  failure.code = PERMISSION.has(reason) ? 'denied' : MISSING.has(reason) ? 'none'
-    : !navigator.mediaDevices?.getUserMedia ? 'unsupported' : 'busy';
-  return failure;
-}
-const VOICE_SETTINGS = {echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1};
-
-// iOS 17+: app.js sets the page's audio session to 'playback' on the first tap, so word readings sound with the silent
-// switch on — and WebKit refuses the microphone to a page whose session says 'playback', before any question
-// (InvalidStateError "AudioSession category is not compatible with audio capture"): every iPhone browser said 没有找到麦克风
-// or 麦克风打不开 with the permission on (2026-11-15). So the session is switched to play-and-record (sound still plays,
-// through the speaker, silent switch or not) before the microphone is asked for. window.NorskMicrophone.live() tells
-// app.js a microphone is still open, so it does not ask for 'playback' again until all are closed.
-const openStreams = new Set();
-function microphoneLive() {
-  for (const stream of openStreams) {
-    if (stream.getTracks().some(track => track.readyState === 'live')) return true;
-    openStreams.delete(stream);
-  }
-  return false;
-}
-function recordingSession() {
-  if (typeof window === 'object' && !window.NorskMicrophone) window.NorskMicrophone = {live:microphoneLive};
-  const session = typeof navigator === 'object' ? navigator.audioSession : null;
-  if (!session || session.type === 'auto' || session.type === 'play-and-record') return;
-  try { session.type = 'play-and-record'; } catch {}
-}
-
-/** The microphone as an audio context (16 kHz where the browser allows, else the device's own rate), its stream and the
- *  stream's source node, for other listeners (dictation.mjs). Same rules as openMic: call it inside a tap.
- *  A phone that will not open the microphone the first way (a context already open, or the voice settings) is asked
- *  once more for the plain microphone with nothing else open; a refusal by the learner is never asked again. */
-export async function openInput() {
-  if (!navigator.mediaDevices?.getUserMedia) throw micFailure({name:'NotSupportedError',message:'no mediaDevices'});
-  recordingSession();
-  // Made inside the tap: iOS lets a context start only there (or while the microphone is open).
-  let context = newContext();
-  context.resume?.().catch(() => {});
-  let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({audio:VOICE_SETTINGS}); }
-  catch (error) {
-    await closeContext(context);
-    if (PERMISSION.has(error?.name)) throw micFailure(error);
-    try { stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
-    catch (again) { throw micFailure(again); }
-    context = newContext(true);
-  }
-  openStreams.add(stream);
-  if (context.state !== 'running') context.resume?.().catch(() => {});
-  // A browser that cannot hear the microphone through a 16 kHz context (Firefox) gets one at its own rate.
-  let source;
-  try { source = context.createMediaStreamSource(stream); }
-  catch {
-    await closeContext(context);
-    context = newContext(true);
-    context.resume?.().catch(() => {});
-    try { source = context.createMediaStreamSource(stream); }
-    catch (error) {
-      stream.getTracks().forEach(track => track.stop());
-      await closeContext(context);
-      throw Object.assign(micFailure(error),{code:'busy'});
-    }
-  }
-  return {context,stream,source};
+/** Capture starts in the initiating tap. signal cancels an abandoned view; onError reports later interruptions. */
+export async function openMic(options = {}) {
+  const input = await openInput(options);
+  return listener(input);
 }
 
 /** One block of samples at `rate` → 16 kHz. Going down, each new sample is the mean of the samples it stands for (a
@@ -320,35 +243,12 @@ export function to16k(block,rate) {
 // Messenger apps' own browsers (WeChat, QQ, DingTalk, Weibo, Feishu, Douyin): the microphone often opens only in the
 // phone's real browser.
 export const inAppBrowser = () => typeof navigator === 'object' && /MicroMessenger|QQ\/|DingTalk|Weibo|Lark|Feishu|aweme|Bytedance/i.test(navigator.userAgent || '');
-/** What to tell the learner when the microphone did not open (考试与面试, in Chinese; chase.js and practice.js say it
- *  through tx()). `again`: how the sentence ends ('再点一次'). */
-export function micMessage(error,again = '再点一次') {
-  const code = error?.code, hint = inAppBrowser() && code !== 'unsupported' ? '在微信等应用里打不开时，请点右上角「…」选「在浏览器打开」。' : '';
-  const text = code === 'denied' ? `麦克风没有打开。请允许这个网站使用麦克风；如果没有弹出询问，请到手机「设置」里允许这个浏览器使用麦克风，${again}。`
-    : code === 'busy' ? `麦克风打不开：可能正在通话、录音或发语音消息，或者手机没有允许这个浏览器使用麦克风。请先关掉这些，到手机「设置」里打开这个浏览器的麦克风权限，${again}。`
-    : code === 'none' ? `没有找到麦克风。请检查麦克风或耳机，${again}。`
-    : code === 'unsupported' ? '这个浏览器用不了麦克风，请换新版 Chrome、Edge 或 Safari 打开。'
-    : `麦克风暂时打不开，请${again}。`;
-  return `${text}${hint}${error?.reason ? `（${error.reason}）` : ''}`;
-}
-
 // The speech of a listener, cut at pauses. Each stretch goes to the server as soon as it ends (they travel side by
 // side: a round trip takes a second or more), and their transcripts are reported in the order they were said. What
 // was heard before hold() or cut() is never reported.
-function listener(context,stream,input) {
+function listener(input) {
+  const {context} = input;
   const rate = context.sampleRate;
-  let source, processor, mute;
-  try {
-    source = input || context.createMediaStreamSource(stream);
-    // Blocks of about 64 ms at 16 kHz: the level answers the voice at once.
-    processor = context.createScriptProcessor(rate <= 24000 ? 1024 : 2048,1,1); mute = context.createGain();
-    mute.gain.value = 0;
-    source.connect(processor); processor.connect(mute); mute.connect(context.destination);
-  } catch (error) {
-    stream.getTracks().forEach(track => track.stop());
-    context.close?.().catch(() => {});
-    throw error;
-  }
   let on = false, closed = false, held = false, onText = null, onLevel = null, expected = null, kind = 'read', gen = 0;
   let parts = [], length = 0, voiced = 0, quiet = 0, lead = [], total = 0, queue = Promise.resolve();
   const stats = {passes:0,ms:0,slowest:0,failed:0};
@@ -371,9 +271,8 @@ function listener(context,stream,input) {
       if (out.text) onText?.(out.text,{ms:out.ms,at:end,hint});
     },() => { stats.failed++; });
   }
-  processor.onaudioprocess = event => {
+  const hear = block => {
     if (!on || held || closed) return;
-    const block = event.inputBuffer.getChannelData(0);
     let sum = 0;
     for (const v of block) sum += v*v;
     const level = Math.sqrt(sum/block.length), fresh = resample(block), seconds = fresh.length/RATE;
@@ -394,15 +293,23 @@ function listener(context,stream,input) {
     lead.push(fresh);
     while (lead.reduce((sum,piece) => sum+piece.length,0) > PAD_SECONDS*RATE && lead.length > 1) lead.shift();
   };
+  function close() {
+    if (closed) return;
+    closed = true; on = false; gen++; drop();
+    input.close();
+  }
+  input.onFailure(close);
+  try { input.listen(hear); } catch (error) { close(); throw micFailure(error,'processor','audio'); }
   return {
+    get closed() { return closed || input.closed; },
     stats,
     /** Begin listening: onText(text,{ms,at,hint}) for each stretch written down (none when onText is null: then only the
      *  level is heard), onLevel(rms) for each block (about 16 a second), expect() → words the speaker is about to say.
      *  kind: what it is for on the server ('read' for 朗读, 'exam' for 考试与面试; 跟读's 'word' sends nothing). */
-    start(textHandler,levelHandler,expect,use = 'read') { onText = textHandler; onLevel = levelHandler; expected = expect || null; kind = use; on = true; context.resume?.().catch(() => {}); },
+    start(textHandler,levelHandler,expect,use = 'read') { onText = textHandler; onLevel = levelHandler; expected = expect || null; kind = use; on = true; void input.resume(); },
     /** Stop hearing: a stretch under way is sent if it holds a word, then nothing more until resume(). */
     pause() { if (length) send(); on = false; },
-    resume() { if (closed) return; on = true; context.resume?.().catch(() => {}); },
+    resume() { if (closed) return; on = true; void input.resume(); },
     /** Words were matched up to `at`: nothing to do since stretches never overlap (kept for chase.js). */
     mark() {},
     /** A word was passed by hand: what was heard so far, and transcripts still on their way, are dropped. */
@@ -410,12 +317,6 @@ function listener(context,stream,input) {
     /** The page itself is about to make a sound (a word's reading): nothing is heard, or reported, until release(). */
     hold() { held = true; gen++; drop(); },
     release() { if (!held) return; held = false; gen++; drop(); },
-    close() {
-      closed = true;
-      on = false;
-      try { processor.disconnect(); source.disconnect(); mute.disconnect(); } catch {}
-      stream.getTracks().forEach(track => track.stop());
-      context.close?.().catch(() => {});
-    }
+    close
   };
 }

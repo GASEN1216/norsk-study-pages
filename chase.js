@@ -1017,6 +1017,7 @@
   function onVisibility() {
     if (ui.room && !document.hidden) schedulePoll(0);
     if (document.hidden) {
+      closeMic(); closeRoomMic();
       releaseSfx();
       pauseMusic();
       pauseGame();
@@ -1739,6 +1740,7 @@
         const me = game.players.find(player => player.me);
         if (me) me.read = {pos:0,word:0,carry:0,passed:0,soft:0,movedAt:0};
         Object.assign(ui,{mic:ui.roomMic || null,micStarted:false,micOn:false,voiceAt:0,heardAt:0,hearing:false});
+        ui.micRequest = ui.roomMicRequest; ui.roomMicRequest = null;
         ui.roomMic = null;
       }
       ui.game = game;
@@ -2001,9 +2003,10 @@
     closeMic();
     // 朗读: the microphone is asked for inside this tap (iOS starts audio only in a tap). A start left behind closes it.
     const reading = prefs.input === 'read';
-    const micAsk = reading ? (ui.speech ? ui.speech.openMic() : loadSpeech().then(speech => speech.openMic())) : null;
+    const micAsk = reading ? requestMic() : null;
+    const micRequest = ui.micRequest;
     micAsk?.catch(() => {});
-    const dropMic = () => micAsk?.then(mic => mic.close(),() => {});
+    const dropMic = () => { micRequest?.controller.abort(); micAsk?.then(mic => mic.close(),() => {}); };
     stopSlice();
     wakeSfx();
     ui.calm = reduceMotion();
@@ -2029,7 +2032,7 @@
       let mic = null;
       if (reading) {
         if (!heard) { dropMic(); ui.game = null; show('setup'); notify(readState(),6000); return; }
-        try { mic = await micAsk; }
+        try { mic = await micAsk; if (mic.closed) throw Object.assign(new Error('Recording interrupted'),{code:'interrupted'}); }
         catch (error) {
           if (!current()) return;
           ui.game = null;
@@ -2341,31 +2344,20 @@
   }
 
   /* ---------- 朗读: reading the text aloud ---------- */
-  // What is read is written down by the community API (chase-speech.mjs → /ai/transcribe; nothing to download, nothing
-  // starts on the phone). Its state for the setup page and the loading screen: 'unknown' (not asked yet),
-  // 'unsupported' (no microphone in this browser), 'loading' (asking the server), 'ready', 'failed' (not available now).
-  const speechOf = () => ui.speech;
+  // Approximate acoustic comparison runs in a local worker; the server does not receive game microphone audio.
+  const readingKeys = new WeakMap();
+  let readingSequence = 0;
   function loadSpeech() {
-    ui.speechLoad ||= import(versioned('./chase-speech.mjs')).then(module => {
-      module.useServer((path,options) => Promise.resolve(ui.opts.community?.()).then(community => {
-        if (!community?.request) throw new Error('no community');
-        return community.request(path,options);
-      }));
-      // The site's speech allowance ran out during a game (every service on the server is spent until 08:00 Beijing):
-      // say so once instead of words silently not lighting up.
-      module.whenPaused?.(() => { ui.reading = {status:'failed'}; showReadState(); notify(readState(),8000); });
-      return (ui.speech = module);
-    }).catch(error => { ui.speechLoad = null; throw error; });
+    ui.speechLoad ||= import(versioned('./reading-local.mjs')).then(module => (ui.speech = module))
+      .catch(error => { ui.speechLoad = null; throw error; });
     return ui.speechLoad;
   }
   function readState() {
     const r = ui.reading || {status:'unknown'};
     if (r.status === 'unsupported') return tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。');
-    const paused = ui.speech?.pausedAt?.();
-    if (r.status === 'failed' && paused) return tx('今天全站的语音识别额度用完了，北京时间 {time} 恢复。',{time:paused});
-    if (r.status === 'failed') return tx('语音识别暂时用不了，请稍后再试。');
-    if (r.status === 'ready') return tx('语音识别已准备好。开始时会请你允许使用麦克风。');
-    return tx('正在检查语音识别…');
+    if (r.status === 'failed') return tx('朗读参考未能载入，请检查网络后再试。');
+    if (r.status === 'ready') return tx('逐词朗读，词间稍作停顿。按发音相似度判断，不是发音考试；开始时请允许麦克风。');
+    return tx('正在准备朗读参考…');
   }
   function showReadState() {
     const line = $('#pc-read-state');
@@ -2373,12 +2365,12 @@
     const loading = $('#pc-loading');
     if (loading && ui.view === 'game' && ui.reading?.status === 'loading') loading.textContent = readState();
   }
-  // On the setup page with 朗读 chosen: ask the server whether it writes speech down (a moment, nothing to download).
+  // Load a small reference manifest first; word references are fetched as they are needed and kept in memory.
   async function checkSpeech() {
     if (ui.reading && ui.reading.status !== 'unknown' && ui.reading.status !== 'failed') return;
     await prepareSpeech();
   }
-  // Resolves true when what is read can be written down.
+  // No ASR availability or daily speech allowance gates this game.
   async function prepareSpeech() {
     try {
       const speech = await loadSpeech();
@@ -2394,10 +2386,33 @@
       return false;
     }
   }
+  function requestMic(room = false) {
+    const key = room ? 'roomMicRequest' : 'micRequest';
+    if (ui[key]) return ui[key].promise;
+    const request = {controller:new AbortController(),promise:null};
+    ui[key] = request;
+    let opened;
+    const lost = error => {
+      if (opened && ui.mic === opened) closeMic();
+      if (opened && ui.roomMic === opened) closeRoomMic();
+      if (ui[key] === request) { ui[key] = null; request.controller.abort(); }
+      if (ui.open && !document.hidden) notify(micProblem(error),9000);
+    };
+    const begin = speech => speech.openMic({signal:request.controller.signal,onError:lost,
+      onState:state => { if (opened && ui.mic === opened) localMicState(state); }});
+    request.promise = (ui.speech ? begin(ui.speech) : loadSpeech().then(begin)).then(mic => {
+      opened = mic;
+      if (request.controller.signal.aborted) { mic.close(); throw Object.assign(new Error('cancelled'),{code:'cancelled'}); }
+      return mic;
+    }).catch(error => { if (ui[key] === request) ui[key] = null; throw error; });
+    return request.promise;
+  }
   function closeMic() {
+    const request = ui.micRequest; ui.micRequest = null;
+    request?.controller.abort();
     try { ui.mic?.close(); } catch {}
     ui.mic = null;
-    ui.micOn = false;
+    ui.micOn = false; ui.micStarted = false; ui.micState = '';
   }
   // Called every frame: the microphone listens exactly while my reading game is running (not before the start signal,
   // behind the leave dialog, in a hidden tab or after the end).
@@ -2411,7 +2426,7 @@
     const want = Boolean(game?.read && game.status === 'playing' && !game.paused && !game.over && !ui.confirming);
     if (want !== ui.micOn) {
       ui.micOn = want;
-      if (want && !ui.micStarted) { ui.micStarted = true; ui.mic.start(onHeard,onLevel,expectedWords); }
+      if (want && !ui.micStarted) { ui.micStarted = true; ui.mic.start(onLocalWord,onLevel,expectedWord); }
       else if (want) ui.mic.resume();
       else ui.mic.pause();
       micLabel(want ? tx('在听，请念上面的句子') : tx('暂停'));
@@ -2424,7 +2439,8 @@
       if (heard) { heard.textContent = tx('不会念的词，点一下听读音'); heard.removeAttribute('lang'); }
     }
     // Reading without a word getting through for a while: offer to pass the word.
-    const me = game.players.find(player => player.me), stuck = gameNow(game)-(me.read.movedAt || 0) > STUCK_MS && performance.now()-(ui.voiceAt || 0) < 2500;
+    const me = game.players.find(player => player.me), stuck = ['missing','unavailable'].includes(ui.micState)
+      || gameNow(game)-(me.read.movedAt || 0) > STUCK_MS && performance.now()-(ui.voiceAt || 0) < 2500;
     const skip = $('#pc-skip');
     if (skip && skip.hidden === stuck) skip.hidden = !stuck;
   }
@@ -2432,87 +2448,96 @@
     const label = $('#pc-mic-text');
     if (label && label.textContent !== text) label.textContent = text;
   }
+  function localMicState(state) {
+    ui.micState = state;
+    if (!ui.micOn) return;
+    const text = state === 'loading' ? tx('正在准备这个词…')
+      : state === 'missing' ? tx('这个词缺少参考读音，可以点跳过')
+      : state === 'unavailable' ? tx('这个词的参考未能载入，可以点跳过')
+      : state === 'retry' ? tx('再念一次当前词，词后稍作停顿')
+      : state === 'pause-between' ? tx('请逐词朗读，词间稍作停顿') : tx('在听，请念上面的句子');
+    micLabel(text);
+  }
   function onLevel(level) {
     if (level > .02) ui.voiceAt = performance.now();
     const dot = $('#pc-mic');
     if (dot) dot.style.setProperty('--level',Math.min(1,level*12).toFixed(2));
-    // The underline of the word to read answers my voice at once (the recogniser needs a moment longer).
+    // The underline answers voice activity; a completed word advances only after acoustic comparison.
     $('#pc-type')?.classList.toggle('is-voice',performance.now()-(ui.voiceAt || 0) < 320);
   }
-  // What the recogniser may lean towards: the last words read (it hears the last second again) and the next dozen.
-  function expectedWords() {
+  function expectedWord() {
     const game = ui.game, me = game?.players.find(player => player.me);
-    if (!game?.read || !me?.read) return [];
-    return game.text.words.slice(Math.max(0,me.read.word-4),me.read.word+12).map(word => word.text);
+    const word = game?.text.words[me?.read?.word];
+    if (!game?.read || !me?.read || !word) return null;
+    if (!readingKeys.has(game)) readingKeys.set(game,++readingSequence);
+    return {id:`${readingKeys.get(game)}:${me.read.word}`,text:word.text,clip:word.clip,
+      next:game.text.words.slice(me.read.word+1,me.read.word+5).map(item => item.clip).filter(Boolean)};
   }
-  // A transcript of the last few seconds: how many of the words still to read does it hold?
-  function onHeard(text,info) {
-    const game = ui.game, speech = speechOf();
-    if (!game?.read || game.status !== 'playing' || game.paused || game.over || !speech) return;
+  function onLocalWord(text,info) {
+    const game = ui.game;
+    if (!game?.read || game.status !== 'playing' || game.paused || game.over || ui.confirming || !info?.local || info.id !== expectedWord()?.id) return;
     const me = game.players.find(player => player.me), from = me.read.word;
-    const words = game.text.words.slice(from,from+12);
-    // Proper nouns (the reader lexicon's 专名, or capitalised inside a sentence) may be spelt any way by the recogniser.
-    const want = words.map(word => ({text:word.text,soft:Boolean(word.name) || (word.start > 0 && /^\p{Lu}/u.test(word.text))}));
-    // (what the server wrote is never shown: it is often not quite what was said)
-    const {count,skipped} = speech.matchWords(want,text,game.text.words.slice(Math.max(0,from-6),from).map(word => word.text));
+    const word = game.text.words[from];
     ui.heardAt = performance.now();
-    if (!count) return;
     const now = gameNow(game);
-    for (const word of words.slice(0,count)) readWord(game,me,word,now);
-    me.read.soft += skipped;
+    readWord(game,me,word,now);
     me.read.movedAt = now;
-    // The last word read gets a bubble (several words come at once: one bubble each would pile up).
-    bubble(me,words[count-1].text,now);
-    ui.mic?.mark(info.at);
+    bubble(me,word.text,now);
     $('#pc-skip')?.setAttribute('hidden','');
     updateLine(game,me);
   }
   // The microphone for a room: asked for in the 准备 tap, kept until the game starts (then it is the game's).
   async function readyToRead() {
-    if (ui.readying) return;
-    ui.readying = true;
+    if (ui.readying || !ui.room) return;
+    const room = ui.room, token = ui.readying = {};
+    const current = () => ui.open && ui.room === room && ui.readying === token && !document.hidden;
+    let ask, adopted = false;
     try {
-      const speech = ui.speech || await loadSpeech();
-      const ask = ui.roomMic ? Promise.resolve(ui.roomMic) : speech.openMic();
+      ask = ui.roomMic && !ui.roomMic.closed ? Promise.resolve(ui.roomMic) : requestMic(true);
       ask.catch(() => {});
-      if (!await prepareSpeech()) { notify(readState(),6000); return; }
-      try { ui.roomMic = await ask; }
-      catch (error) { notify(micProblem(error,true),9000); return; }
+      if (!await prepareSpeech()) { if (current()) notify(readState(),6000); return; }
+      const mic = await ask;
+      if (mic.closed) throw Object.assign(new Error('Recording interrupted'),{code:'interrupted'});
+      if (!current()) { mic.close(); return; }
+      ui.roomMic = mic; adopted = true;
       await roomAction('ready',{ready:true});
-    } catch { notify(readState(),6000); }
-    finally { ui.readying = false; }
+    } catch (error) {
+      if (current() && error?.code !== 'cancelled') notify(micProblem(error,true),9000);
+    } finally {
+      if (ui.readying === token) {
+        ui.readying = false;
+        // Failed preparation or a view left behind must not retain a late microphone.
+        if (!adopted) { closeRoomMic(); ask?.then(mic => mic.close(),() => {}); }
+      }
+    }
   }
   function closeRoomMic() {
+    ui.readying = false;
+    const request = ui.roomMicRequest; ui.roomMicRequest = null;
+    request?.controller.abort();
     try { ui.roomMic?.close(); } catch {}
     ui.roomMic = null;
   }
   // The mic chip tapped in a game that has no microphone yet.
   async function openMicNow() {
     const game = ui.game;
-    if (!game?.read || ui.mic) return;
+    if (!game?.read || ui.mic || ui.micRequest) return;
     try {
-      const speech = ui.speech || await loadSpeech();
-      const mic = await speech.openMic();
-      if (ui.game !== game) { mic.close(); return; }
+      const mic = await requestMic();
+      if (mic.closed) throw Object.assign(new Error('Recording interrupted'),{code:'interrupted'});
+      if (ui.game !== game || document.hidden) { mic.close(); return; }
       Object.assign(ui,{mic,micStarted:false,micOn:false});
       const chip = $('#pc-mic');
       if (chip) { delete chip.dataset.pc; chip.setAttribute('role','status'); chip.removeAttribute('tabindex'); chip.classList.remove('is-ask'); }
     } catch (error) {
-      notify(micProblem(error),9000);
+      if (ui.game === game && ui.open && !document.hidden && error?.code !== 'cancelled') notify(micProblem(error),9000);
     }
   }
   // The microphone did not open (chase-speech.mjs openInput: error.code, and the browser's own name for it in
   // error.reason, shown small so a screenshot says what happened). ready: the 准备 tap of a reading room.
   function micProblem(error,ready = false) {
-    const code = error?.code;
-    const text = code === 'denied' ? (ready ? tx('没有允许使用麦克风，不能准备。请允许这个网站使用麦克风；没有弹出询问时，到手机「设置」里允许这个浏览器使用麦克风。')
-        : tx('没有允许使用麦克风。请允许这个网站使用麦克风；没有弹出询问时，到手机「设置」里允许这个浏览器使用麦克风，再开始。'))
-      : code === 'busy' ? tx('麦克风打不开：可能正在通话、录音或发语音消息，或者手机没有允许这个浏览器使用麦克风。请先关掉这些，到手机「设置」里打开这个浏览器的麦克风权限，再试一次。')
-      : code === 'unsupported' ? tx('这个浏览器用不了朗读，请换用较新的 Chrome、Edge 或 Safari。')
-      : code === 'none' ? (ready ? tx('没有找到麦克风，不能准备。') : tx('没有找到麦克风，请检查后再开始。'))
-      : tx('麦克风暂时打不开，请再试一次。');
-    const hint = code !== 'unsupported' && ui.speech?.inAppBrowser?.() ? tx('在微信等应用里打不开时，请点右上角「…」选「在浏览器打开」。') : '';
-    return `${text}${hint ? ` ${hint}` : ''}${error?.reason ? ` (${error.reason})` : ''}`;
+    const info = ui.speech?.micHelp(error) || {title:'录音功能未能载入',hint:'请检查网络连接，再试一次。'};
+    return `${tx(info.title)}。${tx(info.hint)}${info.app ? ` ${tx(info.app)}` : ''}${error?.reason ? ` (${error.reason})` : ''}`;
   }
   // A tap on a word of the line: its reading plays, for a reader who is not sure how the word is said. The microphone
   // would hear the reading as if I had said it, so listening holds until the reading has ended (and a moment more, for

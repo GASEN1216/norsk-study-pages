@@ -6,14 +6,26 @@ export function createDataLoader(data, {version, timeout = 20000, fetcher = glob
     if (pending.has(name)) return pending.get(name);
     const request = (async () => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+      let timer;
       try {
-        const separator = path.includes('?') ? '&' : '?';
-        const response = await fetcher(version ? `${path}${separator}v=${encodeURIComponent(version)}` : path, {signal:controller.signal});
-        if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
-        const value = await response.json();
-        data[name] = value;
-        return value;
+        const expired = new Promise((_,reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(Object.assign(new Error(`${name}: request timed out`),{name:'AbortError'}));
+          },timeout);
+        });
+        const operation = (async () => {
+          const separator = path.includes('?') ? '&' : '?';
+          const response = await fetcher(version ? `${path}${separator}v=${encodeURIComponent(version)}` : path, {signal:controller.signal});
+          if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+          const value = await response.json();
+          // A late response from an aborted request must not overwrite a successful retry's cache.
+          if (controller.signal.aborted) throw Object.assign(new Error(`${name}: expired response`),{name:'AbortError'});
+          data[name] = value;
+          return value;
+        })();
+        // Bound both transport and body decoding, even if a fetch adapter ignores AbortSignal.
+        return await Promise.race([operation,expired]);
       } finally {
         clearTimeout(timer);
       }

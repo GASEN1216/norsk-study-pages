@@ -1,11 +1,11 @@
-import {createDataLoader} from './loader.mjs?v=20261115-interview-say';
-import {createReadingLibrary} from './reading-library.mjs?v=20261115-interview-say';
-import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261115-interview-say';
-import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261115-interview-say';
-import * as notesModel from './notes-store.mjs?v=20261115-interview-say';
-import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261115-interview-say';
+import {createDataLoader} from './loader.mjs?v=20261115-local-reading';
+import {createReadingLibrary} from './reading-library.mjs?v=20261115-local-reading';
+import {createVocabularyLibrary} from './vocabulary-library.mjs?v=20261115-local-reading';
+import {createWordbookStore,createWordbookSync,wordbookVocabulary,wordProblem,wordKey,parseBatch,STORAGE_KEY as WORDBOOK_KEY,SYNC_KEY as WORDBOOK_SYNC_KEY} from './wordbook-store.mjs?v=20261115-local-reading';
+import * as notesModel from './notes-store.mjs?v=20261115-local-reading';
+import {createWordbookLookup} from './wordbook-lookup.mjs?v=20261115-local-reading';
 
-const VERSION = '20261115-interview-say';
+const VERSION = '20261115-local-reading';
 
 /* ---------- Interface language (练习 and the online games; the study pages stay Chinese) ----------
    Chinese unless chosen otherwise. A device picks English by itself only once, on its first visit, when none of the
@@ -1145,7 +1145,7 @@ async function getPDF(file) {
   requestURL.searchParams.set('v',VERSION);
   const url = requestURL.href;
   if (state.pdfCache.has(url)) return state.pdfCache.get(url);
-  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261115-interview-say').then(module => {
+  if (!pdfjsPromise) pdfjsPromise = import('./vendor/pdf.mjs?v=20261115-local-reading').then(module => {
     module.GlobalWorkerOptions.workerSrc = new URL(`./vendor/pdf.worker.mjs?v=${VERSION}`,document.baseURI).href;
     return module;
   }).catch(error => { pdfjsPromise = null; throw error; });
@@ -1424,6 +1424,7 @@ function wordWebAudioAllowed() {
 // the session to play-and-record and says so in NorskMicrophone) it is left alone; the next tap after the microphone
 // has closed asks for playback again.
 function playbackAudioSession() {
+  if (window.NorskMicrophone?.playback) { window.NorskMicrophone.playback(); return; }
   const session = navigator.audioSession;
   if (!session || session.type === 'playback') return;
   try { if (window.NorskMicrophone?.live?.()) return; } catch {}

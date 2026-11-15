@@ -134,24 +134,12 @@ export const countWords = text => String(text || '').split(/\s+/).filter(word =>
  *  'denied'|'busy'|'none'|'unsupported' (micMessage says what to do). */
 // transcribe(samples, before) writes each stretch down (serverTranscriber). A stretch that fails is lost (the answer
 // goes on); stop() says so when nothing at all was written down.
-export async function record({onText,onLevel,onPause,transcribe} = {}) {
+export async function record({onText,onLevel,onPause,transcribe,signal,onError} = {}) {
   const server = typeof transcribe === 'function';
   let serverFailed = false;
   const module = speech || await loaded;
-  const {context,stream,source:input} = await module.openInput();
-  const rate = context.sampleRate;
-  let source, processor, mute;
-  try {
-    source = input || context.createMediaStreamSource(stream);
-    processor = context.createScriptProcessor(rate <= 24000 ? 1024 : 2048,1,1); mute = context.createGain();
-    mute.gain.value = 0;
-    source.connect(processor); processor.connect(mute); mute.connect(context.destination);
-  } catch (error) {
-    // The microphone is open but cannot be listened to (e.g. a browser that refuses a 16 kHz context for it).
-    stream.getTracks().forEach(track => track.stop());
-    context.close?.().catch(() => {});
-    throw error;
-  }
+  const input = await module.openInput({signal,onError});
+  const rate = input.context.sampleRate;
   const pieces = [], inflight = new Set();
   let held = false, closed = false, generation = 0;
   const text = () => pieces.filter(Boolean).join(' ').replace(/\s+([.,!?])/g,'$1').trim();
@@ -170,23 +158,23 @@ export async function record({onText,onLevel,onPause,transcribe} = {}) {
   const fresh = () => createSegmenter({onSegment:samples => write(samples,count++,generation),onPause,options:{...SEGMENT,longest:RECORD_LONGEST}});
   let segmenter = fresh();
   const resample = block => module.to16k(block,rate);
-  processor.onaudioprocess = event => {
+  const hear = raw => {
     if (held || closed) return;
-    const block = resample(event.inputBuffer.getChannelData(0));
+    const block = resample(raw);
     let sum = 0;
     for (const value of block) sum += value*value;
     onLevel?.(Math.sqrt(sum/block.length));
     segmenter.push(block);
   };
-  context.resume?.().catch(() => {});
   function close() {
     if (closed) return;
     closed = true;
-    try { processor.disconnect(); source.disconnect(); mute.disconnect(); } catch {}
-    stream.getTracks().forEach(track => track.stop());
-    context.close?.().catch(() => {});
+    input.close();
   }
+  input.onFailure(close);
+  try { input.listen(hear); } catch (error) { close(); throw module.micFailure(error,'processor','audio'); }
   return {
+    get closed() { return closed || input.closed; },
     get stats() { return segmenter.stats; },
     /** Whether the server writes this recording down (record's transcribe). */
     get server() { return server; },
